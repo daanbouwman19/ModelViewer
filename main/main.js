@@ -7,25 +7,16 @@ const crypto = require('crypto');
 const http = require('http');
 const url = require('url');
 
-const Database = require('better-sqlite3');
-let db;
+const { 
+    MAX_DATA_URL_SIZE_MB, 
+    // FILE_INDEX_CACHE_KEY, // No longer needed directly in main.js for scanning
+    SUPPORTED_IMAGE_EXTENSIONS, 
+    SUPPORTED_VIDEO_EXTENSIONS, 
+    // ALL_SUPPORTED_EXTENSIONS // No longer needed directly in main.js for scanning
+} = require('./constants.js'); // FILE_INDEX_CACHE_KEY and ALL_SUPPORTED_EXTENSIONS are used in database.js and media-scanner.js respectively
 
-try {
-    const dbPath = path.join(app.getPath('userData'), 'media_slideshow_stats.sqlite');
-    db = new Database(dbPath);
-    db.exec(`CREATE TABLE IF NOT EXISTS media_views (file_path_hash TEXT PRIMARY KEY, file_path TEXT UNIQUE, view_count INTEGER DEFAULT 0, last_viewed TEXT);`);
-    db.exec(`CREATE TABLE IF NOT EXISTS app_cache (cache_key TEXT PRIMARY KEY, cache_value TEXT, last_updated TEXT);`);
-    console.log('[main.js] SQLite database initialized.');
-} catch (error) {
-    console.error('[main.js] CRITICAL ERROR: Failed to initialize SQLite database.', error);
-    db = null; 
-}
-
-const MAX_DATA_URL_SIZE_MB = 50; 
-const FILE_INDEX_CACHE_KEY = 'file_index_json';
-const SUPPORTED_IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'];
-const SUPPORTED_VIDEO_EXTENSIONS = ['.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv'];
-const ALL_SUPPORTED_EXTENSIONS = [...SUPPORTED_IMAGE_EXTENSIONS, ...SUPPORTED_VIDEO_EXTENSIONS];
+const { initDatabase, recordMediaView, getMediaViewCounts, cacheModels, getCachedModels } = require('./database.js');
+const { performFullMediaScan } = require('./media-scanner.js'); // Added import
 
 let serverPort = 0; // Will be set when the server starts
 
@@ -74,95 +65,41 @@ ipcMain.handle('load-file-as-data-url', (event, filePath) => {
     }
 });
 
-function generateFileId(filePath) { return crypto.createHash('md5').update(filePath).digest('hex'); }
-
 ipcMain.handle('record-media-view', async (event, filePath) => { 
-    if (!db) {
-        console.warn('[main.js] Database not available for record-media-view');
-        return; 
-    }
-    const fileId = generateFileId(filePath); 
-    try { 
-        const stmt_insert = db.prepare(`INSERT OR IGNORE INTO media_views (file_path_hash, file_path, view_count, last_viewed) VALUES (?, ?, 0, ?)`); 
-        const stmt_update = db.prepare(`UPDATE media_views SET view_count = view_count + 1, last_viewed = ? WHERE file_path_hash = ?`); 
-        db.transaction(() => { 
-            stmt_insert.run(fileId, filePath, new Date().toISOString()); 
-            stmt_update.run(new Date().toISOString(), fileId); 
-        })(); 
-        console.log(`[main.js] Successfully recorded view for ${fileId}`);
-    } catch (error) { 
-        console.error(`[main.js] Error recording view for ${filePath} (ID: ${fileId}) in SQLite:`, error); 
-    } 
+    await recordMediaView(filePath); 
 });
-
-async function getMediaViewCountsLogicSQLite(filePaths) { 
-    if (!db || !filePaths || filePaths.length === 0) return {};
-    const viewCountsMap = {};
-    try {
-        const placeholders = filePaths.map(() => '?').join(',');
-        const fileIds = filePaths.map(generateFileId);
-        const stmt = db.prepare(`SELECT file_path_hash, view_count FROM media_views WHERE file_path_hash IN (${placeholders})`);
-        const rows = stmt.all(fileIds);
-        const countsByHash = {};
-        rows.forEach(row => { countsByHash[row.file_path_hash] = row.view_count; });
-        filePaths.forEach(filePath => {
-            const fileId = generateFileId(filePath);
-            viewCountsMap[filePath] = countsByHash[fileId] || 0;
-        });
-    } catch (error) { console.error('[main.js] Error fetching view counts from SQLite:', error); }
-    return viewCountsMap;
-}
 
 ipcMain.handle('get-media-view-counts', async (event, filePaths) => {
-    return getMediaViewCountsLogicSQLite(filePaths);
+    return getMediaViewCounts(filePaths);
 });
 
-async function scanDiskForModelsAndCache() { 
-    console.log('[main.js] Starting disk scan for models...');
-    const baseMediaDirectory = 'D:\\test'; 
-    const models = []; 
-    try { 
-        if (!fs.existsSync(baseMediaDirectory)) {
-            console.error(`[main.js] Base media directory not found: ${baseMediaDirectory}`);
-            return []; 
-        }
-        const modelFolders = fs.readdirSync(baseMediaDirectory, { withFileTypes: true }).filter(d => d.isDirectory()).map(d => d.name); 
-        for (const f of modelFolders) { 
-            const p = path.join(baseMediaDirectory, f); 
-            const files = findAllMediaFiles(p); 
-            if (files.length > 0) models.push({ name: f, textures: files }); 
-        } 
-    } catch (e) { 
-        console.error(`[main.js] Error scanning disk for models:`, e); 
-        return []; 
-    } 
-    if (db) { 
-        try { 
-            db.prepare(`INSERT OR REPLACE INTO app_cache (cache_key, cache_value, last_updated) VALUES (?, ?, ?)`).run(FILE_INDEX_CACHE_KEY, JSON.stringify(models), new Date().toISOString()); 
-            console.log('[main.js] File index successfully scanned and cached in SQLite.');
-        } catch (e) { 
-            console.error('[main.js] Error caching file index to SQLite:', e); 
-        } 
-    } 
+async function scanDiskForModelsAndCache() {
+    console.log('[main.js] scanDiskForModelsAndCache called. Delegating to media-scanner and database.');
+    const baseMediaDirectory = 'D:\\test'; // This should be configurable eventually
+    
+    // Step 1: Perform the scan using the media-scanner module
+    const models = await performFullMediaScan(baseMediaDirectory); 
+    
+    if (!models || models.length === 0) {
+        console.log('[main.js] Media scan returned no models.');
+        // It's important to cache an empty result if that's what the scan returned,
+        // to avoid re-scanning constantly if the directory is truly empty.
+    }
+    
+    // Step 2: Cache the results using the database module
+    await cacheModels(models); 
+    
     return models; 
 }
 
 async function getModelsFromCacheOrDisk() { 
-    if (db) { 
-        try { 
-            const row = db.prepare(`SELECT cache_value FROM app_cache WHERE cache_key = ?`).get(FILE_INDEX_CACHE_KEY); 
-            if (row && row.cache_value) {
-                console.log('[main.js] Loaded file index from SQLite cache.');
-                return JSON.parse(row.cache_value); 
-            }
-            console.log('[main.js] No file index cache found in SQLite. Scanning disk...');
-        } catch (e) { 
-            console.error('[main.js] Error reading file index from SQLite cache. Scanning disk...', e); 
-        } 
-    } else {
-        console.warn('[main.js] SQLite DB not available for caching. Scanning disk directly.');
+    let models = await getCachedModels(); // Use new function
+    if (models) {
+        return models; 
     }
-    return await scanDiskForModelsAndCache(); 
+    console.log('[main.js] No file index cache found in SQLite. Scanning disk...');
+    models = await scanDiskForModelsAndCache(); // Calls updated scanDiskForModelsAndCache
+    return models; 
 }
 
 ipcMain.handle('get-models-with-view-counts', async () => { 
@@ -171,29 +108,35 @@ ipcMain.handle('get-models-with-view-counts', async () => {
         console.log('[main.js] No models found for get-models-with-view-counts.');
         return [];
     }
-    if (!db) {
-        console.warn('[main.js] DB not available for get-models-with-view-counts, returning with 0 counts.');
-        return models.map(m => ({...m, textures: m.textures.map(t => ({...t, viewCount: 0}))}));
-    }
     const allFilePaths = models.flatMap(model => model.textures.map(texture => texture.path)); 
-    const viewCountsMap = await getMediaViewCountsLogicSQLite(allFilePaths); 
-    return models.map(model => ({ ...model, textures: model.textures.map(texture => ({ ...texture, viewCount: viewCountsMap[texture.path] || 0 })) })); 
+    const viewCountsMap = await getMediaViewCounts(allFilePaths); // Use new function
+
+    return models.map(model => ({ 
+        ...model, 
+        textures: model.textures.map(texture => ({ 
+            ...texture, 
+            viewCount: viewCountsMap[texture.path] || 0 
+        })) 
+    })); 
 });
 
 ipcMain.handle('reindex-media-library', async () => { 
     console.log('[main.js] Re-indexing media library requested...');
-    const models = await scanDiskForModelsAndCache(); 
+    const models = await scanDiskForModelsAndCache(); // This now also handles caching
     if (!models || models.length === 0) {
         console.log('[main.js] No models found after re-indexing.');
         return [];
     }
-    if (!db) {
-        console.warn('[main.js] DB not available for reindex-media-library, returning with 0 counts.');
-        return models.map(m => ({...m, textures: m.textures.map(t => ({...t, viewCount: 0}))}));
-    }
     const allFilePaths = models.flatMap(model => model.textures.map(texture => texture.path)); 
-    const viewCountsMap = await getMediaViewCountsLogicSQLite(allFilePaths); 
-    return models.map(model => ({ ...model, textures: model.textures.map(texture => ({ ...texture, viewCount: viewCountsMap[texture.path] || 0 })) })); 
+    const viewCountsMap = await getMediaViewCounts(allFilePaths); // Use new function
+
+    return models.map(model => ({ 
+        ...model, 
+        textures: model.textures.map(texture => ({ 
+            ...texture, 
+            viewCount: viewCountsMap[texture.path] || 0 
+        })) 
+    })); 
 });
 // --- End of IPC Handlers ---
 
@@ -203,13 +146,13 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1200, height: 800, 
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, '../preload.js'),
       contextIsolation: true, enableRemoteModule: false,
     },
   });
   console.log('[main.js] BrowserWindow created.'); 
 
-  win.loadFile('index.html')
+  win.loadFile(path.join(__dirname, '../index.html'))
     .then(() => { console.log('[main.js] index.html loaded successfully.'); })
     .catch(err => console.error('[main.js] FAILED to load index.html:', err));
 }
@@ -280,7 +223,16 @@ function startLocalServer() {
     });
 }
 
-app.on('ready', startLocalServer); 
+app.on('ready', () => {
+  try {
+    initDatabase(); // Initialize DB
+    console.log('[main.js] Database initialization requested.');
+  } catch (error) {
+    console.error("[main.js] CRITICAL: Failed to initialize database during app ready. App may not function correctly.", error);
+    // Optionally, show an error dialog to the user or quit the app
+  }
+  startLocalServer(); // Then start the server (which calls createWindow)
+});
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 app.on('activate', () => { 
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -293,21 +245,3 @@ app.on('activate', () => {
         }
     }
 });
-
-function findAllMediaFiles(directoryPath, mediaFilesList = []) {
-  try {
-    const items = fs.readdirSync(directoryPath, { withFileTypes: true });
-    for (const item of items) {
-      const fullPath = path.join(directoryPath, item.name);
-      if (item.isDirectory()) {
-        findAllMediaFiles(fullPath, mediaFilesList);
-      } else if (item.isFile()) {
-        const fileExtension = path.extname(item.name).toLowerCase();
-        if (ALL_SUPPORTED_EXTENSIONS.includes(fileExtension)) {
-          mediaFilesList.push({ name: item.name, path: fullPath });
-        }
-      }
-    }
-  } catch (err) { console.error(`[main.js] Error reading directory ${directoryPath}:`, err); }
-  return mediaFilesList;
-}

@@ -2,7 +2,7 @@
   "name": "modelviewer-app",
   "version": "1.0.0",
   "description": "My Model Slideshow Viewer",
-  "main": "main.js",
+  "main": "main/main.js",
   "scripts": {
     "start": "electron .",
     "dist": "electron-builder"
