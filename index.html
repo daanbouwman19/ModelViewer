@@ -214,11 +214,15 @@
         }
 
         /* Added img specifically for clarity, though video rule above works */
+        /* Styles for media elements within the display area */
+        #media-display-area video,
         #media-display-area img {
             max-width: 100%;
             max-height: 100%;
             object-fit: contain;
+            /* Ensures full visibility and maintains aspect ratio */
             display: block;
+            /* Removes extra space below inline images and helps with layout */
         }
 
         #models-list li {
