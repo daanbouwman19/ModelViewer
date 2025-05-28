@@ -9,6 +9,7 @@
   },
   "author": "Your Name",
   "devDependencies": {
+    "@electron/rebuild": "^4.0.1",
     "electron": "36.3.1",
     "electron-builder": "26.0.15"
   },
