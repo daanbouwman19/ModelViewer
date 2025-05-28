@@ -1,5 +1,8 @@
 const path = require('path');
-// fs and os will be required inside the mock factory
+const fs = require('fs'); // Added fs import
+// fs and os were previously commented as being required inside mock factory,
+// but fs is also needed at the top level for beforeEach/afterAll.
+// os is only used inside the mock factory, so it doesn't need a top-level import here.
 
 // Mock Electron's app module
 jest.mock('electron', () => {
