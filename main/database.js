@@ -12,11 +12,19 @@ function generateFileId(filePath) {
 
 function initDatabase() {
     if (db) {
-        return db;
+        try {
+            db.close();
+            console.log('[database.js] Closed existing DB connection before re-init.');
+        } catch (closeError) {
+            console.error('[database.js] Error closing existing DB connection:', closeError);
+            // Depending on the error, you might still want to proceed or throw
+        }
+        db = null; // Nullify the reference in any case after attempting to close
     }
+
     try {
         const dbPath = path.join(app.getPath('userData'), 'media_slideshow_stats.sqlite');
-        db = new Database(dbPath);
+        db = new Database(dbPath); // Create new instance
         db.exec(`CREATE TABLE IF NOT EXISTS media_views (file_path_hash TEXT PRIMARY KEY, file_path TEXT UNIQUE, view_count INTEGER DEFAULT 0, last_viewed TEXT);`);
         db.exec(`CREATE TABLE IF NOT EXISTS app_cache (cache_key TEXT PRIMARY KEY, cache_value TEXT, last_updated TEXT);`);
         console.log('[database.js] SQLite database initialized.');
