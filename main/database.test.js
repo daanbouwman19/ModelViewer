@@ -1,5 +1,4 @@
 const path = require('path');
-const path = require('path'); // path is used by requireDatabaseModule, keep it here
 // fs and os will be required inside the mock factory
 
 // Mock Electron's app module
