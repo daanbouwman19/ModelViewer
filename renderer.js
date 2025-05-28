@@ -419,7 +419,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (imageExtensions.includes(fileExtension)) { mediaElement = document.createElement('img'); mediaElement.alt = mediaFileToDisplay.name; }
             else if (videoExtensions.includes(fileExtension)) { 
                 mediaElement = document.createElement('video'); 
-                mediaElement.controls = true; mediaElement.autoplay = true; mediaElement.muted = true;    
+                mediaElement.controls = true; mediaElement.autoplay = true; mediaElement.muted = false; // Changed to false   
                 mediaElement.loop = !isTimerPlaying; 
                 mediaElement.preload = 'auto';
                 if (isTimerPlaying) { 
