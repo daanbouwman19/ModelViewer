@@ -18,18 +18,24 @@ function findAllMediaFiles(directoryPath, mediaFilesList = []) {
       }
     }
   } catch (err) { 
-    console.error(`[media-scanner.js] Error reading directory ${directoryPath}:`, err); 
+    if (process.env.NODE_ENV !== 'test') {
+        console.error(`[media-scanner.js] Error reading directory ${directoryPath}:`, err); 
+    }
   }
   return mediaFilesList;
 }
 
 // New function containing the core disk scanning logic
 async function performFullMediaScan(baseMediaDirectory) {
-    console.log(`[media-scanner.js] Starting disk scan in ${baseMediaDirectory}...`);
+    if (process.env.NODE_ENV !== 'test') {
+        console.log(`[media-scanner.js] Starting disk scan in ${baseMediaDirectory}...`);
+    }
     const models = [];
     try {
         if (!fs.existsSync(baseMediaDirectory)) {
-            console.error(`[media-scanner.js] Base media directory not found: ${baseMediaDirectory}`);
+            if (process.env.NODE_ENV !== 'test') {
+                console.error(`[media-scanner.js] Base media directory not found: ${baseMediaDirectory}`);
+            }
             return [];
         }
         const modelFolders = fs.readdirSync(baseMediaDirectory, { withFileTypes: true })
@@ -42,9 +48,13 @@ async function performFullMediaScan(baseMediaDirectory) {
                 models.push({ name: f, textures: files });
             }
         }
-        console.log(`[media-scanner.js] Found ${models.length} models during scan.`);
+        if (process.env.NODE_ENV !== 'test') {
+            console.log(`[media-scanner.js] Found ${models.length} models during scan.`);
+        }
     } catch (e) {
-        console.error(`[media-scanner.js] Error scanning disk for models:`, e);
+        if (process.env.NODE_ENV !== 'test') {
+            console.error(`[media-scanner.js] Error scanning disk for models:`, e);
+        }
         return []; // Return empty if scan fails
     }
     return models;
