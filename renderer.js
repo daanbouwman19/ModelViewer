@@ -14,18 +14,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const reindexLibraryButton = document.getElementById('reindex-library-button');
 
     // --- Application State ---
-    let allModels = []; 
-    let currentSelectedModelForIndividualView = null; 
+    let allModels = [];
+    let currentSelectedModelForIndividualView = null;
     let originalMediaFilesForIndividualView = [];
-    
-    let globalMediaPoolForSelection = []; 
-    
-    let displayedMediaFiles = []; 
-    let currentMediaItem = null; 
-    
-    let currentMediaIndex = -1; 
-    const modelRandomModeSettings = {}; 
-    const modelsSelectedForGlobal = {}; 
+
+    let globalMediaPoolForSelection = [];
+
+    let displayedMediaFiles = [];
+    let currentMediaItem = null;
+
+    let currentMediaIndex = -1;
+    const modelRandomModeSettings = {};
+    const modelsSelectedForGlobal = {};
     let isGlobalSlideshowActive = false;
     let slideshowTimerId = null;
     let isTimerPlaying = false;
@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     document.addEventListener('keydown', (event) => {
         if (document.activeElement === timerDurationInput || document.activeElement.tagName === 'BUTTON') {
-            return; 
+            return;
         }
         switch (event.key) {
             case 'ArrowLeft': if (!prevMediaButton.disabled) navigateMedia(-1); break;
@@ -57,38 +57,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // --- Slideshow Timer Functions ---
-    function startSlideshowTimer() { 
-        stopSlideshowTimer(); 
+    function startSlideshowTimer() {
+        stopSlideshowTimer();
         const durationSeconds = parseInt(timerDurationInput.value, 10);
         if (isNaN(durationSeconds) || durationSeconds < 1) {
-            timerDurationInput.value = 5; 
-            if (isTimerPlaying) { 
-                isTimerPlaying = false; 
-                toggleSlideshowTimer(); 
+            timerDurationInput.value = 5;
+            if (isTimerPlaying) {
+                isTimerPlaying = false;
+                toggleSlideshowTimer();
             }
-            return; 
+            return;
         }
         isTimerPlaying = true;
         playPauseTimerButton.textContent = 'Pause';
         slideshowTimerId = setInterval(() => { navigateMedia(1); }, durationSeconds * 1000);
         console.log(`Slideshow timer started for ${durationSeconds}s interval.`);
     }
-    function stopSlideshowTimer() { 
+    function stopSlideshowTimer() {
         if (slideshowTimerId) clearInterval(slideshowTimerId);
         slideshowTimerId = null;
         isTimerPlaying = false;
         playPauseTimerButton.textContent = 'Play';
         console.log("Slideshow timer stopped.");
     }
-    function toggleSlideshowTimer() { 
+    function toggleSlideshowTimer() {
         const currentPool = isGlobalSlideshowActive ? globalMediaPoolForSelection : displayedMediaFiles;
         if (currentPool.length === 0 && !currentMediaItem) {
-             console.log("Cannot start timer: No media loaded or pool is empty."); return;
+            console.log("Cannot start timer: No media loaded or pool is empty."); return;
         }
-        if (isGlobalSlideshowActive && globalMediaPoolForSelection.length === 0){
+        if (isGlobalSlideshowActive && globalMediaPoolForSelection.length === 0) {
             console.log("Cannot start timer: Global slideshow active but pool is empty."); return;
         }
-        if (!isGlobalSlideshowActive && currentSelectedModelForIndividualView && displayedMediaFiles.length === 0){
+        if (!isGlobalSlideshowActive && currentSelectedModelForIndividualView && displayedMediaFiles.length === 0) {
             console.log("Cannot start timer: Individual model selected but has no media."); return;
         }
 
@@ -96,13 +96,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         else {
             startSlideshowTimer();
             if (!currentMediaItem && (isGlobalSlideshowActive || currentSelectedModelForIndividualView)) {
-                 navigateMedia(0); 
+                navigateMedia(0);
             }
         }
     }
 
     // --- Core Logic Functions ---
-    function shuffleArray(array) { 
+    function shuffleArray(array) {
         const shuffled = [...array];
         for (let i = shuffled.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
@@ -116,21 +116,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         let eligibleItems = items.filter(item => !excludePaths.includes(item.path));
         if (eligibleItems.length === 0) {
             console.warn("Weighted random: All items were in excludePaths or pool is small, picking from original list (excluding only current if applicable).");
-            eligibleItems = items; 
+            eligibleItems = items;
         }
         if (eligibleItems.length === 0) return null;
 
         const weightedItems = eligibleItems.map(item => ({
             ...item,
-            weight: 1 / ((item.viewCount || 0) + 1) 
+            weight: 1 / ((item.viewCount || 0) + 1)
         }));
         const totalWeight = weightedItems.reduce((sum, item) => sum + item.weight, 0);
         if (totalWeight < 1e-9 && eligibleItems.length > 0) {
             console.warn("Weighted random: Total weight is near zero, using uniform random selection from eligible items.");
             return eligibleItems[Math.floor(Math.random() * eligibleItems.length)];
         }
-        if (totalWeight === 0) return null; 
-        
+        if (totalWeight === 0) return null;
+
         let random = Math.random() * totalWeight;
         for (const item of weightedItems) {
             random -= item.weight;
@@ -138,83 +138,80 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         return eligibleItems.length > 0 ? eligibleItems[eligibleItems.length - 1] : null;
     }
-    
+
     function generatePlaylistForIndividualModel(mediaPool, isRandom) {
         if (!mediaPool || mediaPool.length === 0) return [];
         if (isRandom) {
             return shuffleArray(mediaPool);
-        } else { 
+        } else {
             return [...mediaPool];
         }
     }
-    
-    async function populateModelsListUI() { 
-        modelsListElement.innerHTML = ''; 
+
+    async function populateModelsListUI() {
+        modelsListElement.innerHTML = '';
         if (!allModels || allModels.length === 0) {
             modelsListElement.innerHTML = '<li>No models found. Click "Re-index Library".</li>';
             return;
         }
         allModels.forEach(model => {
-            const listItem = document.createElement('li'); 
+            const listItem = document.createElement('li');
             listItem.dataset.modelName = model.name;
 
-            const modelNameSpan = document.createElement('span'); 
+            const modelNameSpan = document.createElement('span');
             modelNameSpan.className = 'model-name-clickable';
-            // --- MODIFICATION START: Display file count ---
             const fileCount = model.textures ? model.textures.length : 0;
             modelNameSpan.textContent = `${model.name} (${fileCount} files)`;
-            // --- MODIFICATION END ---
-            modelNameSpan.addEventListener('click', () => selectModelForIndividualView(model)); 
+            modelNameSpan.addEventListener('click', () => selectModelForIndividualView(model));
             listItem.appendChild(modelNameSpan);
 
-            const controlsDiv = document.createElement('div'); 
+            const controlsDiv = document.createElement('div');
             controlsDiv.className = 'model-controls';
-            const randomToggleLabel = document.createElement('label'); 
-            randomToggleLabel.className = 'toggle-label'; 
+            const randomToggleLabel = document.createElement('label');
+            randomToggleLabel.className = 'toggle-label';
             randomToggleLabel.textContent = 'Rand: ';
-            const randomToggleCheckbox = document.createElement('input'); 
+            const randomToggleCheckbox = document.createElement('input');
             randomToggleCheckbox.type = 'checkbox';
-            modelRandomModeSettings[model.name] = modelRandomModeSettings[model.name] || false; 
+            modelRandomModeSettings[model.name] = modelRandomModeSettings[model.name] || false;
             randomToggleCheckbox.checked = modelRandomModeSettings[model.name];
             randomToggleCheckbox.title = `Play media from ${model.name} in random order`;
-            randomToggleCheckbox.addEventListener('change', (e) => { 
-                e.stopPropagation(); 
+            randomToggleCheckbox.addEventListener('change', (e) => {
+                e.stopPropagation();
                 modelRandomModeSettings[model.name] = e.target.checked;
                 if (currentSelectedModelForIndividualView && currentSelectedModelForIndividualView.name === model.name && !isGlobalSlideshowActive) {
                     prepareMediaListForIndividualView();
-                    if (displayedMediaFiles.length > 0) { 
-                        currentMediaIndex = 0; 
-                        currentMediaItem = displayedMediaFiles[0]; 
-                        displayCurrentMedia(); 
-                    } else { 
-                        clearMediaDisplay("No media files for this model with current settings."); 
+                    if (displayedMediaFiles.length > 0) {
+                        currentMediaIndex = 0;
+                        currentMediaItem = displayedMediaFiles[0];
+                        displayCurrentMedia();
+                    } else {
+                        clearMediaDisplay("No media files for this model with current settings.");
                     }
                 }
             });
-            randomToggleLabel.appendChild(randomToggleCheckbox); 
+            randomToggleLabel.appendChild(randomToggleCheckbox);
             controlsDiv.appendChild(randomToggleLabel);
 
-            const globalToggleLabel = document.createElement('label'); 
-            globalToggleLabel.className = 'toggle-label'; 
+            const globalToggleLabel = document.createElement('label');
+            globalToggleLabel.className = 'toggle-label';
             globalToggleLabel.textContent = 'Global: ';
-            const globalToggleCheckbox = document.createElement('input'); 
+            const globalToggleCheckbox = document.createElement('input');
             globalToggleCheckbox.type = 'checkbox';
-            modelsSelectedForGlobal[model.name] = modelsSelectedForGlobal[model.name] || true; 
+            modelsSelectedForGlobal[model.name] = modelsSelectedForGlobal[model.name] || true;
             globalToggleCheckbox.checked = modelsSelectedForGlobal[model.name];
             listItem.classList.toggle('selected-for-global', globalToggleCheckbox.checked);
             globalToggleCheckbox.title = `Include ${model.name} in Global Slideshow`;
-            globalToggleCheckbox.addEventListener('change', (e) => { 
-                e.stopPropagation(); 
+            globalToggleCheckbox.addEventListener('change', (e) => {
+                e.stopPropagation();
                 modelsSelectedForGlobal[model.name] = e.target.checked;
                 listItem.classList.toggle('selected-for-global', e.target.checked);
                 if (isGlobalSlideshowActive) {
-                    // If global slideshow is active, rebuild the pool and restart or update
-                    activateGlobalSlideshow(); 
+                    activateGlobalSlideshow();
                 }
             });
-            globalToggleLabel.appendChild(globalToggleCheckbox); 
+            globalToggleLabel.appendChild(globalToggleCheckbox);
             controlsDiv.appendChild(globalToggleLabel);
-            listItem.appendChild(controlsDiv); 
+            listItem.appendChild(controlsDiv);
             modelsListElement.appendChild(listItem);
         });
     }
@@ -228,20 +225,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             modelsListElement.innerHTML = '<li>Error loading models. Click Re-index.</li>';
         }
     }
-    
-    function prepareMediaListForIndividualView() { 
+
+    function prepareMediaListForIndividualView() {
         if (!currentSelectedModelForIndividualView) return;
         const isRandom = modelRandomModeSettings[currentSelectedModelForIndividualView.name] || false;
         displayedMediaFiles = generatePlaylistForIndividualModel(originalMediaFilesForIndividualView, isRandom);
     }
 
-    function selectModelForIndividualView(model) { 
-        stopSlideshowTimer(); 
+    function selectModelForIndividualView(model) {
+        stopSlideshowTimer();
         isGlobalSlideshowActive = false;
         currentSelectedModelForIndividualView = model;
-        originalMediaFilesForIndividualView = model.textures || []; 
-        prepareMediaListForIndividualView(); 
-        currentMediaIndex = -1; 
+        originalMediaFilesForIndividualView = model.textures || [];
+        prepareMediaListForIndividualView();
+        currentMediaIndex = -1;
         currentMediaItem = null;
 
         document.querySelectorAll('#models-list li').forEach(li => {
@@ -249,23 +246,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (li.dataset.modelName === model.name) li.classList.add('active-model-individual');
         });
         currentModelTitleElement.textContent = `Model: ${model.name}`;
-        if (displayedMediaFiles.length > 0) { 
-            currentMediaIndex = 0; 
+        if (displayedMediaFiles.length > 0) {
+            currentMediaIndex = 0;
             currentMediaItem = displayedMediaFiles[currentMediaIndex];
-            displayCurrentMedia(); 
-        } else { 
+            displayCurrentMedia();
+        } else {
             clearMediaDisplay("No media files in this model.");
         }
         updateNavButtons();
     }
 
     function activateGlobalSlideshow() {
-        stopSlideshowTimer(); 
+        stopSlideshowTimer();
         isGlobalSlideshowActive = true;
-        currentSelectedModelForIndividualView = null; 
+        currentSelectedModelForIndividualView = null;
         document.querySelectorAll('#models-list li').forEach(li => li.classList.remove('active-model-individual'));
 
-        globalMediaPoolForSelection = []; 
+        globalMediaPoolForSelection = [];
         allModels.forEach(model => {
             if (modelsSelectedForGlobal[model.name]) {
                 globalMediaPoolForSelection.push(...(model.textures || []));
@@ -275,17 +272,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (globalMediaPoolForSelection.length === 0) {
             clearMediaDisplay("No models selected or no media for Global Slideshow.");
             currentModelTitleElement.textContent = "Global Slideshow (No Media)";
-            displayedMediaFiles = []; 
+            displayedMediaFiles = [];
             currentMediaItem = null;
-            currentMediaIndex = -1; 
+            currentMediaIndex = -1;
             updateNavButtons();
             return;
         }
-        
+
         currentModelTitleElement.textContent = "Global Slideshow (Weighted Random)";
-        displayedMediaFiles = []; 
-        currentMediaIndex = -1;   
-        pickAndDisplayNextGlobalMediaItem(); 
+        displayedMediaFiles = [];
+        currentMediaIndex = -1;
+        pickAndDisplayNextGlobalMediaItem();
     }
 
     function pickAndDisplayNextGlobalMediaItem() {
@@ -294,22 +291,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             updateNavButtons();
             return;
         }
-        
-        const historyPaths = displayedMediaFiles.slice(-Math.min(5, displayedMediaFiles.length)).map(item => item.path); 
+
+        const historyPaths = displayedMediaFiles.slice(-Math.min(5, displayedMediaFiles.length)).map(item => item.path);
         const newItem = selectWeightedRandom(globalMediaPoolForSelection, historyPaths);
-        
+
         if (newItem) {
-            displayedMediaFiles.push(newItem); 
-            currentMediaIndex = displayedMediaFiles.length - 1; 
+            displayedMediaFiles.push(newItem);
+            currentMediaIndex = displayedMediaFiles.length - 1;
             currentMediaItem = newItem;
             displayCurrentMedia();
         } else {
             console.warn("Could not select a new distinct global media item. Pool might be exhausted or too small for history avoidance. Trying any item.");
             if (globalMediaPoolForSelection.length > 0) {
-                 currentMediaItem = globalMediaPoolForSelection[Math.floor(Math.random() * globalMediaPoolForSelection.length)];
-                 displayedMediaFiles.push(currentMediaItem); 
-                 currentMediaIndex = displayedMediaFiles.length - 1;
-                 displayCurrentMedia();
+                currentMediaItem = globalMediaPoolForSelection[Math.floor(Math.random() * globalMediaPoolForSelection.length)];
+                displayedMediaFiles.push(currentMediaItem);
+                currentMediaIndex = displayedMediaFiles.length - 1;
+                displayCurrentMedia();
             } else {
                 clearMediaDisplay("Global media pool exhausted.");
             }
@@ -319,7 +316,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
     async function displayCurrentMedia() {
-        const mediaFileToDisplay = currentMediaItem; 
+        const mediaFileToDisplay = currentMediaItem;
 
         if (!mediaFileToDisplay) {
             const message = isGlobalSlideshowActive ? "No media item selected for global display." : (currentSelectedModelForIndividualView ? "No media to display for this model." : "No media selected.");
@@ -333,9 +330,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        mediaDisplayArea.innerHTML = ''; 
+        mediaDisplayArea.innerHTML = '';
         mediaPlaceholder.style.display = 'none';
-        const loadingText = document.createElement('p'); 
+        const loadingText = document.createElement('p');
         loadingText.textContent = `Loading ${mediaFileToDisplay.name}...`;
         loadingText.className = 'text-gray-400 absolute';
         mediaDisplayArea.appendChild(loadingText);
@@ -343,62 +340,66 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             if (mediaFileToDisplay && mediaFileToDisplay.path) {
                 await window.electronAPI.recordMediaView(mediaFileToDisplay.path);
-                mediaFileToDisplay.viewCount = (mediaFileToDisplay.viewCount || 0) + 1; 
+                mediaFileToDisplay.viewCount = (mediaFileToDisplay.viewCount || 0) + 1;
             }
 
             const loadResult = await window.electronAPI.loadFileAsDataURL(mediaFileToDisplay.path);
             if (loadingText.parentNode === mediaDisplayArea) mediaDisplayArea.removeChild(loadingText);
-            if (!loadResult) throw new Error('Failed to get load result');
-            
-            let mediaElement; 
+
+            if (!loadResult || loadResult.type === 'error') {
+                const errorMsg = loadResult ? loadResult.message : 'Failed to get load result from main process';
+                throw new Error(errorMsg);
+            }
+
+            let mediaElement;
             const fileExtension = mediaFileToDisplay.path.split('.').pop().toLowerCase();
             const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'];
             const videoExtensions = ['mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv'];
 
-            if (imageExtensions.includes(fileExtension)) { mediaElement = document.createElement('img'); mediaElement.alt = mediaFileToDisplay.name; }
-            else if (videoExtensions.includes(fileExtension)) { 
-                mediaElement = document.createElement('video'); 
-                mediaElement.controls = true; mediaElement.autoplay = true; mediaElement.muted = true;    
-                mediaElement.loop = !isTimerPlaying; 
+            if (imageExtensions.includes(fileExtension)) {
+                mediaElement = document.createElement('img');
+                mediaElement.alt = mediaFileToDisplay.name;
+            } else if (videoExtensions.includes(fileExtension)) {
+                mediaElement = document.createElement('video');
+                mediaElement.controls = true;
+                mediaElement.autoplay = true;
+                mediaElement.muted = false; // Changed to false for unmuted by default
+                mediaElement.loop = !isTimerPlaying;
                 mediaElement.preload = 'auto';
-                if (isTimerPlaying) { 
-                    mediaElement.onended = () => { if (isTimerPlaying) navigateMedia(1); }; 
+                if (isTimerPlaying) {
+                    mediaElement.onended = () => { if (isTimerPlaying) navigateMedia(1); };
                 }
+            } else {
+                mediaElement = document.createElement('p');
+                mediaElement.textContent = `Unsupported: ${mediaFileToDisplay.name}`;
+                mediaElement.className = 'text-red-400 absolute';
             }
-            else { mediaElement = document.createElement('p'); mediaElement.textContent = `Unsupported: ${mediaFileToDisplay.name}`; mediaElement.className = 'text-red-400 absolute'; }
-            
-            if (loadResult.type === 'data-url') mediaElement.src = loadResult.url;
-            else if (loadResult.type === 'custom-protocol') {
-                const encodedPath = encodeURIComponent(loadResult.path);
-                mediaElement.src = `${loadResult.protocolScheme}://${encodedPath}?t=${Date.now()}`;
-            } else throw new Error('Unknown load result type');
-            
+
+            mediaElement.src = loadResult.url;
+
             if (mediaElement.tagName === 'VIDEO' || mediaElement.tagName === 'IMG') {
-                 mediaElement.onerror = (e) => { 
+                mediaElement.onerror = (e) => {
                     const errorSource = e.target;
                     let errorMessage = `Error loading ${mediaFileToDisplay.name}.`;
-                    if(errorSource.error) { 
+                    if (errorSource.error) {
                         errorMessage += ` Code: ${errorSource.error.code}, Message: ${errorSource.error.message || 'No specific message.'}`;
-                        switch (errorSource.error.code) {
-                            case 1: errorMessage += " (Aborted)"; break;
-                            case 2: errorMessage += " (Network error)"; break;
-                            case 3: errorMessage += " (Decode error)"; break;
-                            case 4: errorMessage += " (Format/Codec not supported)"; break;
-                            default: errorMessage += " (Unknown error)";
-                        }
-                     }
-                    console.error(errorMessage, e); 
-                    if(mediaDisplayArea.contains(loadingText)) mediaDisplayArea.removeChild(loadingText);
+                    }
+                    console.error(errorMessage, e);
+                    if (mediaDisplayArea.contains(loadingText)) mediaDisplayArea.removeChild(loadingText);
                     mediaDisplayArea.innerHTML = `<p class="text-red-400 absolute">${errorMessage}. Check console.</p>`;
-                 };
+                };
             }
-            if (mediaElement.tagName === 'VIDEO') mediaElement.onloadedmetadata = () => console.log(`Video metadata loaded: ${mediaFileToDisplay.name}`);
+            if (mediaElement.tagName === 'VIDEO') {
+                mediaElement.onloadedmetadata = () => console.log(`Video metadata loaded: ${mediaFileToDisplay.name}`);
+            }
 
-            if (!mediaDisplayArea.querySelector('.text-red-400')) mediaDisplayArea.appendChild(mediaElement);
-        } catch (error) { 
+            if (!mediaDisplayArea.querySelector('.text-red-400')) {
+                mediaDisplayArea.appendChild(mediaElement);
+            }
+        } catch (error) {
             console.error(`Error displaying media ${mediaFileToDisplay.name} (Path: ${mediaFileToDisplay.path}):`, error);
-            if(mediaDisplayArea.contains(loadingText)) mediaDisplayArea.removeChild(loadingText);
-            mediaDisplayArea.innerHTML = `<p class="text-red-400 absolute">Error loading: ${mediaFileToDisplay.name}. Check console.</p>`;
+            if (mediaDisplayArea.contains(loadingText)) mediaDisplayArea.removeChild(loadingText);
+            mediaDisplayArea.innerHTML = `<p class="text-red-400 absolute">Error loading: ${mediaFileToDisplay.name}. ${error.message}. Check console.</p>`;
         }
 
         fileNameInfoElement.textContent = `${mediaFileToDisplay.name} (Viewed: ${mediaFileToDisplay.viewCount || 0} times)`;
@@ -410,24 +411,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateNavButtons();
     }
 
-    function clearMediaDisplay(message = "Select a model or start Global Slideshow.") { 
+    function clearMediaDisplay(message = "Select a model or start Global Slideshow.") {
         mediaDisplayArea.innerHTML = '';
         mediaPlaceholder.textContent = message;
         mediaPlaceholder.style.display = 'block';
-        fileNameInfoElement.textContent = '\u00A0'; 
-        fileCountInfoElement.textContent = '\u00A0'; 
-        currentMediaItem = null; 
+        fileNameInfoElement.textContent = '\u00A0';
+        fileCountInfoElement.textContent = '\u00A0';
+        currentMediaItem = null;
         if (isTimerPlaying && (!isGlobalSlideshowActive || globalMediaPoolForSelection.length === 0)) {
             stopSlideshowTimer();
         }
     }
 
-    function updateNavButtons() { 
+    function updateNavButtons() {
         if (isGlobalSlideshowActive) {
-            prevMediaButton.disabled = currentMediaIndex <= 0; 
-            nextMediaButton.disabled = globalMediaPoolForSelection.length === 0; 
+            prevMediaButton.disabled = currentMediaIndex <= 0;
+            nextMediaButton.disabled = globalMediaPoolForSelection.length === 0;
             playPauseTimerButton.disabled = globalMediaPoolForSelection.length === 0;
-        } else { 
+        } else {
             prevMediaButton.disabled = currentMediaIndex <= 0;
             nextMediaButton.disabled = (currentMediaIndex >= displayedMediaFiles.length - 1 || displayedMediaFiles.length === 0);
             playPauseTimerButton.disabled = displayedMediaFiles.length === 0;
@@ -452,64 +453,64 @@ document.addEventListener('DOMContentLoaded', async () => {
                 } else {
                     console.log("At the beginning of global slideshow history.");
                 }
-            } else if (direction === 0 && currentMediaItem) { 
-                 displayCurrentMedia();
-            } else if (direction === 0 && !currentMediaItem && globalMediaPoolForSelection.length > 0) { 
-                 pickAndDisplayNextGlobalMediaItem();
+            } else if (direction === 0 && currentMediaItem) {
+                displayCurrentMedia();
+            } else if (direction === 0 && !currentMediaItem && globalMediaPoolForSelection.length > 0) {
+                pickAndDisplayNextGlobalMediaItem();
             }
         } else { // Individual model slideshow
             if (displayedMediaFiles.length === 0 && direction === 0 && currentSelectedModelForIndividualView && originalMediaFilesForIndividualView.length > 0) {
                 currentMediaIndex = 0;
-                currentMediaItem = displayedMediaFiles[0]; 
+                currentMediaItem = displayedMediaFiles[0];
                 displayCurrentMedia();
                 return;
             }
             if (displayedMediaFiles.length === 0) return;
 
             let newIndex = currentMediaIndex + direction;
-            if (newIndex >= displayedMediaFiles.length) { 
+            if (newIndex >= displayedMediaFiles.length) {
                 if (currentSelectedModelForIndividualView && modelRandomModeSettings[currentSelectedModelForIndividualView.name]) {
-                    prepareMediaListForIndividualView(); 
+                    prepareMediaListForIndividualView();
                     newIndex = displayedMediaFiles.length > 0 ? 0 : -1;
-                } else { 
-                    newIndex = displayedMediaFiles.length - 1; 
-                    if (isTimerPlaying) stopSlideshowTimer(); 
+                } else {
+                    newIndex = displayedMediaFiles.length - 1;
+                    if (isTimerPlaying) stopSlideshowTimer();
                 }
-            } else if (newIndex < 0) { 
-                 if (currentSelectedModelForIndividualView && modelRandomModeSettings[currentSelectedModelForIndividualView.name]) {
-                    prepareMediaListForIndividualView(); 
-                    newIndex = displayedMediaFiles.length > 0 ? 0 : -1; 
-                } else { 
-                    newIndex = 0; 
+            } else if (newIndex < 0) {
+                if (currentSelectedModelForIndividualView && modelRandomModeSettings[currentSelectedModelForIndividualView.name]) {
+                    prepareMediaListForIndividualView();
+                    newIndex = displayedMediaFiles.length > 0 ? 0 : -1;
+                } else {
+                    newIndex = 0;
                 }
             }
 
-            if (newIndex !== -1 && newIndex < displayedMediaFiles.length) { 
+            if (newIndex !== -1 && newIndex < displayedMediaFiles.length) {
                 currentMediaIndex = newIndex;
                 currentMediaItem = displayedMediaFiles[currentMediaIndex];
                 displayCurrentMedia();
             } else if (displayedMediaFiles.length > 0 && direction === 0 && currentMediaIndex !== -1 && currentMediaIndex < displayedMediaFiles.length) {
-                 currentMediaItem = displayedMediaFiles[currentMediaIndex];
-                 displayCurrentMedia();
+                currentMediaItem = displayedMediaFiles[currentMediaIndex];
+                displayCurrentMedia();
             }
-             else {
-                 clearMediaDisplay("No media to display or index out of bounds.");
+            else {
+                clearMediaDisplay("No media to display or index out of bounds.");
             }
         }
-        updateNavButtons(); 
+        updateNavButtons();
     }
-    
-    async function handleReindex() { 
+
+    async function handleReindex() {
         console.log("Re-index library button clicked.");
         reindexLibraryButton.textContent = 'Re-indexing...'; reindexLibraryButton.disabled = true;
         stopSlideshowTimer(); clearMediaDisplay("Re-indexing library, please wait...");
         currentModelTitleElement.textContent = "Re-indexing...";
         try {
             const newModels = await window.electronAPI.reindexMediaLibrary();
-            allModels = newModels; populateModelsListUI(); 
+            allModels = newModels; populateModelsListUI();
             currentSelectedModelForIndividualView = null; isGlobalSlideshowActive = false;
             displayedMediaFiles = []; currentMediaIndex = -1; currentMediaItem = null;
-            globalMediaPoolForSelection = []; 
+            globalMediaPoolForSelection = [];
             clearMediaDisplay("Library re-indexed. Select a model or start global slideshow.");
             currentModelTitleElement.textContent = "Select a model or start Global Slideshow";
         } catch (error) {
@@ -523,6 +524,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // --- Initialization ---
-    initialLoad(); 
-    updateNavButtons(); 
+    initialLoad();
+    updateNavButtons();
 });
