@@ -279,43 +279,49 @@ async function scanDiskForModelsAndCache() {
         };
     });
   }
-  
-  // getModelsWithViewCounts will now use the enhanced getModelsFromCacheOrDisk
-  // which handles merging of individual model settings.
-  ipcMain.handle('get-models-with-view-counts', async () => {
+
+  // New internal function to construct full model objects
+  async function constructModelsWithSettingsAndCounts() {
     if (!db) {
-        console.warn('[main.js] SQLite DB not available. Attempting disk scan without view counts or caching.');
-        // getModelsFromCacheOrDisk will scan disk & attempt to merge settings with defaults
-        const modelsFromDisk = await getModelsFromCacheOrDisk(); 
+        console.warn('[main.js constructModelsWithSettingsAndCounts] SQLite DB not available. Attempting disk scan and returning models with default settings and zero view counts.');
+        const modelsFromDisk = await getModelsFromCacheOrDisk(); // This will scan disk if cache is empty and merge default settings.
         return modelsFromDisk.map(model => ({
             ...model, // model already has isRandom, isSelectedForGlobal from getModelsFromCacheOrDisk
             textures: model.textures.map(texture => ({ ...texture, viewCount: 0 }))
         }));
     }
-    console.log('[main.js] ipcMain.handle("get-models-with-view-counts") called.');
-    const models = await getModelsFromCacheOrDisk(); // Gets models with settings merged
+
+    const models = await getModelsFromCacheOrDisk(); // Gets models with settings (isRandom, isSelectedForGlobal) merged
     if (!models || models.length === 0) {
-        console.log('[main.js] No models found from cache or disk for get-models-with-view-counts.');
+        console.log('[main.js constructModelsWithSettingsAndCounts] No models found from cache or disk.');
         return [];
     }
+
     const allFilePaths = models.flatMap(model => model.textures.map(texture => texture.path));
     const viewCountsMap = await getMediaViewCountsLogicSQLite(allFilePaths);
     
-    // Models already have isRandom and isSelectedForGlobal from getModelsFromCacheOrDisk
+    // Merge view counts into the models that already have settings
     return models.map(model => ({
         ...model,
         textures: model.textures.map(texture => ({ ...texture, viewCount: viewCountsMap[texture.path] || 0 }))
     }));
+  }
+  
+  // getModelsWithViewCounts will now use the enhanced getModelsFromCacheOrDisk
+  // which handles merging of individual model settings.
+  ipcMain.handle('get-models-with-view-counts', async () => {
+    console.log('[main.js] ipcMain.handle("get-models-with-view-counts") called, delegating to constructModelsWithSettingsAndCounts.');
+    return await constructModelsWithSettingsAndCounts();
   });
 
   ipcMain.handle('reindex-media-library', async () => {
     console.log('[main.js] Re-indexing media library requested...');
     // 1. Scan disk to update the structural cache (FILE_INDEX_CACHE_KEY)
     await scanDiskForModelsAndCache(); 
-    // 2. Then, call getModelsWithViewCounts, which uses getModelsFromCacheOrDisk.
-    //    getModelsFromCacheOrDisk will read the (updated) structural cache,
-    //    then merge with model_settings, and finally getModelsWithViewCounts merges view counts.
-    const modelsWithSettingsAndCounts = await ipcMain.handlers['get-models-with-view-counts'][0](); // Call the actual handler
+    // 2. Then, construct the full models list with settings and view counts.
+    console.log('[main.js reindex-media-library] Disk scan complete. Now constructing models with settings and counts...');
+    const modelsWithSettingsAndCounts = await constructModelsWithSettingsAndCounts();
+    console.log('[main.js reindex-media-library] Successfully constructed models after re-index.');
     return modelsWithSettingsAndCounts;
   });
 
