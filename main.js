@@ -442,26 +442,70 @@ app.whenReady().then(async () => { // Make this async
 
         // Basic Range Request Handling
         if (request.headers['Range']) {
-            console.log(`[main.js StreamProtocol] Range header detected: ${request.headers['Range']}`);
-            const range = request.headers['Range'];
-            const parts = range.replace(/bytes=/, "").split("-");
-            const start = parseInt(parts[0], 10);
-            const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-            
-            if (start >= fileSize || end >= fileSize || start > end || start < 0 || end < 0) {
-                console.error(`[main.js StreamProtocol] Invalid Range: ${range}, fileSize: ${fileSize}`);
-                return callback({ 
-                    statusCode: 416, 
-                    headers: { 'Content-Range': `bytes */${fileSize}` } 
-                });
-            }
+                   const rangeHeader = request.headers['Range'];
+                   console.log(`[main.js StreamProtocol] Range header detected: ${rangeHeader}`);
+                   
+                   const rangeParts = rangeHeader.replace(/bytes=/, "").split("-");
+                   const startString = rangeParts[0];
+                   const endString = rangeParts[1];
 
-            streamOptions = { start, end };
-            statusCode = 206; // Partial Content
-            headers['Content-Length'] = (end - start + 1).toString();
-            headers['Content-Range'] = `bytes ${start}-${end}/${fileSize}`;
-            console.log(`[main.js StreamProtocol] Serving range: ${start}-${end} of ${fileSize}`);
-        } else {
+                   let start = parseInt(startString, 10);
+                   
+                   // If startString is empty or parsing results in NaN, it's an invalid/unsupported range format (e.g. bytes=-500 or malformed)
+                   // For video seeking, a start value is usually always present.
+                   if (isNaN(start)) { 
+                       console.warn(`[main.js StreamProtocol] Invalid or unsupported Range start value: "${startString}". Serving full content or erroring.`);
+                       // Option 1: Serve full content (remove this block and let it fall through to 200 OK)
+                       // Option 2: Treat as error (416 or ignore range - current preference is to be strict for now)
+                       // For now, let's return 416 if range is specified but 'start' is bad.
+                       // However, a simpler approach for now is to only process if start is valid.
+                       // If start is NaN, we can let it fall through and the browser might retry without range,
+                       // or we can explicitly error.
+                       // The original code would have proceeded with start=NaN.
+                       // Let's be more robust: if range is specified, start must be valid.
+                       console.error(`[main.js StreamProtocol] Malformed Range header (start is NaN): ${rangeHeader}. Responding 416.`);
+                       return callback({ 
+                           statusCode: 416, 
+                           headers: { 'Content-Range': `bytes */${fileSize}` } 
+                       });
+                   }
+
+                   let end = endString ? parseInt(endString, 10) : fileSize - 1;
+                   // If endString is present but not a valid number, then it's a malformed range.
+                   if (endString && isNaN(end)) {
+                        console.error(`[main.js StreamProtocol] Malformed Range header (end is NaN): ${rangeHeader}. Responding 416.`);
+                        return callback({ 
+                           statusCode: 416, 
+                           headers: { 'Content-Range': `bytes */${fileSize}` } 
+                       });
+                   }
+                   // Ensure end is not less than start if specified.
+                   if (endString && !isNaN(end) && end < start) {
+                        console.error(`[main.js StreamProtocol] Invalid Range (end < start): ${rangeHeader}. Responding 416.`);
+                        return callback({ 
+                           statusCode: 416, 
+                           headers: { 'Content-Range': `bytes */${fileSize}` } 
+                       });
+                   }
+
+
+                   // Clamp end to not exceed fileSize - 1
+                   end = Math.min(end, fileSize - 1);
+
+                   if (start >= fileSize || start > end) { 
+                       console.error(`[main.js StreamProtocol] Invalid Range (start or end out of bounds): ${rangeHeader}, start: ${start}, end: ${end}, fileSize: ${fileSize}. Responding 416.`);
+                       return callback({ 
+                           statusCode: 416, 
+                           headers: { 'Content-Range': `bytes */${fileSize}` } 
+                       });
+                   }
+
+                   streamOptions = { start, end };
+                   statusCode = 206; 
+                   headers['Content-Length'] = (end - start + 1).toString();
+                   headers['Content-Range'] = `bytes ${start}-${end}/${fileSize}`;
+                   console.log(`[main.js StreamProtocol] Serving range: ${start}-${end} (Length: ${headers['Content-Length']}) of ${fileSize}`);
+               } else {
             console.log(`[main.js StreamProtocol] Serving full file of size: ${fileSize}`);
         }
         
@@ -471,6 +515,14 @@ app.whenReady().then(async () => { // Make this async
             console.error('[main.js StreamProtocol] Stream error:', streamError);
             dataStream.destroy(); 
         });
+
+               // Add these new listeners:
+               dataStream.on('end', () => {
+                   console.log(`[main.js StreamProtocol] Stream ended for request: ${request.url}`);
+               });
+               dataStream.on('close', () => {
+                   console.log(`[main.js StreamProtocol] Stream closed for request: ${request.url}`);
+               });
 
         return callback({
             statusCode: statusCode,
