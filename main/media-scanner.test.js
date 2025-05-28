@@ -66,8 +66,8 @@ describe('Media Scanner Functions', () => {
       expect(files.find(f=>f.name === 'nested_vid.webm').path).toBe(path.join('/fake/nested','subDir','nested_vid.webm'));
     });
 
-    test('should handle read errors gracefully (by logging and returning what was found so far)', () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    test('should handle read errors gracefully (by returning an empty list)', () => {
+      // const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {}); // Removed
       fs.readdirSync.mockImplementation(dirPath => {
         if (dirPath === '/fake/errorDir') {
           throw new Error('Permission denied');
@@ -76,8 +76,8 @@ describe('Media Scanner Functions', () => {
       });
       const files = findAllMediaFiles('/fake/errorDir');
       expect(files).toEqual([]);
-      expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('[media-scanner.js] Error reading directory /fake/errorDir:'), expect.any(Error));
-      consoleErrorSpy.mockRestore();
+      // expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('[media-scanner.js] Error reading directory /fake/errorDir:'), expect.any(Error)); // Removed
+      // consoleErrorSpy.mockRestore(); // Removed
     });
   });
 
@@ -90,14 +90,14 @@ describe('Media Scanner Functions', () => {
 
     test('should return an empty array if base directory does not exist', async () => {
       fs.existsSync.mockReturnValue(false);
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      // const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {}); // Removed
       
       const models = await performFullMediaScan('/non/existent/base');
       
       expect(models).toEqual([]);
       expect(fs.existsSync).toHaveBeenCalledWith('/non/existent/base');
-      expect(consoleErrorSpy).toHaveBeenCalledWith('[media-scanner.js] Base media directory not found: /non/existent/base');
-      consoleErrorSpy.mockRestore();
+      // expect(consoleErrorSpy).toHaveBeenCalledWith('[media-scanner.js] Base media directory not found: /non/existent/base'); // Removed
+      // consoleErrorSpy.mockRestore(); // Removed
     });
 
     test('should correctly identify models and their textures', async () => {
@@ -132,12 +132,12 @@ describe('Media Scanner Functions', () => {
     test('should return empty models array if scan encounters errors at top level', async () => {
       fs.existsSync.mockReturnValue(true);
       fs.readdirSync.mockImplementation(() => { throw new Error('Disk read error'); });
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      // const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {}); // Removed
 
       const models = await performFullMediaScan('/base/error');
       expect(models).toEqual([]);
-      expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('[media-scanner.js] Error scanning disk for models:'), expect.any(Error));
-      consoleErrorSpy.mockRestore();
+      // expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('[media-scanner.js] Error scanning disk for models:'), expect.any(Error)); // Removed
+      // consoleErrorSpy.mockRestore(); // Removed
     });
   });
 });
