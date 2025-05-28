@@ -14,6 +14,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const timerDurationInput = document.getElementById('timer-duration');
     const playPauseTimerButton = document.getElementById('play-pause-timer-button');
     const reindexLibraryButton = document.getElementById('reindex-library-button');
+    const reindexSpinner = document.getElementById('reindex-spinner');
+    const selectMediaDirButton = document.getElementById('select-media-dir-button');
+    const currentMediaDirDisplay = document.getElementById('current-media-dir-display');
 
     // --- Application State ---
     let allModels = []; 
@@ -46,6 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     startGlobalSlideshowButton.addEventListener('click', activateGlobalSlideshow);
     playPauseTimerButton.addEventListener('click', toggleSlideshowTimer);
     reindexLibraryButton.addEventListener('click', handleReindex);
+    selectMediaDirButton.addEventListener('click', handleSelectMediaDirectory);
 
     document.addEventListener('keydown', (event) => {
         if (document.activeElement === timerDurationInput || document.activeElement.tagName === 'BUTTON') {
@@ -176,12 +180,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             randomToggleLabel.textContent = 'Rand: ';
             const randomToggleCheckbox = document.createElement('input'); 
             randomToggleCheckbox.type = 'checkbox';
-            modelRandomModeSettings[model.name] = modelRandomModeSettings[model.name] || false; 
-            randomToggleCheckbox.checked = modelRandomModeSettings[model.name];
+            // NEW WAY - Initialize from model data
+            modelRandomModeSettings[model.name] = model.isRandom; 
+            randomToggleCheckbox.checked = model.isRandom;
             randomToggleCheckbox.title = `Play media from ${model.name} in random order`;
-            randomToggleCheckbox.addEventListener('change', (e) => { 
+            randomToggleCheckbox.addEventListener('change', async (e) => { // Made async
                 e.stopPropagation(); 
                 modelRandomModeSettings[model.name] = e.target.checked;
+                try {
+                    await window.electronAPI.updateModelSettings({
+                        modelName: model.name,
+                        isRandom: modelRandomModeSettings[model.name],
+                        isSelectedForGlobal: modelsSelectedForGlobal[model.name] 
+                    });
+                } catch (err) {
+                    console.error('Failed to save random toggle setting:', err);
+                    // Optionally revert UI or notify user
+                }
                 if (currentSelectedModelForIndividualView && currentSelectedModelForIndividualView.name === model.name && !isGlobalSlideshowActive) {
                     prepareMediaListForIndividualView();
                     if (displayedMediaFiles.length > 0) { 
@@ -201,14 +216,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             globalToggleLabel.textContent = 'Global: ';
             const globalToggleCheckbox = document.createElement('input'); 
             globalToggleCheckbox.type = 'checkbox';
-            modelsSelectedForGlobal[model.name] = modelsSelectedForGlobal[model.name] || true; 
-            globalToggleCheckbox.checked = modelsSelectedForGlobal[model.name];
-            listItem.classList.toggle('selected-for-global', globalToggleCheckbox.checked);
+            // NEW WAY - Initialize from model data
+            modelsSelectedForGlobal[model.name] = model.isSelectedForGlobal; 
+            globalToggleCheckbox.checked = model.isSelectedForGlobal;
+            listItem.classList.toggle('selected-for-global', model.isSelectedForGlobal);
             globalToggleCheckbox.title = `Include ${model.name} in Global Slideshow`;
-            globalToggleCheckbox.addEventListener('change', (e) => { 
+            globalToggleCheckbox.addEventListener('change', async (e) => { // Made async
                 e.stopPropagation(); 
                 modelsSelectedForGlobal[model.name] = e.target.checked;
                 listItem.classList.toggle('selected-for-global', e.target.checked);
+                try {
+                    await window.electronAPI.updateModelSettings({
+                        modelName: model.name,
+                        isRandom: modelRandomModeSettings[model.name], 
+                        isSelectedForGlobal: modelsSelectedForGlobal[model.name]
+                    });
+                } catch (err) {
+                    console.error('Failed to save global toggle setting:', err);
+                     // Optionally revert UI or notify user
+                }
                 if (isGlobalSlideshowActive) {
                     // If global slideshow is active, rebuild the pool and restart or update
                     activateGlobalSlideshow(); 
@@ -223,12 +249,45 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function initialLoad() {
         try {
+            await loadAndDisplayCurrentDirectory(); // Load and display current directory first
             allModels = await window.electronAPI.getModelsWithViewCounts();
             populateModelsListUI();
         } catch (error) {
             console.error('Error during initial load of models with view counts:', error);
             modelsListElement.innerHTML = '<li>Error loading models. Click Re-index.</li>';
         }
+    }
+
+    async function loadAndDisplayCurrentDirectory() {
+        try {
+            const currentDir = await window.electronAPI.getCurrentBaseMediaDirectory();
+            if (currentDir) {
+                currentMediaDirDisplay.textContent = `Current: ${currentDir}`;
+            } else {
+                currentMediaDirDisplay.textContent = 'Current: Not Set';
+                // Optionally, prompt user to select a directory if none is set
+                modelsListElement.innerHTML = '<li>Base media directory not set. Please select one.</li>';
+                disableControlsOnNoDirectory();
+            }
+        } catch (error) {
+            console.error('Error loading current media directory:', error);
+            currentMediaDirDisplay.textContent = 'Current: Error loading';
+            disableControlsOnNoDirectory();
+        }
+    }
+
+    function disableControlsOnNoDirectory() {
+        startGlobalSlideshowButton.disabled = true;
+        reindexLibraryButton.disabled = true;
+        playPauseTimerButton.disabled = true;
+        // Potentially other controls too
+    }
+
+    function enableControlsAfterDirectorySet() {
+        startGlobalSlideshowButton.disabled = false;
+        reindexLibraryButton.disabled = false;
+        // playPauseTimerButton might still depend on media loaded
+        // updateNavButtons() will handle playPauseTimerButton and prev/next correctly
     }
     
     function prepareMediaListForIndividualView() { 
@@ -503,6 +562,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     async function handleReindex() { 
         console.log("Re-index library button clicked.");
+        reindexSpinner.style.display = 'block'; // Show spinner
         reindexLibraryButton.textContent = 'Re-indexing...'; reindexLibraryButton.disabled = true;
         stopSlideshowTimer(); clearMediaDisplay("Re-indexing library, please wait...");
         currentModelTitleElement.textContent = "Re-indexing...";
@@ -519,8 +579,40 @@ document.addEventListener('DOMContentLoaded', async () => {
             clearMediaDisplay("Error during re-indexing. Check console.");
             currentModelTitleElement.textContent = "Error Re-indexing";
         } finally {
+            reindexSpinner.style.display = 'none'; // Hide spinner
             reindexLibraryButton.textContent = 'Re-index Library'; reindexLibraryButton.disabled = false;
             updateNavButtons();
+        }
+    }
+
+    async function handleSelectMediaDirectory() {
+        console.log('Select media directory button clicked.');
+        try {
+            const result = await window.electronAPI.setBaseMediaDirectory();
+            if (result && result.status === 'success' && result.path) {
+                currentMediaDirDisplay.textContent = `Current: ${result.path}`;
+                enableControlsAfterDirectorySet();
+                alert('Media directory changed. Please re-index for changes to apply.');
+                // Automatically trigger re-index or clear current view
+                allModels = [];
+                globalMediaPoolForSelection = [];
+                displayedMediaFiles = [];
+                currentSelectedModelForIndividualView = null;
+                currentMediaItem = null;
+                populateModelsListUI(); // Will show "No models found" or similar
+                clearMediaDisplay("Media directory changed. Please re-index.");
+                currentModelTitleElement.textContent = "Select a model or start Global Slideshow";
+                updateNavButtons(); 
+                // Consider calling handleReindex() automatically if desired
+            } else if (result && result.status === 'canceled') {
+                console.log('Directory selection canceled by user.');
+            } else {
+                console.error('Failed to set media directory. Result:', result);
+                alert('Failed to set media directory. Check console for details.');
+            }
+        } catch (error) {
+            console.error('Error setting media directory:', error);
+            alert(`Error setting media directory: ${error.message}`);
         }
     }
 

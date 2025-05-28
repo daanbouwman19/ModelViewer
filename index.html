@@ -123,7 +123,12 @@
                     <input type="number" id="timer-duration" value="5" min="1" class="text-sm">
                     <button id="play-pause-timer-button" class="timer-button text-sm">Play</button>
                  </div>
-                 <button id="reindex-library-button" class="action-button text-sm">Re-index Library</button> 
+                 <button id="reindex-library-button" class="action-button text-sm">Re-index Library</button>
+                 <div id="reindex-spinner" style="display: none; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; animation: spin 1s linear infinite; margin-left: 10px;"></div>
+                 <div class="settings-item flex items-center"> <!-- Added flex and items-center for alignment -->
+                    <button id="select-media-dir-button" class="action-button text-sm">Select Media Directory</button> <!-- Applied action-button class for consistency -->
+                    <span id="current-media-dir-display" class="ml-2 text-sm text-gray-400">Current: Not Set</span> <!-- Added text-gray-400 for better visibility -->
+                </div>
             </div>
             <h2 class="text-xl font-semibold mb-3 border-b border-gray-700 pb-2">Models</h2>
             <ul id="models-list" class="space-y-1 flex-grow pr-2">

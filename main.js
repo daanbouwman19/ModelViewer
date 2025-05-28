@@ -1,13 +1,52 @@
 // ModelViewer-App/main.js
 console.log('[main.js] Script started. Electron main process initializing...'); 
 
-const { app, BrowserWindow, ipcMain, protocol } = require('electron');
+const { app, BrowserWindow, ipcMain, protocol, dialog } = require('electron'); // Added dialog
 const path = require('path');
 const fs = require('fs'); 
+const fsp = require('fs').promises; // For async file operations
 const crypto = require('crypto'); 
 
 const Database = require('better-sqlite3');
 let db;
+
+const SETTINGS_FILE_PATH = path.join(app.getPath('userData'), 'user-settings.json');
+let currentBaseMediaDirectory = null; // Or a default like 'D:\\test'
+
+// Helper functions for settings
+function getBaseMediaDirectory() {
+  return currentBaseMediaDirectory;
+}
+
+async function saveSettings(settings) {
+  try {
+    await fsp.writeFile(SETTINGS_FILE_PATH, JSON.stringify(settings, null, 2));
+    currentBaseMediaDirectory = settings.baseMediaDirectory;
+    console.log(`[main.js] Settings saved. Base directory set to: ${currentBaseMediaDirectory}`);
+  } catch (error) {
+    console.error('[main.js] Error saving settings:', error);
+  }
+}
+
+async function loadSettings() {
+  try {
+    const settingsJson = await fsp.readFile(SETTINGS_FILE_PATH, 'utf-8');
+    const settings = JSON.parse(settingsJson);
+    currentBaseMediaDirectory = settings.baseMediaDirectory;
+    console.log(`[main.js] Settings loaded. Base directory: ${currentBaseMediaDirectory}`);
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      console.log('[main.js] Settings file not found. Initializing with default (null or D:\\test).');
+      // Optionally save a default settings file here if needed, e.g., with 'D:\\test'
+      // currentBaseMediaDirectory = 'D:\\test'; // Set a default if desired
+      // await saveSettings({ baseMediaDirectory: currentBaseMediaDirectory });
+      currentBaseMediaDirectory = null; // Defaulting to null, user must set it.
+    } else {
+      console.error('[main.js] Error loading settings:', error);
+      currentBaseMediaDirectory = null; // Fallback if loading fails
+    }
+  }
+}
 
 try {
     const dbPath = path.join(app.getPath('userData'), 'media_slideshow_stats.sqlite');
@@ -29,7 +68,15 @@ try {
             last_updated TEXT
         );
     `);
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS model_settings (
+            model_name TEXT PRIMARY KEY,
+            is_random BOOLEAN DEFAULT FALSE,
+            is_selected_for_global BOOLEAN DEFAULT TRUE
+        );
+    `);
     console.log('[main.js] SQLite database initialized and tables ensured.');
+    console.log('[main.js] model_settings table ensured in SQLite database.');
 } catch (error) {
     console.error('[main.js] CRITICAL ERROR: Failed to initialize SQLite database.', error);
     db = null; 
@@ -127,24 +174,37 @@ function createWindow() {
         return getMediaViewCountsLogicSQLite(filePaths);
    });
 
-  async function scanDiskForModelsAndCache() {
+// This function primarily scans the disk for file structure.
+// Settings are merged in getModelsFromCacheOrDisk.
+async function scanDiskForModelsAndCache() {
     console.log('[main.js] Starting disk scan for models...');
-    const baseMediaDirectory = 'D:\\test';
+    const localBaseMediaDir = getBaseMediaDirectory();
+    if (!localBaseMediaDir) {
+      console.warn('[main.js] Base media directory not set. Skipping disk scan.');
+      return [];
+    }
+    console.log(`[main.js] Scanning disk with base directory: ${localBaseMediaDir}`);
     const models = [];
     try {
-      if (!fs.existsSync(baseMediaDirectory)) {
-        console.error(`[main.js] Base media directory not found: ${baseMediaDirectory}`);
+      if (!fs.existsSync(localBaseMediaDir)) { // Sync check is okay for pre-condition
+        console.error(`[main.js] Base media directory not found: ${localBaseMediaDir}`);
         return []; 
       }
-      const modelFolders = fs.readdirSync(baseMediaDirectory, { withFileTypes: true })
+      const modelFolderDirents = await fsp.readdir(localBaseMediaDir, { withFileTypes: true });
+      const modelFolders = modelFolderDirents
         .filter(dirent => dirent.isDirectory())
         .map(dirent => dirent.name);
 
       for (const modelFolderName of modelFolders) {
-        const modelFolderPath = path.join(baseMediaDirectory, modelFolderName);
-        const mediaFilesInModel = findAllMediaFiles(modelFolderPath);
+        const modelFolderPath = path.join(localBaseMediaDir, modelFolderName);
+        const mediaFilesInModel = await findAllMediaFiles(modelFolderPath); // Await the async call
         if (mediaFilesInModel.length > 0) {
-          models.push({ name: modelFolderName, textures: mediaFilesInModel });
+          // Default settings are applied later when merging
+          models.push({ 
+            name: modelFolderName, 
+            textures: mediaFilesInModel 
+            // isRandom and isSelectedForGlobal will be merged by getModelsFromCacheOrDisk
+          });
         }
       }
     } catch (error) {
@@ -154,55 +214,94 @@ function createWindow() {
     
     if (db) {
       try {
+        // Cache only the structural model data; settings are separate in their own table.
+        // We map to ensure only structural data is cached.
+        const structuralModels = models.map(m => ({ name: m.name, textures: m.textures }));
         const stmt = db.prepare(`INSERT OR REPLACE INTO app_cache (cache_key, cache_value, last_updated) VALUES (?, ?, ?)`);
-        stmt.run(FILE_INDEX_CACHE_KEY, JSON.stringify(models), new Date().toISOString());
-        console.log('[main.js] File index successfully scanned and cached in SQLite.');
+        stmt.run(FILE_INDEX_CACHE_KEY, JSON.stringify(structuralModels), new Date().toISOString());
+        console.log('[main.js] File index (structural data) successfully scanned and cached in SQLite.');
       } catch (dbError) {
         console.error('[main.js] Error caching file index to SQLite:', dbError);
       }
     }
-    return models;
+    return models; // Returns models without settings merged yet at this stage.
   }
 
+  // This function retrieves models (from cache or disk) and then merges settings.
   async function getModelsFromCacheOrDisk() {
+    let modelsData; // This will hold the array of { name, textures }
     if (db) {
       try {
-        const stmt = db.prepare(`SELECT cache_value FROM app_cache WHERE cache_key = ?`);
-        const row = stmt.get(FILE_INDEX_CACHE_KEY);
+        const stmt_cache = db.prepare(`SELECT cache_value FROM app_cache WHERE cache_key = ?`);
+        const row = stmt_cache.get(FILE_INDEX_CACHE_KEY);
         if (row && row.cache_value) {
-          console.log('[main.js] Loaded file index from SQLite cache.');
-          return JSON.parse(row.cache_value);
+          console.log('[main.js] Loaded file index (structural data) from SQLite cache.');
+          modelsData = JSON.parse(row.cache_value);
         } else {
-          console.log('[main.js] No file index cache found in SQLite. Scanning disk...');
-          return await scanDiskForModelsAndCache();
+          console.log('[main.js] No file index cache found in SQLite. Scanning disk for structure...');
+          // scanDiskForModelsAndCache returns structure, caches it, then we proceed to merge settings
+          modelsData = await scanDiskForModelsAndCache(); 
         }
       } catch (dbError) {
-        console.error('[main.js] Error reading file index from SQLite cache. Scanning disk...', dbError);
-        return await scanDiskForModelsAndCache();
+        console.error('[main.js] Error reading file index from SQLite cache. Scanning disk for structure...', dbError);
+        modelsData = await scanDiskForModelsAndCache();
       }
     } else {
-      console.warn('[main.js] SQLite DB not available for caching. Scanning disk directly.');
-      return await scanDiskForModelsAndCache(); 
+      console.warn('[main.js] SQLite DB not available for caching. Scanning disk directly for structure.');
+      modelsData = await scanDiskForModelsAndCache();
     }
+
+    if (!modelsData || modelsData.length === 0) return [];
+
+    // Fetch all model settings at once for efficiency
+    let allModelSettings = {};
+    if (db) {
+        try {
+            const stmt_all_settings = db.prepare('SELECT model_name, is_random, is_selected_for_global FROM model_settings');
+            const settingsRows = stmt_all_settings.all();
+            settingsRows.forEach(row => {
+                allModelSettings[row.model_name] = {
+                    isRandom: Boolean(row.is_random), // Ensure boolean type
+                    isSelectedForGlobal: Boolean(row.is_selected_for_global) // Ensure boolean type
+                };
+            });
+        } catch (dbError) {
+            console.error('[main.js] Error fetching all model settings in getModelsFromCacheOrDisk:', dbError);
+        }
+    }
+    // Merge settings into models
+    return modelsData.map(model => {
+        const settings = allModelSettings[model.name];
+        return {
+            ...model, // Spreads { name, textures }
+            isRandom: settings ? settings.isRandom : false, // Default false if no record
+            isSelectedForGlobal: settings ? settings.isSelectedForGlobal : true // Default true if no record
+        };
+    });
   }
   
+  // getModelsWithViewCounts will now use the enhanced getModelsFromCacheOrDisk
+  // which handles merging of individual model settings.
   ipcMain.handle('get-models-with-view-counts', async () => {
     if (!db) {
         console.warn('[main.js] SQLite DB not available. Attempting disk scan without view counts or caching.');
-        const modelsFromDisk = await scanDiskForModelsAndCache(); 
+        // getModelsFromCacheOrDisk will scan disk & attempt to merge settings with defaults
+        const modelsFromDisk = await getModelsFromCacheOrDisk(); 
         return modelsFromDisk.map(model => ({
-            ...model,
+            ...model, // model already has isRandom, isSelectedForGlobal from getModelsFromCacheOrDisk
             textures: model.textures.map(texture => ({ ...texture, viewCount: 0 }))
         }));
     }
     console.log('[main.js] ipcMain.handle("get-models-with-view-counts") called.');
-    const models = await getModelsFromCacheOrDisk(); 
+    const models = await getModelsFromCacheOrDisk(); // Gets models with settings merged
     if (!models || models.length === 0) {
         console.log('[main.js] No models found from cache or disk for get-models-with-view-counts.');
         return [];
     }
     const allFilePaths = models.flatMap(model => model.textures.map(texture => texture.path));
     const viewCountsMap = await getMediaViewCountsLogicSQLite(allFilePaths);
+    
+    // Models already have isRandom and isSelectedForGlobal from getModelsFromCacheOrDisk
     return models.map(model => ({
         ...model,
         textures: model.textures.map(texture => ({ ...texture, viewCount: viewCountsMap[texture.path] || 0 }))
@@ -211,17 +310,63 @@ function createWindow() {
 
   ipcMain.handle('reindex-media-library', async () => {
     console.log('[main.js] Re-indexing media library requested...');
-    const models = await scanDiskForModelsAndCache(); 
-    if (!models || models.length === 0) return [];
-    if (!db) { 
-        return models.map(model => ({...model, textures: model.textures.map(t => ({...t, viewCount: 0}))}));
+    // 1. Scan disk to update the structural cache (FILE_INDEX_CACHE_KEY)
+    await scanDiskForModelsAndCache(); 
+    // 2. Then, call getModelsWithViewCounts, which uses getModelsFromCacheOrDisk.
+    //    getModelsFromCacheOrDisk will read the (updated) structural cache,
+    //    then merge with model_settings, and finally getModelsWithViewCounts merges view counts.
+    const modelsWithSettingsAndCounts = await ipcMain.handlers['get-models-with-view-counts'][0](); // Call the actual handler
+    return modelsWithSettingsAndCounts;
+  });
+
+  ipcMain.handle('update-model-settings', async (event, { modelName, isRandom, isSelectedForGlobal }) => {
+    if (!db) {
+        console.error('[main.js] Database not available for update-model-settings.');
+        return { success: false, error: 'Database not available' };
     }
-    const allFilePaths = models.flatMap(model => model.textures.map(texture => texture.path));
-    const viewCountsMap = await getMediaViewCountsLogicSQLite(allFilePaths);
-    return models.map(model => ({
-        ...model,
-        textures: model.textures.map(texture => ({ ...texture, viewCount: viewCountsMap[texture.path] || 0 }))
-    }));
+    try {
+        // console.log(`[main.js] update-model-settings: modelName=${modelName}, isRandom=${isRandom} (type: ${typeof isRandom}), isSelectedForGlobal=${isSelectedForGlobal} (type: ${typeof isSelectedForGlobal})`);
+        const stmt = db.prepare(`
+            INSERT INTO model_settings (model_name, is_random, is_selected_for_global)
+            VALUES (?, ?, ?)
+            ON CONFLICT(model_name) DO UPDATE SET
+            is_random = excluded.is_random,
+            is_selected_for_global = excluded.is_selected_for_global;
+        `);
+        stmt.run(modelName, isRandom, isSelectedForGlobal); // better-sqlite3 handles JS booleans to 0/1
+        // console.log(`[main.js] Successfully updated/inserted settings for ${modelName}`);
+        return { success: true };
+    } catch (error) {
+        console.error(`[main.js] Error updating model settings for ${modelName} in SQLite:`, error);
+        return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle('set-base-media-directory', async () => {
+    const focusedWindow = BrowserWindow.getFocusedWindow();
+    if (!focusedWindow) {
+        console.warn('[main.js set-base-media-directory] No focused window to show dialog.');
+        return { status: 'error', message: 'No focused window' };
+    }
+    try {
+        const result = await dialog.showOpenDialog(focusedWindow, { properties: ['openDirectory'] });
+        if (result.canceled || result.filePaths.length === 0) {
+            console.log('[main.js] Directory selection canceled.');
+            return { status: 'canceled' };
+        }
+        const selectedDirectory = result.filePaths[0];
+        await saveSettings({ baseMediaDirectory: selectedDirectory });
+        // Optionally, trigger a re-index or notify renderer to suggest it
+        // For now, just confirm success
+        return { status: 'success', path: selectedDirectory };
+    } catch (error) {
+        console.error('[main.js] Error in set-base-media-directory:', error);
+        return { status: 'error', message: error.message };
+    }
+  });
+
+  ipcMain.handle('get-current-base-media-directory', () => {
+    return getBaseMediaDirectory();
   });
 
   win.loadFile('index.html')
@@ -232,29 +377,38 @@ function createWindow() {
     .catch(err => console.error('[main.js] FAILED to load index.html:', err));
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => { // Make this async
   console.log('[main.js] app.whenReady() resolved.'); 
-  // Updated protocol handler signature
+  await loadSettings(); // Load settings on startup
+
   protocol.registerFileProtocol(CUSTOM_PROTOCOL_SCHEME, (request) => {
     let pathPart = request.url.substring(`${CUSTOM_PROTOCOL_SCHEME}://`.length);
     const queryParamIndex = pathPart.indexOf('?');
     if (queryParamIndex !== -1) pathPart = pathPart.substring(0, queryParamIndex);
     const decodedPath = decodeURIComponent(pathPart); 
-    const allowedBaseDirectory = path.normalize('D:\\test');
     const normalizedDecodedPath = path.normalize(decodedPath);
 
-    if (normalizedDecodedPath.startsWith(allowedBaseDirectory) && fs.existsSync(normalizedDecodedPath)) {
+    const localAllowedBaseDir = getBaseMediaDirectory();
+    if (!localAllowedBaseDir) {
+      console.error(`[main.js Custom Protocol] Base directory not configured. Cannot serve ${normalizedDecodedPath}`);
+      return { error: -10 }; // net::ERR_ACCESS_DENIED or similar generic error
+    }
+    
+    const normalizedAllowedBaseDir = path.normalize(localAllowedBaseDir);
+
+    if (normalizedDecodedPath.startsWith(normalizedAllowedBaseDir) && fs.existsSync(normalizedDecodedPath)) {
       console.log(`[main.js Custom Protocol] Serving file: ${normalizedDecodedPath} for URL: ${request.url}`);
-      return { path: normalizedDecodedPath }; // Direct return
+      return { path: normalizedDecodedPath };
     } else {
-      if (!normalizedDecodedPath.startsWith(allowedBaseDirectory)) {
-        console.error(`[main.js Custom Protocol] DENIED access to: ${normalizedDecodedPath} (Path is outside allowed base directory ${allowedBaseDirectory})`);
+      if (!normalizedDecodedPath.startsWith(normalizedAllowedBaseDir)) {
+        console.error(`[main.js Custom Protocol] DENIED access to: ${normalizedDecodedPath} (Path is outside allowed base directory ${normalizedAllowedBaseDir})`);
       } else {
         console.error(`[main.js Custom Protocol] File NOT FOUND: ${normalizedDecodedPath} (Original URL: ${request.url})`);
       }
-      return { error: -6 }; // Direct return for error (net::ERR_FILE_NOT_FOUND)
+      return { error: -6 }; // net::ERR_FILE_NOT_FOUND
     }
   });
+
   createWindow();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
@@ -264,13 +418,13 @@ const SUPPORTED_IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.
 const SUPPORTED_VIDEO_EXTENSIONS = ['.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv'];
 const ALL_SUPPORTED_EXTENSIONS = [...SUPPORTED_IMAGE_EXTENSIONS, ...SUPPORTED_VIDEO_EXTENSIONS];
 
-function findAllMediaFiles(directoryPath, mediaFilesList = []) {
+async function findAllMediaFiles(directoryPath, mediaFilesList = []) {
   try {
-    const items = fs.readdirSync(directoryPath, { withFileTypes: true });
+    const items = await fsp.readdir(directoryPath, { withFileTypes: true }); // Use fsp
     for (const item of items) {
       const fullPath = path.join(directoryPath, item.name);
       if (item.isDirectory()) {
-        findAllMediaFiles(fullPath, mediaFilesList);
+        await findAllMediaFiles(fullPath, mediaFilesList); // Await recursive call
       } else if (item.isFile()) {
         const fileExtension = path.extname(item.name).toLowerCase();
         if (ALL_SUPPORTED_EXTENSIONS.includes(fileExtension)) {
