@@ -1,26 +1,39 @@
 const path = require('path');
-const fs = require('fs');
-const os = require('os'); // For creating temporary directory
+const path = require('path'); // path is used by requireDatabaseModule, keep it here
+// fs and os will be required inside the mock factory
 
 // Mock Electron's app module
-jest.mock('electron', () => ({
-  app: {
-    getPath: jest.fn((name) => {
-      if (name === 'userData') {
-        // Create a temporary directory for this test run
-        const tempDir = path.join(os.tmpdir(), `test-user-data-${Date.now()}`);
-        if (!fs.existsSync(tempDir)) {
-          fs.mkdirSync(tempDir, { recursive: true });
-        }
-        return tempDir;
+jest.mock('electron', () => {
+  const actualPath = require('path');
+  const actualOs = require('os');
+  const actualFs = require('fs');
+  let tempUserDataPath; // To store the path for the duration of the test suite
+
+  // Helper to ensure tempUserDataPath is created only once per test file execution
+  function getOrCreateTempUserDataPath() {
+    if (!tempUserDataPath) {
+      tempUserDataPath = actualPath.join(actualOs.tmpdir(), `test-user-data-${Date.now()}${Math.random().toString().slice(2)}`);
+      if (!actualFs.existsSync(tempUserDataPath)) {
+        actualFs.mkdirSync(tempUserDataPath, { recursive: true });
       }
-      return ''; // Default mock path
-    }),
-  },
-  ipcMain: { // Mock ipcMain if it's ever needed by other parts of mocked modules
-    handle: jest.fn(),
+    }
+    return tempUserDataPath;
   }
-}), { virtual: true }); // virtual mock for electron
+
+  return {
+    app: {
+      getPath: jest.fn((name) => {
+        if (name === 'userData') {
+          return getOrCreateTempUserDataPath();
+        }
+        return ''; // Default for other paths
+      }),
+    },
+    ipcMain: { // Mock ipcMain as it was before
+      handle: jest.fn(),
+    }
+  };
+}, { virtual: true }); // virtual mock for electron
 
 // Dynamically require databaseFunctions AFTER mocks are set up
 let databaseFunctions; 
@@ -30,17 +43,19 @@ let dbPath; // To store the path for cleanup
 function requireDatabaseModule() {
   jest.resetModules(); // Important to get a fresh module with mocks applied
   
-  // Re-mock electron app.getPath for each test suite if needed, or ensure it's set before this require
-  const electron = require('electron');
-  const tempDir = path.join(os.tmpdir(), `test-user-data-${Date.now()}${Math.random()}`);
-  if (!fs.existsSync(tempDir)) {
-    fs.mkdirSync(tempDir, { recursive: true });
-  }
-  dbPath = path.join(tempDir, 'media_slideshow_stats.sqlite'); // Path for in-memory for better-sqlite3 is ':memory:'
-  electron.app.getPath.mockImplementation((name) => {
-      if (name === 'userData') return tempDir;
-      return '';
-  });
+  // Now, electron.app.getPath() will use the consistent path from the mock factory.
+  // We still need to get the path for dbPath for cleanup.
+  const electron = require('electron'); // Get the mocked electron
+  const userDataPath = electron.app.getPath('userData'); // This will call our mock
+  const fs = require('fs'); // fs required for cleanup logic in afterAll and beforeEach
+
+  dbPath = path.join(userDataPath, 'media_slideshow_stats.sqlite'); 
+
+  // No need to re-mock electron.app.getPath here as the factory does it.
+  // electron.app.getPath.mockImplementation((name) => {
+  //     if (name === 'userData') return userDataPath; // This was part of the problem
+  //     return '';
+  // });
 
   databaseFunctions = require('./database.js');
   
