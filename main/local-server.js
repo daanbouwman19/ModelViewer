@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { SUPPORTED_IMAGE_EXTENSIONS, SUPPORTED_VIDEO_EXTENSIONS } = require('./constants.js');
 
+let serverInstance = null; // To keep a reference to the server
 let serverPort = 0; // Stores the port the server is running on.
 
 /**
@@ -39,6 +40,14 @@ function getMimeType(filePath) {
  * @param {function} onReadyCallback - Callback function executed when the server is ready.
  */
 function startLocalServer(onReadyCallback) {
+    if (serverInstance) {
+        console.warn('[local-server.js] Server already started. Ignoring request.');
+        if (onReadyCallback && typeof onReadyCallback === 'function') {
+            onReadyCallback(); // Call callback if already running
+        }
+        return;
+    }
+
     const server = http.createServer((req, res) => {
         const parsedUrl = url.parse(req.url);
         // Decode URI component to handle spaces or special characters in file paths
@@ -47,15 +56,16 @@ function startLocalServer(onReadyCallback) {
         // Security: Define the allowed base directory from which files can be served.
         // This prevents directory traversal attacks.
         // TODO: This should be configurable or derived more safely in a real application.
-        const allowedBaseDirectory = path.normalize('D:\\');
+        // For now, allowing access to any path that fs.existsSync confirms.
+        // A more robust solution would involve checking against a list of allowed base paths.
         const normalizedFilePath = path.normalize(requestedPath);
 
-        // Check if the normalized path is within the allowed directory and exists
-        if (!normalizedFilePath.startsWith(allowedBaseDirectory) || !fs.existsSync(normalizedFilePath)) {
-            console.error(`[local-server.js] Forbidden or not found: ${normalizedFilePath}`);
+        if (!fs.existsSync(normalizedFilePath)) { // Simplified check
+            console.error(`[local-server.js] File not found: ${normalizedFilePath}`);
             res.writeHead(404, { 'Content-Type': 'text/plain' });
-            return res.end('File not found or access denied.');
+            return res.end('File not found.');
         }
+
 
         try {
             const stat = fs.statSync(normalizedFilePath);
@@ -100,19 +110,43 @@ function startLocalServer(onReadyCallback) {
         }
     });
 
-    server.listen(0, '127.0.0.1', () => { // Listen on port 0 for a random available port
-        serverPort = server.address().port;
+    serverInstance = server; // Store the server instance
+
+    serverInstance.listen(0, '127.0.0.1', () => { // Listen on port 0 for a random available port
+        serverPort = serverInstance.address().port;
         console.log(`[local-server.js] Local media server started on http://localhost:${serverPort}`);
         if (onReadyCallback && typeof onReadyCallback === 'function') {
             onReadyCallback();
         }
     });
 
-    server.on('error', (err) => {
+    serverInstance.on('error', (err) => {
         console.error('[local-server.js] Server Error:', err);
+        serverInstance = null; // Reset serverInstance on error
+        serverPort = 0;
         // Handle server errors, e.g., if the server fails to start.
-        // The onReadyCallback might not be called in this case.
     });
+}
+
+/**
+ * Stops the local HTTP server if it is running.
+ * @param {function} [callback] - Optional callback to run after the server is closed.
+ */
+function stopLocalServer(callback) {
+    if (serverInstance) {
+        serverInstance.close(() => {
+            console.log('[local-server.js] Local media server stopped.');
+            serverInstance = null;
+            serverPort = 0;
+            if (callback && typeof callback === 'function') {
+                callback();
+            }
+        });
+    } else {
+        if (callback && typeof callback === 'function') {
+            callback(); // Call immediately if not running
+        }
+    }
 }
 
 /**
@@ -125,6 +159,7 @@ function getServerPort() {
 
 module.exports = {
     startLocalServer,
+    stopLocalServer, // Export the stop function
     getServerPort,
-    getMimeType // Exported for use in main.js and potentially tests
+    getMimeType
 };

@@ -70,9 +70,9 @@ function initDatabase() {
  * @returns {Database.Database | null} The database instance or null if initialization fails.
  */
 function getDb() {
-    if (!db) {
+    if (!db || !db.open) { // Check if db is null or closed
         if (process.env.NODE_ENV !== 'test') {
-            console.warn('[database.js] DB accessed before explicit initialization. Attempting to initialize...');
+            console.warn('[database.js] DB accessed before explicit initialization or after being closed. Attempting to initialize...');
         }
         try {
             initDatabase();
@@ -126,6 +126,10 @@ async function getMediaViewCounts(filePaths) {
 
     const viewCountsMap = {};
     try {
+        // Ensure filePaths is an array and not empty before proceeding
+        if (!Array.isArray(filePaths) || filePaths.length === 0) {
+            return {};
+        }
         const placeholders = filePaths.map(() => '?').join(',');
         const fileIds = filePaths.map(generateFileId);
         const stmt = currentDb.prepare(`SELECT file_path_hash, view_count FROM media_views WHERE file_path_hash IN (${placeholders})`);
@@ -160,7 +164,7 @@ async function cacheModels(models) {
     }
     try {
         currentDb.prepare(`INSERT OR REPLACE INTO app_cache (cache_key, cache_value, last_updated) VALUES (?, ?, ?)`)
-                 .run(FILE_INDEX_CACHE_KEY, JSON.stringify(models), new Date().toISOString());
+            .run(FILE_INDEX_CACHE_KEY, JSON.stringify(models), new Date().toISOString());
         if (process.env.NODE_ENV !== 'test') {
             console.log('[database.js] File index successfully scanned and cached in SQLite.');
         }
@@ -202,11 +206,33 @@ async function getCachedModels() {
     return null;
 }
 
+/**
+ * Closes the current database connection if it's open.
+ */
+function closeDatabase() {
+    if (db) {
+        try {
+            db.close();
+            // Logging closure only if not in test environment to reduce test noise
+            if (process.env.NODE_ENV !== 'test') {
+                console.log('[database.js] Database connection closed.');
+            }
+        } catch (closeError) {
+            if (process.env.NODE_ENV !== 'test') {
+                console.error('[database.js] Error closing DB connection:', closeError);
+            }
+        } finally {
+            db = null; // Important to reset the db variable
+        }
+    }
+}
+
 module.exports = {
     initDatabase,
     recordMediaView,
     getMediaViewCounts,
     cacheModels,
     getCachedModels,
-    generateFileId // Exported for testing purposes
+    generateFileId, // Exported for testing purposes
+    closeDatabase // Export the new function
 };
