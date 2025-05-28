@@ -4,8 +4,7 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs'); 
 const crypto = require('crypto'); 
-const http = require('http');
-const url = require('url');
+// http and url are no longer needed here as server logic moved to local-server.js
 
 const { 
     MAX_DATA_URL_SIZE_MB, 
@@ -17,51 +16,36 @@ const {
 
 const { initDatabase, recordMediaView, getMediaViewCounts, cacheModels, getCachedModels } = require('./database.js');
 const { performFullMediaScan } = require('./media-scanner.js'); // Added import
-
-let serverPort = 0; // Will be set when the server starts
-
-function getMimeType(filePath) {
-    const extension = path.extname(filePath).substring(1).toLowerCase();
-    if (SUPPORTED_IMAGE_EXTENSIONS.includes(`.${extension}`)) return `image/${extension === 'jpg' ? 'jpeg' : extension}`;
-    if (SUPPORTED_VIDEO_EXTENSIONS.includes(`.${extension}`)) {
-        if (extension === 'mp4') return 'video/mp4';
-        if (extension === 'webm') return 'video/webm';
-        if (extension === 'ogg') return 'video/ogg';
-        // Add more specific MIME types if needed for .mov, .avi, .mkv
-        if (extension === 'mov') return 'video/quicktime';
-        if (extension === 'avi') return 'video/x-msvideo';
-        if (extension === 'mkv') return 'video/x-matroska';
-        return `video/${extension}`;
-    }
-    return 'application/octet-stream';
-}
+const { startLocalServer, getServerPort, getMimeType: resolveMimeType } = require('./local-server.js'); // Added for server logic
 
 // --- IPC Handlers - Define these once at the top level ---
 ipcMain.handle('load-file-as-data-url', (event, filePath) => {
     try {
       if (!filePath || !fs.existsSync(filePath)) {
-        console.error(`[main.js] File does not exist: ${filePath}`);
-        return null;
+        console.error(`[main.js] File does not exist for load-file-as-data-url: ${filePath}`);
+        return { type: 'error', message: 'File does not exist.' };
       }
       const stats = fs.statSync(filePath);
       const isVideo = SUPPORTED_VIDEO_EXTENSIONS.includes(path.extname(filePath).toLowerCase());
-      
+      const currentServerPort = getServerPort(); // Get current server port
+
       if (isVideo && stats.size > MAX_DATA_URL_SIZE_MB * 1024 * 1024) {
-        if (serverPort === 0) {
-            console.error('[main.js] Server not ready, cannot provide HTTP URL.');
-            return { type: 'error', message: 'Local server not ready.' };
+        if (currentServerPort === 0) {
+            console.error('[main.js] Server not ready (port 0), cannot provide HTTP URL for large video.');
+            return { type: 'error', message: 'Local server not ready to stream large video.' };
         }
-        const pathForUrl = filePath.replace(/\\/g, '/'); 
-        return { type: 'http-url', url: `http://localhost:${serverPort}/${pathForUrl}` };
+        const pathForUrl = filePath.replace(/\\/g, '/'); // Ensure backslashes are forward slashes for URL
+        return { type: 'http-url', url: `http://localhost:${currentServerPort}/${pathForUrl}` };
       }
       
+      const mimeType = resolveMimeType(filePath); // Use imported resolveMimeType
+
       const fileBuffer = fs.readFileSync(filePath);
-      const mimeType = getMimeType(filePath);
       const dataURL = `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
       return { type: 'data-url', url: dataURL }; 
     } catch (error) {
-      console.error(`[main.js] CRITICAL ERROR while processing ${filePath}:`, error);
-      return { type: 'error', message: error.message };
+      console.error(`[main.js] CRITICAL ERROR while processing ${filePath} in load-file-as-data-url:`, error);
+      return { type: 'error', message: error.message || 'Unknown error processing file.' };
     }
 });
 
@@ -157,86 +141,21 @@ function createWindow() {
     .catch(err => console.error('[main.js] FAILED to load index.html:', err));
 }
 
-function startLocalServer() {
-    const server = http.createServer((req, res) => {
-        const parsedUrl = url.parse(req.url);
-        const filePath = decodeURIComponent(parsedUrl.pathname.substring(1));
-
-        const allowedBaseDirectory = path.normalize('D:\\'); // Ensure this is the correct base path
-        const normalizedFilePath = path.normalize(filePath);
-
-        if (!normalizedFilePath.startsWith(allowedBaseDirectory) || !fs.existsSync(normalizedFilePath)) {
-            console.error(`[Server] Forbidden or not found: ${normalizedFilePath}`);
-            res.writeHead(404);
-            return res.end('File not found.');
-        }
-
-        try {
-            const stat = fs.statSync(normalizedFilePath);
-            const totalSize = stat.size;
-            const range = req.headers.range;
-
-            if (range) {
-                const parts = range.replace(/bytes=/, "").split("-");
-                const start = parseInt(parts[0], 10);
-                let end = parts[1] ? parseInt(parts[1], 10) : totalSize - 1;
-                
-                if (isNaN(start) || start >= totalSize || end >= totalSize || start > end) {
-                    console.error(`[Server] Invalid range: ${range} for ${normalizedFilePath}`);
-                    res.writeHead(416, { 'Content-Range': `bytes */${totalSize}` });
-                    return res.end();
-                }
-
-                const chunkSize = (end - start) + 1;
-                const file = fs.createReadStream(normalizedFilePath, { start, end });
-                const head = {
-                    'Content-Range': `bytes ${start}-${end}/${totalSize}`,
-                    'Accept-Ranges': 'bytes',
-                    'Content-Length': chunkSize,
-                    'Content-Type': getMimeType(normalizedFilePath),
-                };
-                res.writeHead(206, head);
-                file.pipe(res);
-            } else {
-                const head = {
-                    'Content-Length': totalSize,
-                    'Content-Type': getMimeType(normalizedFilePath),
-                    'Accept-Ranges': 'bytes'
-                };
-                res.writeHead(200, head);
-                fs.createReadStream(normalizedFilePath).pipe(res);
-            }
-        } catch (serverError) {
-            console.error(`[Server] Error processing file ${normalizedFilePath}:`, serverError);
-            res.writeHead(500);
-            res.end("Server error.");
-        }
-    }).listen(0, '127.0.0.1', () => {
-        serverPort = server.address().port;
-        console.log(`[main.js] Local media server started on http://localhost:${serverPort}`);
-        createWindow(); 
-    });
-
-    server.on('error', (err) => {
-        console.error('[main.js] Server Error:', err);
-        // Potentially try to restart or alert the user
-    });
-}
-
 app.on('ready', () => {
   try {
-    initDatabase(); // Initialize DB
+    initDatabase(); 
     console.log('[main.js] Database initialization requested.');
   } catch (error) {
-    console.error("[main.js] CRITICAL: Failed to initialize database during app ready. App may not function correctly.", error);
-    // Optionally, show an error dialog to the user or quit the app
+    console.error("[main.js] CRITICAL: Failed to initialize database during app ready.", error);
   }
-  startLocalServer(); // Then start the server (which calls createWindow)
+  // Pass createWindow as a callback to be executed once server is ready
+  startLocalServer(createWindow); 
 });
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 app.on('activate', () => { 
     if (BrowserWindow.getAllWindows().length === 0) {
-        if (serverPort > 0) { // Ensure server is running before creating a window
+        // serverPort is no longer available here, use getServerPort()
+        if (getServerPort() > 0) { // Ensure server is running before creating a window
             createWindow(); 
         } else {
             // If server isn't running (e.g., failed to start), maybe try starting it again
