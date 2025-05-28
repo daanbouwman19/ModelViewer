@@ -393,23 +393,26 @@ app.whenReady().then(async () => { // Make this async
     if (queryParamIndex !== -1) pathPart = pathPart.substring(0, queryParamIndex);
     const decodedPath = decodeURIComponent(pathPart); 
     const normalizedDecodedPath = path.normalize(decodedPath);
+    const absolutePath = path.resolve(normalizedDecodedPath); // Ensure path is absolute
 
     const localAllowedBaseDir = getBaseMediaDirectory();
     if (!localAllowedBaseDir) {
-      console.error(`[main.js Custom Protocol] Base directory not configured. Cannot serve ${normalizedDecodedPath}`);
+      console.error(`[main.js Custom Protocol] Base directory not configured. Cannot serve ${absolutePath}`);
       return { error: -10 }; // net::ERR_ACCESS_DENIED or similar generic error
     }
     
-    const normalizedAllowedBaseDir = path.normalize(localAllowedBaseDir);
+    // Ensure normalizedAllowedBaseDir is also absolute for comparison
+    const normalizedAllowedBaseDir = path.resolve(localAllowedBaseDir); 
 
-    if (normalizedDecodedPath.startsWith(normalizedAllowedBaseDir) && fs.existsSync(normalizedDecodedPath)) {
-      console.log(`[main.js Custom Protocol] Serving file: ${normalizedDecodedPath} for URL: ${request.url}`);
-      return { path: normalizedDecodedPath };
+    if (absolutePath.startsWith(normalizedAllowedBaseDir) && fs.existsSync(absolutePath)) {
+      console.log(`[main.js Custom Protocol] Serving file: ${normalizedDecodedPath} (Normalized) for URL: ${request.url}`);
+      console.log(`[main.js Custom Protocol] Resolved absolute path for serving: ${absolutePath}`);
+      return { path: absolutePath };
     } else {
-      if (!normalizedDecodedPath.startsWith(normalizedAllowedBaseDir)) {
-        console.error(`[main.js Custom Protocol] DENIED access to: ${normalizedDecodedPath} (Path is outside allowed base directory ${normalizedAllowedBaseDir})`);
+      if (!absolutePath.startsWith(normalizedAllowedBaseDir)) {
+        console.error(`[main.js Custom Protocol] DENIED access to: ${absolutePath} (Path is outside allowed base directory ${normalizedAllowedBaseDir})`);
       } else {
-        console.error(`[main.js Custom Protocol] File NOT FOUND: ${normalizedDecodedPath} (Original URL: ${request.url})`);
+        console.error(`[main.js Custom Protocol] File NOT FOUND: ${absolutePath} (Original URL: ${request.url}, Normalized Decoded: ${normalizedDecodedPath})`);
       }
       return { error: -6 }; // net::ERR_FILE_NOT_FOUND
     }

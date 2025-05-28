@@ -431,7 +431,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (loadResult.type === 'data-url') mediaElement.src = loadResult.url;
             else if (loadResult.type === 'custom-protocol') {
                 const encodedPath = encodeURIComponent(loadResult.path);
-                mediaElement.src = `${loadResult.protocolScheme}://${encodedPath}?t=${Date.now()}`;
+                mediaElement.src = `${loadResult.protocolScheme}://${encodedPath}`;
             } else throw new Error('Unknown load result type');
             
             if (mediaElement.tagName === 'VIDEO' || mediaElement.tagName === 'IMG') {
