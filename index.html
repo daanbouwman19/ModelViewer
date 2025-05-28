@@ -4,322 +4,328 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Model Slideshow Viewer</title>
+    <title>Media Slideshow Viewer</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        /*
+         * Custom Color Palette & Typography using CSS Variables.
+         * This allows for easy theming and consistent styling.
+         */
         :root {
-            --primary-bg: #111827; /* Darker Gray for main background */
-            --secondary-bg: #1f2937; /* Slightly Lighter Gray for panels */
-            --tertiary-bg: #374151; /* Accent Gray */
-            --accent-color: #ec4899; /* Vibrant Pink */
-            --accent-hover: #db2777; /* Darker Pink for hover */
-            --text-color: #f3f4f6; /* Light Gray for text */
-            --text-muted: #9ca3af; /* Muted Gray for less important text */
+            --primary-bg: #111827; /* Dark Gray for main background */
+            --secondary-bg: #1f2937; /* Lighter Gray for panels */
+            --tertiary-bg: #374151; /* Accent Gray for borders, disabled states */
+            --accent-color: #ec4899; /* Vibrant Pink for interactive elements */
+            --accent-hover: #db2777; /* Darker Pink for hover states */
+            --text-color: #f3f4f6; /* Light Gray for primary text */
+            --text-muted: #9ca3af; /* Muted Gray for secondary text, placeholders */
             --border-color: #4b5563; /* Mid Gray for borders */
-            --selection-color: #374151; /* Accent Gray for selections */
+            --selection-color: #374151; /* Accent Gray for list item hover */
+            --button-text-color: #ffffff; /* White text for buttons */
+
+            /* Fonts imported via Google Fonts */
             --header-font: 'Dancing Script', cursive;
             --body-font: 'Quicksand', sans-serif;
-            --button-text-color: #ffffff; /* White text for buttons */
         }
 
+        /* Import Google Fonts */
         @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Quicksand:wght@500;700&display=swap');
 
+        /* Custom Scrollbar Styling */
         ::-webkit-scrollbar {
             width: 10px;
         }
-
         ::-webkit-scrollbar-track {
-            background: var(--secondary-bg); /* Darker track */
+            background: var(--secondary-bg);
         }
-
         ::-webkit-scrollbar-thumb {
             background: var(--accent-color);
             border-radius: 10px;
-            border: 2px solid var(--secondary-bg);
+            border: 2px solid var(--secondary-bg); /* Creates a "padding" effect */
         }
-
         ::-webkit-scrollbar-thumb:hover {
             background: var(--accent-hover);
         }
 
+        /* General Body Styling */
         body {
             font-family: var(--body-font);
             background-color: var(--primary-bg);
             color: var(--text-color);
-            overscroll-behavior: none;
-            font-weight: 500;
+            overscroll-behavior: none; /* Prevents pull-to-refresh on some devices */
+            font-weight: 500; /* Default body font weight */
         }
 
-        h1,
-        h2,
-        #current-model-title {
+        /* Typography for Headings */
+        h1, h2, #current-model-title {
             font-family: var(--header-font);
-            color: var(--accent-color); /* Use accent for titles */
-            text-transform: none;
+            color: var(--accent-color);
             font-weight: 700;
             text-shadow: 1px 1px 3px rgba(0,0,0,0.3); /* Subtle shadow for depth */
         }
-
-        header h1 {
-            font-size: 2.5rem;
+        header h1 { /* Main application title */
+            font-size: 2.5rem; /* Tailwind: text-4xl */
         }
-
-        #current-model-title {
-            font-size: 2.2rem;
-            padding: 0.5rem 0;
+        #current-model-title { /* Title above media display */
+            font-size: 2.2rem; /* Tailwind: approx text-3xl */
+            padding: 0.5rem 0; /* Tailwind: py-2 */
         }
-
-        #models-list h2 { /* This is the "Models" text above the list */
-            font-family: var(--body-font); /* Keep body font for this specific H2 */
+        #models-list h2 { /* "Models" text above the list */
+            font-family: var(--body-font); /* Use body font for this specific H2 */
             text-transform: uppercase;
-            font-size: 1.1rem; /* Slightly smaller */
+            font-size: 1.1rem; /* Tailwind: text-lg */
             letter-spacing: 0.08em;
             color: var(--text-muted);
             font-weight: 700;
-            padding-bottom: 0.5rem; /* Add some space below */
-            border-bottom: 1px solid var(--border-color); /* Separator line */
-            margin-bottom: 0.75rem; /* Space before list starts */
+            padding-bottom: 0.5rem; /* Tailwind: pb-2 */
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 0.75rem; /* Tailwind: mb-3 */
         }
-        
+
+        /* Header Styling */
         header {
             background-color: var(--secondary-bg);
-            border-bottom: 1px solid var(--border-color); /* Thinner border */
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2); /* Softer shadow */
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
 
+        /* Main Content Area Layout */
         main {
-            height: calc(100vh - 70px - 45px);
+            /* Adjust height to fill viewport minus header and footer */
+            height: calc(100vh - 70px - 45px); /* Approximate header/footer heights */
         }
 
-        /* Styling for the main panels (models list and media display) */
-        .w-full.md\:w-1\/3, /* Left panel */
-        #model-details-container { /* Right panel */
+        /* Panel Styling (Models List & Media Display) */
+        .w-full.md\:w-1\/3, /* Left panel (Tailwind class) */
+        #model-details-container { /* Right panel (ID) */
             background-color: var(--secondary-bg);
             border: 1px solid var(--border-color);
-            border-radius: 12px; /* Slightly more rounded */
-            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15); /* Softer, more diffused shadow */
+            border-radius: 12px; /* Tailwind: rounded-xl */
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
         }
-        
+
+        /* Media Display Area (where images/videos appear) */
         #media-display-area {
-            border: 2px dashed var(--tertiary-bg); /* Use tertiary for dashed border */
-            border-radius: 10px;
-            flex-grow: 1;
+            border: 2px dashed var(--tertiary-bg);
+            border-radius: 10px; /* Tailwind: rounded-lg */
+            flex-grow: 1; /* Takes available vertical space */
             display: flex;
             align-items: center;
             justify-content: center;
-            overflow: hidden;
-            position: relative;
-            padding: 0;
+            overflow: hidden; /* Prevents content from spilling */
+            position: relative; /* For absolute positioning of placeholder/loading text */
+            padding: 0; /* Remove padding if media should fill it */
             background-color: var(--primary-bg); /* Match body background for the placeholder area */
         }
         #media-display-area p#media-placeholder {
             color: var(--text-muted);
         }
-
-        /* --- Model List Item Controls (Checkboxes) --- */
-        #models-list .model-controls {
-            display: flex;
-            flex-direction: column; /* Stack Rand and Global vertically */
-            align-items: flex-start; /* Align items to the start (left) */
-            gap: 4px; /* Space between Rand and Global lines */
-            margin-left: 10px; /* Add some space to the left of controls */
-        }
-
-        #models-list .toggle-label {
-            font-size: 0.8rem;
-            display: grid; /* Use grid for precise alignment */
-            grid-template-columns: 50px auto; /* Fixed width for label text, auto for checkbox */
-            align-items: center; /* Vertically align text and checkbox within their grid cells */
-            color: var(--text-color);
-            font-weight: 700; 
-            cursor: pointer;
-            gap: 5px; /* Space between label text column and checkbox column */
-        }
-        
-        #models-list .toggle-label input[type="checkbox"] {
-            appearance: none;
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            width: 18px; 
-            height: 18px;
-            border: 2px solid var(--border-color);
-            border-radius: 4px; 
-            background-color: var(--primary-bg);
-            cursor: pointer;
-            position: relative;
-            transition: background-color 0.2s ease, border-color 0.2s ease;
-            flex-shrink: 0; 
-            justify-self: start; /* Align checkbox to the start of its grid cell */
-        }
-
-        #models-list .toggle-label input[type="checkbox"]:hover {
-            border-color: var(--accent-color);
-        }
-
-        #models-list .toggle-label input[type="checkbox"]:checked {
-            background-color: var(--accent-color);
-            border-color: var(--accent-hover);
-        }
-
-        #models-list .toggle-label input[type="checkbox"]:checked::after {
-            content: '✔';
-            color: var(--button-text-color);
-            font-size: 14px; 
-            font-weight: bold;
-            position: absolute;
-            top: 50%; 
-            left: 50%;
-            transform: translate(-50%, -50%); 
-        }
-        /* --- End of Model List Item Controls --- */
-
-        .timer-controls {
-            display: flex;
-            align-items: center;
-            gap: 10px; 
-        }
-
-        .timer-controls input[type="number"] {
-            background-color: var(--primary-bg); 
-            border: 1px solid var(--border-color);
-            border-radius: 6px; 
-            color: var(--text-color);
-            font-weight: 500; 
-            width: 65px; 
-            padding: 0.4rem 0.5rem; 
-            text-align: center;
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .timer-controls input[type="number"]:focus {
-            outline: none;
-            border-color: var(--accent-color);
-            box-shadow: 0 0 0 2px var(--accent-color); 
-        }
-
         #media-display-area video,
         #media-display-area img {
             max-width: 100%;
             max-height: 100%;
-            object-fit: contain;
-            display: block;
-            border-radius: 8px; 
+            object-fit: contain; /* Ensures media fits without cropping, maintaining aspect ratio */
+            display: block; /* Removes extra space below inline images */
+            border-radius: 8px; /* Tailwind: rounded-md */
+        }
+        /* Centering loading/error text inside media-display-area */
+        #media-display-area > p.text-gray-400,
+        #media-display-area > p.text-red-400 {
+            position: absolute;
+            inset: 0; /* Covers the entire area */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 1rem; /* Tailwind: p-4 */
         }
 
+
+        /* Models List Item Styling */
         #models-list li {
             display: flex;
-            justify-content: space-between; 
-            align-items: center; 
-            padding: 10px 15px; 
-            border-radius: 8px;
-            transition: all 0.2s ease; 
-            border: 1px solid transparent;
-            margin-bottom: 6px; 
-            cursor: pointer; 
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px; /* Tailwind: px-4 py-2.5 approx */
+            border-radius: 8px; /* Tailwind: rounded-md */
+            transition: all 0.2s ease;
+            border: 1px solid transparent; /* For hover effect */
+            margin-bottom: 6px; /* Tailwind: mb-1.5 */
+            cursor: pointer;
         }
-
         #models-list li:hover {
             background-color: var(--selection-color);
             border-color: var(--accent-color);
-            transform: translateX(3px); 
+            transform: translateX(3px); /* Slight shift on hover */
         }
-
-        #models-list li.active-model-individual {
+        #models-list li.active-model-individual { /* Style for the currently active individual model */
             background-color: var(--accent-color);
             border-color: var(--accent-hover);
-            color: var(--button-text-color); 
-            box-shadow: 0 0 8px var(--accent-color);
+            color: var(--button-text-color);
+            box-shadow: 0 0 8px var(--accent-color); /* Glow effect */
             font-weight: 700;
         }
         #models-list li.active-model-individual .model-name-clickable {
-            color: var(--button-text-color);
+            color: var(--button-text-color); /* Ensure text is readable on accent background */
         }
-
-
-        #models-list li.selected-for-global {
-            border-left: 5px solid var(--accent-hover); 
+        #models-list li.selected-for-global { /* Style for models included in global slideshow */
+            /* border-left: 5px solid var(--accent-hover); */ /* Original style */
+            /* Modernized: Use a subtle background or a small dot indicator */
+            position: relative; /* For pseudo-element indicator */
+        }
+        #models-list li.selected-for-global::before {
+            content: '';
+            position: absolute;
+            left: 5px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent-hover);
+            border-radius: 50%;
         }
 
         #models-list .model-name-clickable {
-            flex-grow: 1; 
-            font-size: 0.95rem; 
-            font-weight: 500; 
+            flex-grow: 1; /* Allows name to take available space */
+            font-size: 0.95rem; /* Tailwind: text-sm approx */
+            font-weight: 500;
             color: var(--text-color);
-            margin-right: 10px; 
+            margin-right: 10px; /* Tailwind: mr-2.5 */
         }
-        
-        /* --- Improved Button Styles --- */
-        .action-button,
-        .nav-button,
-        .timer-button {
+
+        /* Model List Item Controls (Checkboxes for Random/Global) */
+        #models-list .model-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px; /* Tailwind: gap-1 */
+            margin-left: 10px; /* Tailwind: ml-2.5 */
+        }
+        #models-list .toggle-label {
+            font-size: 0.8rem; /* Tailwind: text-xs */
+            display: grid;
+            grid-template-columns: 50px auto; /* Label text width, then checkbox */
+            align-items: center;
+            color: var(--text-color);
+            font-weight: 700;
+            cursor: pointer;
+            gap: 5px; /* Tailwind: gap-1 approx */
+        }
+        #models-list .toggle-label input[type="checkbox"] {
+            appearance: none; /* Remove default browser styling */
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            width: 18px; /* Tailwind: w-4.5 (custom) */
+            height: 18px; /* Tailwind: h-4.5 (custom) */
+            border: 2px solid var(--border-color);
+            border-radius: 4px; /* Tailwind: rounded-sm */
+            background-color: var(--primary-bg);
+            cursor: pointer;
+            position: relative; /* For checkmark positioning */
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+            flex-shrink: 0;
+            justify-self: start; /* Align checkbox to the start of its grid cell */
+        }
+        #models-list .toggle-label input[type="checkbox"]:hover {
+            border-color: var(--accent-color);
+        }
+        #models-list .toggle-label input[type="checkbox"]:checked {
+            background-color: var(--accent-color);
+            border-color: var(--accent-hover);
+        }
+        #models-list .toggle-label input[type="checkbox"]:checked::after { /* Custom checkmark */
+            content: '✔';
+            color: var(--button-text-color);
+            font-size: 14px;
+            font-weight: bold;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        /* Timer Controls Styling */
+        .timer-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px; /* Tailwind: gap-2.5 */
+        }
+        .timer-controls label {
+            color: var(--text-muted);
+            font-weight: 700;
+            font-size: 0.85rem; /* Tailwind: text-sm approx */
+        }
+        .timer-controls input[type="number"] {
+            background-color: var(--primary-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px; /* Tailwind: rounded-md */
+            color: var(--text-color);
+            font-weight: 500;
+            width: 65px; /* Tailwind: w-16 approx */
+            padding: 0.4rem 0.5rem; /* Tailwind: px-2 py-1.5 approx */
+            text-align: center;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .timer-controls input[type="number"]:focus { /* Focus style for number input */
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 2px var(--accent-color); /* Ring effect */
+        }
+
+        /* Button Styling (Action, Navigation, Timer) */
+        .action-button, .nav-button, .timer-button {
             background-color: var(--accent-color);
             color: var(--button-text-color);
-            padding: 0.6rem 1.2rem; 
-            border-radius: 8px; 
+            padding: 0.6rem 1.2rem; /* Tailwind: px-5 py-2.5 approx */
+            border-radius: 8px; /* Tailwind: rounded-md */
             border: none;
             cursor: pointer;
             transition: background-color 0.2s ease-in-out, transform 0.15s ease, box-shadow 0.2s ease;
-            user-select: none;
-            font-size: 0.85rem; 
+            user-select: none; /* Prevent text selection on click */
+            font-size: 0.85rem; /* Tailwind: text-sm */
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             font-family: var(--body-font);
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2); 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
-
-        .action-button:hover,
-        .nav-button:hover,
-        .timer-button:hover {
+        .action-button:hover, .nav-button:hover, .timer-button:hover {
             background-color: var(--accent-hover);
-            transform: translateY(-1px); 
-            box-shadow: 0 4px 8px rgba(0,0,0,0.25); 
+            transform: translateY(-1px); /* Subtle lift effect */
+            box-shadow: 0 4px 8px rgba(0,0,0,0.25);
         }
-        
-        .action-button:active,
-        .nav-button:active,
-        .timer-button:active {
-            transform: translateY(0px); 
+        .action-button:active, .nav-button:active, .timer-button:active {
+            transform: translateY(0px); /* Push down effect */
             box-shadow: 0 1px 2px rgba(0,0,0,0.2);
         }
-
-
-        .nav-button:disabled,
-        .timer-button:disabled {
-            background-color: var(--tertiary-bg); 
+        .nav-button:disabled, .timer-button:disabled { /* Disabled state for buttons */
+            background-color: var(--tertiary-bg);
             color: var(--text-muted);
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
-            text-shadow: none;
         }
-        /* --- End of Improved Button Styles --- */
 
+        /* Footer Styling */
         footer {
             background-color: var(--secondary-bg);
             border-top: 1px solid var(--border-color);
             color: var(--text-muted);
         }
 
-        .timer-controls label {
-            color: var(--text-muted);
-            font-weight: 700;
-            font-size: 0.85rem; 
-        }
-        
+        /* Header Controls Layout (buttons and timer in the left panel) */
         .header-controls {
             display: flex;
-            flex-wrap: wrap; 
-            gap: 10px; 
+            flex-wrap: wrap; /* Allow items to wrap on smaller screens */
+            gap: 10px; /* Tailwind: gap-2.5 */
             align-items: center;
-            margin-bottom: 1rem; 
-            padding-bottom: 1rem; 
+            margin-bottom: 1rem; /* Tailwind: mb-4 */
+            padding-bottom: 1rem; /* Tailwind: pb-4 */
             border-bottom: 1px solid var(--border-color);
         }
-        .header-controls > * { 
-            flex-shrink: 0; 
+        .header-controls > * { /* Prevent shrinking of items in flex container */
+            flex-shrink: 0;
         }
-
 
     </style>
 </head>
@@ -331,17 +337,18 @@
     </header>
 
     <main class="flex-grow flex flex-col md:flex-row p-4 gap-4 overflow-hidden">
+
         <div class="w-full md:w-1/3 bg-gray-800 shadow-lg rounded-lg p-4 flex flex-col overflow-y-auto">
             <div class="header-controls">
                 <button id="start-global-slideshow-button" class="action-button">Global Slideshow</button>
                 <div class="timer-controls">
                     <label for="timer-duration">Timer (s):</label>
-                    <input type="number" id="timer-duration" value="5" min="1">
+                    <input type="number" id="timer-duration" value="5" min="1" class="focus:ring-pink-500 focus:border-pink-500">
                     <button id="play-pause-timer-button" class="timer-button">Play</button>
                 </div>
                 <button id="reindex-library-button" class="action-button">Re-index Library</button>
             </div>
-            
+
             <h2 class="text-xl font-semibold">Models</h2>
             <ul id="models-list" class="space-y-1 flex-grow pr-2">
                 <li class="text-gray-400">Loading models...</li>
@@ -349,17 +356,14 @@
         </div>
 
         <div id="model-details-container" class="w-full md:w-2/3 bg-gray-800 shadow-lg rounded-lg p-4 flex flex-col">
-            <h2 id="current-model-title" class="text-xl font-semibold mb-2 text-center">Select a model or start Global
-                Slideshow</h2>
+            <h2 id="current-model-title" class="text-xl font-semibold mb-2 text-center">Select a model or start Global Slideshow</h2>
 
             <div id="media-display-area" class="mb-3">
                 <p id="media-placeholder" class="text-gray-500">Media will appear here.</p>
             </div>
 
             <div id="media-info" class="text-center mb-3">
-                <p id="file-name-info" class="text-sm text-gray-400">&nbsp;</p>
-                <p id="file-count-info" class="text-sm text-gray-300">&nbsp;</p>
-            </div>
+                <p id="file-name-info" class="text-sm text-gray-400">&nbsp;</p> <p id="file-count-info" class="text-sm text-gray-300">&nbsp;</p> </div>
 
             <div class="flex justify-between items-center mt-auto pt-2 border-t border-gray-700">
                 <button id="prev-media-button" class="nav-button" disabled>Previous (←)</button>
@@ -372,7 +376,6 @@
         Model Slideshow App | Use ← → for navigation, Space to Play/Pause timer.
     </footer>
 
-    <script src="./renderer.js"></script>
+    <script src="./renderer.js" type="module"></script>
 </body>
-
 </html>
