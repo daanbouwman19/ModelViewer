@@ -2,19 +2,20 @@
   "name": "modelviewer-app",
   "version": "1.0.0",
   "description": "My Model Slideshow Viewer",
-  "main": "main.js",
+  "main": "main/main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder"
+    "dist": "electron-builder",
+    "rebuild": "electron-rebuild"
   },
-  "author": "Your Name",
+  "author": "Daan Bouwman",
+  "dependencies": {
+    "better-sqlite3": "^11.10.0"
+  },
   "devDependencies": {
     "@electron/rebuild": "^4.0.1",
-    "electron": "36.3.1",
+    "electron": "36.3.2",
     "electron-builder": "26.0.15"
-  },
-  "dependencies": {
-    "better-sqlite3": "11.10.0"
   },
   "build": {
     "appId": "com.example.modelviewerapp",
