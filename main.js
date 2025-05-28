@@ -387,36 +387,107 @@ app.whenReady().then(async () => { // Make this async
   console.log('[main.js] app.whenReady() resolved.'); 
   await loadSettings(); // Load settings on startup
 
-  protocol.registerFileProtocol(CUSTOM_PROTOCOL_SCHEME, (request) => {
+  // Unregister existing handler before registering the new one
+  if (protocol.isProtocolRegistered(CUSTOM_PROTOCOL_SCHEME)) {
+    console.log(`[main.js] Unregistering existing protocol handler for ${CUSTOM_PROTOCOL_SCHEME}`);
+    protocol.unhandle(CUSTOM_PROTOCOL_SCHEME);
+  }
+
+  protocol.registerStreamProtocol(CUSTOM_PROTOCOL_SCHEME, async (request, callback) => {
+    console.log(`[main.js StreamProtocol] Request for URL: ${request.url}`);
     let pathPart = request.url.substring(`${CUSTOM_PROTOCOL_SCHEME}://`.length);
-    const queryParamIndex = pathPart.indexOf('?');
+    const queryParamIndex = pathPart.indexOf('?'); // Strip query params if any
     if (queryParamIndex !== -1) pathPart = pathPart.substring(0, queryParamIndex);
-    const decodedPath = decodeURIComponent(pathPart); 
-    const normalizedDecodedPath = path.normalize(decodedPath);
-    const absolutePath = path.resolve(normalizedDecodedPath); // Ensure path is absolute
+
+    let decodedPath;
+    try {
+        decodedPath = decodeURIComponent(pathPart);
+    } catch (err) {
+        console.error(`[main.js StreamProtocol] Error decoding URL component: ${pathPart}`, err);
+        return callback({ error: -22 }); // net::ERR_INVALID_URL or similar
+    }
+    
+    const normalizedPath = path.normalize(decodedPath);
+    const absolutePath = path.resolve(normalizedPath); // Ensure absolute path
 
     const localAllowedBaseDir = getBaseMediaDirectory();
     if (!localAllowedBaseDir) {
-      console.error(`[main.js Custom Protocol] Base directory not configured. Cannot serve ${absolutePath}`);
-      return { error: -10 }; // net::ERR_ACCESS_DENIED or similar generic error
+        console.error(`[main.js StreamProtocol] Base directory not configured. Cannot serve ${absolutePath}`);
+        return callback({ error: -10 /* net::ERR_ACCESS_DENIED */ });
     }
-    
-    // Ensure normalizedAllowedBaseDir is also absolute for comparison
-    const normalizedAllowedBaseDir = path.resolve(localAllowedBaseDir); 
+    const normalizedAllowedBaseDir = path.resolve(localAllowedBaseDir); // Ensure base dir is absolute for comparison
 
-    if (absolutePath.startsWith(normalizedAllowedBaseDir) && fs.existsSync(absolutePath)) {
-      console.log(`[main.js Custom Protocol] Serving file: ${normalizedDecodedPath} (Normalized) for URL: ${request.url}`);
-      console.log(`[main.js Custom Protocol] Resolved absolute path for serving: ${absolutePath}`);
-      return { path: absolutePath };
-    } else {
-      if (!absolutePath.startsWith(normalizedAllowedBaseDir)) {
-        console.error(`[main.js Custom Protocol] DENIED access to: ${absolutePath} (Path is outside allowed base directory ${normalizedAllowedBaseDir})`);
-      } else {
-        console.error(`[main.js Custom Protocol] File NOT FOUND: ${absolutePath} (Original URL: ${request.url}, Normalized Decoded: ${normalizedDecodedPath})`);
-      }
-      return { error: -6 }; // net::ERR_FILE_NOT_FOUND
+    if (!absolutePath.startsWith(normalizedAllowedBaseDir)) {
+        console.error(`[main.js StreamProtocol] DENIED access (outside base dir): ${absolutePath}`);
+        return callback({ error: -10 /* net::ERR_ACCESS_DENIED */ });
+    }
+
+    try {
+        const stats = await fsp.stat(absolutePath); // Use fsp for async stat
+        if (!stats.isFile()) {
+            console.error(`[main.js StreamProtocol] Path is not a file: ${absolutePath}`);
+            return callback({ error: -6 /* net::ERR_FILE_NOT_FOUND */ });
+        }
+
+        const mimeType = getMimeType(absolutePath);
+        const fileSize = stats.size;
+        
+        let streamOptions = {};
+        let statusCode = 200;
+        const headers = {
+            'Content-Type': mimeType,
+            'Content-Length': fileSize.toString(),
+            'Accept-Ranges': 'bytes' 
+        };
+
+        // Basic Range Request Handling
+        if (request.headers['Range']) {
+            console.log(`[main.js StreamProtocol] Range header detected: ${request.headers['Range']}`);
+            const range = request.headers['Range'];
+            const parts = range.replace(/bytes=/, "").split("-");
+            const start = parseInt(parts[0], 10);
+            const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+            
+            if (start >= fileSize || end >= fileSize || start > end || start < 0 || end < 0) {
+                console.error(`[main.js StreamProtocol] Invalid Range: ${range}, fileSize: ${fileSize}`);
+                return callback({ 
+                    statusCode: 416, 
+                    headers: { 'Content-Range': `bytes */${fileSize}` } 
+                });
+            }
+
+            streamOptions = { start, end };
+            statusCode = 206; // Partial Content
+            headers['Content-Length'] = (end - start + 1).toString();
+            headers['Content-Range'] = `bytes ${start}-${end}/${fileSize}`;
+            console.log(`[main.js StreamProtocol] Serving range: ${start}-${end} of ${fileSize}`);
+        } else {
+            console.log(`[main.js StreamProtocol] Serving full file of size: ${fileSize}`);
+        }
+        
+        const dataStream = fs.createReadStream(absolutePath, streamOptions);
+        
+        dataStream.on('error', (streamError) => {
+            console.error('[main.js StreamProtocol] Stream error:', streamError);
+            dataStream.destroy(); 
+        });
+
+        return callback({
+            statusCode: statusCode,
+            headers: headers,
+            data: dataStream
+        });
+
+    } catch (err) {
+        if (err.code === 'ENOENT') {
+            console.error(`[main.js StreamProtocol] File not found: ${absolutePath}`, err);
+            return callback({ error: -6 /* net::ERR_FILE_NOT_FOUND */ });
+        }
+        console.error(`[main.js StreamProtocol] Error serving file ${absolutePath}:`, err);
+        return callback({ error: -2 /* net::FAILED */ });
     }
   });
+  console.log('[main.js] Custom stream protocol handler registered for scheme:', CUSTOM_PROTOCOL_SCHEME);
 
   createWindow();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
@@ -426,6 +497,24 @@ app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(
 const SUPPORTED_IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'];
 const SUPPORTED_VIDEO_EXTENSIONS = ['.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv'];
 const ALL_SUPPORTED_EXTENSIONS = [...SUPPORTED_IMAGE_EXTENSIONS, ...SUPPORTED_VIDEO_EXTENSIONS];
+
+function getMimeType(filePath) {
+    const ext = path.extname(filePath).toLowerCase();
+    switch (ext) {
+        case '.mp4': return 'video/mp4';
+        case '.webm': return 'video/webm';
+        case '.ogg': return 'video/ogg';
+        case '.mov': return 'video/quicktime'; // Common for .mov
+        case '.avi': return 'video/x-msvideo'; // Common for .avi
+        case '.mkv': return 'video/x-matroska'; // Common for .mkv
+        case '.jpg': case '.jpeg': return 'image/jpeg';
+        case '.png': return 'image/png';
+        case '.gif': return 'image/gif';
+        case '.webp': return 'image/webp';
+        case '.svg': return 'image/svg+xml';
+        default: return 'application/octet-stream'; // Fallback
+    }
+}
 
 async function findAllMediaFiles(directoryPath, mediaFilesList = []) {
   try {
