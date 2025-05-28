@@ -1,4 +1,3 @@
-// ModelViewer-App/main.js
 console.log('[main.js] Script started. Electron main process initializing...'); 
 
 const { app, BrowserWindow, ipcMain, protocol } = require('electron');

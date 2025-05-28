@@ -1,5 +1,3 @@
-// ModelViewer-App/renderer.js
-
 document.addEventListener('DOMContentLoaded', async () => {
     // --- UI Elements ---
     const modelsListElement = document.getElementById('models-list');
