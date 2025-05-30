@@ -1,16 +1,14 @@
 import {
-    // modelsListElement, // Not directly used by functions in *this* file after refactor.
-    // currentModelTitleElement, // Not directly used by functions in *this* file.
     mediaDisplayArea,
     mediaPlaceholder,
     fileNameInfoElement,
     fileCountInfoElement,
     prevMediaButton,
     nextMediaButton,
-    playPauseTimerButton // Used by updateNavButtons
+    playPauseTimerButton,
+    countdownProgressBarContainer // Added for clearMediaDisplay
 } from './ui-elements.js';
 import { state } from './state.js';
-// `populateModelsListUI` was deferred and is handled in `event-handlers.js` as `populateModelsListUI_internal`.
 
 /**
  * Displays the current media item (image or video) in the media display area.
@@ -32,25 +30,21 @@ export async function displayCurrentMedia() {
     }
 
     mediaDisplayArea.innerHTML = ''; // Clear previous media
-    mediaPlaceholder.style.display = 'none'; // Hide placeholder
+    if (mediaPlaceholder) mediaPlaceholder.style.display = 'none'; // Hide placeholder
 
-    // Show loading indicator
     const loadingText = document.createElement('p');
     loadingText.textContent = `Loading ${mediaFileToDisplay.name}...`;
-    loadingText.className = 'text-gray-400 absolute inset-0 flex items-center justify-center'; // Centered
+    loadingText.className = 'text-gray-400 absolute inset-0 flex items-center justify-center';
     mediaDisplayArea.appendChild(loadingText);
 
     try {
-        // Record view before attempting to load
         if (mediaFileToDisplay.path) {
             await window.electronAPI.recordMediaView(mediaFileToDisplay.path);
-            // Optimistically update view count in local state
             state.currentMediaItem.viewCount = (state.currentMediaItem.viewCount || 0) + 1;
         }
 
         const loadResult = await window.electronAPI.loadFileAsDataURL(mediaFileToDisplay.path);
 
-        // Remove loading indicator only if it's still there (might have been replaced by error)
         if (loadingText.parentNode === mediaDisplayArea) {
             mediaDisplayArea.removeChild(loadingText);
         }
@@ -62,7 +56,6 @@ export async function displayCurrentMedia() {
 
         let mediaElement;
         const fileExtension = mediaFileToDisplay.path.split('.').pop().toLowerCase();
-        // Consider moving these to a shared constants/config if used elsewhere
         const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'];
         const videoExtensions = ['mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv'];
 
@@ -72,33 +65,21 @@ export async function displayCurrentMedia() {
         } else if (videoExtensions.includes(fileExtension)) {
             mediaElement = document.createElement('video');
             mediaElement.controls = true;
-            mediaElement.autoplay = true; // Autoplay videos
-            mediaElement.muted = false; // Start unmuted, user can mute
-            mediaElement.loop = !state.isTimerPlaying; // Loop if timer is not active
-            mediaElement.preload = 'auto'; // Hint to browser to preload
+            mediaElement.autoplay = true;
+            mediaElement.muted = false;
+            mediaElement.loop = !state.isTimerPlaying;
+            mediaElement.preload = 'auto';
 
-            // If timer is playing, video ending should advance the slideshow
             if (state.isTimerPlaying) {
                 mediaElement.onended = () => {
-                    // This import would create a circular dependency if navigateMedia was also here.
-                    // It's better if slideshow.js handles this logic.
-                    // For now, assuming navigateMedia is globally available or imported in slideshow.js
-                    // This line is problematic due to module boundaries.
-                    // A better approach: slideshow.js's navigateMedia could be called,
-                    // or this onended handler could emit an event that slideshow.js listens to.
-                    // For simplicity of this cleanup, we'll leave the direct call,
-                    // acknowledging it implies navigateMedia is accessible.
-                    // This should be: import { navigateMedia } from './slideshow.js'; then call it.
-                    // However, that would create circular dependency if slideshow.js imports this file.
-                    // This is a known issue from the original refactor.
-                    // The most robust solution is often event-driven or a higher-order controller.
-                    // For now, we assume `navigateMedia` is callable, likely from slideshow.js.
-                    if (typeof navigateMedia === 'function' && state.isTimerPlaying) {
-                         // This is a placeholder for where slideshow.js's navigateMedia should be called.
-                         // It's currently not directly callable here without creating circular dependencies
-                         // or restructuring.
-                         console.warn("Video ended while timer playing - navigateMedia call skipped due to refactor boundary.");
-                    }
+                    // This is tricky due to module boundaries.
+                    // Ideally, this would call navigateMedia(1) from slideshow.js
+                    // For now, this event will trigger the main interval timer to advance.
+                    // If the video ends *before* the timer, the timer will still fire.
+                    // If it ends *after*, the timer would have already advanced.
+                    // This specific onended behavior might need refinement if precise video-end navigation is critical
+                    // while the timer is also active.
+                    console.log("Video ended, timer will advance if still active.");
                 };
             }
         } else {
@@ -109,7 +90,6 @@ export async function displayCurrentMedia() {
 
         mediaElement.src = loadResult.url;
 
-        // Error handling for media element loading
         if (mediaElement.tagName === 'VIDEO' || mediaElement.tagName === 'IMG') {
             mediaElement.onerror = (e) => {
                 const errorSource = e.target;
@@ -126,27 +106,25 @@ export async function displayCurrentMedia() {
             mediaElement.onloadedmetadata = () => console.log(`Video metadata loaded for: ${mediaFileToDisplay.name}`);
         }
 
-        // Append media element if no error message is already shown
         if (!mediaDisplayArea.querySelector('.text-red-400')) {
             mediaDisplayArea.appendChild(mediaElement);
         }
 
     } catch (error) {
         console.error(`Error displaying media ${mediaFileToDisplay.name} (Path: ${mediaFileToDisplay.path}):`, error);
-        if (mediaDisplayArea.contains(loadingText)) mediaDisplayArea.removeChild(loadingText); // Ensure loading text is removed
+        if (mediaDisplayArea.contains(loadingText)) mediaDisplayArea.removeChild(loadingText);
         mediaDisplayArea.innerHTML = `<p class="text-red-400 absolute inset-0 flex items-center justify-center">Error loading: ${mediaFileToDisplay.name}. ${error.message}. Check console.</p>`;
     }
 
-    // Update file info display
     if (fileNameInfoElement && state.currentMediaItem) {
-      fileNameInfoElement.textContent = `${state.currentMediaItem.name} (Viewed: ${state.currentMediaItem.viewCount || 0} times)`;
+        fileNameInfoElement.textContent = `${state.currentMediaItem.name} (Viewed: ${state.currentMediaItem.viewCount || 0} times)`;
     }
     if (fileCountInfoElement) {
-      if (state.isGlobalSlideshowActive) {
-          fileCountInfoElement.textContent = `Global Slideshow - Item ${state.currentMediaIndex + 1} of ${state.displayedMediaFiles.length} (Pool: ${state.globalMediaPoolForSelection.length} items)`;
-      } else {
-          fileCountInfoElement.textContent = `File ${state.currentMediaIndex + 1} of ${state.displayedMediaFiles.length}`;
-      }
+        if (state.isGlobalSlideshowActive) {
+            fileCountInfoElement.textContent = `Global Slideshow - Item ${state.currentMediaIndex + 1} of ${state.displayedMediaFiles.length} (Pool: ${state.globalMediaPoolForSelection.length} items)`;
+        } else {
+            fileCountInfoElement.textContent = `File ${state.currentMediaIndex + 1} of ${state.displayedMediaFiles.length}`;
+        }
     }
     updateNavButtons();
 }
@@ -156,26 +134,21 @@ export async function displayCurrentMedia() {
  * @param {string} [message="Select a model or start Global Slideshow."] - The message to display.
  */
 export function clearMediaDisplay(message = "Select a model or start Global Slideshow.") {
-    if (mediaDisplayArea) mediaDisplayArea.innerHTML = ''; // Clear any existing media or error
+    if (mediaDisplayArea) mediaDisplayArea.innerHTML = '';
     if (mediaPlaceholder) {
         mediaPlaceholder.textContent = message;
-        mediaPlaceholder.style.display = 'block'; // Make placeholder visible
+        mediaPlaceholder.style.display = 'block';
     }
-    if (fileNameInfoElement) fileNameInfoElement.innerHTML = '&nbsp;'; // Clear file name
-    if (fileCountInfoElement) fileCountInfoElement.innerHTML = '&nbsp;'; // Clear file count
+    if (fileNameInfoElement) fileNameInfoElement.innerHTML = '&nbsp;';
+    if (fileCountInfoElement) fileCountInfoElement.innerHTML = '&nbsp;';
 
-    state.currentMediaItem = null; // Reset current media item in state
+    state.currentMediaItem = null;
 
-    // If the timer was playing but now there's nothing to display (e.g., in individual mode or empty global pool), stop it.
-    // This logic is a bit tricky due to module boundaries.
-    // The `stopSlideshowTimer` function is in `slideshow.js`.
-    // A direct call here would imply it's globally available or needs to be imported,
-    // potentially creating circular dependencies if `slideshow.js` imports this file.
-    // This is a known structural issue from the original refactor.
-    // if (state.isTimerPlaying && (!state.isGlobalSlideshowActive || state.globalMediaPoolForSelection.length === 0)) {
-    //    // Placeholder for where slideshow.js's stopSlideshowTimer should be called.
-    //    console.warn("clearMediaDisplay: stopSlideshowTimer call skipped due to refactor boundary.");
-    // }
+    // If clearing display and timer isn't playing, ensure progress bar is hidden.
+    if (!state.isTimerPlaying && countdownProgressBarContainer) {
+        countdownProgressBarContainer.style.display = 'none';
+    }
+    // updateNavButtons(); // Typically called by the function that calls clearMediaDisplay
 }
 
 /**
@@ -187,7 +160,6 @@ export function updateNavButtons() {
 
     if (state.isGlobalSlideshowActive) {
         prevMediaButton.disabled = state.currentMediaIndex <= 0;
-        // Next button is enabled if there's a pool to pick from, even if at end of current history
         nextMediaButton.disabled = state.globalMediaPoolForSelection.length === 0;
         playPauseTimerButton.disabled = state.globalMediaPoolForSelection.length === 0;
     } else { // Individual model mode

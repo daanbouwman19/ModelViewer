@@ -1,9 +1,9 @@
 import { state } from './state.js';
 import {
     timerDurationInput,
-    playPauseTimerButton
-    // No other UI elements are directly manipulated here, but their state (e.g. disabled)
-    // is affected by updateNavButtons which is called from functions in this module.
+    playPauseTimerButton,
+    countdownProgressBarContainer, // Import new element
+    countdownProgressBar         // Import new element
 } from './ui-elements.js';
 import { displayCurrentMedia, clearMediaDisplay, updateNavButtons } from './ui-updates.js';
 
@@ -33,15 +33,11 @@ export function selectWeightedRandom(items, excludePaths = []) {
     let eligibleItems = items.filter(item => !excludePaths.includes(item.path));
 
     if (eligibleItems.length === 0) {
-        // Fallback: if all items were excluded (e.g., small pool and long history),
-        // reset to the original pool to avoid getting stuck.
-        // This could be refined further, e.g., by only excluding the *current* item.
         console.warn("Weighted random: All items were in excludePaths or pool is small. Considering all items again.");
         eligibleItems = items;
     }
     if (eligibleItems.length === 0) return null; // Still no items
 
-    // Calculate weights (inverse of view count + 1 to avoid division by zero and give new items higher weight)
     const weightedItems = eligibleItems.map(item => ({
         ...item,
         weight: 1 / ((item.viewCount || 0) + 1)
@@ -49,21 +45,17 @@ export function selectWeightedRandom(items, excludePaths = []) {
 
     const totalWeight = weightedItems.reduce((sum, item) => sum + item.weight, 0);
 
-    // If totalWeight is zero (e.g., all weights are zero, which is unlikely with +1),
-    // or if items exist but somehow totalWeight is non-positive, fall back to uniform random.
     if (totalWeight <= 1e-9 && eligibleItems.length > 0) {
         console.warn("Weighted random: Total weight is near zero. Using uniform random selection from eligible items.");
         return eligibleItems[Math.floor(Math.random() * eligibleItems.length)];
     }
-    if (totalWeight === 0) return null; // Should not happen if eligibleItems is not empty
+    if (totalWeight === 0) return null;
 
     let random = Math.random() * totalWeight;
     for (const item of weightedItems) {
         random -= item.weight;
         if (random <= 0) return item;
     }
-
-    // Fallback (should ideally not be reached if logic is sound and totalWeight > 0)
     return eligibleItems.length > 0 ? eligibleItems[eligibleItems.length - 1] : null;
 }
 
@@ -79,69 +71,160 @@ export function generatePlaylistForIndividualModel(mediaPool, isRandom) {
 }
 
 /**
- * Stops the slideshow timer.
+ * Updates the countdown progress bar visually.
+ * @param {number} percentageRemaining - The percentage of time remaining (0-100).
+ */
+function updateProgressBarVisual(percentageRemaining) {
+    if (countdownProgressBar && countdownProgressBarContainer) {
+        // Ensure the bar is visible if it's supposed to be updated
+        if (state.isTimerPlaying && countdownProgressBarContainer.style.display === 'none') {
+            countdownProgressBarContainer.style.display = 'block';
+        }
+        countdownProgressBar.style.width = `${Math.max(0, Math.min(100, percentageRemaining))}%`;
+    }
+}
+
+/**
+ * Resets the progress bar when a new media item is shown while the timer is active.
+ */
+function resetProgressBarForNewMedia() {
+    if (state.isTimerPlaying && countdownProgressBarContainer && timerDurationInput) {
+        state.timerStartTime = Date.now(); // Reset start time for the new countdown period
+        const durationSeconds = parseInt(timerDurationInput.value, 10);
+
+        if (isNaN(durationSeconds) || durationSeconds < 1) {
+            console.warn("Timer duration invalid during media change. Progress bar might not reflect accurately until timer restarts.");
+            // Use the last known valid duration or a default
+            state.currentTimerDurationSeconds = state.currentTimerDurationSeconds > 0 ? state.currentTimerDurationSeconds : 5;
+        } else {
+            state.currentTimerDurationSeconds = durationSeconds;
+        }
+
+        if (countdownProgressBarContainer.style.display !== 'block') {
+            countdownProgressBarContainer.style.display = 'block';
+        }
+        updateProgressBarVisual(100); // Reset to full
+    } else if (!state.isTimerPlaying && countdownProgressBarContainer) {
+        // If timer is not playing, ensure bar is hidden
+        countdownProgressBarContainer.style.display = 'none';
+    }
+}
+
+
+/**
+ * Stops the slideshow timer and hides the progress bar.
  */
 export function stopSlideshowTimer() {
     if (state.slideshowTimerId) clearInterval(state.slideshowTimerId);
     state.slideshowTimerId = null;
+    if (state.progressBarUpdateIntervalId) clearInterval(state.progressBarUpdateIntervalId);
+    state.progressBarUpdateIntervalId = null;
+
     state.isTimerPlaying = false;
     if (playPauseTimerButton) playPauseTimerButton.textContent = 'Play';
-    console.log("Slideshow timer stopped.");
+    if (countdownProgressBarContainer) countdownProgressBarContainer.style.display = 'none';
+    console.log("Slideshow timer and progress bar stopped.");
 }
 
 /**
- * Starts the slideshow timer with the duration specified in the input field.
+ * Starts the slideshow timer with the duration specified in the input field
+ * and manages the progress bar.
  */
 export function startSlideshowTimer() {
-    stopSlideshowTimer(); // Clear any existing timer
-    const durationSeconds = parseInt(timerDurationInput.value, 10);
+    stopSlideshowTimer(); // Clear any existing timer and hide progress bar
 
-    if (isNaN(durationSeconds) || durationSeconds < 1) {
+    const durationSecondsInput = parseInt(timerDurationInput.value, 10);
+
+    if (isNaN(durationSecondsInput) || durationSecondsInput < 1) {
         timerDurationInput.value = 5; // Reset to default if invalid
+        state.currentTimerDurationSeconds = 5; // Store default
         // If it was playing and duration became invalid, effectively pause it.
-        if (state.isTimerPlaying) {
-            state.isTimerPlaying = false;
-            if (playPauseTimerButton) playPauseTimerButton.textContent = 'Play';
-        }
+        // This state is already handled by stopSlideshowTimer.
         console.warn("Invalid timer duration, reset to 5s. Timer not started.");
         return;
     }
+    state.currentTimerDurationSeconds = durationSecondsInput; // Store valid duration
 
     state.isTimerPlaying = true;
     if (playPauseTimerButton) playPauseTimerButton.textContent = 'Pause';
-    state.slideshowTimerId = setInterval(() => { navigateMedia(1); }, durationSeconds * 1000);
-    console.log(`Slideshow timer started for ${durationSeconds}s interval.`);
+
+    // Show and reset progress bar
+    if (countdownProgressBarContainer) countdownProgressBarContainer.style.display = 'block';
+    updateProgressBarVisual(100); // Reset to full
+
+    state.timerStartTime = Date.now(); // Record start time for progress calculation
+
+    // Interval for advancing media
+    state.slideshowTimerId = setInterval(() => {
+        navigateMedia(1); // This will also call resetProgressBarForNewMedia if successful
+    }, state.currentTimerDurationSeconds * 1000);
+
+    // Interval for updating progress bar visuals
+    const updateInterval = 50; // Update progress bar every 50ms for smoothness
+    state.progressBarUpdateIntervalId = setInterval(() => {
+        if (!state.isTimerPlaying) { // Safety check, should be cleared by stopSlideshowTimer
+            clearInterval(state.progressBarUpdateIntervalId);
+            state.progressBarUpdateIntervalId = null;
+            if (countdownProgressBarContainer) countdownProgressBarContainer.style.display = 'none';
+            return;
+        }
+        const elapsedTimeMs = Date.now() - state.timerStartTime;
+        const totalDurationMs = state.currentTimerDurationSeconds * 1000;
+
+        if (totalDurationMs <= 0) { // Avoid division by zero if duration is somehow invalid
+            updateProgressBarVisual(0);
+            return;
+        }
+
+        const percentageRemaining = Math.max(0, 100 - (elapsedTimeMs / totalDurationMs) * 100);
+        updateProgressBarVisual(percentageRemaining);
+
+    }, updateInterval);
+
+    console.log(`Slideshow timer started for ${state.currentTimerDurationSeconds}s interval with progress bar.`);
 }
 
 /**
  * Toggles the play/pause state of the slideshow timer.
  */
 export function toggleSlideshowTimer() {
-    // Determine the current pool of media based on slideshow mode
     const currentPool = state.isGlobalSlideshowActive ? state.globalMediaPoolForSelection : state.displayedMediaFiles;
 
-    // Prevent starting timer if no media is available
     if (currentPool.length === 0 && !state.currentMediaItem) {
         console.log("Cannot start/toggle timer: No media loaded or pool is empty.");
+        if (countdownProgressBarContainer) countdownProgressBarContainer.style.display = 'none'; // Ensure bar is hidden
         return;
     }
-    // Specific checks for empty pools in different modes
     if (state.isGlobalSlideshowActive && state.globalMediaPoolForSelection.length === 0) {
         console.log("Cannot start/toggle timer: Global slideshow active but pool is empty.");
+        if (countdownProgressBarContainer) countdownProgressBarContainer.style.display = 'none';
         return;
     }
     if (!state.isGlobalSlideshowActive && state.currentSelectedModelForIndividualView && state.displayedMediaFiles.length === 0) {
         console.log("Cannot start/toggle timer: Individual model selected but has no media.");
+        if (countdownProgressBarContainer) countdownProgressBarContainer.style.display = 'none';
         return;
     }
 
     if (state.isTimerPlaying) {
         stopSlideshowTimer();
     } else {
-        startSlideshowTimer();
+        startSlideshowTimer(); // This will handle showing the progress bar
         // If no media is currently displayed but a slideshow is active, show the first item.
+        // startSlideshowTimer already handles resetting the progress bar.
+        // navigateMedia/pickAndDisplayNextGlobalMediaItem will call resetProgressBarForNewMedia.
         if (!state.currentMediaItem && (state.isGlobalSlideshowActive || state.currentSelectedModelForIndividualView)) {
-            navigateMedia(0); // Navigate to the current/first item
+            if (state.isGlobalSlideshowActive && state.globalMediaPoolForSelection.length > 0) {
+                pickAndDisplayNextGlobalMediaItem();
+            } else if (!state.isGlobalSlideshowActive && state.displayedMediaFiles.length > 0) {
+                navigateMedia(0); // Show current/first
+            }
+        } else if (state.currentMediaItem) {
+            // If an item is already displayed, ensure the progress bar resets for it.
+            // This is handled by startSlideshowTimer setting timerStartTime and the update interval.
+            // Explicit resetProgressBarForNewMedia might be redundant if startSlideshowTimer fully resets.
+            // However, to be safe, if startSlideshowTimer doesn't reset for an *already displayed* item:
+            resetProgressBarForNewMedia();
         }
     }
 }
@@ -153,31 +236,40 @@ export function toggleSlideshowTimer() {
 export function pickAndDisplayNextGlobalMediaItem() {
     if (state.globalMediaPoolForSelection.length === 0) {
         clearMediaDisplay("Global media pool is empty.");
+        if (countdownProgressBarContainer && !state.isTimerPlaying) { // Ensure bar is hidden if timer stopped
+            countdownProgressBarContainer.style.display = 'none';
+        }
         updateNavButtons();
         return;
     }
 
-    // Exclude recently shown items to avoid quick repeats (e.g., last 5 items)
     const historySize = Math.min(5, state.displayedMediaFiles.length);
     const historyPaths = state.displayedMediaFiles.slice(-historySize).map(item => item.path);
     const newItem = selectWeightedRandom(state.globalMediaPoolForSelection, historyPaths);
 
     if (newItem) {
-        state.displayedMediaFiles.push(newItem); // Add to history for global mode
+        state.displayedMediaFiles.push(newItem);
         state.currentMediaIndex = state.displayedMediaFiles.length - 1;
         state.currentMediaItem = newItem;
-        displayCurrentMedia();
+        displayCurrentMedia(); // Call display first
+        if (state.isTimerPlaying) { // Then reset progress bar if timer is active
+            resetProgressBarForNewMedia();
+        }
     } else {
-        // This might happen if the pool is very small and all items are in recent history.
         console.warn("Could not select a new distinct global media item. Pool might be exhausted or too small for history avoidance. Trying any item.");
         if (state.globalMediaPoolForSelection.length > 0) {
-            // Fallback: pick any item from the pool if weighted selection with history fails
             state.currentMediaItem = state.globalMediaPoolForSelection[Math.floor(Math.random() * state.globalMediaPoolForSelection.length)];
-            state.displayedMediaFiles.push(state.currentMediaItem); // Add to history
+            state.displayedMediaFiles.push(state.currentMediaItem);
             state.currentMediaIndex = state.displayedMediaFiles.length - 1;
             displayCurrentMedia();
+            if (state.isTimerPlaying) {
+                resetProgressBarForNewMedia();
+            }
         } else {
             clearMediaDisplay("Global media pool exhausted.");
+            if (countdownProgressBarContainer && !state.isTimerPlaying) {
+                countdownProgressBarContainer.style.display = 'none';
+            }
         }
     }
     updateNavButtons();
@@ -195,91 +287,95 @@ export function prepareMediaListForIndividualView() {
 
 /**
  * Navigates to the next or previous media item, or re-displays the current one.
+ * Manages progress bar reset if the timer is active.
  * @param {number} direction - 1 for next, -1 for previous, 0 to re-display/initialize.
  */
 export function navigateMedia(direction) {
+    let newMediaItemToDisplay = null;
+
     if (state.isGlobalSlideshowActive) {
         if (direction === 1) { // Next
             if (state.currentMediaIndex < state.displayedMediaFiles.length - 1) {
-                // If there are items in the "history" of globally displayed files, move to the next one
                 state.currentMediaIndex++;
-                state.currentMediaItem = state.displayedMediaFiles[state.currentMediaIndex];
-                displayCurrentMedia();
+                newMediaItemToDisplay = state.displayedMediaFiles[state.currentMediaIndex];
             } else {
-                // Otherwise, pick a new item from the global pool
-                pickAndDisplayNextGlobalMediaItem();
+                pickAndDisplayNextGlobalMediaItem(); // This handles its own display and progress bar
+                return; // Exit early
             }
         } else if (direction === -1) { // Previous
             if (state.currentMediaIndex > 0) {
                 state.currentMediaIndex--;
-                state.currentMediaItem = state.displayedMediaFiles[state.currentMediaIndex];
-                displayCurrentMedia();
+                newMediaItemToDisplay = state.displayedMediaFiles[state.currentMediaIndex];
             } else {
                 console.log("At the beginning of global slideshow history.");
-                // Optionally, disable prev button or do nothing
             }
         } else if (direction === 0 && state.currentMediaItem) { // Re-display current
-            displayCurrentMedia();
+            newMediaItemToDisplay = state.currentMediaItem;
         } else if (direction === 0 && !state.currentMediaItem && state.globalMediaPoolForSelection.length > 0) {
-            // If no current item and global slideshow is active, pick the first one
-            pickAndDisplayNextGlobalMediaItem();
+            pickAndDisplayNextGlobalMediaItem(); // Handles its own display and progress bar
+            return;
         }
     } else { // Individual model slideshow
-        // Special case: if 'play' (direction 0) is hit on an individual model with no current media displayed,
-        // but files exist in the model, prepare the list and show the first item.
         if (state.displayedMediaFiles.length === 0 && direction === 0 && state.currentSelectedModelForIndividualView && state.originalMediaFilesForIndividualView.length > 0) {
             prepareMediaListForIndividualView();
             if (state.displayedMediaFiles.length > 0) {
                 state.currentMediaIndex = 0;
-                state.currentMediaItem = state.displayedMediaFiles[0];
-                displayCurrentMedia();
+                newMediaItemToDisplay = state.displayedMediaFiles[0];
             } else {
                 clearMediaDisplay("No media files in this model (after attempting to prepare list).");
             }
-            updateNavButtons();
-            return;
-        }
-
-        if (state.displayedMediaFiles.length === 0) {
-            updateNavButtons(); // Ensure buttons are correctly disabled
-            return; // No media to navigate
-        }
-
-        let newIndex = state.currentMediaIndex + direction;
-
-        if (newIndex >= state.displayedMediaFiles.length) { // Reached end of list
-            if (state.currentSelectedModelForIndividualView && state.modelRandomModeSettings[state.currentSelectedModelForIndividualView.name]) {
-                // If random mode, reshuffle and go to the first item of the new playlist
-                prepareMediaListForIndividualView(); // This reshuffles if random is on
-                newIndex = state.displayedMediaFiles.length > 0 ? 0 : -1; // -1 if list became empty
-            } else {
-                // If not random, stop at the end
-                newIndex = state.displayedMediaFiles.length - 1;
-                if (state.isTimerPlaying) stopSlideshowTimer(); // Stop timer if at the end of non-random list
+        } else if (state.displayedMediaFiles.length === 0) {
+            // No media to navigate
+        } else {
+            let newIndex = state.currentMediaIndex + direction;
+            if (newIndex >= state.displayedMediaFiles.length) {
+                if (state.currentSelectedModelForIndividualView && state.modelRandomModeSettings[state.currentSelectedModelForIndividualView.name]) {
+                    prepareMediaListForIndividualView();
+                    newIndex = state.displayedMediaFiles.length > 0 ? 0 : -1;
+                } else {
+                    newIndex = state.displayedMediaFiles.length - 1;
+                    if (state.isTimerPlaying) stopSlideshowTimer();
+                }
+            } else if (newIndex < 0) {
+                if (state.currentSelectedModelForIndividualView && state.modelRandomModeSettings[state.currentSelectedModelForIndividualView.name]) {
+                    prepareMediaListForIndividualView();
+                    newIndex = state.displayedMediaFiles.length > 0 ? 0 : -1;
+                } else {
+                    newIndex = 0;
+                }
             }
-        } else if (newIndex < 0) { // Reached beginning of list
-             if (state.currentSelectedModelForIndividualView && state.modelRandomModeSettings[state.currentSelectedModelForIndividualView.name]) {
-                // For random mode, going "previous" from the first item could reshuffle and pick a new "first"
-                prepareMediaListForIndividualView();
-                newIndex = state.displayedMediaFiles.length > 0 ? 0 : -1;
-            } else {
-                // If not random, stop at the beginning
-                newIndex = 0;
-            }
-        }
 
-        if (newIndex !== -1 && newIndex < state.displayedMediaFiles.length) {
-            state.currentMediaIndex = newIndex;
-            state.currentMediaItem = state.displayedMediaFiles[state.currentMediaIndex];
-            displayCurrentMedia();
-        } else if (state.displayedMediaFiles.length > 0 && direction === 0 && state.currentMediaIndex !== -1 && state.currentMediaIndex < state.displayedMediaFiles.length) {
-            // Re-display current item if direction is 0 (e.g., after timer start with an item already showing)
-            state.currentMediaItem = state.displayedMediaFiles[state.currentMediaIndex];
-            displayCurrentMedia();
-        } else if (newIndex === -1 && state.displayedMediaFiles.length === 0) {
-            // This can happen if reshuffling an empty model (e.g. after filtering)
-            clearMediaDisplay("No media to display in this model.");
+            if (newIndex !== -1 && newIndex < state.displayedMediaFiles.length) {
+                state.currentMediaIndex = newIndex;
+                newMediaItemToDisplay = state.displayedMediaFiles[state.currentMediaIndex];
+            } else if (direction === 0 && state.currentMediaItem) {
+                newMediaItemToDisplay = state.currentMediaItem;
+            } else if (newIndex === -1 && state.displayedMediaFiles.length === 0) {
+                clearMediaDisplay("No media to display in this model.");
+            }
         }
     }
+
+    state.currentMediaItem = newMediaItemToDisplay; // Update state
+
+    if (state.currentMediaItem) {
+        displayCurrentMedia(); // Display the new media
+        if (state.isTimerPlaying) {
+            resetProgressBarForNewMedia(); // Reset bar for the new item if timer is running
+        }
+    } else if (!state.isGlobalSlideshowActive && state.displayedMediaFiles.length === 0) {
+        clearMediaDisplay("No media to display in this model.");
+    }
+
+    // Ensure progress bar is hidden if timer is not playing
+    if (!state.isTimerPlaying && countdownProgressBarContainer) {
+        countdownProgressBarContainer.style.display = 'none';
+    }
     updateNavButtons();
+}
+
+
+// Initialize progress bar to be hidden on module load
+if (countdownProgressBarContainer) {
+    countdownProgressBarContainer.style.display = 'none';
 }

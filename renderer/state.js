@@ -41,4 +41,13 @@ export const state = {
 
     /** @type {boolean} Flag indicating if the slideshow timer is currently playing. */
     isTimerPlaying: false,
+
+    /** @type {NodeJS.Timeout | null} ID of the interval that updates the progress bar. */
+    progressBarUpdateIntervalId: null,
+
+    /** @type {number} Timestamp (Date.now()) when the current timer period started. */
+    timerStartTime: 0,
+
+    /** @type {number} Duration of the current timer cycle in seconds. */
+    currentTimerDurationSeconds: 0
 };

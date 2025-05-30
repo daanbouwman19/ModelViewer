@@ -14,6 +14,8 @@ export const startGlobalSlideshowButton = document.getElementById('start-global-
 export const timerDurationInput = document.getElementById('timer-duration');
 export const playPauseTimerButton = document.getElementById('play-pause-timer-button');
 export const reindexLibraryButton = document.getElementById('reindex-library-button');
+export const countdownProgressBarContainer = document.getElementById('countdown-progress-bar-container');
+export const countdownProgressBar = document.getElementById('countdown-progress-bar');
 
 // Object containing critical UI elements.
 // Used for an initial check in renderer.js to ensure the application can start.
@@ -29,5 +31,7 @@ export const criticalElements = {
     startGlobalSlideshowButton,
     timerDurationInput,
     playPauseTimerButton,
-    reindexLibraryButton
+    reindexLibraryButton,
+    countdownProgressBarContainer,
+    countdownProgressBar
 };
