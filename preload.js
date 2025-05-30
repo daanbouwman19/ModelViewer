@@ -1,7 +1,21 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-// Expose protected methods that allow the renderer process to use
-// specific IPC functionality without exposing the entire ipcRenderer object.
+// --- Workaround for module loading issues in preload ---
+const SUPPORTED_IMAGE_EXTENSIONS_PRELOAD = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'];
+const SUPPORTED_VIDEO_EXTENSIONS_PRELOAD = ['.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv'];
+
+try {
+    // This require is expected to fail based on previous logs in some bundled environments.
+    // If it fails, the catch block will log it once.
+    require('./main/constants.js');
+    // console.log('[Preload Script] Successfully required ./main/constants.js. Will use its values if different from hardcoded.');
+    // Potentially override _PRELOAD versions if require was successful, though for safety,
+    // the API below explicitly uses _PRELOAD versions.
+} catch (e) {
+    console.warn('[Preload Script] Failed to require constants.js from ./main/constants.js. Using hardcoded extensions for electronAPI. Error:', e.message);
+}
+// --- End Workaround ---
+
 contextBridge.exposeInMainWorld('electronAPI', {
   /**
    * Loads a file and returns its content as a Data URL or an HTTP URL for large videos.
@@ -36,5 +50,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
    * and returns the newly indexed models with their view counts.
    * @returns {Promise<Array<Object>>}
    */
-  reindexMediaLibrary: () => ipcRenderer.invoke('reindex-media-library')
+  reindexMediaLibrary: () => ipcRenderer.invoke('reindex-media-library'),
+
+  /**
+   * Gets the list of supported image extensions.
+   * @returns {Promise<string[]>}
+   */
+  getImageExtensions: () => Promise.resolve(SUPPORTED_IMAGE_EXTENSIONS_PRELOAD),
+
+  /**
+   * Gets the list of supported video extensions.
+   * @returns {Promise<string[]>}
+   */
+  getVideoExtensions: () => Promise.resolve(SUPPORTED_VIDEO_EXTENSIONS_PRELOAD)
 });

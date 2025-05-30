@@ -18,14 +18,23 @@ import {
 
 /**
  * Performs the initial load of models and populates the UI.
+ * Also loads supported file extensions into the state.
  */
 export async function initialLoad() {
     try {
+        // Load models
         state.allModels = await window.electronAPI.getModelsWithViewCounts();
         await populateModelsListUI_internal(); // Populates the model list in the UI
+
+        // Load supported file extensions
+        state.imageExtensions = await window.electronAPI.getImageExtensions();
+        state.videoExtensions = await window.electronAPI.getVideoExtensions();
+        console.log('Supported image extensions loaded:', state.imageExtensions);
+        console.log('Supported video extensions loaded:', state.videoExtensions);
+
     } catch (error) {
-        console.error('Error during initial load of models with view counts:', error);
-        if (modelsListElement) modelsListElement.innerHTML = '<li>Error loading models. Click Re-index.</li>';
+        console.error('Error during initial load:', error);
+        if (modelsListElement) modelsListElement.innerHTML = '<li>Error loading models or extensions. Click Re-index.</li>';
     }
 }
 

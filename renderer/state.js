@@ -49,5 +49,11 @@ export const state = {
     timerStartTime: 0,
 
     /** @type {number} Duration of the current timer cycle in seconds. */
-    currentTimerDurationSeconds: 0
+    currentTimerDurationSeconds: 0,
+
+    /** @type {string[]} List of supported image file extensions. Loaded at startup. */
+    imageExtensions: [],
+
+    /** @type {string[]} List of supported video file extensions. Loaded at startup. */
+    videoExtensions: []
 };
