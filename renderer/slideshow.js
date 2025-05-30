@@ -46,17 +46,32 @@ export function selectWeightedRandom(items, excludePaths = []) {
     const totalWeight = weightedItems.reduce((sum, item) => sum + item.weight, 0);
 
     if (totalWeight <= 1e-9 && eligibleItems.length > 0) {
-        console.warn("Weighted random: Total weight is near zero. Using uniform random selection from eligible items.");
+        // eligibleItems.length > 0 is guaranteed by checks before this point if initial items were provided.
+        console.warn("Weighted random: Total weight is very small. Using uniform random selection from eligible items.");
         return eligibleItems[Math.floor(Math.random() * eligibleItems.length)];
     }
-    if (totalWeight === 0) return null;
+    // If totalWeight were 0 (and eligibleItems.length > 0), it would have been caught by the totalWeight <= 1e-9 check above,
+    // leading to uniform random selection.
+    // If eligibleItems.length were 0, an earlier check would have returned null.
+    // Thus, at this point, totalWeight > 1e-9 and eligibleItems.length > 0.
+    // The line `if (totalWeight === 0) return null;` was effectively unreachable or redundant.
 
     let random = Math.random() * totalWeight;
     for (const item of weightedItems) {
         random -= item.weight;
         if (random <= 0) return item;
     }
-    return eligibleItems.length > 0 ? eligibleItems[eligibleItems.length - 1] : null;
+
+    // This part of the function should ideally be unreachable if the weighted selection logic above is sound.
+    // If execution reaches here, it indicates a potential flaw or an extreme floating-point arithmetic anomaly.
+    console.error("selectWeightedRandom: Unreachable code reached. Fallback to last item. This may indicate an issue in selection logic or floating point precision.", {
+        eligibleItemsCount: eligibleItems.length,
+        totalWeightAtLoopStart: totalWeight,
+        finalRandomValueAfterLoop: random // This would be initial_random_value - totalWeight
+    });
+    // Fallback to returning the last eligible item.
+    // eligibleItems is guaranteed to be non-empty at this point due to earlier checks.
+    return eligibleItems[eligibleItems.length - 1];
 }
 
 /**
@@ -219,12 +234,6 @@ export function toggleSlideshowTimer() {
             } else if (!state.isGlobalSlideshowActive && state.displayedMediaFiles.length > 0) {
                 navigateMedia(0); // Show current/first
             }
-        } else if (state.currentMediaItem) {
-            // If an item is already displayed, ensure the progress bar resets for it.
-            // This is handled by startSlideshowTimer setting timerStartTime and the update interval.
-            // Explicit resetProgressBarForNewMedia might be redundant if startSlideshowTimer fully resets.
-            // However, to be safe, if startSlideshowTimer doesn't reset for an *already displayed* item:
-            resetProgressBarForNewMedia();
         }
     }
 }
