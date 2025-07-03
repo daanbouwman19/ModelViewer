@@ -2,7 +2,10 @@ const http = require('http');
 const url = require('url');
 const fs = require('fs');
 const path = require('path');
-const { SUPPORTED_IMAGE_EXTENSIONS, SUPPORTED_VIDEO_EXTENSIONS } = require('./constants.js');
+const {
+  SUPPORTED_IMAGE_EXTENSIONS,
+  SUPPORTED_VIDEO_EXTENSIONS,
+} = require('./constants.js');
 
 let serverInstance = null; // To keep a reference to the server
 let serverPort = 0; // Stores the port the server is running on.
@@ -13,24 +16,31 @@ let serverPort = 0; // Stores the port the server is running on.
  * @returns {string} The MIME type string.
  */
 function getMimeType(filePath) {
-    const extension = path.extname(filePath).substring(1).toLowerCase();
-    if (SUPPORTED_IMAGE_EXTENSIONS.includes(`.${extension}`)) {
-        // Special case for jpeg
-        return `image/${extension === 'jpg' ? 'jpeg' : extension}`;
+  const extension = path.extname(filePath).substring(1).toLowerCase();
+  if (SUPPORTED_IMAGE_EXTENSIONS.includes(`.${extension}`)) {
+    // Special case for jpeg
+    return `image/${extension === 'jpg' ? 'jpeg' : extension}`;
+  }
+  if (SUPPORTED_VIDEO_EXTENSIONS.includes(`.${extension}`)) {
+    // Provide specific MIME types for common video formats
+    switch (extension) {
+      case 'mp4':
+        return 'video/mp4';
+      case 'webm':
+        return 'video/webm';
+      case 'ogg':
+        return 'video/ogg';
+      case 'mov':
+        return 'video/quicktime';
+      case 'avi':
+        return 'video/x-msvideo';
+      case 'mkv':
+        return 'video/x-matroska';
+      default:
+        return `video/${extension}`; // Fallback for other video types
     }
-    if (SUPPORTED_VIDEO_EXTENSIONS.includes(`.${extension}`)) {
-        // Provide specific MIME types for common video formats
-        switch (extension) {
-            case 'mp4': return 'video/mp4';
-            case 'webm': return 'video/webm';
-            case 'ogg': return 'video/ogg';
-            case 'mov': return 'video/quicktime';
-            case 'avi': return 'video/x-msvideo';
-            case 'mkv': return 'video/x-matroska';
-            default: return `video/${extension}`; // Fallback for other video types
-        }
-    }
-    return 'application/octet-stream'; // Default for unknown or unsupported types
+  }
+  return 'application/octet-stream'; // Default for unknown or unsupported types
 }
 
 /**
@@ -40,92 +50,113 @@ function getMimeType(filePath) {
  * @param {function} onReadyCallback - Callback function executed when the server is ready.
  */
 function startLocalServer(onReadyCallback) {
-    if (serverInstance) {
-        console.warn('[local-server.js] Server already started. Ignoring request.');
-        if (onReadyCallback && typeof onReadyCallback === 'function') {
-            onReadyCallback(); // Call callback if already running
-        }
-        return;
+  if (serverInstance) {
+    console.warn('[local-server.js] Server already started. Ignoring request.');
+    if (onReadyCallback && typeof onReadyCallback === 'function') {
+      onReadyCallback(); // Call callback if already running
+    }
+    return;
+  }
+
+  const server = http.createServer((req, res) => {
+    const parsedUrl = url.parse(req.url);
+    // Decode URI component to handle spaces or special characters in file paths
+    const requestedPath = decodeURIComponent(parsedUrl.pathname.substring(1));
+
+    // Security: Define the allowed base directory from which files can be served.
+    // This prevents directory traversal attacks.
+    // TODO: This should be configurable or derived more safely in a real application.
+    // For now, allowing access to any path that fs.existsSync confirms.
+    // A more robust solution would involve checking against a list of allowed base paths.
+    const normalizedFilePath = path.normalize(requestedPath);
+
+    if (!fs.existsSync(normalizedFilePath)) {
+      // Simplified check
+      console.error(`[local-server.js] File not found: ${normalizedFilePath}`);
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      return res.end('File not found.');
     }
 
-    const server = http.createServer((req, res) => {
-        const parsedUrl = url.parse(req.url);
-        // Decode URI component to handle spaces or special characters in file paths
-        const requestedPath = decodeURIComponent(parsedUrl.pathname.substring(1));
+    try {
+      const stat = fs.statSync(normalizedFilePath);
+      const totalSize = stat.size;
+      const range = req.headers.range;
 
-        // Security: Define the allowed base directory from which files can be served.
-        // This prevents directory traversal attacks.
-        // TODO: This should be configurable or derived more safely in a real application.
-        // For now, allowing access to any path that fs.existsSync confirms.
-        // A more robust solution would involve checking against a list of allowed base paths.
-        const normalizedFilePath = path.normalize(requestedPath);
+      if (range) {
+        // Handle byte range requests for streaming
+        const parts = range.replace(/bytes=/, '').split('-');
+        const start = parseInt(parts[0], 10);
+        let end = parts[1] ? parseInt(parts[1], 10) : totalSize - 1;
 
-        if (!fs.existsSync(normalizedFilePath)) { // Simplified check
-            console.error(`[local-server.js] File not found: ${normalizedFilePath}`);
-            res.writeHead(404, { 'Content-Type': 'text/plain' });
-            return res.end('File not found.');
+        // Validate range
+        if (
+          isNaN(start) ||
+          start >= totalSize ||
+          end >= totalSize ||
+          start > end
+        ) {
+          console.error(
+            `[local-server.js] Invalid range: ${range} for ${normalizedFilePath}`,
+          );
+          res.writeHead(416, {
+            'Content-Range': `bytes */${totalSize}`,
+            'Content-Type': 'text/plain',
+          });
+          return res.end('Requested range not satisfiable.');
         }
 
+        const chunkSize = end - start + 1;
+        const fileStream = fs.createReadStream(normalizedFilePath, {
+          start,
+          end,
+        });
+        const head = {
+          'Content-Range': `bytes ${start}-${end}/${totalSize}`,
+          'Accept-Ranges': 'bytes',
+          'Content-Length': chunkSize,
+          'Content-Type': getMimeType(normalizedFilePath),
+        };
+        res.writeHead(206, head); // 206 Partial Content
+        fileStream.pipe(res);
+      } else {
+        // Serve the whole file
+        const head = {
+          'Content-Length': totalSize,
+          'Content-Type': getMimeType(normalizedFilePath),
+          'Accept-Ranges': 'bytes', // Indicate that range requests are supported
+        };
+        res.writeHead(200, head); // 200 OK
+        fs.createReadStream(normalizedFilePath).pipe(res);
+      }
+    } catch (serverError) {
+      console.error(
+        `[local-server.js] Error processing file ${normalizedFilePath}:`,
+        serverError,
+      );
+      res.writeHead(500, { 'Content-Type': 'text/plain' });
+      res.end('Server error processing the file.');
+    }
+  });
 
-        try {
-            const stat = fs.statSync(normalizedFilePath);
-            const totalSize = stat.size;
-            const range = req.headers.range;
+  serverInstance = server; // Store the server instance
 
-            if (range) { // Handle byte range requests for streaming
-                const parts = range.replace(/bytes=/, "").split("-");
-                const start = parseInt(parts[0], 10);
-                let end = parts[1] ? parseInt(parts[1], 10) : totalSize - 1;
+  serverInstance.listen(0, '127.0.0.1', () => {
+    // Listen on port 0 for a random available port
+    serverPort = serverInstance.address().port;
+    console.log(
+      `[local-server.js] Local media server started on http://localhost:${serverPort}`,
+    );
+    if (onReadyCallback && typeof onReadyCallback === 'function') {
+      onReadyCallback();
+    }
+  });
 
-                // Validate range
-                if (isNaN(start) || start >= totalSize || end >= totalSize || start > end) {
-                    console.error(`[local-server.js] Invalid range: ${range} for ${normalizedFilePath}`);
-                    res.writeHead(416, { 'Content-Range': `bytes */${totalSize}`, 'Content-Type': 'text/plain' });
-                    return res.end('Requested range not satisfiable.');
-                }
-
-                const chunkSize = (end - start) + 1;
-                const fileStream = fs.createReadStream(normalizedFilePath, { start, end });
-                const head = {
-                    'Content-Range': `bytes ${start}-${end}/${totalSize}`,
-                    'Accept-Ranges': 'bytes',
-                    'Content-Length': chunkSize,
-                    'Content-Type': getMimeType(normalizedFilePath),
-                };
-                res.writeHead(206, head); // 206 Partial Content
-                fileStream.pipe(res);
-            } else { // Serve the whole file
-                const head = {
-                    'Content-Length': totalSize,
-                    'Content-Type': getMimeType(normalizedFilePath),
-                    'Accept-Ranges': 'bytes' // Indicate that range requests are supported
-                };
-                res.writeHead(200, head); // 200 OK
-                fs.createReadStream(normalizedFilePath).pipe(res);
-            }
-        } catch (serverError) {
-            console.error(`[local-server.js] Error processing file ${normalizedFilePath}:`, serverError);
-            res.writeHead(500, { 'Content-Type': 'text/plain' });
-            res.end("Server error processing the file.");
-        }
-    });
-
-    serverInstance = server; // Store the server instance
-
-    serverInstance.listen(0, '127.0.0.1', () => { // Listen on port 0 for a random available port
-        serverPort = serverInstance.address().port;
-        console.log(`[local-server.js] Local media server started on http://localhost:${serverPort}`);
-        if (onReadyCallback && typeof onReadyCallback === 'function') {
-            onReadyCallback();
-        }
-    });
-
-    serverInstance.on('error', (err) => {
-        console.error('[local-server.js] Server Error:', err);
-        serverInstance = null; // Reset serverInstance on error
-        serverPort = 0;
-        // Handle server errors, e.g., if the server fails to start.
-    });
+  serverInstance.on('error', (err) => {
+    console.error('[local-server.js] Server Error:', err);
+    serverInstance = null; // Reset serverInstance on error
+    serverPort = 0;
+    // Handle server errors, e.g., if the server fails to start.
+  });
 }
 
 /**
@@ -133,20 +164,20 @@ function startLocalServer(onReadyCallback) {
  * @param {function} [callback] - Optional callback to run after the server is closed.
  */
 function stopLocalServer(callback) {
-    if (serverInstance) {
-        serverInstance.close(() => {
-            console.log('[local-server.js] Local media server stopped.');
-            serverInstance = null;
-            serverPort = 0;
-            if (callback && typeof callback === 'function') {
-                callback();
-            }
-        });
-    } else {
-        if (callback && typeof callback === 'function') {
-            callback(); // Call immediately if not running
-        }
+  if (serverInstance) {
+    serverInstance.close(() => {
+      console.log('[local-server.js] Local media server stopped.');
+      serverInstance = null;
+      serverPort = 0;
+      if (callback && typeof callback === 'function') {
+        callback();
+      }
+    });
+  } else {
+    if (callback && typeof callback === 'function') {
+      callback(); // Call immediately if not running
     }
+  }
 }
 
 /**
@@ -154,12 +185,12 @@ function stopLocalServer(callback) {
  * @returns {number} The server port, or 0 if not started/listening.
  */
 function getServerPort() {
-    return serverPort;
+  return serverPort;
 }
 
 module.exports = {
-    startLocalServer,
-    stopLocalServer, // Export the stop function
-    getServerPort,
-    getMimeType
+  startLocalServer,
+  stopLocalServer, // Export the stop function
+  getServerPort,
+  getMimeType,
 };
