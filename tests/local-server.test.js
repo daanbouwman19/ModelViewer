@@ -72,7 +72,7 @@ describe('local-server.js', () => {
 
                 // Verify server is listening by making a request to a known test file
                 const encodedFilePath = encodeURIComponent(TEST_IMAGE_FILE);
-                http.get(`http://localhost:${port}/${encodedFilePath}`, (res) => {
+                http.get(`http://127.0.0.1:${port}/${encodedFilePath}`, (res) => {
                     expect(res.statusCode).toBe(200); // Expect OK if server is up and file is found
                     res.resume(); // Consume response data to free up memory
                     stopLocalServer(() => {
@@ -126,7 +126,7 @@ describe('local-server.js', () => {
 
         it('should serve an image file with correct Content-Type and Content-Length', (done) => {
             const encodedFilePath = encodeURIComponent(TEST_IMAGE_FILE);
-            http.get(`http://localhost:${serverPort}/${encodedFilePath}`, (res) => {
+            http.get(`http://127.0.0.1:${serverPort}/${encodedFilePath}`, (res) => {
                 expect(res.statusCode).toBe(200);
                 expect(res.headers['content-type']).toBe(getMimeType(TEST_IMAGE_FILE));
                 expect(res.headers['content-length']).toBe(String(fs.statSync(TEST_IMAGE_FILE).size));
@@ -138,7 +138,7 @@ describe('local-server.js', () => {
 
         it('should serve a video file with correct Content-Type and Content-Length', (done) => {
             const encodedFilePath = encodeURIComponent(TEST_VIDEO_FILE);
-            http.get(`http://localhost:${serverPort}/${encodedFilePath}`, (res) => {
+            http.get(`http://127.0.0.1:${serverPort}/${encodedFilePath}`, (res) => {
                 expect(res.statusCode).toBe(200);
                 expect(res.headers['content-type']).toBe(getMimeType(TEST_VIDEO_FILE));
                 expect(res.headers['content-length']).toBe(String(fs.statSync(TEST_VIDEO_FILE).size));
@@ -150,7 +150,7 @@ describe('local-server.js', () => {
 
         it('should return 404 for a non-existent file', (done) => {
             const nonExistentFile = encodeURIComponent(path.join(TEST_DIR, 'non_existent_file.txt'));
-            http.get(`http://localhost:${serverPort}/${nonExistentFile}`, (res) => {
+            http.get(`http://127.0.0.1:${serverPort}/${nonExistentFile}`, (res) => {
                 expect(res.statusCode).toBe(404);
                 res.resume();
                 done();
@@ -164,7 +164,7 @@ describe('local-server.js', () => {
             const expectedLength = rangeEnd - rangeStart + 1;
 
             const options = {
-                hostname: 'localhost',
+                hostname: '127.0.0.1',
                 port: serverPort,
                 path: `/${encodeURIComponent(TEST_VIDEO_FILE)}`,
                 headers: {
@@ -191,7 +191,7 @@ describe('local-server.js', () => {
         it('should return 416 for an invalid range request', (done) => {
             const fileSize = fs.statSync(TEST_VIDEO_FILE).size;
             const options = {
-                hostname: 'localhost',
+                hostname: '127.0.0.1',
                 port: serverPort,
                 path: `/${encodeURIComponent(TEST_VIDEO_FILE)}`,
                 headers: {
@@ -213,7 +213,7 @@ describe('local-server.js', () => {
             // Pathname in URL should be URI encoded, server decodes it
             const urlPath = `/${encodeURIComponent(testFileWithSpace)}`;
 
-            http.get(`http://localhost:${serverPort}${urlPath}`, (res) => {
+            http.get(`http://127.0.0.1:${serverPort}${urlPath}`, (res) => {
                 expect(res.statusCode).toBe(200);
                 expect(res.headers['content-type']).toBe(getMimeType(testFileWithSpace));
                 expect(res.headers['content-length']).toBe(String(fs.statSync(testFileWithSpace).size));
