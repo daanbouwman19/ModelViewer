@@ -82,7 +82,7 @@ describe('database.js', () => {
         });
 
         it('should re-initialize and return a new instance if db is closed and getDb is called', () => {
-            let dbInstance = database.getDb();
+const dbInstance = database.getDb();
             expect(dbInstance.open).toBe(true);
             database.closeDatabase(); // Properly close via the module's function
             expect(dbInstance.open).toBe(false); // Verify it's closed
