@@ -1,0 +1,284 @@
+const path = require('path'); // Standard naming
+const fs = require('fs'); // Standard naming
+
+// Define mockTestUserDataPath globally for the test file
+// This mockTestUserDataPath is for the original mock structure, will be cleaned up by afterAll if tests/database.test.js was run with it.
+const mockTestUserDataPath = path.join(__dirname, 'test_user_data');
+// dbPath is also for the original structure.
+const dbPath = path.join(mockTestUserDataPath, 'media_slideshow_stats.sqlite');
+
+
+// Define mockTestUserDataPath globally for the test file specific to tests/database.test.js
+const mockTestUserDataPathForTests = path.join(__dirname, 'test_user_data_tdt'); // Use a unique name for this instance
+const dbPathForTests = path.join(mockTestUserDataPathForTests, 'media_slideshow_stats.sqlite');
+
+
+// It's crucial that jest.mock is at the top level, before any imports
+// that might use the mocked module (like './database' which uses 'electron').
+jest.mock('electron', () => {
+    const pathModule = require('path');
+    const fsModule = require('fs');
+    // Ensure this path is consistent with mockTestUserDataPathForTests
+    const appPath = mockTestUserDataPathForTests; // Use the path defined above for this test file
+    if (!fsModule.existsSync(appPath)) {
+        fsModule.mkdirSync(appPath, { recursive: true });
+    }
+    return {
+        app: {
+            getPath: jest.fn((name) => {
+                if (name === 'userData') {
+                    return appPath;
+                }
+                return pathModule.join(appPath, name);
+            }),
+        },
+    };
+});
+
+// Now, import the modules under test AFTER mocks are set up.
+let database;
+
+describe('database.js', () => {
+    beforeAll(() => {
+        process.env.NODE_ENV = 'test'; // Ensure test environment
+        // The mock for 'electron' app.getPath('userData') ensures a test-specific directory
+        // is used, which is created in the mock setup.
+    });
+
+    beforeEach(() => {
+        jest.resetModules(); // Reset modules before each test to ensure clean mocks
+        database = require('../main/database.js'); // Require database here after reset
+
+        // Ensure a clean database file for each test using dbPathForTests
+        if (fs.existsSync(dbPathForTests)) {
+            fs.unlinkSync(dbPathForTests);
+        }
+        // Initialize the database before each test
+        database.initDatabase(); // This will use the mocked app.getPath('userData') which points to mockTestUserDataPathForTests
+    });
+
+    afterEach(() => {
+        // Close the database connection after each test
+        database.closeDatabase();
+        // Clean up the database file after each test to ensure independence using dbPathForTests
+        if (fs.existsSync(dbPathForTests)) {
+            fs.unlinkSync(dbPathForTests);
+        }
+    });
+
+    afterAll(() => {
+        // Clean up the mock user data directory after all tests are done
+        if (fs.existsSync(mockTestUserDataPathForTests)) { // Use the correct path here
+            fs.rmSync(mockTestUserDataPathForTests, { recursive: true, force: true });
+        }
+         // Also clean up the original mock path if it exists from previous versions of the test
+        if (fs.existsSync(mockTestUserDataPath)) {
+            fs.rmSync(mockTestUserDataPath, { recursive: true, force: true });
+        }
+    });
+
+    describe('initDatabase and getDb', () => {
+        it('should initialize the database and create tables', () => {
+            const db = database.getDb();
+            expect(db).not.toBeNull();
+            expect(db.open).toBe(true);
+            const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
+            expect(tables.map(t => t.name)).toEqual(expect.arrayContaining(['media_views', 'app_cache']));
+        });
+
+        it('should return the same db instance if getDb is called multiple times without closing', () => {
+            const db1 = database.getDb();
+            const db2 = database.getDb();
+            expect(db1).toBe(db2); // Should be the exact same instance
+        });
+
+        it('should re-initialize and return a new instance if db is closed and getDb is called', () => {
+            let dbInstance = database.getDb();
+            expect(dbInstance.open).toBe(true);
+            database.closeDatabase(); // Properly close via the module's function
+            expect(dbInstance.open).toBe(false); // Verify it's closed
+
+            const newDbInstance = database.getDb(); // Should trigger re-initialization
+            expect(newDbInstance).toBeDefined();
+            expect(newDbInstance.open).toBe(true);
+            expect(newDbInstance).not.toBe(dbInstance); // Should be a new instance
+        });
+
+        it('initDatabase should close an existing connection before re-initializing', () => {
+            const db1 = database.getDb();
+            jest.spyOn(db1, 'close');
+            database.initDatabase(); // Re-initialize
+            expect(db1.close).toHaveBeenCalled();
+            const db2 = database.getDb();
+            expect(db2).not.toBe(db1);
+            expect(db2.open).toBe(true);
+        });
+
+        it('getDb should return null if initialization fails critically (simulated)', () => {
+            // Simulate app.getPath throwing an error
+            const electron = require('electron');
+            const originalGetPath = electron.app.getPath;
+            electron.app.getPath = jest.fn(() => { throw new Error('Disk full'); });
+
+            database.closeDatabase(); // Ensure db is not initialized
+
+            // Temporarily modify initDatabase to not re-throw for this specific test,
+            // or ensure getDb handles the throw from initDatabase gracefully.
+            // For simplicity, we'll rely on getDb's internal try-catch for initDatabase.
+            const db = database.getDb();
+            expect(db).toBeNull();
+
+            electron.app.getPath = originalGetPath; // Restore original function
+        });
+    });
+
+    describe('generateFileId', () => {
+        it('should generate a consistent, non-empty MD5 hash for a file path', () => {
+            const filePath = '/test/path/to/file.mp4';
+            const fileId1 = database.generateFileId(filePath);
+            const fileId2 = database.generateFileId(filePath);
+            expect(fileId1).toBe(fileId2);
+            expect(fileId1).toMatch(/^[a-f0-9]{32}$/);
+        });
+    });
+
+    describe('recordMediaView and getMediaViewCounts', () => {
+        it('should record a new media view for a file not previously viewed', async () => {
+            const filePath = '/test/new_file.mp4';
+            await database.recordMediaView(filePath);
+            const counts = await database.getMediaViewCounts([filePath]);
+            expect(counts[filePath]).toBe(1);
+        });
+
+        it('should increment view count for an existing file', async () => {
+            const filePath = '/test/existing_file.mov';
+            await database.recordMediaView(filePath); // First view
+            await database.recordMediaView(filePath); // Second view
+            const counts = await database.getMediaViewCounts([filePath]);
+            expect(counts[filePath]).toBe(2);
+        });
+
+        it('should correctly return view counts for multiple files, including unviewed ones', async () => {
+            const filePathViewedOnce = '/test/viewed_once.jpeg';
+            const filePathViewedTwice = '/test/viewed_twice.gif';
+            const filePathNeverViewed = '/test/never_viewed.png';
+
+            await database.recordMediaView(filePathViewedOnce);
+            await database.recordMediaView(filePathViewedTwice);
+            await database.recordMediaView(filePathViewedTwice);
+
+            const counts = await database.getMediaViewCounts([
+                filePathViewedOnce,
+                filePathViewedTwice,
+                filePathNeverViewed,
+            ]);
+            expect(counts[filePathViewedOnce]).toBe(1);
+            expect(counts[filePathViewedTwice]).toBe(2);
+            expect(counts[filePathNeverViewed]).toBe(0);
+        });
+
+        it('getMediaViewCounts should return an empty object if an empty array is passed', async () => {
+            const counts = await database.getMediaViewCounts([]);
+            expect(counts).toEqual({});
+        });
+
+        it('getMediaViewCounts should return an empty object if db is not available', async () => {
+            database.closeDatabase(); // Set internal db to null
+            const electron = require('electron'); // Get the mocked electron
+            const originalGetPath = electron.app.getPath;
+            electron.app.getPath = jest.fn(() => { throw new Error('Simulated disk error for getMediaViewCounts'); });
+
+            const counts = await database.getMediaViewCounts(['/test/somefile.mp4']);
+            expect(counts).toEqual({});
+
+            electron.app.getPath = originalGetPath; // Restore
+            // No need to call database.initDatabase() here, beforeEach will handle it for the next test
+        });
+
+        it('recordMediaView should not throw if db is not available', async () => {
+            database.closeDatabase();
+            const electron = require('electron');
+            const originalGetPath = electron.app.getPath;
+            electron.app.getPath = jest.fn(() => { throw new Error('Simulated disk error for recordMediaView'); });
+
+            const filePath = '/test/somefile.mp4';
+            await expect(database.recordMediaView(filePath)).resolves.not.toThrow();
+
+            electron.app.getPath = originalGetPath;
+            // No need to call database.initDatabase() here, beforeEach will handle it
+        });
+    });
+
+    describe('cacheModels and getCachedModels', () => {
+        it('should correctly cache and retrieve models', async () => {
+            const models = [{ id: 1, name: 'model1.obj' }, { id: 2, name: 'model2.stl' }];
+            await database.cacheModels(models);
+            const cachedModels = await database.getCachedModels();
+            expect(cachedModels).toEqual(models);
+        });
+
+        it('getCachedModels should return null if no cache exists', async () => {
+            const cachedModels = await database.getCachedModels();
+            expect(cachedModels).toBeNull();
+        });
+
+        it('cacheModels should overwrite existing cache', async () => {
+            const oldModels = [{ id: 1, name: 'old_model.obj' }];
+            await database.cacheModels(oldModels); // Cache initial models
+            const newModels = [{ id: 2, name: 'new_model.stl' }];
+            await database.cacheModels(newModels); // Cache new, overwriting models
+            const cachedModels = await database.getCachedModels();
+            expect(cachedModels).toEqual(newModels); // Should retrieve the new models
+        });
+
+        it('getCachedModels should return null if db is not available', async () => {
+            database.closeDatabase();
+            const electron = require('electron');
+            const originalGetPath = electron.app.getPath;
+            electron.app.getPath = jest.fn(() => { throw new Error('Simulated disk error for getCachedModels'); });
+
+            const models = await database.getCachedModels();
+            expect(models).toBeNull();
+
+            electron.app.getPath = originalGetPath;
+            // No need to call database.initDatabase() here, beforeEach will handle it
+        });
+
+        it('cacheModels should not throw if db is not available', async () => {
+            database.closeDatabase();
+            const electron = require('electron');
+            const originalGetPath = electron.app.getPath;
+            electron.app.getPath = jest.fn(() => { throw new Error('Simulated disk error for cacheModels'); });
+
+            const modelsToCache = [{ id: 1, data: 'test' }];
+            await expect(database.cacheModels(modelsToCache)).resolves.not.toThrow();
+
+            electron.app.getPath = originalGetPath; // Restore
+            // No need to call database.initDatabase() here, beforeEach will handle it
+        });
+    });
+
+    describe('closeDatabase', () => {
+        it('should close the database connection, and subsequent getDb calls reinitialize', () => {
+            const dbInstance1 = database.getDb();
+            expect(dbInstance1.open).toBe(true);
+
+            database.closeDatabase();
+            expect(dbInstance1.open).toBe(false); // Check if the specific instance is closed
+
+            const dbInstance2 = database.getDb(); // Should reinitialize
+            expect(dbInstance2).toBeDefined();
+            expect(dbInstance2.open).toBe(true);
+            expect(dbInstance2).not.toBe(dbInstance1); // Should be a new instance
+        });
+
+        it('should handle closing an already closed or uninitialized database without error', () => {
+            database.closeDatabase(); // Close it once
+            expect(() => database.closeDatabase()).not.toThrow(); // Close it again
+
+            // Test closing when db is null internally (e.g., after init failed)
+            // This requires more direct manipulation or specific mock if db instance isn't exposed
+            // For now, multiple closes are tested.
+        });
+    });
+});

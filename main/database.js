@@ -122,7 +122,9 @@ async function recordMediaView(filePath) {
  */
 async function getMediaViewCounts(filePaths) {
     const currentDb = getDb();
-    if (!currentDb || !filePaths || filePaths.length === 0) return {};
+    if (!currentDb || !filePaths || filePaths.length === 0) {
+        return {};
+    }
 
     const viewCountsMap = {};
     try {
