@@ -7,7 +7,9 @@
     "start": "electron .",
     "dist": "electron-builder",
     "rebuild": "electron-rebuild",
-    "test": "jest"
+    "test": "jest",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "author": "Daan Bouwman",
   "dependencies": {
@@ -17,7 +19,8 @@
     "@electron/rebuild": "^4.0.1",
     "electron": "36.3.2",
     "electron-builder": "26.0.15",
-    "jest": "^30.0.4"
+    "jest": "^30.0.4",
+    "prettier": "^3.6.2"
   },
   "build": {
     "appId": "com.example.modelviewerapp",
