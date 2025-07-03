@@ -2,7 +2,6 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { startLocalServer, stopLocalServer, getServerPort, getMimeType } = require('../main/local-server');
-const { SUPPORTED_IMAGE_EXTENSIONS, SUPPORTED_VIDEO_EXTENSIONS } = require('../main/constants');
 
 const TEST_DIR = path.join(__dirname, 'local_server_test_files');
 const TEST_IMAGE_FILE = path.join(TEST_DIR, 'test_image.png');

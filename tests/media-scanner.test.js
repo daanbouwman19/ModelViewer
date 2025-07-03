@@ -1,7 +1,6 @@
 const fs = require('fs');
 const path = require('path');
 const { findAllMediaFiles, performFullMediaScan } = require('../main/media-scanner');
-const { ALL_SUPPORTED_EXTENSIONS } = require('../main/constants');
 
 // Define a temporary directory for test files
 const TEST_MEDIA_DIR = path.join(__dirname, 'test_media_files');

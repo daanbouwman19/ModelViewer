@@ -33,14 +33,7 @@ describe('Constants', () => {
 
     test('ALL_SUPPORTED_EXTENSIONS should include all image and video extensions', () => {
         const expectedExtensions = [...SUPPORTED_IMAGE_EXTENSIONS, ...SUPPORTED_VIDEO_EXTENSIONS];
-expect(ALL_SUPPORTED_EXTENSIONS.sort()).toEqual(expectedExtensions.sort());
-    });
-
-    test('Constants should not be undefined', () => {
-        expect(MAX_DATA_URL_SIZE_MB).toBeDefined();
-        expect(FILE_INDEX_CACHE_KEY).toBeDefined();
-        expect(SUPPORTED_IMAGE_EXTENSIONS).toBeDefined();
-        expect(SUPPORTED_VIDEO_EXTENSIONS).toBeDefined();
-        expect(ALL_SUPPORTED_EXTENSIONS).toBeDefined();
+        expect(ALL_SUPPORTED_EXTENSIONS).toEqual(expect.arrayContaining(expectedExtensions));
+        expect(expectedExtensions).toEqual(expect.arrayContaining(ALL_SUPPORTED_EXTENSIONS));
     });
 });

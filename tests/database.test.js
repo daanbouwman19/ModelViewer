@@ -1,13 +1,6 @@
 const path = require('path'); // Standard naming
 const fs = require('fs'); // Standard naming
 
-// Define mockTestUserDataPath globally for the test file
-// This mockTestUserDataPath is for the original mock structure, will be cleaned up by afterAll if tests/database.test.js was run with it.
-const mockTestUserDataPath = path.join(__dirname, 'test_user_data');
-// dbPath is also for the original structure.
-const dbPath = path.join(mockTestUserDataPath, 'media_slideshow_stats.sqlite');
-
-
 // Define mockTestUserDataPath globally for the test file specific to tests/database.test.js
 const mockTestUserDataPathForTests = path.join(__dirname, 'test_user_data_tdt'); // Use a unique name for this instance
 const dbPathForTests = path.join(mockTestUserDataPathForTests, 'media_slideshow_stats.sqlite');
@@ -70,10 +63,6 @@ describe('database.js', () => {
         // Clean up the mock user data directory after all tests are done
         if (fs.existsSync(mockTestUserDataPathForTests)) { // Use the correct path here
             fs.rmSync(mockTestUserDataPathForTests, { recursive: true, force: true });
-        }
-         // Also clean up the original mock path if it exists from previous versions of the test
-        if (fs.existsSync(mockTestUserDataPath)) {
-            fs.rmSync(mockTestUserDataPath, { recursive: true, force: true });
         }
     });
 
