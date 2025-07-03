@@ -234,5 +234,6 @@ module.exports = {
     cacheModels,
     getCachedModels,
     generateFileId, // Exported for testing purposes
-    closeDatabase // Export the new function
+    closeDatabase, // Export the new function
+    getDb // Export for testing and internal use verification
 };
