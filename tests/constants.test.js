@@ -33,8 +33,7 @@ describe('Constants', () => {
 
     test('ALL_SUPPORTED_EXTENSIONS should include all image and video extensions', () => {
         const expectedExtensions = [...SUPPORTED_IMAGE_EXTENSIONS, ...SUPPORTED_VIDEO_EXTENSIONS];
-        expect(ALL_SUPPORTED_EXTENSIONS).toEqual(expect.arrayContaining(expectedExtensions));
-        expect(expectedExtensions).toEqual(expect.arrayContaining(ALL_SUPPORTED_EXTENSIONS));
+expect(ALL_SUPPORTED_EXTENSIONS.sort()).toEqual(expectedExtensions.sort());
     });
 
     test('Constants should not be undefined', () => {
