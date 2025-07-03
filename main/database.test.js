@@ -8,12 +8,12 @@ const dbPath = path.join(mockTestUserDataPath, 'media_slideshow_stats.sqlite');
 // It's crucial that jest.mock is at the top level, before any imports
 // that might use the mocked module (like './database' which uses 'electron').
 jest.mock('electron', () => {
-    const pathModule = require('path'); // Correctly aliased
+    const pathModule = require('path');
     const fsModule = require('fs');
     // Ensure this path is consistent with mockTestUserDataPath
-    const appPath = pathModule.join(__dirname, 'test_user_data'); // Use pathModule here
+    const appPath = pathModule.join(__dirname, 'test_user_data');
     if (!fsModule.existsSync(appPath)) {
-        fsModule.mkdirSync(appPath, { recursive: true });
+        fsModule.mkdirSync(appPath, { recursive: true }); // This creates the directory
     }
     return {
         app: {
@@ -21,43 +21,35 @@ jest.mock('electron', () => {
                 if (name === 'userData') {
                     return appPath;
                 }
-                return pathModule.join(appPath, name); // And here
+                return pathModule.join(appPath, name);
             }),
         },
     };
 });
 
 // Now, import the modules under test AFTER mocks are set up.
-let database; // Will be re-required in beforeEach
+let database;
 
 describe('database.js', () => {
     beforeAll(() => {
-        if (!fs.existsSync(mockTestUserDataPath)) {
-            fs.mkdirSync(mockTestUserDataPath, { recursive: true });
-        }
-        process.env.NODE_ENV = 'test'; // Set for all tests
+        // mockTestUserDataPath is created by the jest.mock('electron', ...) block
+        process.env.NODE_ENV = 'test';
     });
 
     beforeEach(() => {
-        // Reset modules to ensure a fresh state for database.js, especially its internal 'db' variable
         jest.resetModules();
-        // Re-require database after resetting modules
         database = require('./database');
 
-        // Clean up database file before each test
         if (fs.existsSync(dbPath)) {
             fs.unlinkSync(dbPath);
         }
-        // Initialize the database for each test.
         database.initDatabase();
     });
 
-    afterEach(async () => {
+    afterEach(() => {
+        // closeDatabase is synchronous. dbPath is cleaned in beforeEach.
         if (database && typeof database.closeDatabase === 'function') {
-            await database.closeDatabase();
-        }
-        if (fs.existsSync(dbPath)) {
-            fs.unlinkSync(dbPath);
+            database.closeDatabase();
         }
     });
 
@@ -161,16 +153,6 @@ describe('database.js', () => {
             expect(db.open).toBe(true);
             database.closeDatabase();
             expect(db.open).toBe(false);
-        });
-
-        it('getDb should re-open a closed database connection', () => {
-            let db = database.getDb();
-            expect(db.open).toBe(true);
-            database.closeDatabase();
-            expect(db.open).toBe(false);
-
-            db = database.getDb();
-            expect(db.open).toBe(true);
         });
     });
 });

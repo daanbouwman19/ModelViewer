@@ -17,8 +17,7 @@
     "@electron/rebuild": "^4.0.1",
     "electron": "36.3.2",
     "electron-builder": "26.0.15",
-    "jest": "^30.0.4",
-    "sqlite3": "^5.1.7"
+    "jest": "^30.0.4"
   },
   "build": {
     "appId": "com.example.modelviewerapp",
