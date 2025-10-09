@@ -1,12 +1,22 @@
+/**
+ * @file Provides functionality to scan the filesystem for media files.
+ * This module is responsible for finding all supported media files within a
+ * given directory structure and organizing them into "models" (subdirectories).
+ * @requires fs
+ * @requires path
+ * @requires ./constants.js
+ */
 const fs = require('fs');
 const path = require('path');
 const { ALL_SUPPORTED_EXTENSIONS } = require('./constants.js');
 
 /**
  * Recursively finds all supported media files in a directory and its subdirectories.
- * @param {string} directoryPath - The path to the directory to scan.
- * @param {Array<Object>} mediaFilesList - Accumulator for media files found.
- * @returns {Array<Object>} A list of objects, each with 'name' and 'path' of a media file.
+ * It populates a list with objects containing the name and full path of each found file.
+ * @param {string} directoryPath - The absolute path to the directory to scan.
+ * @param {Array<Object>} [mediaFilesList=[]] - An accumulator array for the media files found. This is used for recursion.
+ * @returns {Array<{name: string, path: string}>} A list of objects, where each object represents a media file
+ * and has `name` and `path` properties.
  */
 function findAllMediaFiles(directoryPath, mediaFilesList = []) {
   try {

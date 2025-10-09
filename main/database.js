@@ -1,9 +1,29 @@
+/**
+ * @file Manages all database interactions for the application.
+ * This includes initializing the SQLite database, recording media view counts,
+ * and caching application data like the media file index.
+ * @requires path
+ * @requires crypto
+ * @requires electron
+ * @requires better-sqlite3
+ * @requires ./constants.js
+ */
+
+/**
+ * @typedef {import('../renderer/state.js').MediaFile} MediaFile
+ * @typedef {import('../renderer/state.js').Model} Model
+ */
+
 const path = require('path');
 const crypto = require('crypto');
 const { app } = require('electron'); // Required for app.getPath('userData')
 const Database = require('better-sqlite3');
 const { FILE_INDEX_CACHE_KEY } = require('./constants.js');
 
+/**
+ * The global database connection instance.
+ * @type {import('better-sqlite3').Database | null}
+ */
 let db;
 
 /**
@@ -19,7 +39,7 @@ function generateFileId(filePath) {
  * Initializes the SQLite database.
  * Creates tables for media views and application cache if they don't exist.
  * Closes any existing connection before re-initializing.
- * @returns {Database.Database} The database instance.
+ * @returns {import('better-sqlite3').Database} The database instance.
  * @throws {Error} If database initialization fails.
  */
 function initDatabase() {
@@ -78,7 +98,7 @@ function initDatabase() {
 
 /**
  * Gets the current database instance. Initializes it if not already done.
- * @returns {Database.Database | null} The database instance or null if initialization fails.
+ * @returns {import('better-sqlite3').Database | null} The database instance or null if initialization fails.
  */
 function getDb() {
   if (!db || !db.open) {
@@ -106,6 +126,7 @@ function getDb() {
 /**
  * Records a view for a media file. Increments its view count and updates the last viewed timestamp.
  * @param {string} filePath - The path to the media file.
+ * @returns {Promise<void>}
  */
 async function recordMediaView(filePath) {
   const currentDb = getDb();
@@ -187,7 +208,8 @@ async function getMediaViewCounts(filePaths) {
 
 /**
  * Caches the list of models (file index) into the database.
- * @param {Array<Object>} models - The array of model objects to cache.
+ * @param {Model[]} models - The array of model objects to cache.
+ * @returns {Promise<void>}
  */
 async function cacheModels(models) {
   const currentDb = getDb();
@@ -221,7 +243,7 @@ async function cacheModels(models) {
 
 /**
  * Retrieves the cached list of models from the database.
- * @returns {Promise<Array<Object> | null>} The cached models or null if not found or error.
+ * @returns {Promise<Model[] | null>} The cached models or null if not found or error.
  */
 async function getCachedModels() {
   const currentDb = getDb();

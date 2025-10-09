@@ -1,11 +1,21 @@
+/**
+ * @file Contains all primary event handler functions for the renderer process.
+ * This includes initialization, user interactions like selecting a model,
+ * starting slideshows, re-indexing the library, and handling keyboard shortcuts.
+ * These handlers orchestrate calls to other modules to update state and UI.
+ * @requires ./state.js
+ * @requires ./ui-elements.js
+ * @requires ./ui-updates.js
+ * @requires ./slideshow.js
+ */
 import { state } from './state.js';
 import {
   modelsListElement,
   currentModelTitleElement,
-  timerDurationInput, // Used for keydown handler
-  reindexLibraryButton, // Used for handleReindex
-  prevMediaButton, // Used for keydown handler
-  nextMediaButton, // Used for keydown handler
+  timerDurationInput,
+  reindexLibraryButton,
+  prevMediaButton,
+  nextMediaButton,
 } from './ui-elements.js';
 import {
   displayCurrentMedia,
@@ -21,7 +31,10 @@ import {
 } from './slideshow.js';
 
 /**
- * Performs the initial load of models and populates the UI.
+ * Performs the initial loading of data when the application starts.
+ * It fetches the list of models with their view counts from the main process,
+ * populates the central state, and then calls the function to build the model list UI.
+ * @async
  */
 export async function initialLoad() {
   try {

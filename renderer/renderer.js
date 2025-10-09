@@ -1,3 +1,17 @@
+/**
+ * @file This is the main entry point for the renderer process.
+ * It orchestrates the entire application setup by:
+ * 1. Verifying that all critical UI elements are present in the DOM.
+ * 2. Attaching all necessary event listeners to the UI elements.
+ * 3. Kicking off the initial data load from the main process.
+ * It also includes a top-level error handler to catch and display critical
+ * errors that may occur during the initialization sequence.
+ * @requires ./ui-elements.js
+ * @requires ./ui-updates.js
+ * @requires ./slideshow.js
+ * @requires ./event-handlers.js
+ */
+
 import {
   prevMediaButton,
   nextMediaButton,
@@ -7,8 +21,8 @@ import {
   criticalElements,
 } from './ui-elements.js';
 
-import { updateNavButtons } from './ui-updates.js'; // Called at initialization.
-import { toggleSlideshowTimer, navigateMedia } from './slideshow.js'; // Used by event listeners.
+import { updateNavButtons } from './ui-updates.js';
+import { toggleSlideshowTimer, navigateMedia } from './slideshow.js';
 import {
   initialLoad,
   activateGlobalSlideshowHandler,
@@ -16,12 +30,16 @@ import {
   handleKeydown,
 } from './event-handlers.js';
 
-// --- Main Initialization Function ---
-// We wrap the main logic in an async function to allow for top-level await
-// and to correctly scope the 'return' statement.
+/**
+ * The primary initialization function for the application's renderer process.
+ * It performs a critical check to ensure all necessary DOM elements are available,
+ * then proceeds to set up all event listeners for user interaction, and finally
+ * triggers the initial loading of media models. If any critical element is missing,
+ * it halts execution and attempts to display an error.
+ * @async
+ */
 async function initializeApp() {
   // --- Initial Critical Element Check ---
-  // Verifies that essential UI components are present in the DOM.
   if (Object.values(criticalElements).some((el) => !el)) {
     console.error(
       'CRITICAL ERROR: One or more essential UI elements are missing from the DOM. The application may not function correctly.',

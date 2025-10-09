@@ -1,13 +1,32 @@
+/**
+ * @file Manages a local HTTP server for streaming media files.
+ * This is crucial for handling large video files that cannot be efficiently
+ * loaded as Data URLs. The server handles range requests for video streaming.
+ * @requires http
+ * @requires url
+ * @requires fs
+ * @requires path
+ * @requires ./constants.js
+ */
 const http = require('http');
 const url = require('url');
 const fs = require('fs');
-const path = require('path');
+const path =require('path');
 const {
   SUPPORTED_IMAGE_EXTENSIONS,
   SUPPORTED_VIDEO_EXTENSIONS,
 } = require('./constants.js');
 
+/**
+ * Holds the singleton instance of the HTTP server.
+ * @type {http.Server | null}
+ */
 let serverInstance = null; // To keep a reference to the server
+
+/**
+ * Stores the port the server is currently running on. 0 if not running.
+ * @type {number}
+ */
 let serverPort = 0; // Stores the port the server is running on.
 
 /**
@@ -44,10 +63,12 @@ function getMimeType(filePath) {
 }
 
 /**
- * Starts a local HTTP server to stream media files.
+ * Starts a local HTTP server to stream media files if it's not already running.
  * This is primarily used for larger video files that exceed Data URL limits.
- * The server listens on a random available port on 127.0.0.1.
- * @param {function} onReadyCallback - Callback function executed when the server is ready.
+ * The server listens on a random available port on 127.0.0.1 and supports
+ * HTTP Range requests for video streaming.
+ * @param {() => void} onReadyCallback - A callback function that is executed once the server has successfully started and is listening for requests.
+ * @returns {void}
  */
 function startLocalServer(onReadyCallback) {
   if (serverInstance) {
@@ -161,7 +182,8 @@ function startLocalServer(onReadyCallback) {
 
 /**
  * Stops the local HTTP server if it is running.
- * @param {function} [callback] - Optional callback to run after the server is closed.
+ * @param {() => void} [callback] - An optional callback to execute after the server has been successfully closed.
+ * @returns {void}
  */
 function stopLocalServer(callback) {
   if (serverInstance) {
@@ -190,7 +212,7 @@ function getServerPort() {
 
 module.exports = {
   startLocalServer,
-  stopLocalServer, // Export the stop function
+  stopLocalServer,
   getServerPort,
   getMimeType,
 };

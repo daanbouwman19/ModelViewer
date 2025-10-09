@@ -1,44 +1,108 @@
-// --- Application State ---
-// This object holds the central state for the renderer process.
-// It includes data about models, current selections, slideshow status, and UI settings.
+/**
+ * @file Manages the central state for the renderer process.
+ * This single `state` object holds all dynamic data required for the UI to function,
+ * including the list of all media models, the current user selections, slideshow status,
+ * and various UI settings.
+ */
+
+/**
+ * @typedef {Object} MediaFile
+ * @property {string} name - The name of the media file (e.g., 'image.jpg').
+ * @property {string} path - The full, absolute path to the media file.
+ * @property {number} [viewCount] - The number of times this file has been viewed.
+ */
+
+/**
+ * @typedef {Object} Model
+ * @property {string} name - The name of the model, typically the folder name.
+ * @property {Array<MediaFile>} textures - An array of media files belonging to this model.
+ */
+
+/**
+ * This object holds the central state for the renderer process.
+ * It includes data about models, current selections, slideshow status, and UI settings.
+ */
 export const state = {
-  /** @type {Array<Object>} List of all models, each with name and textures array. */
+  /**
+   * The complete list of all models discovered by the media scanner.
+   * @type {Array<Model>}
+   */
   allModels: [],
 
-  /** @type {Object | null} The currently selected model for individual slideshow. */
+  /**
+   * The model object that is currently selected for individual viewing.
+   * Null if the global slideshow is active or no model is selected.
+   * @type {Model | null}
+   */
   currentSelectedModelForIndividualView: null,
 
-  /** @type {Array<Object>} Original list of media files for the currently selected individual model. */
+  /**
+   * The original, unsorted list of media files for the currently selected individual model.
+   * This is kept to restore the original order when toggling random mode off.
+   * @type {Array<MediaFile>}
+   */
   originalMediaFilesForIndividualView: [],
 
-  /** @type {Array<Object>} Pool of media files eligible for the global slideshow. */
+  /**
+   * A flat array of all media files from all models that are currently selected
+   * for inclusion in the global slideshow.
+   * @type {Array<MediaFile>}
+   */
   globalMediaPoolForSelection: [],
 
   /**
-   * @type {Array<Object>}
-   * For individual mode: The current playlist (possibly shuffled) for the selected model.
-   * For global mode: A history of recently displayed items from the global pool.
+   * Represents the current "playlist".
+   * In individual mode, it's the (potentially shuffled) list of media for the selected model.
+   * In global mode, it acts as a history of recently displayed items to avoid immediate repeats.
+   * @type {Array<MediaFile>}
    */
   displayedMediaFiles: [],
 
-  /** @type {Object | null} The media item currently being displayed or about to be displayed. */
+  /**
+   * The specific media item that is currently being displayed on the screen.
+   * @type {MediaFile | null}
+   */
   currentMediaItem: null,
 
-  /** @type {number} Index of the currentMediaItem within displayedMediaFiles. */
+  /**
+   * The index of `currentMediaItem` within the `displayedMediaFiles` array.
+   * This is crucial for navigating back and forth in the playlist.
+   * @type {number}
+   */
   currentMediaIndex: -1,
 
-  /** @type {Object<string, boolean>} Settings for random playback mode per model. Keys are model names. */
+  /**
+   * A map where keys are model names and values are booleans indicating if
+   * random playback mode is enabled for that model's individual slideshow.
+   * @type {Object<string, boolean>}
+   */
   modelRandomModeSettings: {},
 
-  /** @type {Object<string, boolean>} Settings for including models in the global slideshow. Keys are model names. */
+  /**
+   * A map where keys are model names and values are booleans indicating if
+   * the model is included in the global slideshow.
+   * @type {Object<string, boolean>}
+   */
   modelsSelectedForGlobal: {},
 
-  /** @type {boolean} Flag indicating if the global slideshow is active. */
+  /**
+   * A flag that is true when the global slideshow is active, and false when in
+   * individual model view mode.
+   * @type {boolean}
+   */
   isGlobalSlideshowActive: false,
 
-  /** @type {NodeJS.Timeout | null} ID of the slideshow timer interval. */
+  /**
+   * Holds the timer ID returned by `setInterval` for the slideshow.
+   * Null when the timer is not running.
+   * @type {NodeJS.Timeout | null}
+   */
   slideshowTimerId: null,
 
-  /** @type {boolean} Flag indicating if the slideshow timer is currently playing. */
+  /**
+   * A flag indicating if the slideshow timer is currently active (playing).
+   * This is toggled by the play/pause button.
+   * @type {boolean}
+   */
   isTimerPlaying: false,
 };

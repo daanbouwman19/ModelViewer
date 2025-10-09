@@ -1,21 +1,29 @@
+/**
+ * @file Responsible for all direct manipulations of the DOM to reflect the current application state.
+ * This includes displaying media, clearing the display, and updating UI components like
+ * navigation buttons and information text.
+ * @requires ./ui-elements.js
+ * @requires ./state.js
+ */
+
 import {
-  // modelsListElement, // Not directly used by functions in *this* file after refactor.
-  // currentModelTitleElement, // Not directly used by functions in *this* file.
   mediaDisplayArea,
   mediaPlaceholder,
   fileNameInfoElement,
   fileCountInfoElement,
   prevMediaButton,
   nextMediaButton,
-  playPauseTimerButton, // Used by updateNavButtons
+  playPauseTimerButton,
 } from './ui-elements.js';
 import { state } from './state.js';
-// `populateModelsListUI` was deferred and is handled in `event-handlers.js` as `populateModelsListUI_internal`.
 
 /**
  * Displays the current media item (image or video) in the media display area.
- * Handles loading via Data URL or HTTP URL from the main process.
- * Records a view for the media item.
+ * It fetches the media content (either as a Data URL or a local server URL) from the main
+ * process via IPC. It handles the display of loading indicators, and error messages,
+ * and also records a view for the media item being displayed. After displaying the media,
+ * it updates the file information and navigation buttons.
+ * @async
  */
 export async function displayCurrentMedia() {
   const mediaFileToDisplay = state.currentMediaItem;
@@ -169,8 +177,9 @@ export async function displayCurrentMedia() {
 }
 
 /**
- * Clears the media display area and shows a placeholder message.
- * @param {string} [message="Select a model or start Global Slideshow."] - The message to display.
+ * Clears the media display area and shows a placeholder message. It also resets
+ * the file info displays and the current media item in the application state.
+ * @param {string} [message='Select a model or start Global Slideshow.'] - The message to display in the placeholder.
  */
 export function clearMediaDisplay(
   message = 'Select a model or start Global Slideshow.',
