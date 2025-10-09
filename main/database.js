@@ -16,7 +16,7 @@
 
 const path = require('path');
 const crypto = require('crypto');
-const { app } = require('electron'); // Required for app.getPath('userData')
+const { app } = require('electron');
 const Database = require('better-sqlite3');
 const { FILE_INDEX_CACHE_KEY } = require('./constants.js');
 
