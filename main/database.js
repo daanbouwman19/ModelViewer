@@ -53,12 +53,10 @@ function initDatabase() {
         );
       }
     } catch (closeError) {
-      if (process.env.NODE_ENV !== 'test') {
-        console.error(
-          '[database.js] Error closing existing DB connection:',
-          closeError,
-        );
-      }
+      console.error(
+        '[database.js] Error closing existing DB connection:',
+        closeError,
+      );
     }
     db = null;
   }
@@ -84,12 +82,10 @@ function initDatabase() {
       console.log('[database.js] SQLite database initialized at:', dbPath);
     }
   } catch (error) {
-    if (process.env.NODE_ENV !== 'test') {
-      console.error(
-        '[database.js] CRITICAL ERROR: Failed to initialize SQLite database.',
-        error,
-      );
-    }
+    console.error(
+      '[database.js] CRITICAL ERROR: Failed to initialize SQLite database.',
+      error,
+    );
     db = null;
     throw error;
   }
@@ -114,7 +110,7 @@ function getDb() {
       // Error already logged by initDatabase
       return null;
     }
-    if (!db && process.env.NODE_ENV !== 'test') {
+    if (!db) {
       console.error(
         '[database.js] CRITICAL: DB is not available after attempted init.',
       );
@@ -153,12 +149,10 @@ async function recordMediaView(filePath) {
       stmt_update.run(now, fileId);
     })();
   } catch (error) {
-    if (process.env.NODE_ENV !== 'test') {
-      console.error(
-        `[database.js] Error recording view for ${filePath} (ID: ${fileId}) in SQLite:`,
-        error,
-      );
-    }
+    console.error(
+      `[database.js] Error recording view for ${filePath} (ID: ${fileId}) in SQLite:`,
+      error,
+    );
   }
 }
 
@@ -196,12 +190,10 @@ async function getMediaViewCounts(filePaths) {
       viewCountsMap[filePath] = countsByHash[fileId] || 0;
     });
   } catch (error) {
-    if (process.env.NODE_ENV !== 'test') {
-      console.error(
-        '[database.js] Error fetching view counts from SQLite:',
-        error,
-      );
-    }
+    console.error(
+      '[database.js] Error fetching view counts from SQLite:',
+      error,
+    );
   }
   return viewCountsMap;
 }
@@ -235,9 +227,7 @@ async function cacheModels(models) {
       );
     }
   } catch (e) {
-    if (process.env.NODE_ENV !== 'test') {
-      console.error('[database.js] Error caching file index to SQLite:', e);
-    }
+    console.error('[database.js] Error caching file index to SQLite:', e);
   }
 }
 
@@ -267,12 +257,10 @@ async function getCachedModels() {
       console.log('[database.js] No file index cache found in SQLite.');
     }
   } catch (e) {
-    if (process.env.NODE_ENV !== 'test') {
-      console.error(
-        '[database.js] Error reading file index from SQLite cache.',
-        e,
-      );
-    }
+    console.error(
+      '[database.js] Error reading file index from SQLite cache.',
+      e,
+    );
   }
   return null;
 }
@@ -289,9 +277,7 @@ function closeDatabase() {
         console.log('[database.js] Database connection closed.');
       }
     } catch (closeError) {
-      if (process.env.NODE_ENV !== 'test') {
-        console.error('[database.js] Error closing DB connection:', closeError);
-      }
+      console.error('[database.js] Error closing DB connection:', closeError);
     } finally {
       db = null; // Important to reset the db variable
     }
