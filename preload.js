@@ -1,44 +1,76 @@
+/**
+ * @file Preload script for Electron's renderer process.
+ * This script runs in a privileged environment before the renderer's web page is loaded.
+ * It uses the `contextBridge` to securely expose a limited and controlled API
+ * from the main process to the renderer process. This is essential for maintaining
+ * process isolation and security in the Electron application.
+ * @requires electron
+ */
 const { contextBridge, ipcRenderer } = require('electron');
 
-// Expose protected methods that allow the renderer process to use
-// specific IPC functionality without exposing the entire ipcRenderer object.
+/**
+ * @typedef {Object} MediaFile
+ * @property {string} name - The name of the media file.
+ * @property {string} path - The absolute path to the media file.
+ * @property {number} [viewCount] - The number of times the file has been viewed.
+ */
+
+/**
+ * @typedef {Object} Model
+ * @property {string} name - The name of the model.
+ * @property {Array<MediaFile>} textures - The media files associated with the model.
+ */
+
+/**
+ * @typedef {Object} LoadResult
+ * @property {'data-url' | 'http-url' | 'error'} type - The type of the result.
+ * @property {string} [url] - The Data URL or HTTP URL of the file.
+ * @property {string} [message] - An error message if the type is 'error'.
+ */
+
+// Expose a controlled API to the renderer process via `window.electronAPI`.
 contextBridge.exposeInMainWorld('electronAPI', {
   /**
-   * Loads a file and returns its content as a Data URL or an HTTP URL for large videos.
-   * @param {string} filePath - The absolute path to the file.
-   * @returns {Promise<{type: 'data-url' | 'http-url' | 'error', url?: string, message?: string}>}
+   * Asynchronously loads a file from the given path.
+   * For smaller files, it returns a Data URL. For larger video files, it returns
+   * a URL to the local HTTP server to enable streaming.
+   * @param {string} filePath - The absolute path to the file to load.
+   * @returns {Promise<LoadResult>} A promise that resolves with the load result object.
    */
   loadFileAsDataURL: (filePath) =>
     ipcRenderer.invoke('load-file-as-data-url', filePath),
 
   /**
-   * Records that a media file has been viewed.
-   * @param {string} filePath - The absolute path to the media file.
-   * @returns {Promise<void>}
+   * Sends a request to the main process to record a view for a specific media file.
+   * This typically increments a counter in the database.
+   * @param {string} filePath - The absolute path to the media file that was viewed.
+   * @returns {Promise<void>} A promise that resolves when the view has been recorded.
    */
   recordMediaView: (filePath) =>
     ipcRenderer.invoke('record-media-view', filePath),
 
   /**
-   * Retrieves the view counts for a list of media files.
-   * @param {string[]} filePaths - An array of absolute file paths.
-   * @returns {Promise<Object<string, number>>} A map of file paths to their view counts.
+   * Retrieves the view counts for a given list of media files.
+   * @param {string[]} filePaths - An array of absolute paths to the media files.
+   * @returns {Promise<Object<string, number>>} A promise that resolves to an object
+   * mapping each file path to its corresponding view count.
    */
   getMediaViewCounts: (filePaths) =>
     ipcRenderer.invoke('get-media-view-counts', filePaths),
 
   /**
-   * Retrieves all models along with their media files and view counts.
-   * Tries to load from cache first, then scans disk if cache is empty.
-   * @returns {Promise<Array<Object>>}
+   * Retrieves the complete list of all models, including their associated media files
+   * and the view count for each file. It attempts to load from a cache first and
+   * will perform a disk scan if the cache is not available.
+   * @returns {Promise<Array<Model>>} A promise that resolves to an array of model objects.
    */
   getModelsWithViewCounts: () =>
     ipcRenderer.invoke('get-models-with-view-counts'),
 
   /**
-   * Triggers a re-scan of the media library, updates the cache,
-   * and returns the newly indexed models with their view counts.
-   * @returns {Promise<Array<Object>>}
+   * Triggers a full re-scan of the media library on disk. This rebuilds the
+   * file index cache and returns the new, updated list of models.
+   * @returns {Promise<Array<Model>>} A promise that resolves to the newly scanned array of model objects.
    */
   reindexMediaLibrary: () => ipcRenderer.invoke('reindex-media-library'),
 });

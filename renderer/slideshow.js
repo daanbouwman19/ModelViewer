@@ -1,9 +1,14 @@
+/**
+ * @file Manages all slideshow logic, including playlist generation, timer control,
+ * navigation, and media selection algorithms for both individual model and global modes.
+ * @requires ./state.js
+ * @requires ./ui-elements.js
+ * @requires ./ui-updates.js
+ */
 import { state } from './state.js';
 import {
   timerDurationInput,
   playPauseTimerButton,
-  // No other UI elements are directly manipulated here, but their state (e.g. disabled)
-  // is affected by updateNavButtons which is called from functions in this module.
 } from './ui-elements.js';
 import {
   displayCurrentMedia,
@@ -12,9 +17,11 @@ import {
 } from './ui-updates.js';
 
 /**
- * Shuffles an array in place using the Fisher-Yates algorithm.
- * @param {Array<any>} array - The array to shuffle.
- * @returns {Array<any>} The shuffled array.
+ * Shuffles an array and returns a new shuffled array using the Fisher-Yates algorithm.
+ * This function does not mutate the original array.
+ * @param {Array<T>} array - The array to shuffle.
+ * @returns {Array<T>} A new array containing the same elements in a random order.
+ * @template T
  */
 export function shuffleArray(array) {
   const shuffled = [...array]; // Create a new array to avoid mutating the original

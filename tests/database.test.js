@@ -1,23 +1,18 @@
-const path = require('path'); // Standard naming
-const fs = require('fs'); // Standard naming
+/**
+ * @file Unit tests for the database management module (`database.js`).
+ * These tests use a manual mock for `better-sqlite3` to ensure that the
+ * database logic can be tested in isolation without any dependency on the
+ * native module or the file system. The tests cover initialization,
+ * data recording, data retrieval, and caching logic.
+ */
+const path = require('path');
+const fs = require('fs');
 
-// Define mockTestUserDataPath globally for the test file specific to tests/database.test.js
-const mockTestUserDataPathForTests = path.join(__dirname, 'test_user_data_tdt'); // Use a unique name for this instance
-const dbPathForTests = path.join(
-  mockTestUserDataPathForTests,
-  'media_slideshow_stats.sqlite',
-);
+const mockTestUserDataPathForTests = path.join(__dirname, 'test_user_data_tdt');
 
-// It's crucial that jest.mock is at the top level, before any imports
-// that might use the mocked module (like './database' which uses 'electron').
 jest.mock('electron', () => {
   const pathModule = require('path');
-  const fsModule = require('fs');
-  // Ensure this path is consistent with mockTestUserDataPathForTests
-  const appPath = mockTestUserDataPathForTests; // Use the path defined above for this test file
-  if (!fsModule.existsSync(appPath)) {
-    fsModule.mkdirSync(appPath, { recursive: true });
-  }
+  const appPath = mockTestUserDataPathForTests;
   return {
     app: {
       getPath: jest.fn((name) => {
@@ -30,43 +25,24 @@ jest.mock('electron', () => {
   };
 });
 
-// Now, import the modules under test AFTER mocks are set up.
 let database;
 
 describe('database.js', () => {
   beforeAll(() => {
-    process.env.NODE_ENV = 'test'; // Ensure test environment
-    // The mock for 'electron' app.getPath('userData') ensures a test-specific directory
-    // is used, which is created in the mock setup.
+    process.env.NODE_ENV = 'test';
   });
 
   beforeEach(() => {
-    jest.resetModules(); // Reset modules before each test to ensure clean mocks
-    database = require('../main/database.js'); // Require database here after reset
+    jest.resetModules(); // Reset modules to get a fresh mock instance.
+    const Database = require('better-sqlite3'); // Require the mock *after* reset.
+    Database.__resetStore(); // Reset the mock's internal state.
 
-    // Ensure a clean database file for each test using dbPathForTests
-    if (fs.existsSync(dbPathForTests)) {
-      fs.unlinkSync(dbPathForTests);
-    }
-    // Initialize the database before each test
-    database.initDatabase(); // This will use the mocked app.getPath('userData') which points to mockTestUserDataPathForTests
+    database = require('../main/database.js'); // Require the module under test.
+    database.initDatabase(); // Initialize with the mocked dependencies.
   });
 
   afterEach(() => {
-    // Close the database connection after each test
     database.closeDatabase();
-    // Clean up the database file after each test to ensure independence using dbPathForTests
-    if (fs.existsSync(dbPathForTests)) {
-      fs.unlinkSync(dbPathForTests);
-    }
-  });
-
-  afterAll(() => {
-    // Clean up the mock user data directory after all tests are done
-    if (fs.existsSync(mockTestUserDataPathForTests)) {
-      // Use the correct path here
-      fs.rmSync(mockTestUserDataPathForTests, { recursive: true, force: true });
-    }
   });
 
   describe('initDatabase and getDb', () => {

@@ -1,14 +1,18 @@
+/**
+ * @file This is the main entry point for the Electron application.
+ * It handles the application's lifecycle, window creation, and all
+ * backend logic and communication with the renderer process via IPC.
+ * This includes file system operations, database management, and running a local server.
+ */
 console.log('[main.js] Script started. Electron main process initializing...');
 
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
-// crypto is not directly used in this file after refactor.
 
 const {
   MAX_DATA_URL_SIZE_MB,
-  SUPPORTED_IMAGE_EXTENSIONS, // Used for determining if a file is an image
-  SUPPORTED_VIDEO_EXTENSIONS, // Used for determining if a file is a video
+  SUPPORTED_VIDEO_EXTENSIONS,
 } = require('./constants.js');
 
 const {
