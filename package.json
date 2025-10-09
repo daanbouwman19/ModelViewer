@@ -13,13 +13,13 @@
   },
   "author": "Daan Bouwman",
   "dependencies": {
-    "better-sqlite3": "^11.10.0"
+    "better-sqlite3": "^12.4.1"
   },
   "devDependencies": {
     "@electron/rebuild": "^4.0.1",
-    "electron": "36.3.2",
-    "electron-builder": "26.0.15",
-    "jest": "^30.0.4",
+    "electron": "^38.2.2",
+    "electron-builder": "^26.0.12",
+    "jest": "^30.2.0",
     "prettier": "^3.6.2"
   },
   "build": {
