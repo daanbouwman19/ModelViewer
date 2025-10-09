@@ -6,9 +6,22 @@
  */
 
 /**
+ * @typedef {Object} MockMediaView
+ * @property {string} path - The original file path.
+ * @property {number} view_count - The number of times the media has been viewed.
+ * @property {string} last_viewed - The ISO timestamp of the last view.
+ */
+
+/**
+ * @typedef {Object} MockAppCache
+ * @property {string} cache_value - The JSON stringified value of the cache item.
+ * @property {string} last_updated - The ISO timestamp of the last update.
+ */
+
+/**
  * In-memory data store for the mock database.
  * This object simulates the database tables.
- * @type {{media_views: Object, app_cache: Object}}
+ * @type {{media_views: {[hash: string]: MockMediaView}, app_cache: {[key: string]: MockAppCache}}}
  */
 let mockDbStore = {};
 
