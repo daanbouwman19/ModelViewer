@@ -26,6 +26,7 @@ jest.mock('electron', () => {
 });
 
 let database;
+let Database; // To hold the mock constructor
 
 describe('database.js', () => {
   beforeAll(() => {
@@ -34,7 +35,7 @@ describe('database.js', () => {
 
   beforeEach(() => {
     jest.resetModules(); // Reset modules to get a fresh mock instance.
-    const Database = require('better-sqlite3'); // Require the mock *after* reset.
+    Database = require('better-sqlite3'); // Require the mock *after* reset.
     Database.__resetStore(); // Reset the mock's internal state.
 
     database = require('../main/database.js'); // Require the module under test.
@@ -84,6 +85,39 @@ describe('database.js', () => {
       const db2 = database.getDb();
       expect(db2).not.toBe(db1);
       expect(db2.open).toBe(true);
+    });
+
+    it('initDatabase should handle failure when closing an existing connection', () => {
+      const db1 = database.getDb();
+      const closeError = new Error('Failed to close');
+      jest.spyOn(db1, 'close').mockImplementation(() => {
+        throw closeError;
+      });
+      console.error = jest.fn(); // Mock console.error to check for logging
+
+      // Re-initializing should still proceed and create a new valid connection
+      const newDb = database.initDatabase();
+      expect(db1.close).toHaveBeenCalled();
+      expect(console.error).toHaveBeenCalledWith(
+        '[database.js] Error closing existing DB connection:',
+        closeError,
+      );
+      expect(newDb).not.toBe(db1);
+      expect(newDb.open).toBe(true);
+    });
+
+    it('should throw if database creation fails', () => {
+      database.closeDatabase();
+      const constructorError = new Error('Constructor failed');
+      Database.__setNextConstructorError(constructorError);
+      expect(() => database.initDatabase()).toThrow(constructorError);
+    });
+
+    it('should throw if creating tables fails', () => {
+      database.closeDatabase();
+      const execError = new Error('Table creation failed');
+      Database.__setNextExecError(execError);
+      expect(() => database.initDatabase()).toThrow(execError);
     });
 
     it('getDb should return null if initialization fails critically (simulated)', () => {
@@ -185,6 +219,36 @@ describe('database.js', () => {
       electron.app.getPath = originalGetPath;
       // No need to call database.initDatabase() here, beforeEach will handle it
     });
+
+    it('should handle error during recordMediaView transaction', async () => {
+      const queryError = new Error('Transaction failed');
+      Database.__setNextQueryError(queryError);
+      console.error = jest.fn();
+
+      await database.recordMediaView('/test/fail.mp4');
+      expect(console.error).toHaveBeenCalledWith(
+        expect.stringContaining('Error recording view'),
+        queryError,
+      );
+    });
+
+    it('should handle error during getMediaViewCounts query', async () => {
+      const queryError = new Error('Select failed');
+      Database.__setNextQueryError(queryError);
+      console.error = jest.fn();
+
+      const counts = await database.getMediaViewCounts(['/test/file.mp4']);
+      expect(counts).toEqual({});
+      expect(console.error).toHaveBeenCalledWith(
+        '[database.js] Error fetching view counts from SQLite:',
+        queryError,
+      );
+    });
+
+    it('getMediaViewCounts should return empty object for null or undefined filePaths', async () => {
+      expect(await database.getMediaViewCounts(null)).toEqual({});
+      expect(await database.getMediaViewCounts(undefined)).toEqual({});
+    });
   });
 
   describe('cacheModels and getCachedModels', () => {
@@ -241,6 +305,48 @@ describe('database.js', () => {
       electron.app.getPath = originalGetPath; // Restore
       // No need to call database.initDatabase() here, beforeEach will handle it
     });
+
+    it('should handle error during cacheModels write', async () => {
+      const queryError = new Error('Cache write failed');
+      Database.__setNextQueryError(queryError);
+      console.error = jest.fn();
+
+      await database.cacheModels([{ id: 'fail' }]);
+      expect(console.error).toHaveBeenCalledWith(
+        '[database.js] Error caching file index to SQLite:',
+        queryError,
+      );
+    });
+
+    it('should handle error during getCachedModels read', async () => {
+      const queryError = new Error('Cache read failed');
+      Database.__setNextQueryError(queryError);
+      console.error = jest.fn();
+
+      const models = await database.getCachedModels();
+      expect(models).toBeNull();
+      expect(console.error).toHaveBeenCalledWith(
+        '[database.js] Error reading file index from SQLite cache.',
+        queryError,
+      );
+    });
+
+    it('should return null if cached data is malformed JSON', async () => {
+      const { FILE_INDEX_CACHE_KEY } = require('../main/constants');
+      // Manually insert malformed data into the mock store
+      const db = database.getDb();
+      db.prepare(
+        `INSERT OR REPLACE INTO app_cache (cache_key, cache_value, last_updated) VALUES (?, ?, ?)`,
+      ).run(FILE_INDEX_CACHE_KEY, '{"bad json":', new Date().toISOString());
+      console.error = jest.fn();
+
+      const models = await database.getCachedModels();
+      expect(models).toBeNull();
+      expect(console.error).toHaveBeenCalledWith(
+        '[database.js] Error reading file index from SQLite cache.',
+        expect.any(SyntaxError),
+      );
+    });
   });
 
   describe('closeDatabase', () => {
@@ -264,6 +370,21 @@ describe('database.js', () => {
       // Test closing when db is null internally (e.g., after init failed)
       // This requires more direct manipulation or specific mock if db instance isn't exposed
       // For now, multiple closes are tested.
+    });
+
+    it('should handle error when closing the database', () => {
+      const closeError = new Error('Close failed');
+      Database.__setNextCloseError(closeError);
+      console.error = jest.fn();
+
+      database.closeDatabase();
+      expect(console.error).toHaveBeenCalledWith(
+        '[database.js] Error closing DB connection:',
+        closeError,
+      );
+      // The internal db variable should still be set to null
+      const db = database.getDb();
+      expect(db.open).toBe(true); // getDb re-initializes
     });
   });
 });
