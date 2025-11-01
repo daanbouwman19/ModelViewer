@@ -29,13 +29,13 @@ class MockWorker extends EventEmitter {
 
     // Simulate async worker initialization
     setImmediate(() => {
-        if (mockConfig.shouldFailToInitialize) {
-            this.emit('error', new Error('Simulated initialization error'));
-            this.emit('exit', 1);
-            this.terminated = true;
-        } else if (!this.terminated) {
-            this.emit('online');
-        }
+      if (mockConfig.shouldFailToInitialize) {
+        this.emit('error', new Error('Simulated initialization error'));
+        this.emit('exit', 1);
+        this.terminated = true;
+      } else if (!this.terminated) {
+        this.emit('online');
+      }
     });
   }
 

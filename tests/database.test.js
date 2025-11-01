@@ -100,7 +100,7 @@ describe('database.js with Worker Thread', () => {
         }, 5000);
       });
 
-    describe('Worker Returns Error', () => {
+      describe('Worker Returns Error', () => {
         it('should handle error response from worker in recordMediaView', async () => {
           Worker.__setConfig({
             shouldReturnError: true,
@@ -185,7 +185,9 @@ describe('database.js with Worker Thread', () => {
           expect(counts).toEqual({});
 
           // cacheModels should not throw (catches internally)
-          await expect(database.cacheModels([{ id: 1 }])).resolves.not.toThrow();
+          await expect(
+            database.cacheModels([{ id: 1 }]),
+          ).resolves.not.toThrow();
 
           // getCachedModels should return null
           const models = await database.getCachedModels();
@@ -194,11 +196,11 @@ describe('database.js with Worker Thread', () => {
       });
 
       describe('closeDatabase', () => {
-          it('should handle closing the database when the worker is already closed', async () => {
-              await database.closeDatabase();
-              // Closing again should not throw an error
-              await expect(database.closeDatabase()).resolves.not.toThrow();
-          });
+        it('should handle closing the database when the worker is already closed', async () => {
+          await database.closeDatabase();
+          // Closing again should not throw an error
+          await expect(database.closeDatabase()).resolves.not.toThrow();
+        });
       });
     });
   });
@@ -210,7 +212,9 @@ describe('database.js with Worker Thread', () => {
       Worker = workerThreads.Worker;
       Worker.__setConfig({ shouldFailToInitialize: true });
       const db = require('../main/database.js');
-      await expect(db.initDatabase()).rejects.toThrow('Simulated initialization error');
+      await expect(db.initDatabase()).rejects.toThrow(
+        'Simulated initialization error',
+      );
       Worker.__resetConfig();
     });
   });
