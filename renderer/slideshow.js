@@ -59,12 +59,12 @@ export function selectWeightedRandom(items, excludePaths = []) {
 
   const totalWeight = weightedItems.reduce((sum, item) => sum + item.weight, 0);
 
-  if (totalWeight === 0) {
+  if (totalWeight <= 1e-9) {
     // This can happen if all eligible items have such a high view count that the weight is near zero.
     // In this edge case, fall back to a uniform random selection from the eligible items.
     if (eligibleItems.length > 0) {
       console.warn(
-        'Weighted random: Total weight is zero. Using uniform random selection.',
+        'Weighted random: Total weight is near zero. Using uniform random selection.',
       );
       return eligibleItems[Math.floor(Math.random() * eligibleItems.length)];
     }
