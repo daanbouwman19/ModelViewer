@@ -35,6 +35,12 @@ let messageIdCounter = 0;
 const pendingMessages = new Map();
 
 /**
+ * Timeout duration for database operations (in milliseconds).
+ * Can be overridden for testing purposes.
+ */
+let operationTimeout = 30000;
+
+/**
  * Sends a message to the database worker and returns a promise that resolves with the result.
  * @param {string} type - The type of operation to perform.
  * @param {Object} payload - The payload data for the operation.
@@ -49,13 +55,13 @@ function sendMessageToWorker(type, payload = {}) {
 
     const id = messageIdCounter++;
 
-    // Timeout after 30 seconds
+    // Timeout after the configured duration
     const timeoutId = setTimeout(() => {
       if (pendingMessages.has(id)) {
         pendingMessages.delete(id);
         reject(new Error(`Database operation timed out: ${type}`));
       }
-    }, 30000);
+    }, operationTimeout);
 
     pendingMessages.set(id, { resolve, reject, timeoutId });
 
@@ -230,6 +236,14 @@ async function closeDatabase() {
   }
 }
 
+/**
+ * Sets the timeout duration for database operations (useful for testing).
+ * @param {number} timeout - The timeout in milliseconds.
+ */
+function setOperationTimeout(timeout) {
+  operationTimeout = timeout;
+}
+
 module.exports = {
   initDatabase,
   recordMediaView,
@@ -237,4 +251,5 @@ module.exports = {
   cacheModels,
   getCachedModels,
   closeDatabase,
+  setOperationTimeout,
 };

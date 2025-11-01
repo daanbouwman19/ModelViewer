@@ -35,12 +35,17 @@ describe('database.js with Worker Thread', () => {
     const workerThreads = require('worker_threads');
     Worker = workerThreads.Worker;
     Worker.__resetStore();
+    Worker.__resetConfig();
 
     database = require('../main/database.js');
+    // Set shorter timeout for tests
+    database.setOperationTimeout(1000);
     await database.initDatabase();
   });
 
   afterEach(async () => {
+    // Reset config before closing to avoid timeout issues
+    Worker.__resetConfig();
     await database.closeDatabase();
   });
 
@@ -66,6 +71,125 @@ describe('database.js with Worker Thread', () => {
       await database.cacheModels(models);
       const cachedModels = await database.getCachedModels();
       expect(cachedModels).toEqual(models);
+    });
+  });
+
+  describe('Error Handling', () => {
+    describe('Worker Communication Timeout', () => {
+      it('should handle timeout when worker does not respond', async () => {
+        // After init succeeds, configure timeout for subsequent operations
+        Worker.__setConfig({ shouldTimeout: true });
+
+        // recordMediaView catches errors internally, so it won't throw
+        await database.recordMediaView('/test/file.mp4');
+
+        // Verify that the operation was attempted but failed (no view recorded)
+        Worker.__resetConfig();
+        const counts = await database.getMediaViewCounts(['/test/file.mp4']);
+        expect(counts['/test/file.mp4']).toBe(0); // View should not have been recorded
+      }, 5000);
+
+      it('should handle timeout in getCachedModels', async () => {
+        Worker.__setConfig({ shouldTimeout: true });
+
+        const result = await database.getCachedModels();
+        expect(result).toBeNull(); // Should return null on error
+
+        Worker.__resetConfig();
+      }, 5000);
+    });
+
+    describe('Worker Returns Error', () => {
+      it('should handle error response from worker in recordMediaView', async () => {
+        Worker.__setConfig({
+          shouldReturnError: true,
+          errorMessage: 'Database write failed',
+        });
+
+        // Should not throw but should handle gracefully
+        await expect(
+          database.recordMediaView('/test/file.mp4'),
+        ).resolves.not.toThrow();
+
+        Worker.__resetConfig();
+      });
+
+      it('should handle error response from worker in getMediaViewCounts', async () => {
+        Worker.__setConfig({
+          shouldReturnError: true,
+          errorMessage: 'Failed to query database',
+        });
+
+        const result = await database.getMediaViewCounts(['/test/file.mp4']);
+        expect(result).toEqual({}); // Should return empty object on error
+
+        Worker.__resetConfig();
+      });
+
+      it('should handle error response from worker in cacheModels', async () => {
+        Worker.__setConfig({
+          shouldReturnError: true,
+          errorMessage: 'Cache write failed',
+        });
+
+        const models = [{ id: 1, name: 'model1.obj' }];
+        // Should not throw but handle gracefully
+        await expect(database.cacheModels(models)).resolves.not.toThrow();
+
+        Worker.__resetConfig();
+      });
+
+      it('should handle error response from worker in getCachedModels', async () => {
+        Worker.__setConfig({
+          shouldReturnError: true,
+          errorMessage: 'Cache read failed',
+        });
+
+        const result = await database.getCachedModels();
+        expect(result).toBeNull(); // Should return null on error
+
+        Worker.__resetConfig();
+      });
+    });
+
+    describe('Worker Crash/Exit', () => {
+      it('should handle worker crash during operation', async () => {
+        // Configure worker to crash on next message
+        Worker.__setConfig({ shouldCrash: true });
+
+        // Worker will crash when we try an operation
+        const result = await database.getCachedModels();
+        expect(result).toBeNull(); // Should return null on error
+      });
+
+      it('should handle unexpected worker exit gracefully', async () => {
+        // Verify we can perform operations after a crash
+        // (worker is recreated in beforeEach)
+        const result = await database.getCachedModels();
+        expect(result).toBeNull(); // Fresh worker, no cached data
+      });
+    });
+
+    describe('Worker Not Initialized', () => {
+      it('should handle operations gracefully when worker is not initialized', async () => {
+        await database.closeDatabase();
+
+        // recordMediaView should not throw (catches internally)
+        await expect(
+          database.recordMediaView('/test/file.mp4'),
+        ).resolves.not.toThrow();
+
+        // getMediaViewCounts should return empty object
+        const counts = await database.getMediaViewCounts(['/test/file.mp4']);
+        expect(counts).toEqual({});
+
+        // cacheModels should not throw (catches internally)
+        await expect(database.cacheModels([{ id: 1 }])).resolves.not.toThrow();
+
+        // getCachedModels should return null
+        const models = await database.getCachedModels();
+        expect(models).toBeNull();
+      });
     });
   });
 });

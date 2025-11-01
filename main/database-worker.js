@@ -5,8 +5,7 @@
  * and sends results back via the worker messaging API.
  */
 
-const { parentPort, workerData } = require('worker_threads');
-const path = require('path');
+const { parentPort } = require('worker_threads');
 const crypto = require('crypto');
 const Database = require('better-sqlite3');
 

@@ -11,6 +11,15 @@ let mockStore = {
   appCache: {},
 };
 
+// Configuration for error simulation
+let mockConfig = {
+  shouldTimeout: false,
+  shouldReturnError: false,
+  shouldCrash: false,
+  errorMessage: 'Simulated error',
+  timeoutDelay: 100, // ms before timeout simulation
+};
+
 class MockWorker extends EventEmitter {
   constructor(filename, options) {
     super();
@@ -32,11 +41,34 @@ class MockWorker extends EventEmitter {
 
     const { id, type, payload } = message;
 
+    // Simulate crash scenario (but not during init)
+    if (mockConfig.shouldCrash && type !== 'init') {
+      setImmediate(() => {
+        this.emit('error', new Error('Worker crashed'));
+        this.emit('exit', 1);
+        this.terminated = true;
+      });
+      return;
+    }
+
+    // Simulate timeout scenario (but not during init)
+    if (mockConfig.shouldTimeout && type !== 'init') {
+      // Don't respond to the message, simulating a timeout
+      return;
+    }
+
     // Simulate async message processing
     setImmediate(() => {
       if (this.terminated) return;
 
       let result;
+
+      // Simulate error response (but not during init)
+      if (mockConfig.shouldReturnError && type !== 'init') {
+        result = { success: false, error: mockConfig.errorMessage };
+        this.emit('message', { id, result });
+        return;
+      }
 
       try {
         switch (type) {
@@ -126,6 +158,21 @@ MockWorker.__resetStore = function () {
 // Static method to access the store (useful for test assertions)
 MockWorker.__getStore = function () {
   return mockStore;
+};
+
+// Static methods to configure error simulation
+MockWorker.__setConfig = function (config) {
+  mockConfig = { ...mockConfig, ...config };
+};
+
+MockWorker.__resetConfig = function () {
+  mockConfig = {
+    shouldTimeout: false,
+    shouldReturnError: false,
+    shouldCrash: false,
+    errorMessage: 'Simulated error',
+    timeoutDelay: 100,
+  };
 };
 
 module.exports = {
