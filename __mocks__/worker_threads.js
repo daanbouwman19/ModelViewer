@@ -16,7 +16,7 @@ class MockWorker extends EventEmitter {
     super();
     this.filename = filename;
     this.terminated = false;
-    
+
     // Simulate async worker initialization
     setImmediate(() => {
       if (!this.terminated) {
@@ -52,14 +52,16 @@ class MockWorker extends EventEmitter {
               };
             }
             mockStore.mediaViews[payload.filePath].viewCount++;
-            mockStore.mediaViews[payload.filePath].lastViewed = new Date().toISOString();
+            mockStore.mediaViews[payload.filePath].lastViewed =
+              new Date().toISOString();
             result = { success: true };
             break;
 
           case 'getMediaViewCounts':
             const viewCountsMap = {};
             payload.filePaths.forEach((filePath) => {
-              viewCountsMap[filePath] = mockStore.mediaViews[filePath]?.viewCount || 0;
+              viewCountsMap[filePath] =
+                mockStore.mediaViews[filePath]?.viewCount || 0;
             });
             result = { success: true, data: viewCountsMap };
             break;
@@ -74,9 +76,9 @@ class MockWorker extends EventEmitter {
 
           case 'getCachedModels':
             const cached = mockStore.appCache[payload.cacheKey];
-            result = { 
-              success: true, 
-              data: cached ? cached.value : null 
+            result = {
+              success: true,
+              data: cached ? cached.value : null,
             };
             break;
 
@@ -107,14 +109,14 @@ class MockWorker extends EventEmitter {
   ref() {
     return this;
   }
-  
+
   unref() {
     return this;
   }
 }
 
 // Static method to reset the mock store (useful for tests)
-MockWorker.__resetStore = function() {
+MockWorker.__resetStore = function () {
   mockStore = {
     mediaViews: {},
     appCache: {},
@@ -122,7 +124,7 @@ MockWorker.__resetStore = function() {
 };
 
 // Static method to access the store (useful for test assertions)
-MockWorker.__getStore = function() {
+MockWorker.__getStore = function () {
   return mockStore;
 };
 

@@ -79,7 +79,10 @@ function startLocalServer(onReadyCallback) {
 
   const server = http.createServer((req, res) => {
     // Use WHATWG URL API instead of deprecated url.parse()
-    const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    const parsedUrl = new URL(
+      req.url,
+      `http://${req.headers.host || 'localhost'}`,
+    );
     // Decode URI component to handle spaces or special characters in file paths
     const requestedPath = decodeURIComponent(parsedUrl.pathname.substring(1));
 
@@ -166,12 +169,12 @@ function startLocalServer(onReadyCallback) {
     console.log(
       `[local-server.js] Local media server started on http://localhost:${serverPort}`,
     );
-    
+
     // Allow the process to exit even if the server is still running (useful for tests)
     if (process.env.NODE_ENV === 'test') {
       serverInstance.unref();
     }
-    
+
     if (onReadyCallback && typeof onReadyCallback === 'function') {
       onReadyCallback();
     }
@@ -194,7 +197,7 @@ function stopLocalServer(callback) {
   if (serverInstance) {
     // Close all existing connections
     serverInstance.closeAllConnections?.(); // Available in Node 18.2+
-    
+
     serverInstance.close((err) => {
       if (err) {
         console.error('[local-server.js] Error stopping server:', err);

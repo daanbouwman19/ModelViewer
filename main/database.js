@@ -48,7 +48,7 @@ function sendMessageToWorker(type, payload = {}) {
     }
 
     const id = messageIdCounter++;
-    
+
     // Timeout after 30 seconds
     const timeoutId = setTimeout(() => {
       if (pendingMessages.has(id)) {
@@ -56,7 +56,7 @@ function sendMessageToWorker(type, payload = {}) {
         reject(new Error(`Database operation timed out: ${type}`));
       }
     }, 30000);
-    
+
     pendingMessages.set(id, { resolve, reject, timeoutId });
 
     dbWorker.postMessage({ id, type, payload });
@@ -70,7 +70,9 @@ function sendMessageToWorker(type, payload = {}) {
  */
 async function initDatabase() {
   if (dbWorker) {
-    console.log('[database.js] Terminating existing database worker before re-init.');
+    console.log(
+      '[database.js] Terminating existing database worker before re-init.',
+    );
     await dbWorker.terminate();
     dbWorker = null;
   }
@@ -83,12 +85,12 @@ async function initDatabase() {
     dbWorker.on('message', (message) => {
       const { id, result } = message;
       const pending = pendingMessages.get(id);
-      
+
       if (pending) {
         // Clear the timeout
         clearTimeout(pending.timeoutId);
         pendingMessages.delete(id);
-        
+
         if (result.success) {
           pending.resolve(result.data);
         } else {
@@ -123,14 +125,20 @@ async function initDatabase() {
     });
 
     // Initialize the database in the worker
-    const dbPath = path.join(app.getPath('userData'), 'media_slideshow_stats.sqlite');
+    const dbPath = path.join(
+      app.getPath('userData'),
+      'media_slideshow_stats.sqlite',
+    );
     await sendMessageToWorker('init', { dbPath });
 
     if (process.env.NODE_ENV !== 'test') {
       console.log('[database.js] Database worker initialized successfully.');
     }
   } catch (error) {
-    console.error('[database.js] CRITICAL ERROR: Failed to initialize database worker:', error);
+    console.error(
+      '[database.js] CRITICAL ERROR: Failed to initialize database worker:',
+      error,
+    );
     dbWorker = null;
     throw error;
   }
@@ -176,9 +184,9 @@ async function getMediaViewCounts(filePaths) {
  */
 async function cacheModels(models) {
   try {
-    await sendMessageToWorker('cacheModels', { 
+    await sendMessageToWorker('cacheModels', {
       cacheKey: FILE_INDEX_CACHE_KEY,
-      models 
+      models,
     });
   } catch (error) {
     console.error('[database.js] Error caching models:', error);
@@ -191,8 +199,8 @@ async function cacheModels(models) {
  */
 async function getCachedModels() {
   try {
-    return await sendMessageToWorker('getCachedModels', { 
-      cacheKey: FILE_INDEX_CACHE_KEY 
+    return await sendMessageToWorker('getCachedModels', {
+      cacheKey: FILE_INDEX_CACHE_KEY,
     });
   } catch (error) {
     if (process.env.NODE_ENV !== 'test') {

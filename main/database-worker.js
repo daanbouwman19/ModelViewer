@@ -28,11 +28,13 @@ function initDatabase(dbPath) {
   try {
     if (db) {
       db.close();
-      console.log('[database-worker.js] Closed existing DB connection before re-init.');
+      console.log(
+        '[database-worker.js] Closed existing DB connection before re-init.',
+      );
     }
 
     db = new Database(dbPath);
-    
+
     // Create tables
     db.exec(`CREATE TABLE IF NOT EXISTS media_views (
       file_path_hash TEXT PRIMARY KEY,
@@ -40,13 +42,13 @@ function initDatabase(dbPath) {
       view_count INTEGER DEFAULT 0,
       last_viewed TEXT
     );`);
-    
+
     db.exec(`CREATE TABLE IF NOT EXISTS app_cache (
       cache_key TEXT PRIMARY KEY,
       cache_value TEXT,
       last_updated TEXT
     );`);
-    
+
     console.log('[database-worker.js] SQLite database initialized at:', dbPath);
     return { success: true };
   } catch (error) {
@@ -65,23 +67,26 @@ function recordMediaView(filePath) {
 
   const fileId = generateFileId(filePath);
   const now = new Date().toISOString();
-  
+
   try {
     const stmt_insert = db.prepare(
-      `INSERT OR IGNORE INTO media_views (file_path_hash, file_path, view_count, last_viewed) VALUES (?, ?, 0, ?)`
+      `INSERT OR IGNORE INTO media_views (file_path_hash, file_path, view_count, last_viewed) VALUES (?, ?, 0, ?)`,
     );
     const stmt_update = db.prepare(
-      `UPDATE media_views SET view_count = view_count + 1, last_viewed = ? WHERE file_path_hash = ?`
+      `UPDATE media_views SET view_count = view_count + 1, last_viewed = ? WHERE file_path_hash = ?`,
     );
-    
+
     db.transaction(() => {
       stmt_insert.run(fileId, filePath, now);
       stmt_update.run(now, fileId);
     })();
-    
+
     return { success: true };
   } catch (error) {
-    console.error(`[database-worker.js] Error recording view for ${filePath}:`, error);
+    console.error(
+      `[database-worker.js] Error recording view for ${filePath}:`,
+      error,
+    );
     return { success: false, error: error.message };
   }
 }
@@ -98,9 +103,9 @@ function getMediaViewCounts(filePaths) {
     const viewCountsMap = {};
     const placeholders = filePaths.map(() => '?').join(',');
     const fileIds = filePaths.map(generateFileId);
-    
+
     const stmt = db.prepare(
-      `SELECT file_path_hash, view_count FROM media_views WHERE file_path_hash IN (${placeholders})`
+      `SELECT file_path_hash, view_count FROM media_views WHERE file_path_hash IN (${placeholders})`,
     );
     const rows = stmt.all(fileIds);
 
@@ -131,9 +136,9 @@ function cacheModels(cacheKey, models) {
 
   try {
     db.prepare(
-      `INSERT OR REPLACE INTO app_cache (cache_key, cache_value, last_updated) VALUES (?, ?, ?)`
+      `INSERT OR REPLACE INTO app_cache (cache_key, cache_value, last_updated) VALUES (?, ?, ?)`,
     ).run(cacheKey, JSON.stringify(models), new Date().toISOString());
-    
+
     console.log('[database-worker.js] Models cached successfully.');
     return { success: true };
   } catch (error) {
@@ -151,15 +156,15 @@ function getCachedModels(cacheKey) {
   }
 
   try {
-    const row = db.prepare(
-      `SELECT cache_value FROM app_cache WHERE cache_key = ?`
-    ).get(cacheKey);
-    
+    const row = db
+      .prepare(`SELECT cache_value FROM app_cache WHERE cache_key = ?`)
+      .get(cacheKey);
+
     if (row && row.cache_value) {
       console.log('[database-worker.js] Loaded models from cache.');
       return { success: true, data: JSON.parse(row.cache_value) };
     }
-    
+
     console.log('[database-worker.js] No cached models found.');
     return { success: true, data: null };
   } catch (error) {
@@ -191,32 +196,32 @@ parentPort.on('message', (message) => {
   const { id, type, payload } = message;
 
   let result;
-  
+
   switch (type) {
     case 'init':
       result = initDatabase(payload.dbPath);
       break;
-      
+
     case 'recordMediaView':
       result = recordMediaView(payload.filePath);
       break;
-      
+
     case 'getMediaViewCounts':
       result = getMediaViewCounts(payload.filePaths);
       break;
-      
+
     case 'cacheModels':
       result = cacheModels(payload.cacheKey, payload.models);
       break;
-      
+
     case 'getCachedModels':
       result = getCachedModels(payload.cacheKey);
       break;
-      
+
     case 'close':
       result = closeDatabase();
       break;
-      
+
     default:
       result = { success: false, error: `Unknown message type: ${type}` };
   }
