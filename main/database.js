@@ -1,11 +1,10 @@
 /**
- * @file Manages all database interactions for the application.
- * This includes initializing the SQLite database, recording media view counts,
- * and caching application data like the media file index.
+ * @file Manages all database interactions for the application using a Worker Thread.
+ * This module acts as a bridge between the main process and the database worker thread,
+ * which handles all better-sqlite3 operations to avoid blocking the main process.
  * @requires path
- * @requires crypto
  * @requires electron
- * @requires better-sqlite3
+ * @requires worker_threads
  * @requires ./constants.js
  */
 
@@ -15,108 +14,140 @@
  */
 
 const path = require('path');
-const crypto = require('crypto');
-const { app } = require('electron'); // Required for app.getPath('userData')
-const Database = require('better-sqlite3');
+const { app } = require('electron');
+const { Worker } = require('worker_threads');
 const { FILE_INDEX_CACHE_KEY } = require('./constants.js');
 
 /**
- * The global database connection instance.
- * @type {import('better-sqlite3').Database | null}
+ * The database worker thread instance.
+ * @type {Worker | null}
  */
-let db;
+let dbWorker = null;
 
 /**
- * Generates a unique MD5 hash for a given file path.
- * @param {string} filePath - The path to the file.
- * @returns {string} The MD5 hash of the file path.
+ * Counter for generating unique message IDs
  */
-function generateFileId(filePath) {
-  return crypto.createHash('md5').update(filePath).digest('hex');
+let messageIdCounter = 0;
+
+/**
+ * Map of pending promises waiting for worker responses
+ */
+const pendingMessages = new Map();
+
+/**
+ * Timeout duration for database operations (in milliseconds).
+ * Can be overridden for testing purposes.
+ */
+let operationTimeout = 30000;
+
+/**
+ * Sends a message to the database worker and returns a promise that resolves with the result.
+ * @param {string} type - The type of operation to perform.
+ * @param {Object} payload - The payload data for the operation.
+ * @returns {Promise<any>} A promise that resolves with the worker's response.
+ */
+function sendMessageToWorker(type, payload = {}) {
+  return new Promise((resolve, reject) => {
+    if (!dbWorker) {
+      reject(new Error('Database worker not initialized'));
+      return;
+    }
+
+    const id = messageIdCounter++;
+
+    // Timeout after the configured duration
+    const timeoutId = setTimeout(() => {
+      if (pendingMessages.has(id)) {
+        pendingMessages.delete(id);
+        reject(new Error(`Database operation timed out: ${type}`));
+      }
+    }, operationTimeout);
+
+    pendingMessages.set(id, { resolve, reject, timeoutId });
+
+    dbWorker.postMessage({ id, type, payload });
+  });
 }
 
 /**
- * Initializes the SQLite database.
- * Creates tables for media views and application cache if they don't exist.
- * Closes any existing connection before re-initializing.
- * @returns {import('better-sqlite3').Database} The database instance.
- * @throws {Error} If database initialization fails.
+ * Initializes the database worker thread.
+ * @returns {Promise<void>}
+ * @throws {Error} If worker initialization fails.
  */
-function initDatabase() {
-  if (db) {
-    try {
-      db.close();
-      // Logging closure only if not in test environment to reduce test noise
-      if (process.env.NODE_ENV !== 'test') {
-        console.log(
-          '[database.js] Closed existing DB connection before re-init.',
-        );
-      }
-    } catch (closeError) {
-      console.error(
-        '[database.js] Error closing existing DB connection:',
-        closeError,
-      );
-    }
-    db = null;
+async function initDatabase() {
+  if (dbWorker) {
+    console.log(
+      '[database.js] Terminating existing database worker before re-init.',
+    );
+    await dbWorker.terminate();
+    dbWorker = null;
   }
 
   try {
+    const workerPath = path.join(__dirname, 'database-worker.js');
+    dbWorker = new Worker(workerPath);
+
+    // Handle messages from the worker
+    dbWorker.on('message', (message) => {
+      const { id, result } = message;
+      const pending = pendingMessages.get(id);
+
+      if (pending) {
+        // Clear the timeout
+        clearTimeout(pending.timeoutId);
+        pendingMessages.delete(id);
+
+        if (result.success) {
+          pending.resolve(result.data);
+        } else {
+          pending.reject(new Error(result.error || 'Unknown database error'));
+        }
+      }
+    });
+
+    // Handle worker errors
+    dbWorker.on('error', (error) => {
+      console.error('[database.js] Database worker error:', error);
+      // Reject all pending messages and clear timeouts
+      for (const [id, pending] of pendingMessages.entries()) {
+        clearTimeout(pending.timeoutId);
+        pending.reject(error);
+        pendingMessages.delete(id);
+      }
+    });
+
+    // Handle worker exit
+    dbWorker.on('exit', (code) => {
+      if (code !== 0) {
+        console.error(`[database.js] Database worker exited with code ${code}`);
+      }
+      dbWorker = null;
+      // Reject all pending messages and clear timeouts
+      for (const [id, pending] of pendingMessages.entries()) {
+        clearTimeout(pending.timeoutId);
+        pending.reject(new Error('Database worker exited unexpectedly'));
+        pendingMessages.delete(id);
+      }
+    });
+
+    // Initialize the database in the worker
     const dbPath = path.join(
       app.getPath('userData'),
       'media_slideshow_stats.sqlite',
     );
-    db = new Database(dbPath);
-    db.exec(`CREATE TABLE IF NOT EXISTS media_views (
-                    file_path_hash TEXT PRIMARY KEY,
-                    file_path TEXT UNIQUE,
-                    view_count INTEGER DEFAULT 0,
-                    last_viewed TEXT
-                 );`);
-    db.exec(`CREATE TABLE IF NOT EXISTS app_cache (
-                    cache_key TEXT PRIMARY KEY,
-                    cache_value TEXT,
-                    last_updated TEXT
-                 );`);
+    await sendMessageToWorker('init', { dbPath });
+
     if (process.env.NODE_ENV !== 'test') {
-      console.log('[database.js] SQLite database initialized at:', dbPath);
+      console.log('[database.js] Database worker initialized successfully.');
     }
   } catch (error) {
     console.error(
-      '[database.js] CRITICAL ERROR: Failed to initialize SQLite database.',
+      '[database.js] CRITICAL ERROR: Failed to initialize database worker:',
       error,
     );
-    db = null;
+    dbWorker = null;
     throw error;
   }
-  return db;
-}
-
-/**
- * Gets the current database instance. Initializes it if not already done.
- * @returns {import('better-sqlite3').Database | null} The database instance or null if initialization fails.
- */
-function getDb() {
-  if (!db || !db.open) {
-    // Check if db is null or closed
-    if (process.env.NODE_ENV !== 'test') {
-      console.warn(
-        '[database.js] DB accessed before explicit initialization or after being closed. Attempting to initialize...',
-      );
-    }
-    try {
-      initDatabase();
-    } catch (initError) {
-      // Error already logged by initDatabase
-      return null;
-    }
-    if (!db) {
-      console.error(
-        '[database.js] CRITICAL: DB is not available after attempted init.',
-      );
-    }
-  }
-  return db;
 }
 
 /**
@@ -125,34 +156,12 @@ function getDb() {
  * @returns {Promise<void>}
  */
 async function recordMediaView(filePath) {
-  const currentDb = getDb();
-  if (!currentDb) {
-    if (process.env.NODE_ENV !== 'test') {
-      console.warn(
-        '[database.js] Database not available for recordMediaView for path:',
-        filePath,
-      );
-    }
-    return;
-  }
-  const fileId = generateFileId(filePath);
-  const now = new Date().toISOString();
   try {
-    const stmt_insert = currentDb.prepare(
-      `INSERT OR IGNORE INTO media_views (file_path_hash, file_path, view_count, last_viewed) VALUES (?, ?, 0, ?)`,
-    );
-    const stmt_update = currentDb.prepare(
-      `UPDATE media_views SET view_count = view_count + 1, last_viewed = ? WHERE file_path_hash = ?`,
-    );
-    currentDb.transaction(() => {
-      stmt_insert.run(fileId, filePath, now);
-      stmt_update.run(now, fileId);
-    })();
+    await sendMessageToWorker('recordMediaView', { filePath });
   } catch (error) {
-    console.error(
-      `[database.js] Error recording view for ${filePath} (ID: ${fileId}) in SQLite:`,
-      error,
-    );
+    if (process.env.NODE_ENV !== 'test') {
+      console.warn('[database.js] Error recording media view:', error.message);
+    }
   }
 }
 
@@ -162,40 +171,16 @@ async function recordMediaView(filePath) {
  * @returns {Promise<Object<string, number>>} A map of file paths to their view counts.
  */
 async function getMediaViewCounts(filePaths) {
-  const currentDb = getDb();
-  if (!currentDb || !filePaths || filePaths.length === 0) {
+  if (!filePaths || filePaths.length === 0) {
     return {};
   }
 
-  const viewCountsMap = {};
   try {
-    // Ensure filePaths is an array and not empty before proceeding
-    if (!Array.isArray(filePaths) || filePaths.length === 0) {
-      return {};
-    }
-    const placeholders = filePaths.map(() => '?').join(',');
-    const fileIds = filePaths.map(generateFileId);
-    const stmt = currentDb.prepare(
-      `SELECT file_path_hash, view_count FROM media_views WHERE file_path_hash IN (${placeholders})`,
-    );
-    const rows = stmt.all(fileIds);
-
-    const countsByHash = {};
-    rows.forEach((row) => {
-      countsByHash[row.file_path_hash] = row.view_count;
-    });
-
-    filePaths.forEach((filePath) => {
-      const fileId = generateFileId(filePath);
-      viewCountsMap[filePath] = countsByHash[fileId] || 0;
-    });
+    return await sendMessageToWorker('getMediaViewCounts', { filePaths });
   } catch (error) {
-    console.error(
-      '[database.js] Error fetching view counts from SQLite:',
-      error,
-    );
+    console.error('[database.js] Error fetching view counts:', error);
+    return {};
   }
-  return viewCountsMap;
 }
 
 /**
@@ -204,30 +189,13 @@ async function getMediaViewCounts(filePaths) {
  * @returns {Promise<void>}
  */
 async function cacheModels(models) {
-  const currentDb = getDb();
-  if (!currentDb) {
-    if (process.env.NODE_ENV !== 'test') {
-      console.warn('[database.js] Database not available for cacheModels.');
-    }
-    return;
-  }
   try {
-    currentDb
-      .prepare(
-        `INSERT OR REPLACE INTO app_cache (cache_key, cache_value, last_updated) VALUES (?, ?, ?)`,
-      )
-      .run(
-        FILE_INDEX_CACHE_KEY,
-        JSON.stringify(models),
-        new Date().toISOString(),
-      );
-    if (process.env.NODE_ENV !== 'test') {
-      console.log(
-        '[database.js] File index successfully scanned and cached in SQLite.',
-      );
-    }
-  } catch (e) {
-    console.error('[database.js] Error caching file index to SQLite:', e);
+    await sendMessageToWorker('cacheModels', {
+      cacheKey: FILE_INDEX_CACHE_KEY,
+      models,
+    });
+  } catch (error) {
+    console.error('[database.js] Error caching models:', error);
   }
 }
 
@@ -236,52 +204,44 @@ async function cacheModels(models) {
  * @returns {Promise<Model[] | null>} The cached models or null if not found or error.
  */
 async function getCachedModels() {
-  const currentDb = getDb();
-  if (!currentDb) {
+  try {
+    return await sendMessageToWorker('getCachedModels', {
+      cacheKey: FILE_INDEX_CACHE_KEY,
+    });
+  } catch (error) {
     if (process.env.NODE_ENV !== 'test') {
-      console.warn('[database.js] Database not available for getCachedModels.');
+      console.warn('[database.js] Error getting cached models:', error.message);
     }
     return null;
   }
-  try {
-    const row = currentDb
-      .prepare(`SELECT cache_value FROM app_cache WHERE cache_key = ?`)
-      .get(FILE_INDEX_CACHE_KEY);
-    if (row && row.cache_value) {
-      if (process.env.NODE_ENV !== 'test') {
-        console.log('[database.js] Loaded file index from SQLite cache.');
-      }
-      return JSON.parse(row.cache_value);
-    }
-    if (process.env.NODE_ENV !== 'test') {
-      console.log('[database.js] No file index cache found in SQLite.');
-    }
-  } catch (e) {
-    console.error(
-      '[database.js] Error reading file index from SQLite cache.',
-      e,
-    );
-  }
-  return null;
 }
 
 /**
- * Closes the current database connection if it's open.
+ * Closes the database worker thread.
+ * @returns {Promise<void>}
  */
-function closeDatabase() {
-  if (db) {
+async function closeDatabase() {
+  if (dbWorker) {
     try {
-      db.close();
-      // Logging closure only if not in test environment to reduce test noise
+      await sendMessageToWorker('close');
+      await dbWorker.terminate();
       if (process.env.NODE_ENV !== 'test') {
-        console.log('[database.js] Database connection closed.');
+        console.log('[database.js] Database worker terminated.');
       }
-    } catch (closeError) {
-      console.error('[database.js] Error closing DB connection:', closeError);
+    } catch (error) {
+      console.error('[database.js] Error closing database worker:', error);
     } finally {
-      db = null; // Important to reset the db variable
+      dbWorker = null;
     }
   }
+}
+
+/**
+ * Sets the timeout duration for database operations (useful for testing).
+ * @param {number} timeout - The timeout in milliseconds.
+ */
+function setOperationTimeout(timeout) {
+  operationTimeout = timeout;
 }
 
 module.exports = {
@@ -290,7 +250,6 @@ module.exports = {
   getMediaViewCounts,
   cacheModels,
   getCachedModels,
-  generateFileId, // Exported for testing purposes
-  closeDatabase, // Export the new function
-  getDb, // Export for testing and internal use verification
+  closeDatabase,
+  setOperationTimeout,
 };

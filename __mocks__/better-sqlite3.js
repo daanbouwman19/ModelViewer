@@ -62,14 +62,16 @@ const mockDatabase = jest.fn().mockImplementation(() => {
        * @param {Function} originalFn - The original query function to wrap.
        * @returns {Function}
        */
-      const createQueryRunner = (originalFn) => (...args) => {
-        if (nextQueryError) {
-          const err = nextQueryError;
-          nextQueryError = null;
-          throw err;
-        }
-        return originalFn(...args);
-      };
+      const createQueryRunner =
+        (originalFn) =>
+        (...args) => {
+          if (nextQueryError) {
+            const err = nextQueryError;
+            nextQueryError = null;
+            throw err;
+          }
+          return originalFn(...args);
+        };
 
       const statement = {
         run: jest.fn(),
@@ -80,7 +82,11 @@ const mockDatabase = jest.fn().mockImplementation(() => {
       if (sql.includes('INSERT OR IGNORE INTO media_views')) {
         statement.run = createQueryRunner((hash, path, date) => {
           if (!mockDbStore.media_views[hash]) {
-            mockDbStore.media_views[hash] = { path, view_count: 0, last_viewed: date };
+            mockDbStore.media_views[hash] = {
+              path,
+              view_count: 0,
+              last_viewed: date,
+            };
           }
         });
       } else if (sql.includes('UPDATE media_views')) {
@@ -90,23 +96,35 @@ const mockDatabase = jest.fn().mockImplementation(() => {
             mockDbStore.media_views[hash].last_viewed = date;
           }
         });
-      } else if (sql.includes('SELECT file_path_hash, view_count FROM media_views')) {
+      } else if (
+        sql.includes('SELECT file_path_hash, view_count FROM media_views')
+      ) {
         statement.all = createQueryRunner((hashes) =>
           hashes
             .map((h) => ({
               file_path_hash: h,
-              view_count: mockDbStore.media_views[h] ? mockDbStore.media_views[h].view_count : 0,
+              view_count: mockDbStore.media_views[h]
+                ? mockDbStore.media_views[h].view_count
+                : 0,
             }))
-            .filter((r) => mockDbStore.media_views[r.file_path_hash] !== undefined)
+            .filter(
+              (r) => mockDbStore.media_views[r.file_path_hash] !== undefined,
+            ),
         );
       } else if (sql.includes('INSERT OR REPLACE INTO app_cache')) {
         statement.run = createQueryRunner((key, value, date) => {
-          mockDbStore.app_cache[key] = { cache_value: value, last_updated: date };
+          mockDbStore.app_cache[key] = {
+            cache_value: value,
+            last_updated: date,
+          };
         });
       } else if (sql.includes('SELECT cache_value FROM app_cache')) {
         statement.get = createQueryRunner((key) => mockDbStore.app_cache[key]);
       } else if (sql.includes('SELECT name FROM sqlite_master')) {
-        statement.all = createQueryRunner(() => [{ name: 'media_views' }, { name: 'app_cache' }]);
+        statement.all = createQueryRunner(() => [
+          { name: 'media_views' },
+          { name: 'app_cache' },
+        ]);
       }
 
       return statement;

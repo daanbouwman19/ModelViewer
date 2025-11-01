@@ -3,15 +3,13 @@
  * This is crucial for handling large video files that cannot be efficiently
  * loaded as Data URLs. The server handles range requests for video streaming.
  * @requires http
- * @requires url
  * @requires fs
  * @requires path
  * @requires ./constants.js
  */
 const http = require('http');
-const url = require('url');
 const fs = require('fs');
-const path =require('path');
+const path = require('path');
 const {
   SUPPORTED_IMAGE_EXTENSIONS,
   SUPPORTED_VIDEO_EXTENSIONS,
@@ -80,7 +78,11 @@ function startLocalServer(onReadyCallback) {
   }
 
   const server = http.createServer((req, res) => {
-    const parsedUrl = url.parse(req.url);
+    // Use WHATWG URL API instead of deprecated url.parse()
+    const parsedUrl = new URL(
+      req.url,
+      `http://${req.headers.host || 'localhost'}`,
+    );
     // Decode URI component to handle spaces or special characters in file paths
     const requestedPath = decodeURIComponent(parsedUrl.pathname.substring(1));
 
@@ -167,6 +169,12 @@ function startLocalServer(onReadyCallback) {
     console.log(
       `[local-server.js] Local media server started on http://localhost:${serverPort}`,
     );
+
+    // Allow the process to exit even if the server is still running (useful for tests)
+    if (process.env.NODE_ENV === 'test') {
+      serverInstance.unref();
+    }
+
     if (onReadyCallback && typeof onReadyCallback === 'function') {
       onReadyCallback();
     }
@@ -187,8 +195,15 @@ function startLocalServer(onReadyCallback) {
  */
 function stopLocalServer(callback) {
   if (serverInstance) {
-    serverInstance.close(() => {
-      console.log('[local-server.js] Local media server stopped.');
+    // Close all existing connections
+    serverInstance.closeAllConnections?.(); // Available in Node 18.2+
+
+    serverInstance.close((err) => {
+      if (err) {
+        console.error('[local-server.js] Error stopping server:', err);
+      } else {
+        console.log('[local-server.js] Local media server stopped.');
+      }
       serverInstance = null;
       serverPort = 0;
       if (callback && typeof callback === 'function') {

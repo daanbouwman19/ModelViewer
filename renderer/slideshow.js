@@ -6,10 +6,7 @@
  * @requires ./ui-updates.js
  */
 import { state } from './state.js';
-import {
-  timerDurationInput,
-  playPauseTimerButton,
-} from './ui-elements.js';
+import { timerDurationInput, playPauseTimerButton } from './ui-elements.js';
 import {
   displayCurrentMedia,
   clearMediaDisplay,
