@@ -3,14 +3,28 @@ const fs = 'fs';
 const path = 'path';
 
 // Mock dependencies
-jest.mock('electron', () => ({
-  app: { on: jest.fn(), whenReady: jest.fn(() => Promise.resolve()) },
-  BrowserWindow: jest.fn(() => ({
+jest.mock('electron', () => {
+  const mockBrowserWindowInstance = {
     loadFile: jest.fn(() => Promise.resolve()),
     on: jest.fn(),
-  })),
-  ipcMain: { handle: jest.fn() },
-}));
+    webContents: {
+      on: jest.fn(),
+    },
+  };
+  const mockBrowserWindow = jest.fn(() => mockBrowserWindowInstance);
+  mockBrowserWindow.getAllWindows = jest.fn(() => []);
+
+  return {
+    app: {
+      on: jest.fn(),
+      quit: jest.fn(),
+      whenReady: jest.fn(() => Promise.resolve()),
+      isReady: jest.fn(() => true),
+    },
+    BrowserWindow: mockBrowserWindow,
+    ipcMain: { handle: jest.fn() },
+  };
+});
 jest.mock('fs', () => ({
   existsSync: jest.fn(),
   statSync: jest.fn(),
@@ -161,6 +175,15 @@ describe('Main Process', () => {
         const result = await handler(null, 'file.txt');
         expect(result).toEqual({ type: 'error', message: 'Read error' });
       });
+
+      it('should return an error if filePath is not provided', async () => {
+        const handler = getIpcHandler('load-file-as-data-url');
+        const result = await handler(null, null);
+        expect(result).toEqual({
+          type: 'error',
+          message: 'File does not exist.',
+        });
+      });
     });
 
     describe('Other IPC Handlers', () => {
@@ -217,6 +240,95 @@ describe('Main Process', () => {
         expect(getMediaViewCounts).toHaveBeenCalledWith(['texture1.png']);
         expect(result[0].textures[0].viewCount).toBe(1);
       });
+
+      it('should handle no models being found for get-models-with-view-counts', async () => {
+        const { getCachedModels } = require('../main/database.js');
+        const handler = getIpcHandler('get-models-with-view-counts');
+        getCachedModels.mockResolvedValue([]); // No models in cache
+        const result = await handler();
+        expect(result).toEqual([]);
+      });
+
+      it('should handle no models being found for reindex-media-library', async () => {
+        const { performFullMediaScan } = require('../main/media-scanner.js');
+        const handler = getIpcHandler('reindex-media-library');
+        performFullMediaScan.mockResolvedValue([]); // No models found on disk
+        const result = await handler();
+        expect(result).toEqual([]);
+      });
+    });
+  });
+  describe('App Lifecycle', () => {
+    let app;
+
+    beforeEach(() => {
+      app = require('electron').app;
+    });
+
+    const getAppEventHandler = (event) => {
+      const call = app.on.mock.calls.find((c) => c[0] === event);
+      if (!call) {
+        throw new Error(`Event handler for "${event}" not found`);
+      }
+      return call[1];
+    };
+
+    it('should initialize database and start server on ready', () => {
+      const { initDatabase } = require('../main/database.js');
+      const { startLocalServer } = require('../main/local-server.js');
+      const readyHandler = getAppEventHandler('ready');
+
+      readyHandler();
+
+      expect(initDatabase).toHaveBeenCalled();
+      expect(startLocalServer).toHaveBeenCalled();
+    });
+
+    it('should quit the app on window-all-closed (non-macOS)', () => {
+      Object.defineProperty(process, 'platform', {
+        value: 'win32',
+      });
+      const handler = getAppEventHandler('window-all-closed');
+      handler();
+      expect(app.quit).toHaveBeenCalled();
+    });
+
+    it('should not quit the app on window-all-closed (macOS)', () => {
+      Object.defineProperty(process, 'platform', {
+        value: 'darwin',
+      });
+      const handler = getAppEventHandler('window-all-closed');
+      handler();
+      expect(app.quit).not.toHaveBeenCalled();
+    });
+
+    it('should create a window on activate when no windows are open', () => {
+      const { BrowserWindow } = require('electron');
+      const { getServerPort } = require('../main/local-server.js');
+      getServerPort.mockReturnValue(8080);
+      BrowserWindow.getAllWindows.mockReturnValue([]);
+      const handler = getAppEventHandler('activate');
+      handler();
+      expect(BrowserWindow).toHaveBeenCalled();
+    });
+
+    it('should not create a window on activate when windows are open', () => {
+      const { BrowserWindow } = require('electron');
+      const { getServerPort } = require('../main/local-server.js');
+      getServerPort.mockReturnValue(8080);
+      BrowserWindow.getAllWindows.mockReturnValue([{}]); // One window is open
+      const handler = getAppEventHandler('activate');
+      handler();
+      expect(BrowserWindow).not.toHaveBeenCalled();
+    });
+
+    it('should stop server and close database on will-quit', () => {
+      const { stopLocalServer } = require('../main/local-server.js');
+      const { closeDatabase } = require('../main/database.js');
+      const handler = getAppEventHandler('will-quit');
+      handler();
+      expect(stopLocalServer).toHaveBeenCalled();
+      expect(closeDatabase).toHaveBeenCalled();
     });
   });
 });
