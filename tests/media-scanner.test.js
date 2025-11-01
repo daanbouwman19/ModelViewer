@@ -232,5 +232,11 @@ describe('media-scanner.js', () => {
 
       fs.readdirSync = originalReaddirSync; // Restore original
     });
+
+    it('should handle a case where a path is not a directory', () => {
+        const filePath = path.join(TEST_MEDIA_DIR, 'file_not_folder.txt');
+        const files = findAllMediaFiles(filePath);
+        expect(files).toEqual([]);
+    });
   });
 });

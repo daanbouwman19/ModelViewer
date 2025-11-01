@@ -16,6 +16,7 @@ let mockConfig = {
   shouldTimeout: false,
   shouldReturnError: false,
   shouldCrash: false,
+  shouldFailToInitialize: false,
   errorMessage: 'Simulated error',
   timeoutDelay: 100, // ms before timeout simulation
 };
@@ -28,9 +29,13 @@ class MockWorker extends EventEmitter {
 
     // Simulate async worker initialization
     setImmediate(() => {
-      if (!this.terminated) {
-        this.emit('online');
-      }
+        if (mockConfig.shouldFailToInitialize) {
+            this.emit('error', new Error('Simulated initialization error'));
+            this.emit('exit', 1);
+            this.terminated = true;
+        } else if (!this.terminated) {
+            this.emit('online');
+        }
     });
   }
 
@@ -170,6 +175,7 @@ MockWorker.__resetConfig = function () {
     shouldTimeout: false,
     shouldReturnError: false,
     shouldCrash: false,
+    shouldFailToInitialize: false,
     errorMessage: 'Simulated error',
     timeoutDelay: 100,
   };
