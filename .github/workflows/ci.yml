@@ -2,21 +2,23 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, database-improvements]
   pull_request:
     branches: [main]
 
 jobs:
-  build:
+  test:
+    name: Test & Lint
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Use Node.js 22.x
-        uses: actions/setup-node@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: 22.x
+          node-version: '24'
           cache: 'npm'
 
       - name: Install dependencies
@@ -27,3 +29,108 @@ jobs:
 
       - name: Check formatting
         run: npm run format:check
+
+  electron-build:
+    name: Build Electron App (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsqlite3-dev
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Rebuild native modules for Electron
+        run: npm run rebuild
+
+      - name: Build Electron app
+        run: npm run dist
+        env:
+          GH_TOKEN: ''
+
+      - name: Verify build artifacts
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            ls -lh dist/*.AppImage 2>/dev/null || ls -lh dist/*.deb 2>/dev/null || echo "No Linux artifacts found"
+          elif [ "$RUNNER_OS" == "Windows" ]; then
+            ls -lh dist/*.exe 2>/dev/null || echo "No Windows artifacts found"
+          fi
+
+  electron-smoke-test:
+    name: Smoke Test Electron App (${{ matrix.os }})
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Setup xvfb (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libsqlite3-dev
+          
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Rebuild native modules for Electron
+        run: npm run rebuild
+
+      - name: Start Electron app (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+          timeout 15s npm start || if [ $? -eq 124 ]; then echo "App started successfully"; exit 0; else exit 1; fi
+
+      - name: Start Electron app (Windows)
+        if: runner.os == 'Windows'
+        timeout-minutes: 1
+        shell: pwsh
+        run: |
+          $job = Start-Job -ScriptBlock { 
+            Set-Location $using:PWD
+            npm start 
+          }
+          Start-Sleep -Seconds 10
+          $state = $job.State
+          Stop-Job $job -ErrorAction SilentlyContinue
+          Remove-Job $job -ErrorAction SilentlyContinue
+          if ($state -eq "Running") {
+            Write-Host "App started successfully"
+            exit 0
+          } else {
+            Write-Host "App failed to start"
+            exit 1
+          }
