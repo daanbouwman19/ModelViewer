@@ -21,9 +21,12 @@ let mockConfig = {
   timeoutDelay: 100, // ms before timeout simulation
 };
 
+let lastInstance = null;
+
 class MockWorker extends EventEmitter {
   constructor(filename, options) {
     super();
+    lastInstance = this;
     this.filename = filename;
     this.terminated = false;
 
@@ -163,6 +166,10 @@ MockWorker.__resetStore = function () {
 // Static method to access the store (useful for test assertions)
 MockWorker.__getStore = function () {
   return mockStore;
+};
+
+MockWorker.__getWorker = function () {
+  return lastInstance;
 };
 
 // Static methods to configure error simulation

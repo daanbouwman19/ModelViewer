@@ -215,6 +215,16 @@ describe('media-scanner.js', () => {
       fs.rmdirSync(noSubfoldersDir);
     });
 
+    it('should handle an empty base directory', async () => {
+      const emptyDir = path.join(TEST_MEDIA_DIR, 'empty_dir');
+      fs.mkdirSync(emptyDir);
+
+      const models = await performFullMediaScan(emptyDir);
+      expect(models).toEqual([]);
+
+      fs.rmdirSync(emptyDir);
+    });
+
     it('should handle errors during directory reading gracefully (e.g. permissions)', async () => {
       const originalReaddirSync = fs.readdirSync;
       fs.readdirSync = (dirPath, options) => {
@@ -235,6 +245,14 @@ describe('media-scanner.js', () => {
 
     it('should handle a case where a path is not a directory', () => {
       const filePath = path.join(TEST_MEDIA_DIR, 'file_not_folder.txt');
+      const files = findAllMediaFiles(filePath);
+      expect(files).toEqual([]);
+    });
+  });
+
+  describe('findAllMediaFiles with file path', () => {
+    it('should return an empty array when the path is a file', () => {
+      const filePath = path.join(TEST_MEDIA_DIR, 'model1', 'image1.png');
       const files = findAllMediaFiles(filePath);
       expect(files).toEqual([]);
     });

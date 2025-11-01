@@ -26,4 +26,23 @@ module.exports = {
    * @type {number}
    */
   testTimeout: 10000, // Increase timeout to 10 seconds
+
+  /**
+   * A map from regular expressions to paths to transformers.
+   * This tells Jest to use babel-jest to transform JavaScript files.
+   * @type {Object<string, string>}
+   */
+  transform: {
+    '^.+\\.js$': 'babel-jest',
+  },
+
+  /**
+   * An array of regexp pattern strings that are matched against all source file paths before transformation.
+   * By default, Jest ignores everything in node_modules. We need to override this to ensure that the renderer
+   * code (which uses ES Modules) is transformed by Babel.
+   * @type {string[]}
+   */
+  transformIgnorePatterns: [
+    '/node_modules/(?!renderer)', // transform renderer, but not node_modules
+  ],
 };
