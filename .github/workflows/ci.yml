@@ -134,7 +134,8 @@ jobs:
         run: |
           export DISPLAY=:99
           Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
-          timeout 15s npm start || if [ $? -eq 124 ]; then echo "App started successfully"; exit 0; else exit 1; fi
+          # Run Electron with --no-sandbox flag for CI environment
+          timeout 15s npx electron . --no-sandbox || if [ $? -eq 124 ]; then echo "App started successfully"; exit 0; else exit 1; fi
 
       - name: Start Electron app (Windows)
         if: runner.os == 'Windows'
