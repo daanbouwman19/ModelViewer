@@ -7,9 +7,6 @@ jest.mock('electron', () => {
   const mockBrowserWindowInstance = {
     loadFile: jest.fn(() => Promise.resolve()),
     on: jest.fn(),
-    webContents: {
-      on: jest.fn(),
-    },
   };
   const mockBrowserWindow = jest.fn(() => mockBrowserWindowInstance);
   mockBrowserWindow.getAllWindows = jest.fn(() => []);
@@ -19,7 +16,6 @@ jest.mock('electron', () => {
       on: jest.fn(),
       quit: jest.fn(),
       whenReady: jest.fn(() => Promise.resolve()),
-      isReady: jest.fn(() => true),
     },
     BrowserWindow: mockBrowserWindow,
     ipcMain: { handle: jest.fn() },
@@ -243,8 +239,10 @@ describe('Main Process', () => {
 
       it('should handle no models being found for get-models-with-view-counts', async () => {
         const { getCachedModels } = require('../main/database.js');
+        const { performFullMediaScan } = require('../main/media-scanner.js');
         const handler = getIpcHandler('get-models-with-view-counts');
         getCachedModels.mockResolvedValue([]); // No models in cache
+        performFullMediaScan.mockResolvedValue([]); // No models found on disk
         const result = await handler();
         expect(result).toEqual([]);
       });
@@ -285,21 +283,35 @@ describe('Main Process', () => {
     });
 
     it('should quit the app on window-all-closed (non-macOS)', () => {
+      const originalPlatform = process.platform;
       Object.defineProperty(process, 'platform', {
         value: 'win32',
       });
-      const handler = getAppEventHandler('window-all-closed');
-      handler();
-      expect(app.quit).toHaveBeenCalled();
+      try {
+        const handler = getAppEventHandler('window-all-closed');
+        handler();
+        expect(app.quit).toHaveBeenCalled();
+      } finally {
+        Object.defineProperty(process, 'platform', {
+          value: originalPlatform,
+        });
+      }
     });
 
     it('should not quit the app on window-all-closed (macOS)', () => {
+      const originalPlatform = process.platform;
       Object.defineProperty(process, 'platform', {
         value: 'darwin',
       });
-      const handler = getAppEventHandler('window-all-closed');
-      handler();
-      expect(app.quit).not.toHaveBeenCalled();
+      try {
+        const handler = getAppEventHandler('window-all-closed');
+        handler();
+        expect(app.quit).not.toHaveBeenCalled();
+      } finally {
+        Object.defineProperty(process, 'platform', {
+          value: originalPlatform,
+        });
+      }
     });
 
     it('should create a window on activate when no windows are open', () => {
