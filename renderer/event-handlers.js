@@ -136,12 +136,12 @@ async function populateModelsListUI_internal() {
     
     // Attach click handler to the entire list item for better UX
     listItem.addEventListener('click', (e) => {
-      // Don't trigger model selection if clicking on a checkbox or label
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'LABEL' || 
-          e.target.closest('label')) {
+      // The controls div is the second child of the list item.
+      // If the click is inside the controls, do not select the model.
+      const controlsContainer = e.currentTarget.children[1];
+      if (controlsContainer && controlsContainer.contains(e.target)) {
         return;
       }
-      console.log(`Model selected: ${model.name}`); // Debug logging
       selectModelForIndividualView(model);
     });
     
