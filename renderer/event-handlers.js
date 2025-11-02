@@ -105,7 +105,7 @@ async function populateModelsListUI_internal() {
     listItem.className = 'flex justify-between items-center px-4 py-2.5 rounded-md transition-all duration-200 ease-in-out border border-transparent mb-1.5 cursor-pointer';
 
     const modelNameSpan = document.createElement('span');
-    modelNameSpan.className = 'model-name-clickable flex-grow text-sm font-medium text-white mr-2.5';
+    modelNameSpan.className = 'flex-grow text-sm font-medium text-white mr-2.5';
     const fileCount = model.textures ? model.textures.length : 0;
     modelNameSpan.textContent = `${model.name} (${fileCount} files)`;
     modelNameSpan.addEventListener('click', () =>
@@ -115,14 +115,19 @@ async function populateModelsListUI_internal() {
 
     // Controls for random mode and global slideshow inclusion
     const controlsDiv = document.createElement('div');
-    controlsDiv.className = 'model-controls flex flex-col items-start gap-1 ml-2.5';
+    controlsDiv.className = 'flex flex-col items-start gap-1 ml-2.5';
 
     // Random toggle
     const randomToggleLabel = document.createElement('label');
-    randomToggleLabel.className = 'toggle-label text-xs grid grid-cols-[50px_auto] items-center text-white font-bold cursor-pointer gap-1';
-    randomToggleLabel.textContent = 'Rand: ';
+    randomToggleLabel.className = 'flex items-center space-x-1.5 text-xs text-white font-bold cursor-pointer';
+    const randomToggleText = document.createElement('span');
+    randomToggleText.className = 'inline-block w-12'; // `w-12` is 3rem, approx 48px
+    randomToggleText.textContent = 'Rand:';
+    randomToggleLabel.appendChild(randomToggleText);
+
     const randomToggleCheckbox = document.createElement('input');
     randomToggleCheckbox.type = 'checkbox';
+    randomToggleCheckbox.className = 'h-4 w-4 rounded border-gray-500 bg-gray-700 text-cyan-500 shadow-sm focus:border-cyan-500 focus:ring focus:ring-offset-gray-800 focus:ring-cyan-600 focus:ring-opacity-50';
     // Initialize or use existing random mode setting for this model
     state.modelRandomModeSettings[model.name] =
       state.modelRandomModeSettings[model.name] || false;
@@ -154,10 +159,14 @@ async function populateModelsListUI_internal() {
 
     // Global slideshow toggle
     const globalToggleLabel = document.createElement('label');
-    globalToggleLabel.className = 'toggle-label text-xs grid grid-cols-[50px_auto] items-center text-white font-bold cursor-pointer gap-1';
-    globalToggleLabel.textContent = 'Global: ';
+    globalToggleLabel.className = 'flex items-center space-x-1.5 text-xs text-white font-bold cursor-pointer';
+    const globalToggleText = document.createElement('span');
+    globalToggleText.className = 'inline-block w-12';
+    globalToggleText.textContent = 'Global:';
+    globalToggleLabel.appendChild(globalToggleText);
     const globalToggleCheckbox = document.createElement('input');
     globalToggleCheckbox.type = 'checkbox';
+    globalToggleCheckbox.className = 'h-4 w-4 rounded border-gray-500 bg-gray-700 text-cyan-500 shadow-sm focus:border-cyan-500 focus:ring focus:ring-offset-gray-800 focus:ring-cyan-600 focus:ring-opacity-50';
     // Initialize or use existing global selection setting (default to true)
     state.modelsSelectedForGlobal[model.name] =
       state.modelsSelectedForGlobal[model.name] === undefined

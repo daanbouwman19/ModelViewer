@@ -1,27 +1,11 @@
 
-      /*
-         * Custom Color Palette & Typography using CSS Variables.
-         * This allows for easy theming and consistent styling.
-         */
-      :root {
-        --primary-bg: #111827; /* Dark Gray for main background */
-        --secondary-bg: #1f2937; /* Lighter Gray for panels */
-        --tertiary-bg: #374151; /* Accent Gray for borders, disabled states */
-        --accent-color: #ec4899; /* Vibrant Pink for interactive elements */
-        --accent-hover: #db2777; /* Darker Pink for hover states */
-        --text-color: #f3f4f6; /* Light Gray for primary text */
-        --text-muted: #9ca3af; /* Muted Gray for secondary text, placeholders */
-        --border-color: #4b5563; /* Mid Gray for borders */
-        --selection-color: #374151; /* Accent Gray for list item hover */
-        --button-text-color: #ffffff; /* White text for buttons */
 
-        /* Fonts imported via Google Fonts */
-        --header-font: 'Dancing Script', cursive;
-        --body-font: 'Quicksand', sans-serif;
+      @font-face {
+        font-family: 'Dancing Script';
+        src: url('fonts/DancingScript-Regular.otf') format('opentype');
+        font-weight: normal;
+        font-style: normal;
       }
-
-      /* Import Google Fonts */
-      @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap');
 
       @font-face {
         font-family: 'Quicksand';
@@ -42,15 +26,13 @@
         width: 10px;
       }
       ::-webkit-scrollbar-track {
-        background: var(--secondary-bg);
+        @apply bg-gray-800;
       }
       ::-webkit-scrollbar-thumb {
-        background: var(--accent-color);
-        border-radius: 10px;
-        border: 2px solid var(--secondary-bg); /* Creates a "padding" effect */
+        @apply bg-pink-500 rounded-[10px] border-2 border-solid border-gray-800;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: var(--accent-hover);
+        @apply bg-pink-600;
       }
 
       #media-display-area video,
@@ -62,74 +44,16 @@
         border-radius: 8px; /* Tailwind: rounded-md */
       }
 
+      /* Interactive states for model list items */
       #models-list li:hover {
-        background-color: var(--selection-color);
-        border-color: var(--accent-color);
-        transform: translateX(3px); /* Slight shift on hover */
-      }
-      #models-list li.active-model-individual {
-        /* Style for the currently active individual model */
-        background-color: var(--accent-color);
-        border-color: var(--accent-hover);
-        color: var(--button-text-color);
-        box-shadow: 0 0 8px var(--accent-color); /* Glow effect */
-        font-weight: 700;
-      }
-      #models-list li.active-model-individual .model-name-clickable {
-        color: var(
-          --button-text-color
-        ); /* Ensure text is readable on accent background */
-      }
-      #models-list li.selected-for-global {
-        /* Style for models included in global slideshow */
-        /* border-left: 5px solid var(--accent-hover); */ /* Original style */
-        /* Modernized: Use a subtle background or a small dot indicator */
-        position: relative; /* For pseudo-element indicator */
-      }
-      #models-list li.selected-for-global::before {
-        content: '';
-        position: absolute;
-        left: 5px;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 8px;
-        height: 8px;
-        background-color: var(--accent-hover);
-        border-radius: 50%;
+        @apply bg-gray-700;
       }
 
-      #models-list .toggle-label input[type='checkbox'] {
-        appearance: none; /* Remove default browser styling */
-        -webkit-appearance: none;
-        -moz-appearance: none;
-        width: 18px; /* Tailwind: w-4.5 (custom) */
-        height: 18px; /* Tailwind: h-4.5 (custom) */
-        border: 2px solid var(--border-color);
-        border-radius: 4px; /* Tailwind: rounded-sm */
-        background-color: var(--primary-bg);
-        cursor: pointer;
-        position: relative; /* For checkmark positioning */
-        transition:
-          background-color 0.2s ease,
-          border-color 0.2s ease;
-        flex-shrink: 0;
-        justify-self: start; /* Align checkbox to the start of its grid cell */
+      #models-list li.active-model-individual {
+        @apply bg-pink-800 border-pink-500;
       }
-      #models-list .toggle-label input[type='checkbox']:hover {
-        border-color: var(--accent-color);
-      }
-      #models-list .toggle-label input[type='checkbox']:checked {
-        background-color: var(--accent-color);
-        border-color: var(--accent-hover);
-      }
-      #models-list .toggle-label input[type='checkbox']:checked::after {
-        /* Custom checkmark */
-        content: '✔';
-        color: var(--button-text-color);
-        font-size: 14px;
-        font-weight: bold;
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
+
+      #models-list li.selected-for-global {
+        /* A subtle indicator for models included in the global slideshow */
+        @apply border-l-4 border-cyan-500;
       }
