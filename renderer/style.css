@@ -1,59 +1,57 @@
+@font-face {
+  font-family: 'Dancing Script';
+  src: url('fonts/DancingScript-Regular.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+}
 
+@font-face {
+  font-family: 'Quicksand';
+  src: url('fonts/Quicksand-Regular.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+}
 
-      @font-face {
-        font-family: 'Dancing Script';
-        src: url('fonts/DancingScript-Regular.otf') format('opentype');
-        font-weight: normal;
-        font-style: normal;
-      }
+@font-face {
+  font-family: 'Quicksand';
+  src: url('fonts/Quicksand-Bold.otf') format('opentype');
+  font-weight: bold;
+  font-style: normal;
+}
 
-      @font-face {
-        font-family: 'Quicksand';
-        src: url('fonts/Quicksand-Regular.otf') format('opentype');
-        font-weight: normal;
-        font-style: normal;
-      }
+/* Custom Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-gray-800;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-pink-500 rounded-[10px] border-2 border-solid border-gray-800;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-pink-600;
+}
 
-      @font-face {
-        font-family: 'Quicksand';
-        src: url('fonts/Quicksand-Bold.otf') format('opentype');
-        font-weight: bold;
-        font-style: normal;
-      }
+#media-display-area video,
+#media-display-area img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain; /* Ensures media fits without cropping, maintaining aspect ratio */
+  display: block; /* Removes extra space below inline images */
+  border-radius: 8px; /* Tailwind: rounded-lg */
+}
 
-      /* Custom Scrollbar Styling */
-      ::-webkit-scrollbar {
-        width: 10px;
-      }
-      ::-webkit-scrollbar-track {
-        @apply bg-gray-800;
-      }
-      ::-webkit-scrollbar-thumb {
-        @apply bg-pink-500 rounded-[10px] border-2 border-solid border-gray-800;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        @apply bg-pink-600;
-      }
+/* Interactive states for model list items */
+#models-list li:hover {
+  @apply bg-gray-700;
+}
 
-      #media-display-area video,
-      #media-display-area img {
-        max-width: 100%;
-        max-height: 100%;
-        object-fit: contain; /* Ensures media fits without cropping, maintaining aspect ratio */
-        display: block; /* Removes extra space below inline images */
-        border-radius: 8px; /* Tailwind: rounded-md */
-      }
+#models-list li.active-model-individual {
+  @apply bg-pink-800 border-pink-500;
+}
 
-      /* Interactive states for model list items */
-      #models-list li:hover {
-        @apply bg-gray-700;
-      }
-
-      #models-list li.active-model-individual {
-        @apply bg-pink-800 border-pink-500;
-      }
-
-      #models-list li.selected-for-global {
-        /* A subtle indicator for models included in the global slideshow */
-        @apply border-l-4 border-cyan-500;
-      }
+#models-list li.selected-for-global {
+  /* A subtle indicator for models included in the global slideshow */
+  @apply border-l-4 border-cyan-500;
+}
