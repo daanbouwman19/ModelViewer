@@ -204,7 +204,7 @@ function createWindow() {
 // --- App Lifecycle ---
 app.on('ready', async () => {
   try {
-    initDatabase();
+    await initDatabase();
     console.log('[main.js] Database initialization requested on app ready.');
   } catch (error) {
     console.error(
