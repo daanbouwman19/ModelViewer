@@ -3,7 +3,7 @@ const path = require('path');
 const {
   findAllMediaFiles,
   performFullMediaScan,
-} = require('../main/media-scanner');
+} = require('../src/main/media-scanner');
 
 // Define a temporary directory for test files
 const TEST_MEDIA_DIR = path.join(__dirname, 'test_media_files');

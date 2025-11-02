@@ -109,6 +109,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getMediaDirectories: () => ipcRenderer.invoke('get-media-directories'),
 
   /**
+   * Re-indexes the entire media library by scanning all active directories.
+   * @returns {Promise<Array<Model>>} A promise that resolves to the updated list of models with view counts.
+   */
+  reindexLibrary: () => ipcRenderer.invoke('reindex-media-library'),
+
+  /**
    * Retrieves the lists of supported file extensions.
    * @returns {Promise<{images: string[], videos: string[], all: string[]}>} A promise that resolves to an object containing arrays of supported extensions.
    */

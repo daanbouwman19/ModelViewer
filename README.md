@@ -1,8 +1,10 @@
 # My Model Slideshow Viewer
 
+> **🎉 Now powered by Vue 3!** This app has been migrated to Vue 3 with Vite and Electron Forge. See [QUICK_START.md](QUICK_START.md) for setup instructions.
+
 ## 1. Introduction
 
-This application is a desktop tool built with Electron for browsing and viewing local media files, specifically organized into "models". It's designed to help users manage and view collections of images and videos stored in a structured folder hierarchy.
+This application is a desktop tool built with Electron and Vue 3 for browsing and viewing local media files, specifically organized into "models". It's designed to help users manage and view collections of images and videos stored in a structured folder hierarchy.
 
 The application scans a designated root directory, treating each sub-directory as a "model". It then allows you to view the media within each model, either individually or as part of a global, weighted-random slideshow.
 
@@ -20,13 +22,14 @@ The application scans a designated root directory, treating each sub-directory a
 
 ## 3. Tech Stack
 
-- **Framework**: [Electron](https://www.electronjs.org/)
-- **Database**: [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) for local data persistence.
-- **Frontend**: Vanilla HTML, CSS, and JavaScript (ES Modules).
-- **Styling**: [Tailwind CSS](https://tailwindcss.com/) for UI components.
-- **Testing**: [Jest](https://jestjs.io/) for unit and integration tests.
-- **Formatting**: [Prettier](https://prettier.io/) for consistent code style.
-- **Building/Packaging**: [electron-builder](https://www.electron.build/) for creating distributable installers.
+- **Framework**: [Electron](https://www.electronjs.org/) 38.0.0
+- **UI Framework**: [Vue 3](https://vuejs.org/) 3.5.12 with Composition API
+- **Build Tool**: [Vite](https://vitejs.dev/) 6.0.0 with HMR
+- **Packaging**: [Electron Forge](https://www.electronforge.io/) 7.5.0
+- **Database**: [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) for local data persistence
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/) for UI components
+- **Testing**: [Jest](https://jestjs.io/) 29.7.0 for unit and integration tests
+- **Formatting**: [Prettier](https://prettier.io/) 3.3.3 for consistent code style
 
 ## 4. Setup and Installation
 
@@ -36,6 +39,10 @@ To get the application running on your local machine for development, follow the
 
 - [Node.js](https://nodejs.org/) (includes npm)
 - A C++ compiler and Python for rebuilding native modules (see [node-gyp installation guide](https://github.com/nodejs/node-gyp#on-windows)). This is required for `better-sqlite3`.
+
+### Quick Installation
+
+**See [QUICK_START.md](QUICK_START.md) for the fastest way to get started!**
 
 ### Installation Steps
 
@@ -53,14 +60,20 @@ To get the application running on your local machine for development, follow the
     npm install
     ```
 
-3.  **Configure Media Directory:**
-    The application needs to know where your media library is located. Open the `main/main.js` file and find the following line:
+    Or use the automated installation script (PowerShell):
 
-    ```javascript
-    const baseMediaDirectory = 'D:\\test'; // Make sure this path is accessible or change it
+    ```powershell
+    .\install-vue3.ps1
     ```
 
-    **Change `'D:\\test'`** to the absolute path of the directory containing your model folders.
+3.  **Configure Media Directory:**
+    The application needs to know where your media library is located. You can add media directories through the UI:
+    - Launch the app
+    - Click "Manage Sources"
+    - Click "Add Media Directory"
+    - Select your folder containing model subdirectories
+
+    Alternatively, you can configure it in the database before first run.
 
     For example, if your media is organized like this:
 
@@ -74,16 +87,36 @@ To get the application running on your local machine for development, follow the
         └── image03.webp
     ```
 
-    You would set `baseMediaDirectory` to `'C:/Users/YourUser/Pictures/MyLibrary'`.
+    You would add `C:/Users/YourUser/Pictures/MyLibrary` as a media source.
 
 ## 5. Usage
 
 ### Running the Application in Development Mode
 
-To start the application with live reloading and access to developer tools:
+To start the application with Vue dev server, hot module replacement, and developer tools:
 
 ```bash
 npm start
+```
+
+This will:
+
+- Start Vite dev server with HMR
+- Launch Electron with Vue DevTools
+- Enable fast refresh for Vue components
+
+### Building for Production
+
+To create distributable packages:
+
+```bash
+npm run make
+```
+
+To package without creating installers:
+
+```bash
+npm run package
 ```
 
 ### Running Tests
