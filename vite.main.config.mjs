@@ -11,7 +11,7 @@ export default defineConfig({
       external: [
         'electron',
         'better-sqlite3',
-        ...builtinModules.flatMap(m => [m, `node:${m}`])
+        ...builtinModules.flatMap((m) => [m, `node:${m}`]),
       ],
       output: {
         format: 'cjs',

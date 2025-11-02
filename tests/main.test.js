@@ -230,7 +230,9 @@ describe('Main Process', () => {
       });
 
       it('should re-index and return models with view counts', async () => {
-        const { performFullMediaScan } = require('../src/main/media-scanner.js');
+        const {
+          performFullMediaScan,
+        } = require('../src/main/media-scanner.js');
         const {
           cacheModels,
           getMediaViewCounts,
@@ -260,7 +262,9 @@ describe('Main Process', () => {
           getCachedModels,
           getMediaDirectories,
         } = require('../src/main/database.js');
-        const { performFullMediaScan } = require('../src/main/media-scanner.js');
+        const {
+          performFullMediaScan,
+        } = require('../src/main/media-scanner.js');
         const handler = getIpcHandler('get-models-with-view-counts');
         getCachedModels.mockResolvedValue([]); // No models in cache
         getMediaDirectories.mockResolvedValue([
@@ -272,7 +276,9 @@ describe('Main Process', () => {
       });
 
       it('should handle no models being found for reindex-media-library', async () => {
-        const { performFullMediaScan } = require('../src/main/media-scanner.js');
+        const {
+          performFullMediaScan,
+        } = require('../src/main/media-scanner.js');
         const { getMediaDirectories } = require('../src/main/database.js');
         const handler = getIpcHandler('reindex-media-library');
         getMediaDirectories.mockResolvedValue([

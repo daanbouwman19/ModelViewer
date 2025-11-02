@@ -15,13 +15,15 @@ const fs = require('fs');
 // In development, MAIN_WINDOW_VITE_DEV_SERVER_URL points to the dev server
 // In production, MAIN_WINDOW_VITE_NAME is the renderer name
 // eslint-disable-next-line no-undef
-const devServerURL = typeof MAIN_WINDOW_VITE_DEV_SERVER_URL !== 'undefined' 
-  ? MAIN_WINDOW_VITE_DEV_SERVER_URL 
-  : undefined;
+const devServerURL =
+  typeof MAIN_WINDOW_VITE_DEV_SERVER_URL !== 'undefined'
+    ? MAIN_WINDOW_VITE_DEV_SERVER_URL
+    : undefined;
 // eslint-disable-next-line no-undef
-const rendererName = typeof MAIN_WINDOW_VITE_NAME !== 'undefined' 
-  ? MAIN_WINDOW_VITE_NAME 
-  : undefined;
+const rendererName =
+  typeof MAIN_WINDOW_VITE_NAME !== 'undefined'
+    ? MAIN_WINDOW_VITE_NAME
+    : undefined;
 
 const {
   MAX_DATA_URL_SIZE_MB,
@@ -266,10 +268,11 @@ function createWindow() {
   // Get the preload script path from Vite/Electron Forge
   // In development, it's built to .vite/build/preload.js
   // eslint-disable-next-line no-undef
-  const preloadPath = typeof MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY !== 'undefined'
-    ? MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY
-    : path.join(__dirname, 'preload.js'); // Relative to the build output
-  
+  const preloadPath =
+    typeof MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY !== 'undefined'
+      ? MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY
+      : path.join(__dirname, 'preload.js'); // Relative to the build output
+
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -293,9 +296,7 @@ function createWindow() {
       );
   } else {
     mainWindow
-      .loadFile(
-        path.join(__dirname, `../renderer/${rendererName}/index.html`),
-      )
+      .loadFile(path.join(__dirname, `../renderer/${rendererName}/index.html`))
       .then(() => {
         console.log('[main.js] index.html loaded successfully.');
       })
