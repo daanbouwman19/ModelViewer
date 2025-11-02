@@ -206,14 +206,15 @@ app.on('ready', async () => {
   try {
     await initDatabase();
     console.log('[main.js] Database initialization requested on app ready.');
+    // Start local server and pass createWindow as a callback
+    startLocalServer(createWindow);
   } catch (error) {
     console.error(
       '[main.js] Further error context: Database initialization failed during app ready sequence.',
       error,
     );
+    app.quit();
   }
-  // Start local server and pass createWindow as a callback
-  startLocalServer(createWindow);
 });
 
 app.on('window-all-closed', () => {
