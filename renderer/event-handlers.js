@@ -82,18 +82,20 @@ export async function initialLoad() {
  */
 function setupFilterButtonListeners_internal() {
   if (!filterButtons) return;
-  filterButtons.forEach(button => {
+  filterButtons.forEach((button) => {
     button.addEventListener('click', () => {
       // Update state and UI
       state.currentMediaFilter = button.dataset.filter;
-      filterButtons.forEach(btn => btn.classList.remove('active'));
+      filterButtons.forEach((btn) => btn.classList.remove('active'));
       button.classList.add('active');
 
       // Re-apply the filter to the current view
       if (state.isGlobalSlideshowActive) {
         activateGlobalSlideshowHandler();
       } else if (state.currentSelectedModelForIndividualView) {
-        selectModelForIndividualView(state.currentSelectedModelForIndividualView);
+        selectModelForIndividualView(
+          state.currentSelectedModelForIndividualView,
+        );
       }
     });
   });

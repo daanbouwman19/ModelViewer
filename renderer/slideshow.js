@@ -13,16 +13,6 @@ import {
   updateNavButtons,
 } from './ui-updates.js';
 
-let supportedExtensions = {
-  images: [],
-  videos: [],
-  all: [],
-};
-
-window.electronAPI.getSupportedExtensions().then(extensions => {
-  supportedExtensions = extensions;
-});
-
 /**
  * Shuffles an array and returns a new shuffled array using the Fisher-Yates algorithm.
  * This function does not mutate the original array.
@@ -103,9 +93,13 @@ function filterMedia(mediaFiles) {
   const filter = state.currentMediaFilter;
   if (filter === 'All') return mediaFiles;
 
-  const extensions = filter === 'Images' ? supportedExtensions.images : supportedExtensions.videos;
-  return mediaFiles.filter(file => {
-    const fileExt = file.path.slice(file.path.lastIndexOf('.')).toLowerCase();
+  const extensions =
+    filter === 'Images'
+      ? state.supportedExtensions.images
+      : state.supportedExtensions.videos;
+  return mediaFiles.filter((file) => {
+    const dotIndex = file.path.lastIndexOf('.');
+    const fileExt = dotIndex < 0 ? '' : file.path.slice(dotIndex).toLowerCase();
     return extensions.includes(fileExt);
   });
 }
@@ -215,7 +209,9 @@ export function toggleSlideshowTimer() {
 export function pickAndDisplayNextGlobalMediaItem() {
   const filteredPool = filterMedia(state.globalMediaPoolForSelection);
   if (filteredPool.length === 0) {
-    clearMediaDisplay('Global media pool is empty or no media matches the filter.');
+    clearMediaDisplay(
+      'Global media pool is empty or no media matches the filter.',
+    );
     updateNavButtons();
     return;
   }
@@ -225,10 +221,7 @@ export function pickAndDisplayNextGlobalMediaItem() {
   const historyPaths = state.displayedMediaFiles
     .slice(-historySize)
     .map((item) => item.path);
-  const newItem = selectWeightedRandom(
-    filteredPool,
-    historyPaths,
-  );
+  const newItem = selectWeightedRandom(filteredPool, historyPaths);
 
   if (newItem) {
     state.displayedMediaFiles.push(newItem); // Add to history for global mode
@@ -243,9 +236,7 @@ export function pickAndDisplayNextGlobalMediaItem() {
     if (filteredPool.length > 0) {
       // Fallback: pick any item from the pool if weighted selection with history fails
       state.currentMediaItem =
-        filteredPool[
-          Math.floor(Math.random() * filteredPool.length)
-        ];
+        filteredPool[Math.floor(Math.random() * filteredPool.length)];
       state.displayedMediaFiles.push(state.currentMediaItem); // Add to history
       state.currentMediaIndex = state.displayedMediaFiles.length - 1;
       displayCurrentMedia();

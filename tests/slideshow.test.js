@@ -28,6 +28,11 @@ Object.defineProperty(window, 'electronAPI', {
   configurable: true,
 });
 
+const mockExtensions = {
+  images: ['.jpg', '.png', '.webp', '.gif', '.jpeg', '.svg'],
+  videos: ['.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv'],
+};
+
 describe('slideshow.js', () => {
   let shuffleArray,
     selectWeightedRandom,
@@ -60,7 +65,7 @@ describe('slideshow.js', () => {
     const slideshow = require('../renderer/slideshow.js');
 
     // Wait for the async operation at the top of slideshow.js to complete
-    await new Promise(resolve => process.nextTick(resolve));
+    await new Promise((resolve) => process.nextTick(resolve));
 
     shuffleArray = slideshow.shuffleArray;
     selectWeightedRandom = slideshow.selectWeightedRandom;
@@ -90,6 +95,8 @@ describe('slideshow.js', () => {
     state.originalMediaFilesForIndividualView = [];
     state.slideshowTimerId = null;
     state.isTimerPlaying = false;
+    state.currentMediaFilter = 'All';
+    state.supportedExtensions = mockExtensions;
 
     jest.useFakeTimers();
   });
@@ -292,7 +299,11 @@ describe('slideshow.js', () => {
       state.currentMediaFilter = 'Images';
       prepareMediaListForIndividualView();
       expect(state.displayedMediaFiles.length).toBe(2);
-      expect(state.displayedMediaFiles.every(f => f.path.endsWith('.jpg') || f.path.endsWith('.png'))).toBe(true);
+      expect(
+        state.displayedMediaFiles.every((f) =>
+          mockExtensions.images.includes(f.path.slice(f.path.lastIndexOf('.'))),
+        ),
+      ).toBe(true);
     });
 
     it('should filter for videos in individual mode', () => {
@@ -301,7 +312,11 @@ describe('slideshow.js', () => {
       state.currentMediaFilter = 'Videos';
       prepareMediaListForIndividualView();
       expect(state.displayedMediaFiles.length).toBe(2);
-      expect(state.displayedMediaFiles.every(f => f.path.endsWith('.mp4') || f.path.endsWith('.webm'))).toBe(true);
+      expect(
+        state.displayedMediaFiles.every((f) =>
+          mockExtensions.videos.includes(f.path.slice(f.path.lastIndexOf('.'))),
+        ),
+      ).toBe(true);
     });
 
     it('should show all media when filter is "All" in individual mode', () => {
@@ -317,7 +332,13 @@ describe('slideshow.js', () => {
       state.globalMediaPoolForSelection = allFiles;
       state.currentMediaFilter = 'Images';
       pickAndDisplayNextGlobalMediaItem();
-      expect(state.currentMediaItem.path.endsWith('.jpg') || state.currentMediaItem.path.endsWith('.png')).toBe(true);
+      expect(
+        mockExtensions.images.includes(
+          state.currentMediaItem.path.slice(
+            state.currentMediaItem.path.lastIndexOf('.'),
+          ),
+        ),
+      ).toBe(true);
     });
 
     it('should filter for videos in global mode', () => {
@@ -325,7 +346,13 @@ describe('slideshow.js', () => {
       state.globalMediaPoolForSelection = allFiles;
       state.currentMediaFilter = 'Videos';
       pickAndDisplayNextGlobalMediaItem();
-      expect(state.currentMediaItem.path.endsWith('.mp4') || state.currentMediaItem.path.endsWith('.webm')).toBe(true);
+      expect(
+        mockExtensions.videos.includes(
+          state.currentMediaItem.path.slice(
+            state.currentMediaItem.path.lastIndexOf('.'),
+          ),
+        ),
+      ).toBe(true);
     });
 
     it('should clear display if no media matches filter in global mode', () => {
@@ -333,7 +360,9 @@ describe('slideshow.js', () => {
       state.globalMediaPoolForSelection = [{ path: 'a.jpg' }];
       state.currentMediaFilter = 'Videos';
       pickAndDisplayNextGlobalMediaItem();
-      expect(uiUpdates.clearMediaDisplay).toHaveBeenCalledWith('Global media pool is empty or no media matches the filter.');
+      expect(uiUpdates.clearMediaDisplay).toHaveBeenCalledWith(
+        'Global media pool is empty or no media matches the filter.',
+      );
     });
   });
 });
