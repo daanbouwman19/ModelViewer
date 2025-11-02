@@ -263,9 +263,7 @@ describe('Main Process', () => {
       });
 
       it('should handle no models being found for reindex-media-library', async () => {
-        const {
-          performFullMediaScan,
-        } = require('../main/media-scanner.js');
+        const { performFullMediaScan } = require('../main/media-scanner.js');
         const { getMediaDirectories } = require('../main/database.js');
         const handler = getIpcHandler('reindex-media-library');
         getMediaDirectories.mockResolvedValue([
