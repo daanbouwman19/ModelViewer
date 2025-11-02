@@ -76,6 +76,7 @@ export async function handleAddMediaDirectory() {
     // Replace the entire model list with the updated one from the main process.
     state.allModels = updatedModels;
     await populateModelsListUI_internal(); // Refresh the models list UI
+    await populateMediaSourcesList();
 
     // Reset application state to a clean slate
     state.currentSelectedModelForIndividualView = null;
@@ -85,9 +86,12 @@ export async function handleAddMediaDirectory() {
     state.currentMediaItem = null;
     state.globalMediaPoolForSelection = [];
 
-    clearMediaDisplay('New directory added. Select a model or start global slideshow.');
+    clearMediaDisplay(
+      'New directory added. Select a model or start global slideshow.',
+    );
     if (currentModelTitleElement) {
-      currentModelTitleElement.textContent = 'Select a model or start Global Slideshow';
+      currentModelTitleElement.textContent =
+        'Select a model or start Global Slideshow';
     }
   } catch (error) {
     console.error('Error adding media directory:', error);
@@ -100,6 +104,52 @@ export async function handleAddMediaDirectory() {
   }
 }
 
+/**
+ * Populates the media sources list in the UI.
+ */
+async function populateMediaSourcesList() {
+  const mediaSourcesListElement = document.getElementById('media-sources-list');
+  if (!mediaSourcesListElement) return;
+
+  const directories = await window.electronAPI.getMediaDirectories();
+  mediaSourcesListElement.innerHTML = '';
+
+  if (!directories || directories.length === 0) {
+    mediaSourcesListElement.innerHTML = '<li>No media sources configured.</li>';
+    return;
+  }
+
+  directories.forEach(dir => {
+    const listItem = document.createElement('li');
+    listItem.className = 'flex items-center justify-between p-1';
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = dir.isActive;
+    checkbox.addEventListener('change', async () => {
+      await window.electronAPI.setDirectoryActiveState(dir.path, checkbox.checked);
+      handleReindex();
+    });
+    listItem.appendChild(checkbox);
+
+    const pathSpan = document.createElement('span');
+    pathSpan.textContent = dir.path;
+    pathSpan.className = 'ml-2 flex-grow';
+    listItem.appendChild(pathSpan);
+
+    const removeButton = document.createElement('button');
+    removeButton.textContent = 'Remove';
+    removeButton.className = 'ml-2 action-button';
+    removeButton.addEventListener('click', async () => {
+      await window.electronAPI.removeMediaDirectory(dir.path);
+      populateMediaSourcesList();
+      handleReindex();
+    });
+    listItem.appendChild(removeButton);
+
+    mediaSourcesListElement.appendChild(listItem);
+  });
+}
 
 /**
  * Performs the initial loading of data when the application starts.
@@ -111,6 +161,7 @@ export async function initialLoad() {
   try {
     state.allModels = await window.electronAPI.getModelsWithViewCounts();
     await populateModelsListUI_internal(); // Populates the model list in the UI
+    await populateMediaSourcesList();
   } catch (error) {
     console.error(
       'Error during initial load of models with view counts:',
@@ -305,6 +356,7 @@ export async function handleReindex() {
     const newModels = await window.electronAPI.reindexMediaLibrary();
     state.allModels = newModels;
     await populateModelsListUI_internal(); // Refresh the models list UI
+    await populateMediaSourcesList();
 
     // Reset application state related to current display
     state.currentSelectedModelForIndividualView = null;

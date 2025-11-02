@@ -81,4 +81,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
    * list of models, or null if the user cancels the dialog.
    */
   addMediaDirectory: () => ipcRenderer.invoke('add-media-directory'),
+
+  /**
+   * Removes a media directory from the database.
+   * @param {string} directoryPath - The path of the directory to remove.
+   * @returns {Promise<void>}
+   */
+  removeMediaDirectory: (directoryPath) => ipcRenderer.invoke('remove-media-directory', directoryPath),
+
+  /**
+   * Sets the active state of a media directory.
+   * @param {string} directoryPath - The path of the directory.
+   * @param {boolean} isActive - The new active state.
+   * @returns {Promise<void>}
+   */
+  setDirectoryActiveState: (directoryPath, isActive) => ipcRenderer.invoke('set-directory-active-state', { directoryPath, isActive }),
 });

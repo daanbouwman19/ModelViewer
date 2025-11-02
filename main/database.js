@@ -253,7 +253,10 @@ async function addMediaDirectory(directoryPath) {
   try {
     await sendMessageToWorker('addMediaDirectory', { directoryPath });
   } catch (error) {
-    console.error(`[database.js] Error adding media directory '${directoryPath}':`, error);
+    console.error(
+      `[database.js] Error adding media directory '${directoryPath}':`,
+      error,
+    );
     // Decide if this should re-throw or just log
     throw error;
   }
@@ -261,7 +264,7 @@ async function addMediaDirectory(directoryPath) {
 
 /**
  * Retrieves all media directories from the database.
- * @returns {Promise<string[]>} A list of all media directory paths.
+ * @returns {Promise<{path: string, isActive: boolean}[]>} A list of all media directory objects.
  */
 async function getMediaDirectories() {
   try {
@@ -270,6 +273,35 @@ async function getMediaDirectories() {
   } catch (error) {
     console.error('[database.js] Error getting media directories:', error);
     return []; // Return empty array on error
+  }
+}
+
+/**
+ * Removes a media directory from the database.
+ * @param {string} directoryPath - The absolute path of the directory to remove.
+ * @returns {Promise<void>}
+ */
+async function removeMediaDirectory(directoryPath) {
+  try {
+    await sendMessageToWorker('removeMediaDirectory', { directoryPath });
+  } catch (error) {
+    console.error(`[database.js] Error removing media directory '${directoryPath}':`, error);
+    throw error;
+  }
+}
+
+/**
+ * Updates the active state for a given media directory.
+ * @param {string} directoryPath - The path of the directory to update.
+ * @param {boolean} isActive - The new active state.
+ * @returns {Promise<void>}
+ */
+async function setDirectoryActiveState(directoryPath, isActive) {
+  try {
+    await sendMessageToWorker('setDirectoryActiveState', { directoryPath, isActive });
+  } catch (error) {
+    console.error(`[database.js] Error setting active state for '${directoryPath}':`, error);
+    throw error;
   }
 }
 
@@ -283,4 +315,6 @@ module.exports = {
   setOperationTimeout,
   addMediaDirectory,
   getMediaDirectories,
+  removeMediaDirectory,
+  setDirectoryActiveState,
 };

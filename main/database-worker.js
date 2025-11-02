@@ -49,7 +49,8 @@ function initDatabase(dbPath) {
     );`);
 
     db.exec(`CREATE TABLE IF NOT EXISTS media_directories (
-      path TEXT PRIMARY KEY
+      path TEXT PRIMARY KEY,
+      is_active INTEGER DEFAULT 1
     );`);
 
     console.log('[database-worker.js] SQLite database initialized at:', dbPath);
@@ -204,30 +205,76 @@ function addMediaDirectory(directoryPath) {
     return { success: false, error: 'Database not initialized' };
   }
   try {
-    const stmt = db.prepare('INSERT OR IGNORE INTO media_directories (path) VALUES (?)');
+    const stmt = db.prepare(
+      'INSERT OR IGNORE INTO media_directories (path) VALUES (?)',
+    );
     stmt.run(directoryPath);
     console.log(`[database-worker.js] Added media directory: ${directoryPath}`);
     return { success: true };
   } catch (error) {
-    console.error(`[database-worker.js] Error adding media directory ${directoryPath}:`, error);
+    console.error(
+      `[database-worker.js] Error adding media directory ${directoryPath}:`,
+      error,
+    );
     return { success: false, error: error.message };
   }
 }
 
 /**
  * Retrieves all media directory paths from the database.
- * @returns {{success: boolean, data?: string[], error?: string}}
+ * @returns {{success: boolean, data?: {path: string, isActive: boolean}[], error?: string}}
  */
 function getMediaDirectories() {
   if (!db) {
     return { success: false, error: 'Database not initialized' };
   }
   try {
-    const rows = db.prepare('SELECT path FROM media_directories').all();
-    const paths = rows.map(row => row.path);
-    return { success: true, data: paths };
+    const rows = db.prepare('SELECT path, is_active FROM media_directories').all();
+    const directories = rows.map(row => ({ path: row.path, isActive: !!row.is_active }));
+    return { success: true, data: directories };
   } catch (error) {
     console.error('[database-worker.js] Error fetching media directories:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Removes a media directory path from the database.
+ * @param {string} directoryPath - The absolute path of the directory to remove.
+ * @returns {{success: boolean, error?: string}}
+ */
+function removeMediaDirectory(directoryPath) {
+  if (!db) {
+    return { success: false, error: 'Database not initialized' };
+  }
+  try {
+    const stmt = db.prepare('DELETE FROM media_directories WHERE path = ?');
+    stmt.run(directoryPath);
+    console.log(`[database-worker.js] Removed media directory: ${directoryPath}`);
+    return { success: true };
+  } catch (error) {
+    console.error(`[database-worker.js] Error removing media directory ${directoryPath}:`, error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Updates the active state of a media directory.
+ * @param {string} directoryPath - The path of the directory to update.
+ * @param {boolean} isActive - The new active state.
+ * @returns {{success: boolean, error?: string}}
+ */
+function setDirectoryActiveState(directoryPath, isActive) {
+  if (!db) {
+    return { success: false, error: 'Database not initialized' };
+  }
+  try {
+    const stmt = db.prepare('UPDATE media_directories SET is_active = ? WHERE path = ?');
+    stmt.run(isActive ? 1 : 0, directoryPath);
+    console.log(`[database-worker.js] Set directory ${directoryPath} active state to ${isActive}`);
+    return { success: true };
+  } catch (error) {
+    console.error(`[database-worker.js] Error updating active state for ${directoryPath}:`, error);
     return { success: false, error: error.message };
   }
 }
@@ -269,6 +316,14 @@ parentPort.on('message', (message) => {
 
     case 'getMediaDirectories':
       result = getMediaDirectories();
+      break;
+
+    case 'removeMediaDirectory':
+      result = removeMediaDirectory(payload.directoryPath);
+      break;
+
+    case 'setDirectoryActiveState':
+      result = setDirectoryActiveState(payload.directoryPath, payload.isActive);
       break;
 
     default:

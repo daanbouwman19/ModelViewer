@@ -24,6 +24,8 @@ const {
   closeDatabase,
   getMediaDirectories,
   addMediaDirectory,
+  removeMediaDirectory,
+  setDirectoryActiveState,
 } = require('./database.js');
 const { performFullMediaScan } = require('./media-scanner.js');
 const {
@@ -103,15 +105,16 @@ async function scanDiskForModelsAndCache() {
     '[main.js] scanDiskForModelsAndCache called. Delegating to media-scanner and database.',
   );
 
-  const mediaDirectories = await getMediaDirectories();
-  if (!mediaDirectories || mediaDirectories.length === 0) {
-    console.log('[main.js] No media directories configured. Skipping scan.');
-    // Return early, but also ensure the cache is cleared of old data.
-    await cacheModels([]); // Cache an empty array
+  const allDirectories = await getMediaDirectories();
+  const activeDirectories = allDirectories.filter(dir => dir.isActive).map(dir => dir.path);
+
+  if (!activeDirectories || activeDirectories.length === 0) {
+    console.log('[main.js] No active media directories configured. Skipping scan.');
+    await cacheModels([]);
     return [];
   }
 
-  const models = await performFullMediaScan(mediaDirectories);
+  const models = await performFullMediaScan(activeDirectories);
 
   if (!models || models.length === 0) {
     console.log('[main.js] Media scan returned no models.');
@@ -216,6 +219,16 @@ ipcMain.handle('reindex-media-library', async () => {
       viewCount: viewCountsMap[texture.path] || 0,
     })),
   }));
+});
+
+ipcMain.handle('remove-media-directory', async (event, directoryPath) => {
+  await removeMediaDirectory(directoryPath);
+  // No need to return anything, the frontend will trigger a re-index.
+});
+
+ipcMain.handle('set-directory-active-state', async (event, { directoryPath, isActive }) => {
+  await setDirectoryActiveState(directoryPath, isActive);
+  // No need to return anything, the frontend will trigger a re-index.
 });
 
 // --- Window Creation ---

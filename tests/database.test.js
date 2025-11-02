@@ -80,6 +80,35 @@ describe('database.js with Worker Thread', () => {
       });
     });
 
+    describe('Directory Management', () => {
+      it('should add and retrieve media directories', async () => {
+        const dirPath = '/test/media';
+        await database.addMediaDirectory(dirPath);
+        const dirs = await database.getMediaDirectories();
+        expect(dirs).toEqual([{ path: dirPath, isActive: true }]);
+      });
+
+      it('should remove a media directory', async () => {
+        const dirPath = '/test/media';
+        await database.addMediaDirectory(dirPath);
+        await database.removeMediaDirectory(dirPath);
+        const dirs = await database.getMediaDirectories();
+        expect(dirs).toEqual([]);
+      });
+
+      it('should toggle the active state of a directory', async () => {
+        const dirPath = '/test/media';
+        await database.addMediaDirectory(dirPath);
+        await database.setDirectoryActiveState(dirPath, false);
+        let dirs = await database.getMediaDirectories();
+        expect(dirs).toEqual([{ path: dirPath, isActive: false }]);
+
+        await database.setDirectoryActiveState(dirPath, true);
+        dirs = await database.getMediaDirectories();
+        expect(dirs).toEqual([{ path: dirPath, isActive: true }]);
+      });
+    });
+
     describe('Error Handling', () => {
       describe('Worker Communication Timeout', () => {
         it('should handle timeout when worker does not respond', async () => {

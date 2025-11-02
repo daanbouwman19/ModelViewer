@@ -55,7 +55,8 @@ function findAllMediaFiles(directoryPath, mediaFilesList = []) {
 async function performFullMediaScan(baseMediaDirectories) {
   if (process.env.NODE_ENV !== 'test') {
     console.log(
-      `[media-scanner.js] Starting disk scan in directories:`, baseMediaDirectories,
+      `[media-scanner.js] Starting disk scan in directories:`,
+      baseMediaDirectories,
     );
   }
   const modelsMap = new Map();
@@ -63,10 +64,27 @@ async function performFullMediaScan(baseMediaDirectories) {
     for (const baseDir of baseMediaDirectories) {
       if (!fs.existsSync(baseDir)) {
         if (process.env.NODE_ENV !== 'test') {
-          console.error(`[media-scanner.js] Media directory not found: ${baseDir}`);
+          console.error(
+            `[media-scanner.js] Media directory not found: ${baseDir}`,
+          );
         }
         continue; // Skip non-existent directories
       }
+
+      // --- New: Scan for files directly in the base directory ---
+      const rootDirName = path.basename(baseDir);
+      const rootFiles = fs.readdirSync(baseDir, { withFileTypes: true })
+        .filter(dirent => dirent.isFile() && ALL_SUPPORTED_EXTENSIONS.includes(path.extname(dirent.name).toLowerCase()))
+        .map(dirent => ({ name: dirent.name, path: path.join(baseDir, dirent.name) }));
+
+      if (rootFiles.length > 0) {
+        if (modelsMap.has(rootDirName)) {
+          modelsMap.get(rootDirName).textures.push(...rootFiles);
+        } else {
+          modelsMap.set(rootDirName, { name: rootDirName, textures: rootFiles });
+        }
+      }
+      // --- End New ---
 
       const modelFolders = fs
         .readdirSync(baseDir, { withFileTypes: true })
@@ -84,7 +102,10 @@ async function performFullMediaScan(baseMediaDirectories) {
             existingModel.textures.push(...filesInModelFolder);
           } else {
             // Otherwise, create a new model entry
-            modelsMap.set(folderName, { name: folderName, textures: filesInModelFolder });
+            modelsMap.set(folderName, {
+              name: folderName,
+              textures: filesInModelFolder,
+            });
           }
         }
       }
