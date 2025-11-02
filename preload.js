@@ -107,4 +107,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
    * @returns {Promise<{path: string, isActive: boolean}[]>} A promise that resolves to an array of directory objects.
    */
   getMediaDirectories: () => ipcRenderer.invoke('get-media-directories'),
+
+  /**
+   * Retrieves the lists of supported file extensions.
+   * @returns {Promise<{images: string[], videos: string[], all: string[]}>} A promise that resolves to an object containing arrays of supported extensions.
+   */
+  getSupportedExtensions: () => ipcRenderer.invoke('get-supported-extensions'),
 });

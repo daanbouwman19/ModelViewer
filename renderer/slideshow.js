@@ -84,6 +84,27 @@ export function selectWeightedRandom(items, excludePaths = []) {
 }
 
 /**
+ * Filters a list of media files based on the current filter setting.
+ * @param {Array<MediaFile>} mediaFiles - The array of media files to filter.
+ * @returns {Array<MediaFile>} The filtered array of media files.
+ */
+function filterMedia(mediaFiles) {
+  if (!mediaFiles) return [];
+  const filter = state.currentMediaFilter;
+  if (filter === 'All') return mediaFiles;
+
+  const extensions =
+    filter === 'Images'
+      ? state.supportedExtensions.images
+      : state.supportedExtensions.videos;
+  return mediaFiles.filter((file) => {
+    const dotIndex = file.path.lastIndexOf('.');
+    const fileExt = dotIndex < 0 ? '' : file.path.slice(dotIndex).toLowerCase();
+    return extensions.includes(fileExt);
+  });
+}
+
+/**
  * Generates a playlist for an individual model.
  * @param {Array<Object>} mediaPool - The pool of media files for the model.
  * @param {boolean} isRandom - Whether to shuffle the playlist.
@@ -186,8 +207,11 @@ export function toggleSlideshowTimer() {
  * and updates the display.
  */
 export function pickAndDisplayNextGlobalMediaItem() {
-  if (state.globalMediaPoolForSelection.length === 0) {
-    clearMediaDisplay('Global media pool is empty.');
+  const filteredPool = filterMedia(state.globalMediaPoolForSelection);
+  if (filteredPool.length === 0) {
+    clearMediaDisplay(
+      'Global media pool is empty or no media matches the filter.',
+    );
     updateNavButtons();
     return;
   }
@@ -197,10 +221,7 @@ export function pickAndDisplayNextGlobalMediaItem() {
   const historyPaths = state.displayedMediaFiles
     .slice(-historySize)
     .map((item) => item.path);
-  const newItem = selectWeightedRandom(
-    state.globalMediaPoolForSelection,
-    historyPaths,
-  );
+  const newItem = selectWeightedRandom(filteredPool, historyPaths);
 
   if (newItem) {
     state.displayedMediaFiles.push(newItem); // Add to history for global mode
@@ -212,12 +233,10 @@ export function pickAndDisplayNextGlobalMediaItem() {
     console.warn(
       'Could not select a new distinct global media item. Pool might be exhausted or too small for history avoidance. Trying any item.',
     );
-    if (state.globalMediaPoolForSelection.length > 0) {
+    if (filteredPool.length > 0) {
       // Fallback: pick any item from the pool if weighted selection with history fails
       state.currentMediaItem =
-        state.globalMediaPoolForSelection[
-          Math.floor(Math.random() * state.globalMediaPoolForSelection.length)
-        ];
+        filteredPool[Math.floor(Math.random() * filteredPool.length)];
       state.displayedMediaFiles.push(state.currentMediaItem); // Add to history
       state.currentMediaIndex = state.displayedMediaFiles.length - 1;
       displayCurrentMedia();
@@ -238,8 +257,9 @@ export function prepareMediaListForIndividualView() {
     state.modelRandomModeSettings[
       state.currentSelectedModelForIndividualView.name
     ] || false;
+  const filteredFiles = filterMedia(state.originalMediaFilesForIndividualView);
   state.displayedMediaFiles = generatePlaylistForIndividualModel(
-    state.originalMediaFilesForIndividualView,
+    filteredFiles,
     isRandom,
   );
 }

@@ -17,6 +17,7 @@ import {
   prevMediaButton,
   nextMediaButton,
   sourcesModal,
+  filterButtons,
 } from './ui-elements.js';
 import {
   displayCurrentMedia,
@@ -184,6 +185,7 @@ export async function initialLoad() {
     state.allModels = await window.electronAPI.getModelsWithViewCounts();
     await populateModelsListUI_internal(); // Populates the model list in the UI
     await populateMediaSourcesList();
+    setupFilterButtonListeners_internal(); // Sets up the filter buttons
   } catch (error) {
     console.error(
       'Error during initial load of models with view counts:',
@@ -193,6 +195,30 @@ export async function initialLoad() {
       modelsListElement.innerHTML =
         '<li>Error loading models. Click Re-index.</li>';
   }
+}
+
+/**
+ * Sets up the event listeners for the media filter buttons.
+ */
+function setupFilterButtonListeners_internal() {
+  if (!filterButtons) return;
+  filterButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      // Update state and UI
+      state.currentMediaFilter = button.dataset.filter;
+      filterButtons.forEach((btn) => btn.classList.remove('active'));
+      button.classList.add('active');
+
+      // Re-apply the filter to the current view
+      if (state.isGlobalSlideshowActive) {
+        activateGlobalSlideshowHandler();
+      } else if (state.currentSelectedModelForIndividualView) {
+        selectModelForIndividualView(
+          state.currentSelectedModelForIndividualView,
+        );
+      }
+    });
+  });
 }
 
 /**
@@ -253,9 +279,18 @@ async function populateModelsListUI_internal() {
     modelNameSpan.className = 'flex-grow text-sm font-medium text-white mr-2.5';
     const fileCount = model.textures ? model.textures.length : 0;
     modelNameSpan.textContent = `${model.name} (${fileCount} files)`;
-    modelNameSpan.addEventListener('click', () =>
-      selectModelForIndividualView(model),
-    );
+
+    // Attach click handler to the entire list item for better UX
+    listItem.addEventListener('click', (e) => {
+      // The controls div is the second child of the list item.
+      // If the click is inside the controls, do not select the model.
+      const controlsContainer = e.currentTarget.children[1];
+      if (controlsContainer && controlsContainer.contains(e.target)) {
+        return;
+      }
+      selectModelForIndividualView(model);
+    });
+
     listItem.appendChild(modelNameSpan);
 
     // Controls for random mode and global slideshow inclusion
@@ -271,7 +306,6 @@ async function populateModelsListUI_internal() {
     randomToggleCheckbox.checked = state.modelRandomModeSettings[model.name];
     randomToggleCheckbox.title = `Play media from ${model.name} in random order`;
     randomToggleCheckbox.addEventListener('change', (e) => {
-      e.stopPropagation(); // Prevent li click event
       state.modelRandomModeSettings[model.name] = e.target.checked;
       // If this model is currently selected for individual view, update its playlist
       if (
@@ -308,7 +342,6 @@ async function populateModelsListUI_internal() {
     );
     globalToggleCheckbox.title = `Include ${model.name} in Global Slideshow`;
     globalToggleCheckbox.addEventListener('change', (e) => {
-      e.stopPropagation(); // Prevent li click event
       state.modelsSelectedForGlobal[model.name] = e.target.checked;
       listItem.classList.toggle('selected-for-global', e.target.checked);
       // If global slideshow is active, refresh it to reflect changes
