@@ -40,6 +40,10 @@ jest.mock('../main/database.js', () => ({
   cacheModels: jest.fn(),
   getCachedModels: jest.fn(),
   closeDatabase: jest.fn(),
+  getMediaDirectories: jest.fn(),
+  addMediaDirectory: jest.fn(),
+  removeMediaDirectory: jest.fn(),
+  setDirectoryActiveState: jest.fn(),
 }));
 jest.mock('../main/media-scanner.js', () => ({
   performFullMediaScan: jest.fn(),
@@ -221,9 +225,13 @@ describe('Main Process', () => {
         const {
           cacheModels,
           getMediaViewCounts,
+          getMediaDirectories,
         } = require('../main/database.js');
         const handler = getIpcHandler('reindex-media-library');
 
+        getMediaDirectories.mockResolvedValue([
+          { path: '/test/directory', isActive: true },
+        ]);
         performFullMediaScan.mockResolvedValue([
           { name: 'model1', textures: [{ path: 'texture1.png' }] },
         ]);
@@ -231,25 +239,38 @@ describe('Main Process', () => {
 
         const result = await handler();
 
-        expect(performFullMediaScan).toHaveBeenCalled();
+        expect(getMediaDirectories).toHaveBeenCalled();
+        expect(performFullMediaScan).toHaveBeenCalledWith(['/test/directory']);
         expect(cacheModels).toHaveBeenCalled();
         expect(getMediaViewCounts).toHaveBeenCalledWith(['texture1.png']);
         expect(result[0].textures[0].viewCount).toBe(1);
       });
 
       it('should handle no models being found for get-models-with-view-counts', async () => {
-        const { getCachedModels } = require('../main/database.js');
+        const {
+          getCachedModels,
+          getMediaDirectories,
+        } = require('../main/database.js');
         const { performFullMediaScan } = require('../main/media-scanner.js');
         const handler = getIpcHandler('get-models-with-view-counts');
         getCachedModels.mockResolvedValue([]); // No models in cache
+        getMediaDirectories.mockResolvedValue([
+          { path: '/test/directory', isActive: true },
+        ]);
         performFullMediaScan.mockResolvedValue([]); // No models found on disk
         const result = await handler();
         expect(result).toEqual([]);
       });
 
       it('should handle no models being found for reindex-media-library', async () => {
-        const { performFullMediaScan } = require('../main/media-scanner.js');
+        const {
+          performFullMediaScan,
+        } = require('../main/media-scanner.js');
+        const { getMediaDirectories } = require('../main/database.js');
         const handler = getIpcHandler('reindex-media-library');
+        getMediaDirectories.mockResolvedValue([
+          { path: '/test/directory', isActive: true },
+        ]);
         performFullMediaScan.mockResolvedValue([]); // No models found on disk
         const result = await handler();
         expect(result).toEqual([]);

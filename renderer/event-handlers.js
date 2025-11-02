@@ -165,7 +165,6 @@ async function populateMediaSourcesList() {
     removeButton.className = 'ml-2 action-button';
     removeButton.addEventListener('click', async () => {
       await window.electronAPI.removeMediaDirectory(dir.path);
-      populateMediaSourcesList();
       handleReindex();
     });
     listItem.appendChild(removeButton);

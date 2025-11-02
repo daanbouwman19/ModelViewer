@@ -149,6 +149,32 @@ async function getModelsFromCacheOrDisk() {
   return models;
 }
 
+/**
+ * Scans the disk for models and returns them with their view counts.
+ * This is a helper function to avoid code duplication in handlers that need
+ * to re-index and return models with view counts.
+ * @returns {Promise<Array<Object>>} The list of models with view counts.
+ */
+async function getModelsWithViewCountsAfterScan() {
+  const models = await scanDiskForModelsAndCache();
+  if (!models || models.length === 0) {
+    return [];
+  }
+
+  const allFilePaths = models.flatMap((model) =>
+    model.textures.map((texture) => texture.path),
+  );
+  const viewCountsMap = await getMediaViewCounts(allFilePaths);
+
+  return models.map((model) => ({
+    ...model,
+    textures: model.textures.map((texture) => ({
+      ...texture,
+      viewCount: viewCountsMap[texture.path] || 0,
+    })),
+  }));
+}
+
 ipcMain.handle('get-models-with-view-counts', async () => {
   const models = await getModelsFromCacheOrDisk();
   if (!models || models.length === 0) {
@@ -187,44 +213,12 @@ ipcMain.handle('add-media-directory', async () => {
 
   // After adding, trigger a full re-index and get the updated models
   console.log('[main.js] New directory added. Re-indexing media library...');
-  const models = await scanDiskForModelsAndCache(); // This also handles caching
-  if (!models || models.length === 0) {
-    return [];
-  }
-
-  const allFilePaths = models.flatMap((model) =>
-    model.textures.map((texture) => texture.path),
-  );
-  const viewCountsMap = await getMediaViewCounts(allFilePaths);
-
-  return models.map((model) => ({
-    ...model,
-    textures: model.textures.map((texture) => ({
-      ...texture,
-      viewCount: viewCountsMap[texture.path] || 0,
-    })),
-  }));
+  return getModelsWithViewCountsAfterScan();
 });
 
 ipcMain.handle('reindex-media-library', async () => {
   console.log('[main.js] Re-indexing media library requested...');
-  const models = await scanDiskForModelsAndCache(); // This also handles caching
-  if (!models || models.length === 0) {
-    console.log('[main.js] No models found after re-indexing.');
-    return [];
-  }
-  const allFilePaths = models.flatMap((model) =>
-    model.textures.map((texture) => texture.path),
-  );
-  const viewCountsMap = await getMediaViewCounts(allFilePaths);
-
-  return models.map((model) => ({
-    ...model,
-    textures: model.textures.map((texture) => ({
-      ...texture,
-      viewCount: viewCountsMap[texture.path] || 0,
-    })),
-  }));
+  return getModelsWithViewCountsAfterScan();
 });
 
 ipcMain.handle('remove-media-directory', async (event, directoryPath) => {
@@ -263,7 +257,6 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, '../preload.js'),
       contextIsolation: true,
-      // enableRemoteModule: false, // enableRemoteModule is deprecated and defaults to false
     },
   });
   console.log('[main.js] BrowserWindow created.');

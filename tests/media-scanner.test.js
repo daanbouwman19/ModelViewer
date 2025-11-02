@@ -33,7 +33,7 @@ describe('media-scanner.js', () => {
     // └── file_not_folder.txt
 
     if (fs.existsSync(TEST_MEDIA_DIR)) {
-      fs.rmdirSync(TEST_MEDIA_DIR, { recursive: true });
+      fs.rmSync(TEST_MEDIA_DIR, { recursive: true });
     }
     fs.mkdirSync(TEST_MEDIA_DIR);
 
@@ -63,7 +63,7 @@ describe('media-scanner.js', () => {
   afterAll(() => {
     // Clean up the test directory
     if (fs.existsSync(TEST_MEDIA_DIR)) {
-      fs.rmdirSync(TEST_MEDIA_DIR, { recursive: true });
+      fs.rmSync(TEST_MEDIA_DIR, { recursive: true });
     }
     delete process.env.NODE_ENV;
   });
