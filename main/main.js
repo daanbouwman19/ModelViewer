@@ -231,6 +231,10 @@ ipcMain.handle('set-directory-active-state', async (event, { directoryPath, isAc
   // No need to return anything, the frontend will trigger a re-index.
 });
 
+ipcMain.handle('get-media-directories', async () => {
+  return getMediaDirectories();
+});
+
 // --- Window Creation ---
 let mainWindow; // Keep a reference to the main window
 

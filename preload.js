@@ -96,4 +96,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
    * @returns {Promise<void>}
    */
   setDirectoryActiveState: (directoryPath, isActive) => ipcRenderer.invoke('set-directory-active-state', { directoryPath, isActive }),
+
+  /**
+   * Retrieves the list of all media directories.
+   * @returns {Promise<{path: string, isActive: boolean}[]>} A promise that resolves to an array of directory objects.
+   */
+  getMediaDirectories: () => ipcRenderer.invoke('get-media-directories'),
 });
