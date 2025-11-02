@@ -102,9 +102,10 @@ async function populateModelsListUI_internal() {
   state.allModels.forEach((model) => {
     const listItem = document.createElement('li');
     listItem.dataset.modelName = model.name; // Store model name for identification
+    listItem.className = 'flex justify-between items-center px-4 py-2.5 rounded-md transition-all duration-200 ease-in-out border border-transparent mb-1.5 cursor-pointer';
 
     const modelNameSpan = document.createElement('span');
-    modelNameSpan.className = 'model-name-clickable';
+    modelNameSpan.className = 'model-name-clickable flex-grow text-sm font-medium text-white mr-2.5';
     const fileCount = model.textures ? model.textures.length : 0;
     modelNameSpan.textContent = `${model.name} (${fileCount} files)`;
     modelNameSpan.addEventListener('click', () =>
@@ -114,11 +115,11 @@ async function populateModelsListUI_internal() {
 
     // Controls for random mode and global slideshow inclusion
     const controlsDiv = document.createElement('div');
-    controlsDiv.className = 'model-controls';
+    controlsDiv.className = 'model-controls flex flex-col items-start gap-1 ml-2.5';
 
     // Random toggle
     const randomToggleLabel = document.createElement('label');
-    randomToggleLabel.className = 'toggle-label';
+    randomToggleLabel.className = 'toggle-label text-xs grid grid-cols-[50px_auto] items-center text-white font-bold cursor-pointer gap-1';
     randomToggleLabel.textContent = 'Rand: ';
     const randomToggleCheckbox = document.createElement('input');
     randomToggleCheckbox.type = 'checkbox';
@@ -153,7 +154,7 @@ async function populateModelsListUI_internal() {
 
     // Global slideshow toggle
     const globalToggleLabel = document.createElement('label');
-    globalToggleLabel.className = 'toggle-label';
+    globalToggleLabel.className = 'toggle-label text-xs grid grid-cols-[50px_auto] items-center text-white font-bold cursor-pointer gap-1';
     globalToggleLabel.textContent = 'Global: ';
     const globalToggleCheckbox = document.createElement('input');
     globalToggleCheckbox.type = 'checkbox';
