@@ -48,6 +48,10 @@ function initDatabase(dbPath) {
       last_updated TEXT
     );`);
 
+    db.exec(`CREATE TABLE IF NOT EXISTS media_directories (
+      path TEXT PRIMARY KEY
+    );`);
+
     console.log('[database-worker.js] SQLite database initialized at:', dbPath);
     return { success: true };
   } catch (error) {
@@ -190,6 +194,44 @@ function closeDatabase() {
   return { success: true };
 }
 
+/**
+ * Adds a new media directory path to the database.
+ * @param {string} directoryPath - The absolute path of the directory to add.
+ * @returns {{success: boolean, error?: string}}
+ */
+function addMediaDirectory(directoryPath) {
+  if (!db) {
+    return { success: false, error: 'Database not initialized' };
+  }
+  try {
+    const stmt = db.prepare('INSERT OR IGNORE INTO media_directories (path) VALUES (?)');
+    stmt.run(directoryPath);
+    console.log(`[database-worker.js] Added media directory: ${directoryPath}`);
+    return { success: true };
+  } catch (error) {
+    console.error(`[database-worker.js] Error adding media directory ${directoryPath}:`, error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Retrieves all media directory paths from the database.
+ * @returns {{success: boolean, data?: string[], error?: string}}
+ */
+function getMediaDirectories() {
+  if (!db) {
+    return { success: false, error: 'Database not initialized' };
+  }
+  try {
+    const rows = db.prepare('SELECT path FROM media_directories').all();
+    const paths = rows.map(row => row.path);
+    return { success: true, data: paths };
+  } catch (error) {
+    console.error('[database-worker.js] Error fetching media directories:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 // Message handler - receives commands from main thread
 parentPort.on('message', (message) => {
   const { id, type, payload } = message;
@@ -219,6 +261,14 @@ parentPort.on('message', (message) => {
 
     case 'close':
       result = closeDatabase();
+      break;
+
+    case 'addMediaDirectory':
+      result = addMediaDirectory(payload.directoryPath);
+      break;
+
+    case 'getMediaDirectories':
+      result = getMediaDirectories();
       break;
 
     default:

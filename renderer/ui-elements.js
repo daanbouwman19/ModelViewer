@@ -19,6 +19,12 @@ export const currentModelTitleElement = document.getElementById(
 );
 
 /**
+ * The `<button>` that opens a dialog to add a new media directory.
+ * @type {HTMLButtonElement | null}
+ */
+export const addMediaDirectoryButton = document.getElementById('add-media-directory-button');
+
+/**
  * The main `<div>` where images and videos are displayed.
  * @type {HTMLDivElement | null}
  */
@@ -104,4 +110,5 @@ export const criticalElements = {
   timerDurationInput,
   playPauseTimerButton,
   reindexLibraryButton,
+  addMediaDirectoryButton,
 };

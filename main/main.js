@@ -6,7 +6,7 @@
  */
 console.log('[main.js] Script started. Electron main process initializing...');
 
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -22,6 +22,8 @@ const {
   cacheModels,
   getCachedModels,
   closeDatabase,
+  getMediaDirectories,
+  addMediaDirectory,
 } = require('./database.js');
 const { performFullMediaScan } = require('./media-scanner.js');
 const {
@@ -100,10 +102,16 @@ async function scanDiskForModelsAndCache() {
   console.log(
     '[main.js] scanDiskForModelsAndCache called. Delegating to media-scanner and database.',
   );
-  // TODO: This base directory should be configurable by the user.
-  const baseMediaDirectory = 'D:\\test'; // Make sure this path is accessible or change it
 
-  const models = await performFullMediaScan(baseMediaDirectory);
+  const mediaDirectories = await getMediaDirectories();
+  if (!mediaDirectories || mediaDirectories.length === 0) {
+    console.log('[main.js] No media directories configured. Skipping scan.');
+    // Return early, but also ensure the cache is cleared of old data.
+    await cacheModels([]); // Cache an empty array
+    return [];
+  }
+
+  const models = await performFullMediaScan(mediaDirectories);
 
   if (!models || models.length === 0) {
     console.log('[main.js] Media scan returned no models.');
@@ -138,6 +146,43 @@ ipcMain.handle('get-models-with-view-counts', async () => {
     console.log('[main.js] No models found for get-models-with-view-counts.');
     return [];
   }
+  const allFilePaths = models.flatMap((model) =>
+    model.textures.map((texture) => texture.path),
+  );
+  const viewCountsMap = await getMediaViewCounts(allFilePaths);
+
+  return models.map((model) => ({
+    ...model,
+    textures: model.textures.map((texture) => ({
+      ...texture,
+      viewCount: viewCountsMap[texture.path] || 0,
+    })),
+  }));
+});
+
+ipcMain.handle('add-media-directory', async () => {
+  if (!mainWindow) {
+    return null;
+  }
+  const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory'],
+    title: 'Select Media Directory',
+  });
+
+  if (canceled || !filePaths || filePaths.length === 0) {
+    return null; // User cancelled
+  }
+
+  const newDirectory = filePaths[0];
+  await addMediaDirectory(newDirectory);
+
+  // After adding, trigger a full re-index and get the updated models
+  console.log('[main.js] New directory added. Re-indexing media library...');
+  const models = await scanDiskForModelsAndCache(); // This also handles caching
+  if (!models || models.length === 0) {
+    return [];
+  }
+
   const allFilePaths = models.flatMap((model) =>
     model.textures.map((texture) => texture.path),
   );

@@ -244,6 +244,35 @@ function setOperationTimeout(timeout) {
   operationTimeout = timeout;
 }
 
+/**
+ * Adds a new media directory to the database.
+ * @param {string} directoryPath - The absolute path of the directory.
+ * @returns {Promise<void>}
+ */
+async function addMediaDirectory(directoryPath) {
+  try {
+    await sendMessageToWorker('addMediaDirectory', { directoryPath });
+  } catch (error) {
+    console.error(`[database.js] Error adding media directory '${directoryPath}':`, error);
+    // Decide if this should re-throw or just log
+    throw error;
+  }
+}
+
+/**
+ * Retrieves all media directories from the database.
+ * @returns {Promise<string[]>} A list of all media directory paths.
+ */
+async function getMediaDirectories() {
+  try {
+    const directories = await sendMessageToWorker('getMediaDirectories');
+    return directories || [];
+  } catch (error) {
+    console.error('[database.js] Error getting media directories:', error);
+    return []; // Return empty array on error
+  }
+}
+
 module.exports = {
   initDatabase,
   recordMediaView,
@@ -252,4 +281,6 @@ module.exports = {
   getCachedModels,
   closeDatabase,
   setOperationTimeout,
+  addMediaDirectory,
+  getMediaDirectories,
 };

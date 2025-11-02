@@ -18,6 +18,7 @@ import {
   startGlobalSlideshowButton,
   playPauseTimerButton,
   reindexLibraryButton,
+  addMediaDirectoryButton,
   criticalElements,
 } from './ui-elements.js';
 
@@ -28,6 +29,7 @@ import {
   activateGlobalSlideshowHandler,
   handleReindex,
   handleKeydown,
+  handleAddMediaDirectory,
 } from './event-handlers.js';
 
 /**
@@ -78,6 +80,9 @@ async function initializeApp() {
     playPauseTimerButton.addEventListener('click', toggleSlideshowTimer);
   if (reindexLibraryButton)
     reindexLibraryButton.addEventListener('click', handleReindex);
+
+  if (addMediaDirectoryButton)
+    addMediaDirectoryButton.addEventListener('click', handleAddMediaDirectory);
 
   // Global keydown listener for keyboard shortcuts (e.g., arrow keys, spacebar).
   document.addEventListener('keydown', handleKeydown);

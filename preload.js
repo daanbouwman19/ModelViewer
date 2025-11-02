@@ -73,4 +73,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
    * @returns {Promise<Array<Model>>} A promise that resolves to the newly scanned array of model objects.
    */
   reindexMediaLibrary: () => ipcRenderer.invoke('reindex-media-library'),
+
+  /**
+   * Opens a dialog to select a new media directory, adds it to the database,
+   * and triggers a full re-index.
+   * @returns {Promise<Array<Model>|null>} A promise that resolves to the updated
+   * list of models, or null if the user cancels the dialog.
+   */
+  addMediaDirectory: () => ipcRenderer.invoke('add-media-directory'),
 });

@@ -55,6 +55,53 @@ function createToggleControl(labelText) {
 }
 
 /**
+ * Handles the "Add Media Directory" button click.
+ * This function invokes an IPC call to the main process to open a directory selection dialog.
+ * If a directory is added, it receives the updated list of all models and refreshes the UI.
+ * @async
+ */
+export async function handleAddMediaDirectory() {
+  console.log('Add Media Directory button clicked.');
+  stopSlideshowTimer(); // Stop any ongoing slideshow
+
+  try {
+    const updatedModels = await window.electronAPI.addMediaDirectory();
+
+    // If the main process returns null (e.g., user cancelled dialog), do nothing.
+    if (updatedModels === null) {
+      console.log('User cancelled the directory selection dialog.');
+      return;
+    }
+
+    // Replace the entire model list with the updated one from the main process.
+    state.allModels = updatedModels;
+    await populateModelsListUI_internal(); // Refresh the models list UI
+
+    // Reset application state to a clean slate
+    state.currentSelectedModelForIndividualView = null;
+    state.isGlobalSlideshowActive = false;
+    state.displayedMediaFiles = [];
+    state.currentMediaIndex = -1;
+    state.currentMediaItem = null;
+    state.globalMediaPoolForSelection = [];
+
+    clearMediaDisplay('New directory added. Select a model or start global slideshow.');
+    if (currentModelTitleElement) {
+      currentModelTitleElement.textContent = 'Select a model or start Global Slideshow';
+    }
+  } catch (error) {
+    console.error('Error adding media directory:', error);
+    clearMediaDisplay('Error adding directory. See console for details.');
+    if (currentModelTitleElement) {
+      currentModelTitleElement.textContent = 'Error Adding Directory';
+    }
+  } finally {
+    updateNavButtons(); // Ensure nav buttons are in the correct state
+  }
+}
+
+
+/**
  * Performs the initial loading of data when the application starts.
  * It fetches the list of models with their view counts from the main process,
  * populates the central state, and then calls the function to build the model list UI.
