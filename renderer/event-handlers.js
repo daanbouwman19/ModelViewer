@@ -31,6 +31,30 @@ import {
 } from './slideshow.js';
 
 /**
+ * Creates a toggle control with consistent styling.
+ * @param {string} labelText - The text label for the toggle.
+ * @returns {{label: HTMLLabelElement, checkbox: HTMLInputElement}} An object containing the label and checkbox elements.
+ */
+function createToggleControl(labelText) {
+  const label = document.createElement('label');
+  label.className =
+    'flex items-center space-x-1.5 text-xs text-white font-bold cursor-pointer';
+
+  const textSpan = document.createElement('span');
+  textSpan.className = 'inline-block w-12';
+  textSpan.textContent = labelText;
+  label.appendChild(textSpan);
+
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.className =
+    'h-4 w-4 rounded border-gray-500 bg-gray-700 text-cyan-500 shadow-sm focus:border-cyan-500 focus:ring focus:ring-offset-gray-800 focus:ring-cyan-600 focus:ring-opacity-50';
+  label.appendChild(checkbox);
+
+  return { label, checkbox };
+}
+
+/**
  * Performs the initial loading of data when the application starts.
  * It fetches the list of models with their view counts from the main process,
  * populates the central state, and then calls the function to build the model list UI.
@@ -102,9 +126,11 @@ async function populateModelsListUI_internal() {
   state.allModels.forEach((model) => {
     const listItem = document.createElement('li');
     listItem.dataset.modelName = model.name; // Store model name for identification
+    listItem.className =
+      'flex justify-between items-center px-4 py-2.5 rounded-md transition-all duration-200 ease-in-out border border-transparent mb-1.5 cursor-pointer';
 
     const modelNameSpan = document.createElement('span');
-    modelNameSpan.className = 'model-name-clickable';
+    modelNameSpan.className = 'flex-grow text-sm font-medium text-white mr-2.5';
     const fileCount = model.textures ? model.textures.length : 0;
     modelNameSpan.textContent = `${model.name} (${fileCount} files)`;
     modelNameSpan.addEventListener('click', () =>
@@ -114,14 +140,11 @@ async function populateModelsListUI_internal() {
 
     // Controls for random mode and global slideshow inclusion
     const controlsDiv = document.createElement('div');
-    controlsDiv.className = 'model-controls';
+    controlsDiv.className = 'flex flex-col items-start gap-1 ml-2.5';
 
     // Random toggle
-    const randomToggleLabel = document.createElement('label');
-    randomToggleLabel.className = 'toggle-label';
-    randomToggleLabel.textContent = 'Rand: ';
-    const randomToggleCheckbox = document.createElement('input');
-    randomToggleCheckbox.type = 'checkbox';
+    const { label: randomToggleLabel, checkbox: randomToggleCheckbox } =
+      createToggleControl('Rand:');
     // Initialize or use existing random mode setting for this model
     state.modelRandomModeSettings[model.name] =
       state.modelRandomModeSettings[model.name] || false;
@@ -148,15 +171,11 @@ async function populateModelsListUI_internal() {
         }
       }
     });
-    randomToggleLabel.appendChild(randomToggleCheckbox);
     controlsDiv.appendChild(randomToggleLabel);
 
     // Global slideshow toggle
-    const globalToggleLabel = document.createElement('label');
-    globalToggleLabel.className = 'toggle-label';
-    globalToggleLabel.textContent = 'Global: ';
-    const globalToggleCheckbox = document.createElement('input');
-    globalToggleCheckbox.type = 'checkbox';
+    const { label: globalToggleLabel, checkbox: globalToggleCheckbox } =
+      createToggleControl('Global:');
     // Initialize or use existing global selection setting (default to true)
     state.modelsSelectedForGlobal[model.name] =
       state.modelsSelectedForGlobal[model.name] === undefined
@@ -177,7 +196,6 @@ async function populateModelsListUI_internal() {
         activateGlobalSlideshowHandler();
       }
     });
-    globalToggleLabel.appendChild(globalToggleCheckbox);
     controlsDiv.appendChild(globalToggleLabel);
 
     listItem.appendChild(controlsDiv);
