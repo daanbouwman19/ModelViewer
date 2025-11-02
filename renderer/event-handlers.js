@@ -16,6 +16,7 @@ import {
   reindexLibraryButton,
   prevMediaButton,
   nextMediaButton,
+  filterButtons,
 } from './ui-elements.js';
 import {
   displayCurrentMedia,
@@ -64,6 +65,7 @@ export async function initialLoad() {
   try {
     state.allModels = await window.electronAPI.getModelsWithViewCounts();
     await populateModelsListUI_internal(); // Populates the model list in the UI
+    setupFilterButtonListeners_internal(); // Sets up the filter buttons
   } catch (error) {
     console.error(
       'Error during initial load of models with view counts:',
@@ -73,6 +75,30 @@ export async function initialLoad() {
       modelsListElement.innerHTML =
         '<li>Error loading models. Click Re-index.</li>';
   }
+}
+
+/**
+ * Sets up the event listeners for the media filter buttons.
+ */
+function setupFilterButtonListeners_internal() {
+  if (!filterButtons) return;
+  filterButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      // Update state and UI
+      state.currentMediaFilter = button.dataset.filter;
+      filterButtons.forEach((btn) => btn.classList.remove('active'));
+      button.classList.add('active');
+
+      // Re-apply the filter to the current view
+      if (state.isGlobalSlideshowActive) {
+        activateGlobalSlideshowHandler();
+      } else if (state.currentSelectedModelForIndividualView) {
+        selectModelForIndividualView(
+          state.currentSelectedModelForIndividualView,
+        );
+      }
+    });
+  });
 }
 
 /**

@@ -29,6 +29,7 @@ import {
   handleReindex,
   handleKeydown,
 } from './event-handlers.js';
+import { state } from './state.js';
 
 /**
  * The primary initialization function for the application's renderer process.
@@ -84,6 +85,7 @@ async function initializeApp() {
 
   // --- Application Initialization ---
   // Performs initial setup tasks like loading models and updating UI components.
+  state.supportedExtensions = await window.electronAPI.getSupportedExtensions();
   await initialLoad(); // Loads initial model data and populates the UI.
   updateNavButtons(); // Sets the initial state of navigation buttons.
 

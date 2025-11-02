@@ -73,4 +73,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
    * @returns {Promise<Array<Model>>} A promise that resolves to the newly scanned array of model objects.
    */
   reindexMediaLibrary: () => ipcRenderer.invoke('reindex-media-library'),
+
+  /**
+   * Retrieves the lists of supported file extensions.
+   * @returns {Promise<{images: string[], videos: string[], all: string[]}>} A promise that resolves to an object containing arrays of supported extensions.
+   */
+  getSupportedExtensions: () => ipcRenderer.invoke('get-supported-extensions'),
 });
