@@ -133,9 +133,18 @@ async function populateModelsListUI_internal() {
     modelNameSpan.className = 'flex-grow text-sm font-medium text-white mr-2.5';
     const fileCount = model.textures ? model.textures.length : 0;
     modelNameSpan.textContent = `${model.name} (${fileCount} files)`;
-    modelNameSpan.addEventListener('click', () =>
-      selectModelForIndividualView(model),
-    );
+    
+    // Attach click handler to the entire list item for better UX
+    listItem.addEventListener('click', (e) => {
+      // Don't trigger model selection if clicking on a checkbox or label
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'LABEL' || 
+          e.target.closest('label')) {
+        return;
+      }
+      console.log(`Model selected: ${model.name}`); // Debug logging
+      selectModelForIndividualView(model);
+    });
+    
     listItem.appendChild(modelNameSpan);
 
     // Controls for random mode and global slideshow inclusion
@@ -151,7 +160,6 @@ async function populateModelsListUI_internal() {
     randomToggleCheckbox.checked = state.modelRandomModeSettings[model.name];
     randomToggleCheckbox.title = `Play media from ${model.name} in random order`;
     randomToggleCheckbox.addEventListener('change', (e) => {
-      e.stopPropagation(); // Prevent li click event
       state.modelRandomModeSettings[model.name] = e.target.checked;
       // If this model is currently selected for individual view, update its playlist
       if (
@@ -188,7 +196,6 @@ async function populateModelsListUI_internal() {
     );
     globalToggleCheckbox.title = `Include ${model.name} in Global Slideshow`;
     globalToggleCheckbox.addEventListener('change', (e) => {
-      e.stopPropagation(); // Prevent li click event
       state.modelsSelectedForGlobal[model.name] = e.target.checked;
       listItem.classList.toggle('selected-for-global', e.target.checked);
       // If global slideshow is active, refresh it to reflect changes
