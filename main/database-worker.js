@@ -229,11 +229,19 @@ function getMediaDirectories() {
     return { success: false, error: 'Database not initialized' };
   }
   try {
-    const rows = db.prepare('SELECT path, is_active FROM media_directories').all();
-    const directories = rows.map(row => ({ path: row.path, isActive: !!row.is_active }));
+    const rows = db
+      .prepare('SELECT path, is_active FROM media_directories')
+      .all();
+    const directories = rows.map((row) => ({
+      path: row.path,
+      isActive: !!row.is_active,
+    }));
     return { success: true, data: directories };
   } catch (error) {
-    console.error('[database-worker.js] Error fetching media directories:', error);
+    console.error(
+      '[database-worker.js] Error fetching media directories:',
+      error,
+    );
     return { success: false, error: error.message };
   }
 }
@@ -250,10 +258,15 @@ function removeMediaDirectory(directoryPath) {
   try {
     const stmt = db.prepare('DELETE FROM media_directories WHERE path = ?');
     stmt.run(directoryPath);
-    console.log(`[database-worker.js] Removed media directory: ${directoryPath}`);
+    console.log(
+      `[database-worker.js] Removed media directory: ${directoryPath}`,
+    );
     return { success: true };
   } catch (error) {
-    console.error(`[database-worker.js] Error removing media directory ${directoryPath}:`, error);
+    console.error(
+      `[database-worker.js] Error removing media directory ${directoryPath}:`,
+      error,
+    );
     return { success: false, error: error.message };
   }
 }
@@ -269,12 +282,19 @@ function setDirectoryActiveState(directoryPath, isActive) {
     return { success: false, error: 'Database not initialized' };
   }
   try {
-    const stmt = db.prepare('UPDATE media_directories SET is_active = ? WHERE path = ?');
+    const stmt = db.prepare(
+      'UPDATE media_directories SET is_active = ? WHERE path = ?',
+    );
     stmt.run(isActive ? 1 : 0, directoryPath);
-    console.log(`[database-worker.js] Set directory ${directoryPath} active state to ${isActive}`);
+    console.log(
+      `[database-worker.js] Set directory ${directoryPath} active state to ${isActive}`,
+    );
     return { success: true };
   } catch (error) {
-    console.error(`[database-worker.js] Error updating active state for ${directoryPath}:`, error);
+    console.error(
+      `[database-worker.js] Error updating active state for ${directoryPath}:`,
+      error,
+    );
     return { success: false, error: error.message };
   }
 }

@@ -87,7 +87,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
    * @param {string} directoryPath - The path of the directory to remove.
    * @returns {Promise<void>}
    */
-  removeMediaDirectory: (directoryPath) => ipcRenderer.invoke('remove-media-directory', directoryPath),
+  removeMediaDirectory: (directoryPath) =>
+    ipcRenderer.invoke('remove-media-directory', directoryPath),
 
   /**
    * Sets the active state of a media directory.
@@ -95,7 +96,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
    * @param {boolean} isActive - The new active state.
    * @returns {Promise<void>}
    */
-  setDirectoryActiveState: (directoryPath, isActive) => ipcRenderer.invoke('set-directory-active-state', { directoryPath, isActive }),
+  setDirectoryActiveState: (directoryPath, isActive) =>
+    ipcRenderer.invoke('set-directory-active-state', {
+      directoryPath,
+      isActive,
+    }),
 
   /**
    * Retrieves the list of all media directories.

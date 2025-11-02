@@ -73,15 +73,28 @@ async function performFullMediaScan(baseMediaDirectories) {
 
       // --- New: Scan for files directly in the base directory ---
       const rootDirName = path.basename(baseDir);
-      const rootFiles = fs.readdirSync(baseDir, { withFileTypes: true })
-        .filter(dirent => dirent.isFile() && ALL_SUPPORTED_EXTENSIONS.includes(path.extname(dirent.name).toLowerCase()))
-        .map(dirent => ({ name: dirent.name, path: path.join(baseDir, dirent.name) }));
+      const rootFiles = fs
+        .readdirSync(baseDir, { withFileTypes: true })
+        .filter(
+          (dirent) =>
+            dirent.isFile() &&
+            ALL_SUPPORTED_EXTENSIONS.includes(
+              path.extname(dirent.name).toLowerCase(),
+            ),
+        )
+        .map((dirent) => ({
+          name: dirent.name,
+          path: path.join(baseDir, dirent.name),
+        }));
 
       if (rootFiles.length > 0) {
         if (modelsMap.has(rootDirName)) {
           modelsMap.get(rootDirName).textures.push(...rootFiles);
         } else {
-          modelsMap.set(rootDirName, { name: rootDirName, textures: rootFiles });
+          modelsMap.set(rootDirName, {
+            name: rootDirName,
+            textures: rootFiles,
+          });
         }
       }
       // --- End New ---

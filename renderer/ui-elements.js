@@ -96,7 +96,9 @@ export const reindexLibraryButton = document.getElementById(
  * The `<button>` that opens the sources management modal.
  * @type {HTMLButtonElement | null}
  */
-export const manageSourcesButton = document.getElementById('manage-sources-button');
+export const manageSourcesButton = document.getElementById(
+  'manage-sources-button',
+);
 
 /**
  * The main container `<div>` for the sources management modal.

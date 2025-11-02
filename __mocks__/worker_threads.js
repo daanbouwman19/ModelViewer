@@ -128,7 +128,10 @@ class MockWorker extends EventEmitter {
             break;
 
           case 'addMediaDirectory':
-            mockStore.mediaDirectories.push({ path: payload.directoryPath, isActive: true });
+            mockStore.mediaDirectories.push({
+              path: payload.directoryPath,
+              isActive: true,
+            });
             result = { success: true };
             break;
 
@@ -137,12 +140,16 @@ class MockWorker extends EventEmitter {
             break;
 
           case 'removeMediaDirectory':
-            mockStore.mediaDirectories = mockStore.mediaDirectories.filter(dir => dir.path !== payload.directoryPath);
+            mockStore.mediaDirectories = mockStore.mediaDirectories.filter(
+              (dir) => dir.path !== payload.directoryPath,
+            );
             result = { success: true };
             break;
 
           case 'setDirectoryActiveState':
-            const dir = mockStore.mediaDirectories.find(d => d.path === payload.directoryPath);
+            const dir = mockStore.mediaDirectories.find(
+              (d) => d.path === payload.directoryPath,
+            );
             if (dir) {
               dir.isActive = payload.isActive;
             }

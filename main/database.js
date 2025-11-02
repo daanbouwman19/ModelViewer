@@ -285,7 +285,10 @@ async function removeMediaDirectory(directoryPath) {
   try {
     await sendMessageToWorker('removeMediaDirectory', { directoryPath });
   } catch (error) {
-    console.error(`[database.js] Error removing media directory '${directoryPath}':`, error);
+    console.error(
+      `[database.js] Error removing media directory '${directoryPath}':`,
+      error,
+    );
     throw error;
   }
 }
@@ -298,9 +301,15 @@ async function removeMediaDirectory(directoryPath) {
  */
 async function setDirectoryActiveState(directoryPath, isActive) {
   try {
-    await sendMessageToWorker('setDirectoryActiveState', { directoryPath, isActive });
+    await sendMessageToWorker('setDirectoryActiveState', {
+      directoryPath,
+      isActive,
+    });
   } catch (error) {
-    console.error(`[database.js] Error setting active state for '${directoryPath}':`, error);
+    console.error(
+      `[database.js] Error setting active state for '${directoryPath}':`,
+      error,
+    );
     throw error;
   }
 }

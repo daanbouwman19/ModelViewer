@@ -138,7 +138,7 @@ async function populateMediaSourcesList() {
     return;
   }
 
-  directories.forEach(dir => {
+  directories.forEach((dir) => {
     const listItem = document.createElement('li');
     listItem.className = 'flex items-center justify-between p-1';
 
@@ -146,7 +146,10 @@ async function populateMediaSourcesList() {
     checkbox.type = 'checkbox';
     checkbox.checked = dir.isActive;
     checkbox.addEventListener('change', async () => {
-      await window.electronAPI.setDirectoryActiveState(dir.path, checkbox.checked);
+      await window.electronAPI.setDirectoryActiveState(
+        dir.path,
+        checkbox.checked,
+      );
       handleReindex();
     });
     listItem.appendChild(checkbox);

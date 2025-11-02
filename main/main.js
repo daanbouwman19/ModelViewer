@@ -106,10 +106,14 @@ async function scanDiskForModelsAndCache() {
   );
 
   const allDirectories = await getMediaDirectories();
-  const activeDirectories = allDirectories.filter(dir => dir.isActive).map(dir => dir.path);
+  const activeDirectories = allDirectories
+    .filter((dir) => dir.isActive)
+    .map((dir) => dir.path);
 
   if (!activeDirectories || activeDirectories.length === 0) {
-    console.log('[main.js] No active media directories configured. Skipping scan.');
+    console.log(
+      '[main.js] No active media directories configured. Skipping scan.',
+    );
     await cacheModels([]);
     return [];
   }
@@ -226,10 +230,13 @@ ipcMain.handle('remove-media-directory', async (event, directoryPath) => {
   // No need to return anything, the frontend will trigger a re-index.
 });
 
-ipcMain.handle('set-directory-active-state', async (event, { directoryPath, isActive }) => {
-  await setDirectoryActiveState(directoryPath, isActive);
-  // No need to return anything, the frontend will trigger a re-index.
-});
+ipcMain.handle(
+  'set-directory-active-state',
+  async (event, { directoryPath, isActive }) => {
+    await setDirectoryActiveState(directoryPath, isActive);
+    // No need to return anything, the frontend will trigger a re-index.
+  },
+);
 
 ipcMain.handle('get-media-directories', async () => {
   return getMediaDirectories();
