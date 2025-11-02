@@ -1,18 +1,23 @@
 const { FusesPlugin } = require('@electron-forge/plugin-fuses');
 const { FuseV1Options, FuseVersion } = require('@electron/fuses');
+const { AutoUnpackNativesPlugin } = require('@electron-forge/plugin-auto-unpack-natives');
 
 module.exports = {
   packagerConfig: {
-    asar: true,
-    icon: './build/icon',
+    asar: {
+      unpack: '**/*.{node,dll}',
+    },
   },
-  rebuildConfig: {},
+  rebuildConfig: {
+    onlyModules: ['better-sqlite3'],
+  },
   makers: [
     {
       name: '@electron-forge/maker-squirrel',
       config: {
-        iconUrl: 'https://example.com/icon.ico',
-        setupIcon: './build/icon.ico',
+        // Removed icon references - no icon file exists
+        // iconUrl: 'https://example.com/icon.ico',
+        // setupIcon: './build/icon.ico',
       },
     },
     {
@@ -29,6 +34,9 @@ module.exports = {
     },
   ],
   plugins: [
+    new AutoUnpackNativesPlugin({
+      moduleNames: ['better-sqlite3'],
+    }),
     {
       name: '@electron-forge/plugin-vite',
       config: {
