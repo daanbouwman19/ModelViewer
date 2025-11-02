@@ -271,15 +271,30 @@ describe('Main Process', () => {
       return call[1];
     };
 
-    it('should initialize database and start server on ready', () => {
+    it('should initialize database and start server on ready', async () => {
       const { initDatabase } = require('../main/database.js');
       const { startLocalServer } = require('../main/local-server.js');
       const readyHandler = getAppEventHandler('ready');
 
-      readyHandler();
+      await readyHandler();
 
       expect(initDatabase).toHaveBeenCalled();
       expect(startLocalServer).toHaveBeenCalled();
+    });
+
+    it('should quit the app if database initialization fails', async () => {
+      const { app } = require('electron');
+      const { initDatabase } = require('../main/database.js');
+      const { startLocalServer } = require('../main/local-server.js');
+      const readyHandler = getAppEventHandler('ready');
+
+      initDatabase.mockRejectedValue(new Error('DB init failed'));
+
+      await readyHandler();
+
+      expect(initDatabase).toHaveBeenCalled();
+      expect(startLocalServer).not.toHaveBeenCalled();
+      expect(app.quit).toHaveBeenCalled();
     });
 
     it('should quit the app on window-all-closed (non-macOS)', () => {
