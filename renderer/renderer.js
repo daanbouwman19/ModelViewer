@@ -19,6 +19,8 @@ import {
   playPauseTimerButton,
   reindexLibraryButton,
   addMediaDirectoryButton,
+  manageSourcesButton,
+  closeModalButton,
   criticalElements,
 } from './ui-elements.js';
 
@@ -30,6 +32,8 @@ import {
   handleReindex,
   handleKeydown,
   handleAddMediaDirectory,
+  openSourcesModal,
+  closeSourcesModal,
 } from './event-handlers.js';
 
 /**
@@ -83,6 +87,12 @@ async function initializeApp() {
 
   if (addMediaDirectoryButton)
     addMediaDirectoryButton.addEventListener('click', handleAddMediaDirectory);
+
+  if (manageSourcesButton)
+    manageSourcesButton.addEventListener('click', openSourcesModal);
+
+  if (closeModalButton)
+    closeModalButton.addEventListener('click', closeSourcesModal);
 
   // Global keydown listener for keyboard shortcuts (e.g., arrow keys, spacebar).
   document.addEventListener('keydown', handleKeydown);

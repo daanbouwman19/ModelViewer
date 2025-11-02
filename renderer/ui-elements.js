@@ -93,6 +93,24 @@ export const reindexLibraryButton = document.getElementById(
 );
 
 /**
+ * The `<button>` that opens the sources management modal.
+ * @type {HTMLButtonElement | null}
+ */
+export const manageSourcesButton = document.getElementById('manage-sources-button');
+
+/**
+ * The main container `<div>` for the sources management modal.
+ * @type {HTMLDivElement | null}
+ */
+export const sourcesModal = document.getElementById('sources-modal');
+
+/**
+ * The `<button>` inside the modal to close it.
+ * @type {HTMLButtonElement | null}
+ */
+export const closeModalButton = document.getElementById('close-modal-button');
+
+/**
  * An object containing references to all critical UI elements.
  * This is used for an initial check in `renderer.js` to ensure the application
  * can start up correctly. If any of these elements are missing, the application
@@ -111,7 +129,10 @@ export const criticalElements = {
   startGlobalSlideshowButton,
   timerDurationInput,
   playPauseTimerButton,
-  reindexLibraryButton,
+  manageSourcesButton,
+  sourcesModal,
+  closeModalButton,
   addMediaDirectoryButton,
+  reindexLibraryButton,
   mediaSourcesListElement: document.getElementById('media-sources-list'),
 };

@@ -16,6 +16,7 @@ import {
   reindexLibraryButton,
   prevMediaButton,
   nextMediaButton,
+  sourcesModal,
 } from './ui-elements.js';
 import {
   displayCurrentMedia,
@@ -52,6 +53,24 @@ function createToggleControl(labelText) {
   label.appendChild(checkbox);
 
   return { label, checkbox };
+}
+
+/**
+ * Opens the media sources management modal.
+ */
+export function openSourcesModal() {
+  if (sourcesModal) {
+    sourcesModal.classList.remove('hidden');
+  }
+}
+
+/**
+ * Closes the media sources management modal.
+ */
+export function closeSourcesModal() {
+  if (sourcesModal) {
+    sourcesModal.classList.add('hidden');
+  }
 }
 
 /**
