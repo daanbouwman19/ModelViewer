@@ -133,7 +133,7 @@ async function populateModelsListUI_internal() {
     modelNameSpan.className = 'flex-grow text-sm font-medium text-white mr-2.5';
     const fileCount = model.textures ? model.textures.length : 0;
     modelNameSpan.textContent = `${model.name} (${fileCount} files)`;
-    
+
     // Attach click handler to the entire list item for better UX
     listItem.addEventListener('click', (e) => {
       // The controls div is the second child of the list item.
@@ -144,7 +144,7 @@ async function populateModelsListUI_internal() {
       }
       selectModelForIndividualView(model);
     });
-    
+
     listItem.appendChild(modelNameSpan);
 
     // Controls for random mode and global slideshow inclusion
