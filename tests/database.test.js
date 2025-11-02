@@ -104,7 +104,7 @@ describe('database.js with Worker Thread', () => {
           Worker.__resetConfig();
         }, 5000);
 
-        it('should reject with a timeout error', async () => {
+        it('should resolve with null on timeout', async () => {
           Worker.__setConfig({ shouldTimeout: true });
           database.setOperationTimeout(100); // 100ms timeout
 

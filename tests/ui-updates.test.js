@@ -70,7 +70,11 @@ describe('ui-updates.js', () => {
     });
 
     it('should display an image', async () => {
-      state.currentMediaItem = { name: 'test.jpg', path: '/test.jpg', viewCount: 0 };
+      state.currentMediaItem = {
+        name: 'test.jpg',
+        path: '/test.jpg',
+        viewCount: 0,
+      };
       mockElectronAPI.loadFileAsDataURL.mockResolvedValue({
         type: 'success',
         url: 'data:image/jpeg;base64,...',
@@ -84,7 +88,11 @@ describe('ui-updates.js', () => {
     });
 
     it('should display a video', async () => {
-      state.currentMediaItem = { name: 'test.mp4', path: '/test.mp4', viewCount: 0 };
+      state.currentMediaItem = {
+        name: 'test.mp4',
+        path: '/test.mp4',
+        viewCount: 0,
+      };
       mockElectronAPI.loadFileAsDataURL.mockResolvedValue({
         type: 'success',
         url: 'data:video/mp4;base64,...',
@@ -107,15 +115,19 @@ describe('ui-updates.js', () => {
       await uiUpdates.displayCurrentMedia();
 
       // The error message is set inside mediaDisplayArea, not mediaPlaceholder
-      expect(uiElements.mediaDisplayArea.innerHTML).toContain('Error loading: bad.jpg');
+      expect(uiElements.mediaDisplayArea.innerHTML).toContain(
+        'Error loading: bad.jpg',
+      );
     });
 
     it('should clear display if no media item is set', async () => {
-        state.currentMediaItem = null;
-        await uiUpdates.displayCurrentMedia();
-        expect(uiElements.mediaDisplayArea.innerHTML).toBe('');
-        expect(uiElements.mediaPlaceholder.textContent).toBe('No media selected.');
-      });
+      state.currentMediaItem = null;
+      await uiUpdates.displayCurrentMedia();
+      expect(uiElements.mediaDisplayArea.innerHTML).toBe('');
+      expect(uiElements.mediaPlaceholder.textContent).toBe(
+        'No media selected.',
+      );
+    });
   });
 
   describe('clearMediaDisplay', () => {
@@ -166,10 +178,10 @@ describe('ui-updates.js', () => {
     });
 
     it('should disable next button in global slideshow mode if pool is empty', () => {
-        state.isGlobalSlideshowActive = true;
-        state.globalMediaPoolForSelection = []; // Pool is empty
-        uiUpdates.updateNavButtons();
-        expect(uiElements.nextMediaButton.disabled).toBe(true);
-      });
+      state.isGlobalSlideshowActive = true;
+      state.globalMediaPoolForSelection = []; // Pool is empty
+      uiUpdates.updateNavButtons();
+      expect(uiElements.nextMediaButton.disabled).toBe(true);
+    });
   });
 });
