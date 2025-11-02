@@ -70,21 +70,22 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Rebuild native modules for Electron
-        run: npm run rebuild
+      - name: Package Electron app
+        run: npm run package
 
-      - name: Build Electron app
-        run: npm run dist
-        env:
-          GH_TOKEN: ''
+      - name: Make distributables
+        run: npm run make
+
+      - name: Make distributables
+        run: npm run make
 
       - name: Verify build artifacts
         shell: bash
         run: |
           if [ "$RUNNER_OS" == "Linux" ]; then
-            ls -lh dist/*.AppImage 2>/dev/null || ls -lh dist/*.deb 2>/dev/null || echo "No Linux artifacts found"
+            ls -lh out/make/**/*.deb 2>/dev/null || ls -lh out/make/**/*.rpm 2>/dev/null || echo "No Linux artifacts found"
           elif [ "$RUNNER_OS" == "Windows" ]; then
-            ls -lh dist/*.exe 2>/dev/null || echo "No Windows artifacts found"
+            ls -lh out/make/**/*.exe 2>/dev/null || echo "No Windows artifacts found"
           fi
 
   electron-smoke-test:
@@ -126,16 +127,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Rebuild native modules for Electron
-        run: npm run rebuild
-
       - name: Start Electron app (Linux)
         if: runner.os == 'Linux'
         run: |
           export DISPLAY=:99
           Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
           # Run Electron with --no-sandbox flag for CI environment
-          timeout 15s npx electron . --no-sandbox || if [ $? -eq 124 ]; then echo "App started successfully"; exit 0; else exit 1; fi
+          timeout 15s npm start -- --no-sandbox || if [ $? -eq 124 ]; then echo "App started successfully"; exit 0; else exit 1; fi
 
       - name: Start Electron app (Windows)
         if: runner.os == 'Windows'

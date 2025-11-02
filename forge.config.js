@@ -1,6 +1,10 @@
 const { FusesPlugin } = require('@electron-forge/plugin-fuses');
 const { FuseV1Options, FuseVersion } = require('@electron/fuses');
-const { AutoUnpackNativesPlugin } = require('@electron-forge/plugin-auto-unpack-natives');
+const {
+  AutoUnpackNativesPlugin,
+} = require('@electron-forge/plugin-auto-unpack-natives');
+const { join, dirname } = require('path');
+const { copy, mkdirs } = require('fs-extra');
 
 module.exports = {
   packagerConfig: {
@@ -14,11 +18,7 @@ module.exports = {
   makers: [
     {
       name: '@electron-forge/maker-squirrel',
-      config: {
-        // Removed icon references - no icon file exists
-        // iconUrl: 'https://example.com/icon.ico',
-        // setupIcon: './build/icon.ico',
-      },
+      config: {},
     },
     {
       name: '@electron-forge/maker-zip',
@@ -44,7 +44,6 @@ module.exports = {
         // If you are familiar with Vite configuration, it will look really familiar.
         build: [
           {
-            // `entry` is just an alias for `build.lib.entry` in the corresponding file of `config`.
             entry: 'src/main/main.js',
             config: 'vite.main.config.mjs',
             target: 'main',
@@ -88,8 +87,6 @@ module.exports = {
         ],
       },
     },
-    // Fuses are used to enable/disable various Electron functionality
-    // at package time, before code signing the application
     new FusesPlugin({
       version: FuseVersion.V1,
       [FuseV1Options.RunAsNode]: false,
@@ -100,4 +97,38 @@ module.exports = {
       [FuseV1Options.OnlyLoadAppFromAsar]: true,
     }),
   ],
+  hooks: {
+    packageAfterCopy: async (
+      config,
+      buildPath,
+      electronVersion,
+      platform,
+      arch,
+    ) => {
+      console.log(
+        'Running packageAfterCopy hook to copy worker dependencies...',
+      );
+      const requiredWorkerPackages = [
+        'better-sqlite3',
+        'bindings',
+        'file-uri-to-path',
+      ];
+
+      const sourceNodeModulesPath = join(process.cwd(), 'node_modules');
+      const destNodeModulesPath = join(buildPath, 'node_modules');
+
+      for (const packageName of requiredWorkerPackages) {
+        const sourcePath = join(sourceNodeModulesPath, packageName);
+        const destPath = join(destNodeModulesPath, packageName);
+
+        console.log(`Copying ${sourcePath} to ${destPath}`);
+        await mkdirs(dirname(destPath)); // Ensure parent dir exists
+        await copy(sourcePath, destPath, {
+          recursive: true,
+          preserveTimestamps: true,
+        });
+      }
+      console.log('Finished copying worker dependencies.');
+    },
+  },
 };
