@@ -64,6 +64,11 @@ describe('database.js with Worker Thread', () => {
         const counts = await database.getMediaViewCounts([filePath]);
         expect(counts[filePath]).toBe(1);
       });
+
+      it('should return an empty object for an empty file list', async () => {
+        const counts = await database.getMediaViewCounts([]);
+        expect(counts).toEqual({});
+      });
     });
 
     describe('cacheModels and getCachedModels', () => {
@@ -96,6 +101,14 @@ describe('database.js with Worker Thread', () => {
           const result = await database.getCachedModels();
           expect(result).toBeNull(); // Should return null on error
 
+          Worker.__resetConfig();
+        }, 5000);
+
+        it('should resolve with null on timeout', async () => {
+          Worker.__setConfig({ shouldTimeout: true });
+          database.setOperationTimeout(100); // 100ms timeout
+
+          await expect(database.getCachedModels()).resolves.toBeNull();
           Worker.__resetConfig();
         }, 5000);
       });
@@ -200,6 +213,13 @@ describe('database.js with Worker Thread', () => {
           await database.closeDatabase();
           // Closing again should not throw an error
           await expect(database.closeDatabase()).resolves.not.toThrow();
+        });
+
+        it('should terminate the worker when closing the database', async () => {
+          const worker = Worker.__getWorker();
+          jest.spyOn(worker, 'terminate');
+          await database.closeDatabase();
+          expect(worker.terminate).toHaveBeenCalled();
         });
       });
     });

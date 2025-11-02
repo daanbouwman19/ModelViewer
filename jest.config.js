@@ -26,4 +26,13 @@ module.exports = {
    * @type {number}
    */
   testTimeout: 10000, // Increase timeout to 10 seconds
+
+  /**
+   * A map from regular expressions to paths to transformers.
+   * This tells Jest to use babel-jest to transform JavaScript files.
+   * @type {Object<string, string>}
+   */
+  transform: {
+    '^.+\\.js$': 'babel-jest',
+  },
 };
