@@ -9,6 +9,7 @@ const EventEmitter = require('events');
 let mockStore = {
   mediaViews: {},
   appCache: {},
+  mediaDirectories: [],
 };
 
 // Configuration for error simulation
@@ -126,6 +127,35 @@ class MockWorker extends EventEmitter {
             result = { success: true };
             break;
 
+          case 'addMediaDirectory':
+            mockStore.mediaDirectories.push({
+              path: payload.directoryPath,
+              isActive: true,
+            });
+            result = { success: true };
+            break;
+
+          case 'getMediaDirectories':
+            result = { success: true, data: mockStore.mediaDirectories };
+            break;
+
+          case 'removeMediaDirectory':
+            mockStore.mediaDirectories = mockStore.mediaDirectories.filter(
+              (dir) => dir.path !== payload.directoryPath,
+            );
+            result = { success: true };
+            break;
+
+          case 'setDirectoryActiveState':
+            const dir = mockStore.mediaDirectories.find(
+              (d) => d.path === payload.directoryPath,
+            );
+            if (dir) {
+              dir.isActive = payload.isActive;
+            }
+            result = { success: true };
+            break;
+
           default:
             result = { success: false, error: `Unknown message type: ${type}` };
         }
@@ -160,6 +190,7 @@ MockWorker.__resetStore = function () {
   mockStore = {
     mediaViews: {},
     appCache: {},
+    mediaDirectories: [],
   };
 };
 

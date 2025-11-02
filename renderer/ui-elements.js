@@ -19,6 +19,14 @@ export const currentModelTitleElement = document.getElementById(
 );
 
 /**
+ * The `<button>` that opens a dialog to add a new media directory.
+ * @type {HTMLButtonElement | null}
+ */
+export const addMediaDirectoryButton = document.getElementById(
+  'add-media-directory-button',
+);
+
+/**
  * The main `<div>` where images and videos are displayed.
  * @type {HTMLDivElement | null}
  */
@@ -85,6 +93,26 @@ export const reindexLibraryButton = document.getElementById(
 );
 
 /**
+ * The `<button>` that opens the sources management modal.
+ * @type {HTMLButtonElement | null}
+ */
+export const manageSourcesButton = document.getElementById(
+  'manage-sources-button',
+);
+
+/**
+ * The main container `<div>` for the sources management modal.
+ * @type {HTMLDivElement | null}
+ */
+export const sourcesModal = document.getElementById('sources-modal');
+
+/**
+ * The `<button>` inside the modal to close it.
+ * @type {HTMLButtonElement | null}
+ */
+export const closeModalButton = document.getElementById('close-modal-button');
+
+/**
  * A NodeList of all filter buttons ('All', 'Images', 'Videos').
  * @type {NodeListOf<HTMLButtonElement> | null}
  */
@@ -109,5 +137,10 @@ export const criticalElements = {
   startGlobalSlideshowButton,
   timerDurationInput,
   playPauseTimerButton,
+  manageSourcesButton,
+  sourcesModal,
+  closeModalButton,
+  addMediaDirectoryButton,
   reindexLibraryButton,
+  mediaSourcesListElement: document.getElementById('media-sources-list'),
 };

@@ -46,55 +46,96 @@ function findAllMediaFiles(directoryPath, mediaFilesList = []) {
 }
 
 /**
- * Performs a full scan of the base media directory to find models and their associated media files.
- * A model is assumed to be a subfolder in the baseMediaDirectory.
- * @param {string} baseMediaDirectory - The root directory to scan for models.
+ * Performs a full scan across multiple base media directories to find models and their media files.
+ * Models with the same name from different base directories will be merged.
+ * @param {string[]} baseMediaDirectories - An array of root directories to scan.
  * @returns {Promise<Array<Object>>} A promise that resolves to an array of model objects.
- * Each model object has a 'name' and 'textures' (array of media files).
  * Returns an empty array if the scan fails or no models are found.
  */
-async function performFullMediaScan(baseMediaDirectory) {
+async function performFullMediaScan(baseMediaDirectories) {
   if (process.env.NODE_ENV !== 'test') {
     console.log(
-      `[media-scanner.js] Starting disk scan in ${baseMediaDirectory}...`,
+      `[media-scanner.js] Starting disk scan in directories:`,
+      baseMediaDirectories,
     );
   }
-  const models = [];
+  const modelsMap = new Map();
   try {
-    if (!fs.existsSync(baseMediaDirectory)) {
-      if (process.env.NODE_ENV !== 'test') {
-        console.error(
-          `[media-scanner.js] Base media directory not found: ${baseMediaDirectory}`,
-        );
+    for (const baseDir of baseMediaDirectories) {
+      if (!fs.existsSync(baseDir)) {
+        if (process.env.NODE_ENV !== 'test') {
+          console.error(
+            `[media-scanner.js] Media directory not found: ${baseDir}`,
+          );
+        }
+        continue; // Skip non-existent directories
       }
-      return []; // Return empty if base directory doesn't exist
-    }
 
-    const modelFolders = fs
-      .readdirSync(baseMediaDirectory, { withFileTypes: true })
-      .filter((dirent) => dirent.isDirectory())
-      .map((dirent) => dirent.name);
+      // --- New: Scan for files directly in the base directory ---
+      const rootDirName = path.basename(baseDir);
+      const rootFiles = fs
+        .readdirSync(baseDir, { withFileTypes: true })
+        .filter(
+          (dirent) =>
+            dirent.isFile() &&
+            ALL_SUPPORTED_EXTENSIONS.includes(
+              path.extname(dirent.name).toLowerCase(),
+            ),
+        )
+        .map((dirent) => ({
+          name: dirent.name,
+          path: path.join(baseDir, dirent.name),
+        }));
 
-    for (const folderName of modelFolders) {
-      const modelPath = path.join(baseMediaDirectory, folderName);
-      const filesInModelFolder = findAllMediaFiles(modelPath); // Scan this model's folder
-      if (filesInModelFolder.length > 0) {
-        models.push({ name: folderName, textures: filesInModelFolder });
+      if (rootFiles.length > 0) {
+        if (modelsMap.has(rootDirName)) {
+          modelsMap.get(rootDirName).textures.push(...rootFiles);
+        } else {
+          modelsMap.set(rootDirName, {
+            name: rootDirName,
+            textures: rootFiles,
+          });
+        }
+      }
+      // --- End New ---
+
+      const modelFolders = fs
+        .readdirSync(baseDir, { withFileTypes: true })
+        .filter((dirent) => dirent.isDirectory())
+        .map((dirent) => dirent.name);
+
+      for (const folderName of modelFolders) {
+        const modelPath = path.join(baseDir, folderName);
+        const filesInModelFolder = findAllMediaFiles(modelPath);
+
+        if (filesInModelFolder.length > 0) {
+          if (modelsMap.has(folderName)) {
+            // If model exists, merge textures
+            const existingModel = modelsMap.get(folderName);
+            existingModel.textures.push(...filesInModelFolder);
+          } else {
+            // Otherwise, create a new model entry
+            modelsMap.set(folderName, {
+              name: folderName,
+              textures: filesInModelFolder,
+            });
+          }
+        }
       }
     }
-
+    const models = Array.from(modelsMap.values());
     if (process.env.NODE_ENV !== 'test') {
       console.log(
         `[media-scanner.js] Found ${models.length} models during scan.`,
       );
     }
+    return models;
   } catch (e) {
     if (process.env.NODE_ENV !== 'test') {
       console.error(`[media-scanner.js] Error scanning disk for models:`, e);
     }
     return []; // Return empty array on error
   }
-  return models;
 }
 
 module.exports = {

@@ -33,7 +33,7 @@ describe('media-scanner.js', () => {
     // └── file_not_folder.txt
 
     if (fs.existsSync(TEST_MEDIA_DIR)) {
-      fs.rmSync(TEST_MEDIA_DIR, { recursive: true, force: true });
+      fs.rmSync(TEST_MEDIA_DIR, { recursive: true });
     }
     fs.mkdirSync(TEST_MEDIA_DIR);
 
@@ -53,13 +53,17 @@ describe('media-scanner.js', () => {
 
     // Non-folder item at root of test media dir
     createDummyFile(path.join(TEST_MEDIA_DIR, 'file_not_folder.txt'));
+
+    // Files in root of TEST_MEDIA_DIR
+    createDummyFile(path.join(TEST_MEDIA_DIR, 'root_image.jpg'));
+    createDummyFile(path.join(TEST_MEDIA_DIR, 'root_video.mkv'));
     process.env.NODE_ENV = 'test'; // Suppress console logs from scanner
   });
 
   afterAll(() => {
     // Clean up the test directory
     if (fs.existsSync(TEST_MEDIA_DIR)) {
-      fs.rmSync(TEST_MEDIA_DIR, { recursive: true, force: true });
+      fs.rmSync(TEST_MEDIA_DIR, { recursive: true });
     }
     delete process.env.NODE_ENV;
   });
@@ -146,8 +150,12 @@ describe('media-scanner.js', () => {
 
   describe('performFullMediaScan', () => {
     it('should perform a full scan and identify models with their media files', async () => {
-      const models = await performFullMediaScan(TEST_MEDIA_DIR);
-      expect(models).toHaveLength(2); // model1 and model2 (empty_model should be skipped)
+      const models = await performFullMediaScan([TEST_MEDIA_DIR]);
+      expect(models).toHaveLength(3); // model1, model2, and test_media_files (from root)
+
+      const rootModel = models.find((m) => m.name === 'test_media_files');
+      expect(rootModel).toBeDefined();
+      expect(rootModel.textures).toHaveLength(2);
 
       const model1 = models.find((m) => m.name === 'model1');
       expect(model1).toBeDefined();
@@ -192,13 +200,13 @@ describe('media-scanner.js', () => {
         __dirname,
         'non_existent_base_media_dir',
       );
-      const models = await performFullMediaScan(nonExistentBaseDir);
+      const models = await performFullMediaScan([nonExistentBaseDir]);
       expect(models).toEqual([]);
     });
 
     it('should skip model folders that contain no supported media files', async () => {
       // empty_model was created in beforeAll and contains no files
-      const models = await performFullMediaScan(TEST_MEDIA_DIR);
+      const models = await performFullMediaScan([TEST_MEDIA_DIR]);
       const emptyModel = models.find((m) => m.name === 'empty_model');
       expect(emptyModel).toBeUndefined();
     });
@@ -208,8 +216,10 @@ describe('media-scanner.js', () => {
       fs.mkdirSync(noSubfoldersDir);
       createDummyFile(path.join(noSubfoldersDir, 'some_root_file.png')); // A file, not a model folder
 
-      const models = await performFullMediaScan(noSubfoldersDir);
-      expect(models).toEqual([]);
+      const models = await performFullMediaScan([noSubfoldersDir]);
+      expect(models).toHaveLength(1);
+      expect(models[0].name).toBe('no_subfolders_here');
+      expect(models[0].textures).toHaveLength(1);
 
       fs.unlinkSync(path.join(noSubfoldersDir, 'some_root_file.png'));
       fs.rmdirSync(noSubfoldersDir);
@@ -219,7 +229,7 @@ describe('media-scanner.js', () => {
       const emptyDir = path.join(TEST_MEDIA_DIR, 'empty_dir');
       fs.mkdirSync(emptyDir);
 
-      const models = await performFullMediaScan(emptyDir);
+      const models = await performFullMediaScan([emptyDir]);
       expect(models).toEqual([]);
 
       fs.rmdirSync(emptyDir);
@@ -234,11 +244,12 @@ describe('media-scanner.js', () => {
         return originalReaddirSync(dirPath, options);
       };
 
-      const models = await performFullMediaScan(TEST_MEDIA_DIR);
-      // model1 scan will fail, but model2 should still be found.
+      const models = await performFullMediaScan([TEST_MEDIA_DIR]);
+      // model1 scan will fail, but model2 and the root model should still be found.
       expect(models.find((m) => m.name === 'model1')).toBeUndefined();
       expect(models.find((m) => m.name === 'model2')).toBeDefined();
-      expect(models.length).toBe(1); // Only model2
+      expect(models.find((m) => m.name === 'test_media_files')).toBeDefined();
+      expect(models.length).toBe(2); // model2 and test_media_files
 
       fs.readdirSync = originalReaddirSync; // Restore original
     });

@@ -75,6 +75,40 @@ contextBridge.exposeInMainWorld('electronAPI', {
   reindexMediaLibrary: () => ipcRenderer.invoke('reindex-media-library'),
 
   /**
+   * Opens a dialog to select a new media directory, adds it to the database,
+   * and triggers a full re-index.
+   * @returns {Promise<Array<Model>|null>} A promise that resolves to the updated
+   * list of models, or null if the user cancels the dialog.
+   */
+  addMediaDirectory: () => ipcRenderer.invoke('add-media-directory'),
+
+  /**
+   * Removes a media directory from the database.
+   * @param {string} directoryPath - The path of the directory to remove.
+   * @returns {Promise<void>}
+   */
+  removeMediaDirectory: (directoryPath) =>
+    ipcRenderer.invoke('remove-media-directory', directoryPath),
+
+  /**
+   * Sets the active state of a media directory.
+   * @param {string} directoryPath - The path of the directory.
+   * @param {boolean} isActive - The new active state.
+   * @returns {Promise<void>}
+   */
+  setDirectoryActiveState: (directoryPath, isActive) =>
+    ipcRenderer.invoke('set-directory-active-state', {
+      directoryPath,
+      isActive,
+    }),
+
+  /**
+   * Retrieves the list of all media directories.
+   * @returns {Promise<{path: string, isActive: boolean}[]>} A promise that resolves to an array of directory objects.
+   */
+  getMediaDirectories: () => ipcRenderer.invoke('get-media-directories'),
+
+  /**
    * Retrieves the lists of supported file extensions.
    * @returns {Promise<{images: string[], videos: string[], all: string[]}>} A promise that resolves to an object containing arrays of supported extensions.
    */

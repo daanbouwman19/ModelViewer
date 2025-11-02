@@ -16,6 +16,7 @@ import {
   reindexLibraryButton,
   prevMediaButton,
   nextMediaButton,
+  sourcesModal,
   filterButtons,
 } from './ui-elements.js';
 import {
@@ -56,6 +57,123 @@ function createToggleControl(labelText) {
 }
 
 /**
+ * Opens the media sources management modal.
+ */
+export function openSourcesModal() {
+  if (sourcesModal) {
+    sourcesModal.classList.remove('hidden');
+  }
+}
+
+/**
+ * Closes the media sources management modal.
+ */
+export function closeSourcesModal() {
+  if (sourcesModal) {
+    sourcesModal.classList.add('hidden');
+  }
+}
+
+/**
+ * Handles the "Add Media Directory" button click.
+ * This function invokes an IPC call to the main process to open a directory selection dialog.
+ * If a directory is added, it receives the updated list of all models and refreshes the UI.
+ * @async
+ */
+export async function handleAddMediaDirectory() {
+  console.log('Add Media Directory button clicked.');
+  stopSlideshowTimer(); // Stop any ongoing slideshow
+
+  try {
+    const updatedModels = await window.electronAPI.addMediaDirectory();
+
+    // If the main process returns null (e.g., user cancelled dialog), do nothing.
+    if (updatedModels === null) {
+      console.log('User cancelled the directory selection dialog.');
+      return;
+    }
+
+    // Replace the entire model list with the updated one from the main process.
+    state.allModels = updatedModels;
+    await populateModelsListUI_internal(); // Refresh the models list UI
+    await populateMediaSourcesList();
+
+    // Reset application state to a clean slate
+    state.currentSelectedModelForIndividualView = null;
+    state.isGlobalSlideshowActive = false;
+    state.displayedMediaFiles = [];
+    state.currentMediaIndex = -1;
+    state.currentMediaItem = null;
+    state.globalMediaPoolForSelection = [];
+
+    clearMediaDisplay(
+      'New directory added. Select a model or start global slideshow.',
+    );
+    if (currentModelTitleElement) {
+      currentModelTitleElement.textContent =
+        'Select a model or start Global Slideshow';
+    }
+  } catch (error) {
+    console.error('Error adding media directory:', error);
+    clearMediaDisplay('Error adding directory. See console for details.');
+    if (currentModelTitleElement) {
+      currentModelTitleElement.textContent = 'Error Adding Directory';
+    }
+  } finally {
+    updateNavButtons(); // Ensure nav buttons are in the correct state
+  }
+}
+
+/**
+ * Populates the media sources list in the UI.
+ */
+async function populateMediaSourcesList() {
+  const mediaSourcesListElement = document.getElementById('media-sources-list');
+  if (!mediaSourcesListElement) return;
+
+  const directories = await window.electronAPI.getMediaDirectories();
+  mediaSourcesListElement.innerHTML = '';
+
+  if (!directories || directories.length === 0) {
+    mediaSourcesListElement.innerHTML = '<li>No media sources configured.</li>';
+    return;
+  }
+
+  directories.forEach((dir) => {
+    const listItem = document.createElement('li');
+    listItem.className = 'flex items-center justify-between p-1';
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = dir.isActive;
+    checkbox.addEventListener('change', async () => {
+      await window.electronAPI.setDirectoryActiveState(
+        dir.path,
+        checkbox.checked,
+      );
+      handleReindex();
+    });
+    listItem.appendChild(checkbox);
+
+    const pathSpan = document.createElement('span');
+    pathSpan.textContent = dir.path;
+    pathSpan.className = 'ml-2 flex-grow';
+    listItem.appendChild(pathSpan);
+
+    const removeButton = document.createElement('button');
+    removeButton.textContent = 'Remove';
+    removeButton.className = 'ml-2 action-button';
+    removeButton.addEventListener('click', async () => {
+      await window.electronAPI.removeMediaDirectory(dir.path);
+      handleReindex();
+    });
+    listItem.appendChild(removeButton);
+
+    mediaSourcesListElement.appendChild(listItem);
+  });
+}
+
+/**
  * Performs the initial loading of data when the application starts.
  * It fetches the list of models with their view counts from the main process,
  * populates the central state, and then calls the function to build the model list UI.
@@ -65,6 +183,7 @@ export async function initialLoad() {
   try {
     state.allModels = await window.electronAPI.getModelsWithViewCounts();
     await populateModelsListUI_internal(); // Populates the model list in the UI
+    await populateMediaSourcesList();
     setupFilterButtonListeners_internal(); // Sets up the filter buttons
   } catch (error) {
     console.error(
@@ -291,6 +410,7 @@ export async function handleReindex() {
     const newModels = await window.electronAPI.reindexMediaLibrary();
     state.allModels = newModels;
     await populateModelsListUI_internal(); // Refresh the models list UI
+    await populateMediaSourcesList();
 
     // Reset application state related to current display
     state.currentSelectedModelForIndividualView = null;

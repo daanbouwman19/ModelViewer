@@ -404,8 +404,8 @@
               Play
             </button>
           </div>
-          <button id="reindex-library-button" class="action-button">
-            Re-index Library
+          <button id="manage-sources-button" class="action-button">
+            Manage Sources
           </button>
         </div>
 
@@ -460,6 +460,41 @@
     <footer class="bg-gray-800 text-center p-3 text-sm text-gray-500">
       Model Slideshow App | Use ← → for navigation, Space to Play/Pause timer.
     </footer>
+
+    <!-- Modal for Managing Media Sources -->
+    <div
+      id="sources-modal"
+      class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-gray-800 rounded-lg shadow-2xl p-6 w-full max-w-2xl max-h-full overflow-y-auto"
+      >
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-2xl font-semibold">Manage Media Sources</h2>
+          <button
+            id="close-modal-button"
+            class="text-gray-400 hover:text-white text-3xl"
+          >
+            &times;
+          </button>
+        </div>
+        <div id="modal-content">
+          <div id="media-sources-container" class="mb-4">
+            <ul id="media-sources-list" class="space-y-1 mt-2">
+              <!-- Media sources will be dynamically inserted here -->
+            </ul>
+          </div>
+          <div class="flex gap-4 mt-4">
+            <button id="add-media-directory-button" class="action-button">
+              Add Media Directory
+            </button>
+            <button id="reindex-library-button" class="action-button">
+              Re-index Library
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <script src="./renderer/renderer.js" type="module"></script>
   </body>
