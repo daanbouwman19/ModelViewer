@@ -105,4 +105,10 @@ export const state = {
    * @type {boolean}
    */
   isTimerPlaying: false,
+
+  /**
+   * The current media filter ('All', 'Images', 'Videos').
+   * @type {string}
+   */
+  currentMediaFilter: 'All',
 };

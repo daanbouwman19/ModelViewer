@@ -319,6 +319,25 @@
         transform: translateY(-1px); /* Subtle lift effect */
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
       }
+      .filter-button {
+        background-color: var(--tertiary-bg);
+        color: var(--text-muted);
+        padding: 0.4rem 0.8rem;
+        border-radius: 6px;
+        border: 1px solid var(--border-color);
+        margin: 0 4px;
+        transition: all 0.2s ease;
+      }
+      .filter-button:hover {
+        background-color: var(--selection-color);
+        color: var(--text-color);
+      }
+      .filter-button.active {
+        background-color: var(--accent-color);
+        color: var(--button-text-color);
+        border-color: var(--accent-hover);
+        font-weight: 700;
+      }
       .action-button:active,
       .nav-button:active,
       .timer-button:active {
@@ -400,12 +419,16 @@
         id="model-details-container"
         class="w-full md:w-2/3 bg-gray-800 shadow-lg rounded-lg p-4 flex flex-col"
       >
-        <h2
-          id="current-model-title"
-          class="text-xl font-semibold mb-2 text-center"
-        >
-          Select a model or start Global Slideshow
-        </h2>
+        <div class="flex justify-center items-center mb-2">
+          <h2 id="current-model-title" class="text-xl font-semibold text-center">
+            Select a model or start Global Slideshow
+          </h2>
+          <div id="media-filter-buttons" class="ml-4">
+            <button class="filter-button active" data-filter="All">All</button>
+            <button class="filter-button" data-filter="Images">Images</button>
+            <button class="filter-button" data-filter="Videos">Videos</button>
+          </div>
+        </div>
 
         <div id="media-display-area" class="mb-3">
           <p id="media-placeholder" class="text-gray-500">

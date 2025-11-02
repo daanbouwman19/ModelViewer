@@ -13,6 +13,8 @@ const fs = require('fs');
 const {
   MAX_DATA_URL_SIZE_MB,
   SUPPORTED_VIDEO_EXTENSIONS,
+  SUPPORTED_IMAGE_EXTENSIONS,
+  ALL_SUPPORTED_EXTENSIONS,
 } = require('./constants.js');
 
 const {
@@ -171,6 +173,14 @@ ipcMain.handle('reindex-media-library', async () => {
       viewCount: viewCountsMap[texture.path] || 0,
     })),
   }));
+});
+
+ipcMain.handle('get-supported-extensions', () => {
+  return {
+    images: SUPPORTED_IMAGE_EXTENSIONS,
+    videos: SUPPORTED_VIDEO_EXTENSIONS,
+    all: ALL_SUPPORTED_EXTENSIONS,
+  };
 });
 
 // --- Window Creation ---

@@ -85,6 +85,12 @@ export const reindexLibraryButton = document.getElementById(
 );
 
 /**
+ * A NodeList of all filter buttons ('All', 'Images', 'Videos').
+ * @type {NodeListOf<HTMLButtonElement> | null}
+ */
+export const filterButtons = document.querySelectorAll('.filter-button');
+
+/**
  * An object containing references to all critical UI elements.
  * This is used for an initial check in `renderer.js` to ensure the application
  * can start up correctly. If any of these elements are missing, the application
