@@ -70,7 +70,10 @@ function isPathAllowed(filePath, allowedDirectories) {
   const normalizedPath = path.resolve(filePath);
   return allowedDirectories.some((dir) => {
     const normalizedDir = path.resolve(dir.path);
-    return normalizedPath.startsWith(normalizedDir + path.sep) || normalizedPath === normalizedDir;
+    return (
+      normalizedPath.startsWith(normalizedDir + path.sep) ||
+      normalizedPath === normalizedDir
+    );
   });
 }
 
