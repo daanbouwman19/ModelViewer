@@ -72,5 +72,4 @@ onBeforeUnmount(() => {
 </script>
 
 <style>
-/* ... styles remain unchanged ... */
 </style>

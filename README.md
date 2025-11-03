@@ -15,9 +15,9 @@ A desktop application built with Electron and Vue 3 for browsing and viewing loc
 
 The application uses a standard Electron architecture:
 
-- **Main Process**: Handles all backend logic, including file system scanning, database operations (via a worker thread to keep the UI responsive), and running a local server for streaming large media files.
-- **Renderer Process**: A Vue 3 single-page application that provides the user interface.
-- **Preload Script**: Securely exposes a controlled API from the main process to the renderer process via `contextBridge`.
+-   **Main Process**: Handles all backend logic, including file system scanning, database operations (via a worker thread to keep the UI responsive), and running a local server for streaming large media files.
+-   **Renderer Process**: A Vue 3 single-page application that provides the user interface.
+-   **Preload Script**: Securely exposes a controlled API from the main process to the renderer process via `contextBridge`.
 
 ## Tech Stack
 
@@ -48,7 +48,6 @@ The application uses a standard Electron architecture:
 
 2.  **Install dependencies:**
     This command will install all necessary dependencies and automatically rebuild native modules like `sqlite3` for the Electron environment.
-
     ```bash
     npm install
     ```

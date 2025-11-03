@@ -44,10 +44,7 @@ function findAllMediaFiles(directoryPath, mediaFilesList = []) {
     }
   } catch (err) {
     if (process.env.NODE_ENV !== 'test') {
-      console.error(
-        `[media-scanner.js] Error reading directory ${directoryPath}:`,
-        err.message,
-      );
+      console.error(`[media-scanner.js] Error reading directory ${directoryPath}:`, err.message);
     }
   }
   return mediaFilesList;
@@ -61,19 +58,14 @@ function findAllMediaFiles(directoryPath, mediaFilesList = []) {
  */
 async function performFullMediaScan(baseMediaDirectories) {
   if (process.env.NODE_ENV !== 'test') {
-    console.log(
-      `[media-scanner.js] Starting disk scan in directories:`,
-      baseMediaDirectories,
-    );
+    console.log(`[media-scanner.js] Starting disk scan in directories:`, baseMediaDirectories);
   }
   const modelsMap = new Map();
   try {
     for (const baseDir of baseMediaDirectories) {
       if (!fs.existsSync(baseDir)) {
         if (process.env.NODE_ENV !== 'test') {
-          console.error(
-            `[media-scanner.js] Media directory not found: ${baseDir}`,
-          );
+          console.error(`[media-scanner.js] Media directory not found: ${baseDir}`);
         }
         continue;
       }
@@ -81,13 +73,7 @@ async function performFullMediaScan(baseMediaDirectories) {
       const rootDirName = path.basename(baseDir);
       const rootFiles = fs
         .readdirSync(baseDir, { withFileTypes: true })
-        .filter(
-          (dirent) =>
-            dirent.isFile() &&
-            ALL_SUPPORTED_EXTENSIONS.includes(
-              path.extname(dirent.name).toLowerCase(),
-            ),
-        )
+        .filter((dirent) => dirent.isFile() && ALL_SUPPORTED_EXTENSIONS.includes(path.extname(dirent.name).toLowerCase()))
         .map((dirent) => ({
           name: dirent.name,
           path: path.join(baseDir, dirent.name),
@@ -128,9 +114,7 @@ async function performFullMediaScan(baseMediaDirectories) {
     }
     const models = Array.from(modelsMap.values());
     if (process.env.NODE_ENV !== 'test') {
-      console.log(
-        `[media-scanner.js] Found ${models.length} models during scan.`,
-      );
+      console.log(`[media-scanner.js] Found ${models.length} models during scan.`);
     }
     return models;
   } catch (e) {
@@ -141,4 +125,7 @@ async function performFullMediaScan(baseMediaDirectories) {
   }
 }
 
-export { findAllMediaFiles, performFullMediaScan };
+export {
+  findAllMediaFiles,
+  performFullMediaScan,
+};

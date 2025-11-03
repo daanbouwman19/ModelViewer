@@ -43,31 +43,27 @@ contextBridge.exposeInMainWorld('electronAPI', {
    * @param {string} filePath - The absolute path to the file to load.
    * @returns {Promise<LoadResult>} A promise that resolves with the load result object.
    */
-  loadFileAsDataURL: (filePath) =>
-    ipcRenderer.invoke('load-file-as-data-url', filePath),
+  loadFileAsDataURL: (filePath) => ipcRenderer.invoke('load-file-as-data-url', filePath),
 
   /**
    * Sends a request to the main process to record a view for a specific media file.
    * @param {string} filePath - The absolute path to the media file that was viewed.
    * @returns {Promise<void>} A promise that resolves when the view has been recorded.
    */
-  recordMediaView: (filePath) =>
-    ipcRenderer.invoke('record-media-view', filePath),
+  recordMediaView: (filePath) => ipcRenderer.invoke('record-media-view', filePath),
 
   /**
    * Retrieves the view counts for a given list of media files.
    * @param {string[]} filePaths - An array of absolute paths to the media files.
    * @returns {Promise<Object<string, number>>} A promise that resolves to an object mapping each file path to its view count.
    */
-  getMediaViewCounts: (filePaths) =>
-    ipcRenderer.invoke('get-media-view-counts', filePaths),
+  getMediaViewCounts: (filePaths) => ipcRenderer.invoke('get-media-view-counts', filePaths),
 
   /**
    * Retrieves the complete list of all models, including their media files and view counts.
    * @returns {Promise<Model[]>} A promise that resolves to an array of model objects.
    */
-  getModelsWithViewCounts: () =>
-    ipcRenderer.invoke('get-models-with-view-counts'),
+  getModelsWithViewCounts: () => ipcRenderer.invoke('get-models-with-view-counts'),
 
   /**
    * Triggers a full re-scan of the media library on disk.
@@ -86,8 +82,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
    * @param {string} directoryPath - The path of the directory to remove.
    * @returns {Promise<void>}
    */
-  removeMediaDirectory: (directoryPath) =>
-    ipcRenderer.invoke('remove-media-directory', directoryPath),
+  removeMediaDirectory: (directoryPath) => ipcRenderer.invoke('remove-media-directory', directoryPath),
 
   /**
    * Sets the active state of a media directory.
@@ -95,11 +90,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
    * @param {boolean} isActive - The new active state.
    * @returns {Promise<void>}
    */
-  setDirectoryActiveState: (directoryPath, isActive) =>
-    ipcRenderer.invoke('set-directory-active-state', {
-      directoryPath,
-      isActive,
-    }),
+  setDirectoryActiveState: (directoryPath, isActive) => ipcRenderer.invoke('set-directory-active-state', { directoryPath, isActive }),
 
   /**
    * Retrieves the list of all configured media directories.

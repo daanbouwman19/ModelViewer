@@ -124,9 +124,7 @@ const error = ref(null);
 const isImage = computed(() => {
   if (!currentMediaItem.value) return false;
   const imageExtensions = supportedExtensions.value.images;
-  const ext = currentMediaItem.value.path
-    .slice(currentMediaItem.value.path.lastIndexOf('.'))
-    .toLowerCase();
+  const ext = currentMediaItem.value.path.slice(currentMediaItem.value.path.lastIndexOf('.')).toLowerCase();
   return imageExtensions.includes(ext);
 });
 
@@ -135,9 +133,7 @@ const isImage = computed(() => {
  * @type {import('vue').ComputedRef<string>}
  */
 const displayTitle = computed(() => {
-  return isSlideshowActive.value
-    ? 'Slideshow'
-    : 'Select models and start slideshow';
+  return isSlideshowActive.value ? 'Slideshow' : 'Select models and start slideshow';
 });
 
 /**
@@ -175,9 +171,7 @@ const loadMediaUrl = async () => {
   error.value = null;
 
   try {
-    const result = await window.electronAPI.loadFileAsDataURL(
-      currentMediaItem.value.path,
-    );
+    const result = await window.electronAPI.loadFileAsDataURL(currentMediaItem.value.path);
     if (result.type === 'error') {
       error.value = result.message;
       mediaUrl.value = null;

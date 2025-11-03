@@ -61,23 +61,15 @@ ipcMain.handle('load-file-as-data-url', (event, filePath) => {
       return { type: 'error', message: `File does not exist: ${filePath}` };
     }
     const stats = fs.statSync(filePath);
-    const isVideo = SUPPORTED_VIDEO_EXTENSIONS.includes(
-      path.extname(filePath).toLowerCase(),
-    );
+    const isVideo = SUPPORTED_VIDEO_EXTENSIONS.includes(path.extname(filePath).toLowerCase());
     const currentServerPort = getServerPort();
 
     if (isVideo && stats.size > MAX_DATA_URL_SIZE_MB * 1024 * 1024) {
       if (currentServerPort === 0) {
-        return {
-          type: 'error',
-          message: 'Local server not ready to stream large video.',
-        };
+        return { type: 'error', message: 'Local server not ready to stream large video.' };
       }
       const pathForUrl = filePath.replace(/\\/g, '/');
-      return {
-        type: 'http-url',
-        url: `http://localhost:${currentServerPort}/${pathForUrl}`,
-      };
+      return { type: 'http-url', url: `http://localhost:${currentServerPort}/${pathForUrl}` };
     }
 
     const mimeType = resolveMimeType(filePath);
@@ -85,14 +77,8 @@ ipcMain.handle('load-file-as-data-url', (event, filePath) => {
     const dataURL = `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
     return { type: 'data-url', url: dataURL };
   } catch (error) {
-    console.error(
-      `[main.js] Error processing ${filePath} in load-file-as-data-url:`,
-      error,
-    );
-    return {
-      type: 'error',
-      message: error.message || 'Unknown error processing file.',
-    };
+    console.error(`[main.js] Error processing ${filePath} in load-file-as-data-url:`, error);
+    return { type: 'error', message: error.message || 'Unknown error processing file.' };
   }
 });
 
@@ -120,9 +106,7 @@ ipcMain.handle('get-media-view-counts', async (event, filePaths) => {
  */
 async function scanDiskForModelsAndCache() {
   const allDirectories = await getMediaDirectories();
-  const activeDirectories = allDirectories
-    .filter((dir) => dir.isActive)
-    .map((dir) => dir.path);
+  const activeDirectories = allDirectories.filter((dir) => dir.isActive).map((dir) => dir.path);
 
   if (!activeDirectories || activeDirectories.length === 0) {
     await cacheModels([]);
@@ -158,9 +142,7 @@ async function getModelsWithViewCountsAfterScan() {
     return [];
   }
 
-  const allFilePaths = models.flatMap((model) =>
-    model.textures.map((texture) => texture.path),
-  );
+  const allFilePaths = models.flatMap((model) => model.textures.map((texture) => texture.path));
   const viewCountsMap = await getMediaViewCounts(allFilePaths);
 
   return models.map((model) => ({
@@ -183,9 +165,7 @@ ipcMain.handle('get-models-with-view-counts', async () => {
     return [];
   }
 
-  const allFilePaths = models.flatMap((model) =>
-    model.textures.map((texture) => texture.path),
-  );
+  const allFilePaths = models.flatMap((model) => model.textures.map((texture) => texture.path));
   const viewCountsMap = await getMediaViewCounts(allFilePaths);
 
   return models.map((model) => ({
@@ -238,12 +218,9 @@ ipcMain.handle('remove-media-directory', async (event, directoryPath) => {
  * Handles the 'set-directory-active-state' IPC call.
  * @param {{directoryPath: string, isActive: boolean}} options - The directory path and its new active state.
  */
-ipcMain.handle(
-  'set-directory-active-state',
-  async (event, { directoryPath, isActive }) => {
-    await setDirectoryActiveState(directoryPath, isActive);
-  },
-);
+ipcMain.handle('set-directory-active-state', async (event, { directoryPath, isActive }) => {
+  await setDirectoryActiveState(directoryPath, isActive);
+});
 
 /**
  * Handles the 'get-media-directories' IPC call.
@@ -284,19 +261,10 @@ function createWindow() {
   });
 
   if (isDev) {
-    const devServerURL =
-      process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173';
-    mainWindow
-      .loadURL(devServerURL)
-      .catch((err) =>
-        console.error('[main.js] Failed to load development server:', err),
-      );
+    const devServerURL = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173';
+    mainWindow.loadURL(devServerURL).catch((err) => console.error('[main.js] Failed to load development server:', err));
   } else {
-    mainWindow
-      .loadFile(path.join(__dirname, '../renderer/index.html'))
-      .catch((err) =>
-        console.error('[main.js] Failed to load index.html:', err),
-      );
+    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html')).catch((err) => console.error('[main.js] Failed to load index.html:', err));
   }
 
   mainWindow.on('closed', () => {
@@ -311,10 +279,7 @@ app.on('ready', async () => {
     await initDatabase();
     startLocalServer(createWindow);
   } catch (error) {
-    console.error(
-      '[main.js] Database initialization failed during app ready sequence:',
-      error,
-    );
+    console.error('[main.js] Database initialization failed during app ready sequence:', error);
     app.quit();
   }
 });
