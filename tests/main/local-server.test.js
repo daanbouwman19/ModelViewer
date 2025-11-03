@@ -310,9 +310,7 @@ describe('Local Server', () => {
           (res) => {
             let data = '';
             res.on('data', (chunk) => (data += chunk));
-            res.on('end', () =>
-              resolve({ statusCode: res.statusCode, data }),
-            );
+            res.on('end', () => resolve({ statusCode: res.statusCode, data }));
           },
         );
         req.on('error', reject);
@@ -349,9 +347,7 @@ describe('Local Server', () => {
           (res) => {
             let data = '';
             res.on('data', (chunk) => (data += chunk));
-            res.on('end', () =>
-              resolve({ statusCode: res.statusCode, data }),
-            );
+            res.on('end', () => resolve({ statusCode: res.statusCode, data }));
           },
         );
         req.on('error', reject);
