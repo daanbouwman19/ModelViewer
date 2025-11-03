@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EventEmitter } from 'events';
 
-let mockWorkerInstance;
+// Module-scoped variable to hold the latest mock worker instance
+let mockWorkerInstance = null;
 
 class MockWorker extends EventEmitter {
   constructor() {
@@ -18,6 +19,7 @@ class MockWorker extends EventEmitter {
         });
       }
     });
+    // Capture the instance when it's created
     mockWorkerInstance = this;
   }
 
@@ -44,11 +46,26 @@ vi.mock('electron', () => ({
   },
 }));
 
+describe('database.js additional coverage - uninitialized', () => {
+    beforeEach(() => {
+      vi.resetModules();
+      mockWorkerInstance = null;
+    });
+
+    it('should reject if dbWorker is not initialized', async () => {
+      const freshDb = await import('../../src/main/database.js');
+      await expect(freshDb.addMediaDirectory('/test/path')).rejects.toThrow(
+        'Database worker not initialized',
+      );
+    });
+  });
+
 describe('database.js additional coverage', () => {
   let db;
 
   beforeEach(async () => {
     vi.resetModules();
+    mockWorkerInstance = null;
     db = await import('../../src/main/database.js');
     await db.initDatabase();
   });
@@ -56,6 +73,52 @@ describe('database.js additional coverage', () => {
   afterEach(async () => {
     await db.closeDatabase();
     vi.clearAllMocks();
+  });
+
+  it('logs an error when worker exits unexpectedly', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    expect(mockWorkerInstance).toBeDefined();
+    expect(mockWorkerInstance).not.toBeNull();
+
+    // Simulate an unexpected exit with a non-zero code
+    mockWorkerInstance.emit('exit', 1);
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '[database.js] Database worker exited unexpectedly with code 1',
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('logs a warning for recordMediaView errors in non-test environment', async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'development';
+
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    expect(mockWorkerInstance).toBeDefined();
+    expect(mockWorkerInstance).not.toBeNull();
+
+    const originalPostMessage = mockWorkerInstance.postMessage;
+    // Simulate a failure in worker communication for the recordMediaView call
+    vi.spyOn(mockWorkerInstance, 'postMessage').mockImplementation((message) => {
+        if (message.type === 'recordMediaView') {
+            throw new Error('Test worker error');
+        }
+        // Let other messages (like init) pass through the original implementation
+        originalPostMessage.call(mockWorkerInstance, message);
+    });
+
+    await db.recordMediaView('/some/file.jpg');
+
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      '[database.js] Error recording media view: Test worker error',
+    );
+
+    // Cleanup
+    consoleWarnSpy.mockRestore();
+    process.env.NODE_ENV = originalNodeEnv;
   });
 
   describe('functions that handle errors gracefully', () => {
@@ -101,8 +164,8 @@ describe('database.js additional coverage', () => {
     ])(
       'should throw an error when $method fails',
       async ({ method, args, errorMessage }) => {
+        const originalPostMessage = mockWorkerInstance.postMessage;
         const postMessageSpy = vi.spyOn(mockWorkerInstance, 'postMessage');
-        const originalPostMessage = postMessageSpy.getMockImplementation();
 
         postMessageSpy.mockImplementation((message) => {
           if (message.type === method) {
@@ -110,7 +173,7 @@ describe('database.js additional coverage', () => {
               id: message.id,
               result: { success: false, error: errorMessage },
             });
-          } else if (originalPostMessage) {
+          } else {
             originalPostMessage.call(mockWorkerInstance, message);
           }
         });
