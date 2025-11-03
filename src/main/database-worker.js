@@ -5,9 +5,9 @@
  * and sends results back via the worker messaging API.
  */
 
-const { parentPort } = require('worker_threads');
-const crypto = require('crypto');
-const sqlite3 = require('sqlite3');
+import { parentPort } from 'worker_threads';
+import crypto from 'crypto';
+import sqlite3 from 'sqlite3';
 
 let db = null;
 

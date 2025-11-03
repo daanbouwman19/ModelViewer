@@ -2,33 +2,63 @@
   "name": "modelviewer-app",
   "version": "1.0.0",
   "description": "My Model Slideshow Viewer",
-  "main": ".vite/build/main.js",
+  "main": "out/main/index.js",
   "scripts": {
-    "start": "electron-forge start",
-    "package": "electron-forge package",
-    "make": "electron-forge make",
-    "publish": "electron-forge publish",
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "package": "npm run build && electron-builder",
+    "package:win": "npm run build && electron-builder --win",
+    "package:mac": "npm run build && electron-builder --mac",
+    "package:linux": "npm run build && electron-builder --linux",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
-  "author": "Daan Bouwman",
+  "author": {
+    "name": "Daan Bouwman",
+    "email": "daan@example.com"
+  },
   "license": "MIT",
+  "build": {
+    "appId": "com.daanbouwman.modelviewer",
+    "productName": "ModelViewer",
+    "files": [
+      "out/**/*"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Graphics"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ]
+    },
+    "asarUnpack": [
+      "node_modules/sqlite3/**/*"
+    ]
+  },
   "dependencies": {
     "sqlite3": "^5.1.7",
     "vue": "^3.5.12"
   },
   "devDependencies": {
-    "@electron-forge/cli": "^7.5.0",
-    "@electron-forge/maker-deb": "^7.5.0",
-    "@electron-forge/maker-rpm": "^7.5.0",
-    "@electron-forge/maker-squirrel": "^7.5.0",
-    "@electron-forge/maker-zip": "^7.5.0",
-    "@electron-forge/plugin-auto-unpack-natives": "^7.10.2",
-    "@electron-forge/plugin-fuses": "^7.5.0",
-    "@electron-forge/plugin-vite": "^7.5.0",
     "@tailwindcss/forms": "^0.5.9",
     "@vitejs/plugin-vue": "^6.0.1",
     "electron": "^39.0.0",
+    "electron-builder": "^26.1.0",
+    "electron-vite": "^4.0.1",
     "fs-extra": "^11.3.2",
     "prettier": "^3.3.3",
     "vite": "7.1.12"

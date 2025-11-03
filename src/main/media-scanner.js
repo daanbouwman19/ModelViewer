@@ -6,9 +6,9 @@
  * @requires path
  * @requires ./constants.js
  */
-const fs = require('fs');
-const path = require('path');
-const { ALL_SUPPORTED_EXTENSIONS } = require('./constants.js');
+import fs from 'fs';
+import path from 'path';
+import { ALL_SUPPORTED_EXTENSIONS } from './constants.js';
 
 /**
  * Recursively finds all supported media files in a directory and its subdirectories.
@@ -138,7 +138,7 @@ async function performFullMediaScan(baseMediaDirectories) {
   }
 }
 
-module.exports = {
+export {
   // findAllMediaFiles is primarily used internally by performFullMediaScan,
   // but exporting it might be useful for testing or other specific scenarios.
   findAllMediaFiles,

@@ -7,13 +7,13 @@
  * @requires path
  * @requires ./constants.js
  */
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
-const {
+import http from 'http';
+import fs from 'fs';
+import path from 'path';
+import {
   SUPPORTED_IMAGE_EXTENSIONS,
   SUPPORTED_VIDEO_EXTENSIONS,
-} = require('./constants.js');
+} from './constants.js';
 
 /**
  * Holds the singleton instance of the HTTP server.
@@ -225,9 +225,4 @@ function getServerPort() {
   return serverPort;
 }
 
-module.exports = {
-  startLocalServer,
-  stopLocalServer,
-  getServerPort,
-  getMimeType,
-};
+export { startLocalServer, stopLocalServer, getServerPort, getMimeType };
