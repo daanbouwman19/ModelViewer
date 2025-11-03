@@ -176,4 +176,11 @@ describe('ModelsList.vue', () => {
     expect(checkboxes[0].element.checked).toBe(true);
     expect(checkboxes[1].element.checked).toBe(false);
   });
+
+  it('should update timerDuration when input changes', async () => {
+    const wrapper = mount(ModelsList);
+    const input = wrapper.find('input[type="number"]');
+    await input.setValue(60);
+    expect(mockRefs.timerDuration.value).toBe(60);
+  });
 });

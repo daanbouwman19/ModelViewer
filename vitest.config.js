@@ -30,10 +30,10 @@ export default defineConfig({
       reportsDirectory: './coverage',
       thresholds: {
         global: {
-          statements: 60,
-          branches: 45,
-          functions: 60,
-          lines: 60,
+          statements: 80,
+          branches: 80,
+          functions: 80,
+          lines: 80,
         },
       },
     },

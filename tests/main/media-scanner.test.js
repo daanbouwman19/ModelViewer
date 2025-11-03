@@ -196,5 +196,44 @@ describe('Media Scanner', () => {
       expect(folderModel).toBeDefined();
       expect(folderModel.textures).toHaveLength(1);
     });
+
+    it('should merge root files from different base directories with same name', async () => {
+      // This tests line 92: when rootDirName already exists in modelsMap
+      // Create two base directories with the SAME name in different parent dirs
+      const parentDir1 = path.join(testDir, 'parent1');
+      const parentDir2 = path.join(testDir, 'parent2');
+      fs.mkdirSync(parentDir1);
+      fs.mkdirSync(parentDir2);
+
+      // Both have subdirectories with the same name "models"
+      const baseDir1 = path.join(parentDir1, 'models');
+      const baseDir2 = path.join(parentDir2, 'models');
+      fs.mkdirSync(baseDir1);
+      fs.mkdirSync(baseDir2);
+
+      // Put root files in both - these should merge under the name "models"
+      fs.writeFileSync(path.join(baseDir1, 'texture1.png'), '');
+      fs.writeFileSync(path.join(baseDir2, 'texture2.jpg'), '');
+
+      // Scan both base directories - they have the same basename "models"
+      const result = await performFullMediaScan([baseDir1, baseDir2]);
+
+      // Should have ONE model named "models" with merged textures from both dirs
+      expect(result.length).toBe(1);
+      expect(result[0].name).toBe('models');
+      expect(result[0].textures.length).toBe(2);
+      expect(result[0].textures.some((t) => t.name === 'texture1.png')).toBe(
+        true,
+      );
+      expect(result[0].textures.some((t) => t.name === 'texture2.jpg')).toBe(
+        true,
+      );
+    });
+
+    it('should handle errors during scan gracefully', async () => {
+      // Pass an invalid input that will cause an error in the try block
+      const result = await performFullMediaScan(null);
+      expect(result).toEqual([]);
+    });
   });
 });
