@@ -292,4 +292,33 @@ describe('Database', () => {
       expect(dirs).toEqual([{ path: dirPath, isActive: true }]);
     });
   });
+
+  describe('error handling for directory operations', () => {
+    it('should handle errors when removing non-existent directory', async () => {
+      // This should not throw, but we'll test that the operation completes
+      await removeMediaDirectory('/non/existent/path');
+      const dirs = await getMediaDirectories();
+      expect(Array.isArray(dirs)).toBe(true);
+    });
+
+    it('should handle errors when setting active state on non-existent directory', async () => {
+      // This should not throw, but we'll test that the operation completes
+      await setDirectoryActiveState('/non/existent/path', false);
+      const dirs = await getMediaDirectories();
+      expect(Array.isArray(dirs)).toBe(true);
+    });
+
+    it('should handle gracefully when trying to record view without initialization', async () => {
+      await closeDatabase();
+      // recordMediaView should not throw, it handles errors gracefully
+      await expect(recordMediaView('/test/path.jpg')).resolves.toBeUndefined();
+    });
+
+    it('should return empty object when trying to get view counts without initialization', async () => {
+      await closeDatabase();
+      // getMediaViewCounts returns empty object on error
+      const result = await getMediaViewCounts(['/test/path.jpg']);
+      expect(result).toEqual({});
+    });
+  });
 });

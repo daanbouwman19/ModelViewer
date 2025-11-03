@@ -97,7 +97,19 @@ async function initDatabase() {
   try {
     // Use a path relative to the current module, which is more reliable
     // especially in packaged apps.
-    const workerPath = new URL('./database-worker.js', import.meta.url);
+    // In test environment (Vitest), import.meta.url might not be a file:// URL,
+    // so we use path.resolve instead
+    let workerPath;
+    const isTest =
+      process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+
+    if (isTest || !import.meta.url.startsWith('file://')) {
+      // Test environment fallback
+      const path = await import('path');
+      workerPath = path.resolve(process.cwd(), 'src/main/database-worker.js');
+    } else {
+      workerPath = new URL('./database-worker.js', import.meta.url);
+    }
     dbWorker = new Worker(workerPath);
 
     // Handle messages from the worker

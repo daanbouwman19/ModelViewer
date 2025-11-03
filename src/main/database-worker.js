@@ -31,10 +31,14 @@ async function recordMediaView(filePath) {
 }
 
 /**
- * Get view counts for multiple file paths
+ * Get view counts for multiple filePaths
  */
 async function getMediaViewCounts(filePaths) {
-  return dbFunctions.getMediaViewCounts(db, filePaths);
+  const result = await dbFunctions.getMediaViewCounts(db, filePaths);
+  if (result.success) {
+    return { success: true, data: result.data };
+  }
+  return { success: false, error: result.error };
 }
 
 /**
@@ -155,3 +159,6 @@ parentPort.on('message', async (message) => {
 });
 
 console.log('[database-worker.js] Worker thread started and ready.');
+
+// Signal that the worker is ready for messages
+parentPort.postMessage({ type: 'ready' });

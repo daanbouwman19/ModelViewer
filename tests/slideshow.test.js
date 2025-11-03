@@ -255,6 +255,23 @@ describe('useSlideshow', () => {
       expect(mockState.displayedMediaFiles.length).toBe(1);
       expect(mockState.currentMediaItem.path).toBe('b1.png');
     });
+
+    it('should handle null allModels gracefully', async () => {
+      mockState.allModels = null;
+      mockState.modelsSelectedForSlideshow = { modelA: true };
+      const { startSlideshow } = useSlideshow();
+      await startSlideshow();
+      expect(mockState.isSlideshowActive).toBe(false);
+      expect(mockState.globalMediaPoolForSelection.length).toBe(0);
+    });
+
+    it('should handle when no models are selected', async () => {
+      mockState.modelsSelectedForSlideshow = {}; // No models selected
+      const { startSlideshow } = useSlideshow();
+      await startSlideshow();
+      expect(mockState.isSlideshowActive).toBe(false);
+      expect(mockState.globalMediaPoolForSelection.length).toBe(0);
+    });
   });
 
   describe('reapplyFilter', () => {

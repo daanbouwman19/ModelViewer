@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [vue()],
   test: {
     globals: true,
-    environment: 'node',
+    environment: 'happy-dom',
     testTimeout: 10000,
     include: ['**/*.test.js', '**/*.spec.js'],
     exclude: ['node_modules', 'out', 'release', '.vite', 'dist'],
@@ -23,6 +23,7 @@ export default defineConfig({
         'src/main/main.js',
         'src/preload/**',
         'src/renderer/renderer.js',
+        'src/main/database-worker.js',
         '**/*.test.js',
         '**/*.spec.js',
       ],
