@@ -1,8 +1,9 @@
 import { useAppState } from './useAppState';
 
-const { state, stopSlideshow } = useAppState();
-
 export function useSlideshow() {
+  // Get state inside the function to ensure we have the same reactive reference
+  const { state, stopSlideshow } = useAppState();
+
   const shuffleArray = (array) => {
     const shuffled = [...array];
     for (let i = shuffled.length - 1; i > 0; i--) {
@@ -114,8 +115,8 @@ export function useSlideshow() {
   };
 
   const navigateMedia = async (direction) => {
-    if (state.isGlobalSlideshowActive) {
-      // In global mode, handle navigation with history
+    if (state.isSlideshowActive) {
+      // In slideshow mode, handle navigation with history
       if (direction > 0) {
         // Check if we can navigate forward in history
         if (state.currentMediaIndex < state.displayedMediaFiles.length - 1) {
@@ -126,7 +127,7 @@ export function useSlideshow() {
           await displayMedia(state.currentMediaItem);
         } else {
           // At the end of history, pick a new random media
-          await pickAndDisplayNextGlobalMediaItem();
+          await pickAndDisplayNextMediaItem();
         }
       } else {
         // Navigate backward in history
@@ -137,38 +138,23 @@ export function useSlideshow() {
           await displayMedia(state.currentMediaItem);
         }
       }
-    } else {
-      // Individual model mode
-      if (state.displayedMediaFiles.length === 0) return;
-
-      state.currentMediaIndex += direction;
-
-      // Wrap around
-      if (state.currentMediaIndex < 0) {
-        state.currentMediaIndex = state.displayedMediaFiles.length - 1;
-      } else if (state.currentMediaIndex >= state.displayedMediaFiles.length) {
-        state.currentMediaIndex = 0;
-      }
-
-      state.currentMediaItem =
-        state.displayedMediaFiles[state.currentMediaIndex];
-      await displayMedia(state.currentMediaItem);
     }
   };
 
-  const pickAndDisplayNextGlobalMediaItem = async () => {
+  const pickAndDisplayNextMediaItem = async () => {
     if (state.globalMediaPoolForSelection.length === 0) {
-      console.warn('No media files available in the global pool.');
+      console.warn('No media files available in the pool.');
       return;
     }
 
-    // Apply the current media filter to the global pool
+    // Apply the current media filter to the pool
     const filteredPool = filterMedia(state.globalMediaPoolForSelection);
 
+    // Update the total pool size
+    state.totalMediaInPool = filteredPool.length;
+
     if (filteredPool.length === 0) {
-      console.warn(
-        'Global media pool is empty or no media matches the filter.',
-      );
+      console.warn('Media pool is empty or no media matches the filter.');
       return;
     }
 
@@ -234,116 +220,93 @@ export function useSlideshow() {
     }
   };
 
-  const activateGlobalSlideshow = async () => {
-    // Build the global media pool
+  const toggleModelSelection = (modelName) => {
+    const currentValue = state.modelsSelectedForSlideshow[modelName] || false;
+    state.modelsSelectedForSlideshow[modelName] = !currentValue;
+    console.log(`Toggled selection for ${modelName}: ${!currentValue}`);
+  };
+
+  const startSlideshow = async () => {
+    // Build the media pool from all selected models
     state.globalMediaPoolForSelection = [];
 
+    console.log('Starting slideshow...');
+    console.log(
+      'Models selected for slideshow:',
+      state.modelsSelectedForSlideshow,
+    );
+
     state.allModels.forEach((model) => {
-      if (state.modelsSelectedForGlobal[model.name]) {
+      if (state.modelsSelectedForSlideshow[model.name]) {
+        console.log(
+          `Adding model to pool: ${model.name} (${model.textures.length} files)`,
+        );
         state.globalMediaPoolForSelection.push(...model.textures);
       }
     });
 
+    console.log(
+      `Total media files in pool: ${state.globalMediaPoolForSelection.length}`,
+    );
+
     if (state.globalMediaPoolForSelection.length === 0) {
-      console.warn('No models selected for global slideshow.');
+      console.warn('No models selected for slideshow.');
       return;
     }
 
-    state.isGlobalSlideshowActive = true;
+    state.isSlideshowActive = true;
     state.displayedMediaFiles = [];
     state.currentMediaIndex = -1;
 
-    // Display the first media
-    await pickAndDisplayNextGlobalMediaItem();
+    // Display the first random media
+    await pickAndDisplayNextMediaItem();
   };
 
-  const selectModel = async (model) => {
-    stopSlideshow();
-    state.isGlobalSlideshowActive = false;
-    state.currentSelectedModelForIndividualView = model;
-    state.displayedMediaFiles = prepareMediaListForIndividualView(model);
-    state.currentMediaIndex = 0;
+  const startIndividualModelSlideshow = async (model) => {
+    console.log(`Starting individual slideshow for: ${model.name}`);
 
-    if (state.displayedMediaFiles.length > 0) {
-      state.currentMediaItem = state.displayedMediaFiles[0];
-      await displayMedia(state.currentMediaItem);
-    } else {
-      state.currentMediaItem = null;
+    // Build pool from just this one model
+    state.globalMediaPoolForSelection = [...model.textures];
+
+    if (state.globalMediaPoolForSelection.length === 0) {
+      console.warn('No media files in this model.');
+      return;
     }
-  };
 
-  const toggleRandomMode = (modelName) => {
-    const currentValue = state.modelRandomModeSettings[modelName] || false;
-    state.modelRandomModeSettings[modelName] = !currentValue;
+    state.isSlideshowActive = true;
+    state.displayedMediaFiles = [];
+    state.currentMediaIndex = -1;
 
-    // If this model is currently selected, re-prepare the media list
-    if (state.currentSelectedModelForIndividualView?.name === modelName) {
-      const model = state.currentSelectedModelForIndividualView;
-      state.displayedMediaFiles = prepareMediaListForIndividualView(model);
-
-      // Reset to first item
-      if (state.displayedMediaFiles.length > 0) {
-        state.currentMediaIndex = 0;
-        state.currentMediaItem = state.displayedMediaFiles[0];
-        displayMedia(state.currentMediaItem);
-      }
-    }
-  };
-
-  const toggleGlobalSelection = (modelName) => {
-    const currentValue = state.modelsSelectedForGlobal[modelName] || false;
-    state.modelsSelectedForGlobal[modelName] = !currentValue;
+    // Display the first random media
+    await pickAndDisplayNextMediaItem();
   };
 
   const reapplyFilter = async () => {
-    // If viewing an individual model, re-prepare the media list with the new filter
-    if (state.currentSelectedModelForIndividualView) {
-      const model = state.currentSelectedModelForIndividualView;
-      const filteredFiles = prepareMediaListForIndividualView(model);
-
-      if (filteredFiles.length === 0) {
-        // No media matches the filter
-        state.displayedMediaFiles = [];
-        state.currentMediaIndex = -1;
-        state.currentMediaItem = null;
-        return;
-      }
-
-      state.displayedMediaFiles = filteredFiles;
-
-      // Try to stay on the same item if it's still in the filtered list
-      if (state.currentMediaItem) {
-        const newIndex = state.displayedMediaFiles.findIndex(
-          (item) => item.path === state.currentMediaItem.path,
-        );
-        if (newIndex !== -1) {
-          state.currentMediaIndex = newIndex;
-        } else {
-          // Current item is filtered out, go to first item
-          state.currentMediaIndex = 0;
-          state.currentMediaItem = state.displayedMediaFiles[0];
-          await displayMedia(state.currentMediaItem);
+    // If in slideshow mode, rebuild the pool and pick a new item
+    if (state.isSlideshowActive) {
+      // Rebuild the media pool with current selections
+      state.globalMediaPoolForSelection = [];
+      state.allModels.forEach((model) => {
+        if (state.modelsSelectedForSlideshow[model.name]) {
+          state.globalMediaPoolForSelection.push(...model.textures);
         }
-      } else {
-        // No current item, select the first one
-        state.currentMediaIndex = 0;
-        state.currentMediaItem = state.displayedMediaFiles[0];
-        await displayMedia(state.currentMediaItem);
-      }
+      });
+
+      // Clear history and pick a new item with the new filter
+      state.displayedMediaFiles = [];
+      state.currentMediaIndex = -1;
+      await pickAndDisplayNextMediaItem();
+      return;
     }
-    // Note: For global slideshow, the filter is already applied in pickAndDisplayNextGlobalMediaItem
-    // So no need to reapply it here - it will automatically use the filter on the next navigation
   };
 
   return {
     navigateMedia,
     toggleSlideshowTimer,
-    activateGlobalSlideshow,
-    selectModel,
-    toggleRandomMode,
-    toggleGlobalSelection,
-    pickAndDisplayNextGlobalMediaItem,
-    prepareMediaListForIndividualView,
+    toggleModelSelection,
+    startSlideshow,
+    startIndividualModelSlideshow,
+    pickAndDisplayNextMediaItem,
     reapplyFilter,
   };
 }

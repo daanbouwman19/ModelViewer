@@ -3,8 +3,8 @@
     class="w-full md:w-1/3 bg-gray-800 shadow-lg rounded-lg p-4 flex flex-col overflow-y-auto panel"
   >
     <div class="header-controls">
-      <button @click="handleGlobalSlideshow" class="action-button">
-        Global Slideshow
+      <button @click="handleStartSlideshow" class="action-button">
+        Start Slideshow
       </button>
       <div class="timer-controls">
         <label for="timer-duration">Timer (s):</label>
@@ -32,34 +32,23 @@
         :key="model.name"
         class="model-item"
         :class="{
-          'active-model-individual':
-            currentSelectedModelForIndividualView?.name === model.name &&
-            !isGlobalSlideshowActive,
-          'selected-for-global': modelsSelectedForGlobal[model.name],
+          'selected-for-slideshow': modelsSelectedForSlideshow[model.name],
         }"
-        @click="handleSelectModel(model)"
+        @click="handleClickModel(model)"
       >
+        <div class="model-controls" @click.stop>
+          <label class="checkbox-container">
+            <input
+              type="checkbox"
+              :checked="!!modelsSelectedForSlideshow[model.name]"
+              @change="handleToggleSelection(model.name)"
+            />
+            <span class="checkmark"></span>
+          </label>
+        </div>
         <span class="model-name-clickable">
           {{ model.name }} ({{ model.textures.length }})
         </span>
-        <div class="model-controls" @click.stop>
-          <label class="toggle-label">
-            <span>Random</span>
-            <input
-              type="checkbox"
-              :checked="modelRandomModeSettings[model.name]"
-              @change="handleToggleRandom(model.name)"
-            />
-          </label>
-          <label class="toggle-label">
-            <span>Global</span>
-            <input
-              type="checkbox"
-              :checked="modelsSelectedForGlobal[model.name]"
-              @change="handleToggleGlobal(model.name)"
-            />
-          </label>
-        </div>
       </li>
     </ul>
   </div>
@@ -72,37 +61,29 @@ import { useSlideshow } from '../composables/useSlideshow';
 
 const {
   allModels,
-  currentSelectedModelForIndividualView,
-  isGlobalSlideshowActive,
-  modelRandomModeSettings,
-  modelsSelectedForGlobal,
+  modelsSelectedForSlideshow,
   timerDuration,
   isTimerRunning,
   isSourcesModalVisible,
 } = useAppState();
 
 const {
-  selectModel,
-  toggleRandomMode,
-  toggleGlobalSelection,
-  activateGlobalSlideshow,
+  toggleModelSelection,
+  startSlideshow,
+  startIndividualModelSlideshow,
   toggleSlideshowTimer,
 } = useSlideshow();
 
-const handleSelectModel = (model) => {
-  selectModel(model);
+const handleToggleSelection = (modelName) => {
+  toggleModelSelection(modelName);
 };
 
-const handleToggleRandom = (modelName) => {
-  toggleRandomMode(modelName);
+const handleStartSlideshow = () => {
+  startSlideshow();
 };
 
-const handleToggleGlobal = (modelName) => {
-  toggleGlobalSelection(modelName);
-};
-
-const handleGlobalSlideshow = () => {
-  activateGlobalSlideshow();
+const handleClickModel = (model) => {
+  startIndividualModelSlideshow(model);
 };
 
 const handleToggleTimer = () => {
@@ -187,48 +168,26 @@ const openModal = () => {
 
 .model-item {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 10px 15px;
-  border-radius: 8px;
-  transition: all 0.2s ease;
-  border: 1px solid transparent;
-  margin-bottom: 6px;
+  gap: 12px;
+  padding: 12px 15px;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  margin-bottom: 8px;
   cursor: pointer;
 }
 
 .model-item:hover {
-  background-color: var(--selection-color);
-  border-color: var(--accent-color);
+  background-color: rgba(255, 182, 193, 0.1);
+  border-color: #ffb6c1;
   transform: translateX(3px);
+  box-shadow: 0 4px 12px rgba(255, 182, 193, 0.2);
 }
 
-.model-item.active-model-individual {
-  background-color: var(--accent-color);
-  border-color: var(--accent-hover);
-  color: var(--button-text-color);
-  box-shadow: 0 0 8px var(--accent-color);
-  font-weight: 700;
-}
-
-.model-item.active-model-individual .model-name-clickable {
-  color: var(--button-text-color);
-}
-
-.model-item.selected-for-global {
-  position: relative;
-}
-
-.model-item.selected-for-global::before {
-  content: '';
-  position: absolute;
-  left: 5px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 8px;
-  height: 8px;
-  background-color: var(--accent-hover);
-  border-radius: 50%;
+.model-item.selected-for-slideshow {
+  background-color: rgba(255, 192, 203, 0.15);
+  border-color: #ffb6c1;
 }
 
 .model-name-clickable {
@@ -236,63 +195,86 @@ const openModal = () => {
   font-size: 0.95rem;
   font-weight: 500;
   color: var(--text-color);
-  margin-right: 10px;
+  transition: color 0.2s ease;
+  pointer-events: none; /* Let the parent handle clicks */
+}
+
+.model-item:hover .model-name-clickable {
+  color: #ff69b4;
 }
 
 .model-controls {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  margin-left: 10px;
-}
-
-.toggle-label {
-  font-size: 0.8rem;
-  display: grid;
-  grid-template-columns: 50px auto;
   align-items: center;
-  color: var(--text-color);
-  font-weight: 700;
-  cursor: pointer;
-  gap: 5px;
 }
 
-.toggle-label input[type='checkbox'] {
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  width: 18px;
-  height: 18px;
-  border: 2px solid var(--border-color);
-  border-radius: 4px;
-  background-color: var(--primary-bg);
-  cursor: pointer;
+/* Girly custom checkbox styling */
+.checkbox-container {
+  display: inline-block;
   position: relative;
-  transition:
-    background-color 0.2s ease,
-    border-color 0.2s ease;
-  flex-shrink: 0;
-  justify-self: start;
+  cursor: pointer;
+  user-select: none;
 }
 
-.toggle-label input[type='checkbox']:hover {
-  border-color: var(--accent-color);
-}
-
-.toggle-label input[type='checkbox']:checked {
-  background-color: var(--accent-color);
-  border-color: var(--accent-hover);
-}
-
-.toggle-label input[type='checkbox']:checked::after {
-  content: '✔';
-  color: var(--button-text-color);
-  font-size: 14px;
-  font-weight: bold;
+.checkbox-container input[type='checkbox'] {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.checkmark {
+  position: relative;
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  background: linear-gradient(135deg, #ffeef8 0%, #ffe0f0 100%);
+  border: 2px solid #ffb6c1;
+  border-radius: 8px;
+  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  box-shadow: 0 2px 6px rgba(255, 105, 180, 0.15);
+}
+
+.checkbox-container:hover .checkmark {
+  border-color: #ff69b4;
+  box-shadow: 0 4px 12px rgba(255, 105, 180, 0.3);
+  transform: scale(1.1);
+}
+
+.checkbox-container input[type='checkbox']:checked ~ .checkmark {
+  background: linear-gradient(135deg, #ff69b4 0%, #ff1493 100%);
+  border-color: #ff1493;
+  box-shadow: 0 4px 16px rgba(255, 20, 147, 0.4);
+}
+
+.checkmark::after {
+  content: '';
+  position: absolute;
+  display: none;
+  left: 7px;
+  top: 3px;
+  width: 6px;
+  height: 11px;
+  border: solid white;
+  border-width: 0 3px 3px 0;
+  transform: rotate(45deg);
+}
+
+.checkbox-container input[type='checkbox']:checked ~ .checkmark::after {
+  display: block;
+  animation: checkmark-pop 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes checkmark-pop {
+  0% {
+    transform: rotate(45deg) scale(0);
+  }
+  50% {
+    transform: rotate(45deg) scale(1.2);
+  }
+  100% {
+    transform: rotate(45deg) scale(1);
+  }
 }
 </style>

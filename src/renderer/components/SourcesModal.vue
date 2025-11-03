@@ -68,8 +68,7 @@ const closeModal = () => {
 };
 
 const resetSlideshowState = () => {
-  state.currentSelectedModelForIndividualView = null;
-  state.isGlobalSlideshowActive = false;
+  state.isSlideshowActive = false;
   state.displayedMediaFiles = [];
   state.currentMediaIndex = -1;
   state.currentMediaItem = null;

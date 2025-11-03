@@ -47,7 +47,7 @@
 
     <div class="text-center mb-3 media-info">
       <p class="text-sm text-gray-400">
-        {{ currentMediaItem ? currentMediaItem.name : '&nbsp;' }}
+        {{ currentMediaItem ? currentMediaItem.name : '\u00A0' }}
       </p>
       <p class="text-sm text-gray-300">
         {{ countInfo }}
@@ -80,9 +80,9 @@ const {
   currentMediaItem,
   displayedMediaFiles,
   currentMediaIndex,
-  isGlobalSlideshowActive,
-  currentSelectedModelForIndividualView,
+  isSlideshowActive,
   mediaFilter,
+  totalMediaInPool,
 } = useAppState();
 
 const { navigateMedia, reapplyFilter } = useSlideshow();
@@ -104,20 +104,21 @@ const isImage = computed(() => {
 });
 
 const displayTitle = computed(() => {
-  if (isGlobalSlideshowActive.value) {
-    return 'Global Slideshow';
+  if (isSlideshowActive.value) {
+    return 'Slideshow';
   }
-  if (currentSelectedModelForIndividualView.value) {
-    return currentSelectedModelForIndividualView.value.name;
-  }
-  return 'Select a model or start Global Slideshow';
+  return 'Select models and start slideshow';
 });
 
 const countInfo = computed(() => {
-  if (displayedMediaFiles.value.length === 0) return '&nbsp;';
-  const current = currentMediaIndex.value + 1;
-  const total = displayedMediaFiles.value.length;
-  return `${current} / ${total}`;
+  if (!isSlideshowActive.value || displayedMediaFiles.value.length === 0) {
+    return '\u00A0';
+  }
+  // Show current position in viewing history out of total available media
+  const currentInHistory = currentMediaIndex.value + 1;
+  const historyLength = displayedMediaFiles.value.length;
+  const total = totalMediaInPool.value || historyLength;
+  return `${currentInHistory} / ${total} (viewed ${historyLength})`;
 });
 
 const canNavigate = computed(() => {
