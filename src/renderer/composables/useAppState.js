@@ -1,50 +1,50 @@
-import { reactive, toRefs, computed } from 'vue';
+/**
+ * @file Manages the global reactive state for the Vue application.
+ * This composable provides a centralized state object and functions to modify it,
+ * ensuring that all components share a single source of truth.
+ * @requires vue
+ */
+import { reactive, toRefs } from 'vue';
 
+/**
+ * @typedef {import('../../main/media-scanner.js').Model} Model
+ * @typedef {import('../../main/media-scanner.js').MediaFile} MediaFile
+ */
+
+/**
+ * The reactive state object that holds the application's global state.
+ * @type {object}
+ * @property {Model[]} allModels - The complete list of all models discovered by the media scanner.
+ * @property {{[modelName: string]: boolean}} modelsSelectedForSlideshow - A map indicating if a model is selected for the slideshow.
+ * @property {MediaFile[]} globalMediaPoolForSelection - A flat array of all media files from all selected models.
+ * @property {number} totalMediaInPool - The total number of media items in the filtered pool.
+ * @property {MediaFile[]} displayedMediaFiles - The history of media files that have been displayed in the current slideshow.
+ * @property {MediaFile | null} currentMediaItem - The media item currently being displayed.
+ * @property {number} currentMediaIndex - The index of the current media item within the displayedMediaFiles array.
+ * @property {boolean} isSlideshowActive - A flag indicating if the slideshow mode is active.
+ * @property {NodeJS.Timeout | null} slideshowTimerId - The ID of the slideshow timer.
+ * @property {number} timerDuration - The duration in seconds for the slideshow timer.
+ * @property {boolean} isTimerRunning - A flag indicating if the slideshow timer is running.
+ * @property {'All' | 'Images' | 'Videos'} mediaFilter - The current filter for media types.
+ * @property {boolean} isSourcesModalVisible - A flag to control the visibility of the sources modal.
+ * @property {{path: string, isActive: boolean}[]} mediaDirectories - The list of configured media directories.
+ * @property {{images: string[], videos: string[], all: string[]}} supportedExtensions - The supported file extensions.
+ */
 const state = reactive({
-  // The complete list of all models discovered by the media scanner
   allModels: [],
-
-  // A map where keys are model names and values are booleans indicating if
-  // the model is selected for the slideshow (all selected by default)
   modelsSelectedForSlideshow: {},
-
-  // A flat array of all media files from all selected models
   globalMediaPoolForSelection: [],
-
-  // Total number of media items in the filtered pool
   totalMediaInPool: 0,
-
-  // Represents the current "playlist"
   displayedMediaFiles: [],
-
-  // The specific media item that is currently being displayed on the screen
   currentMediaItem: null,
-
-  // The index of currentMediaItem within the displayedMediaFiles array
   currentMediaIndex: -1,
-
-  // A flag that is true when the slideshow is active
   isSlideshowActive: false,
-
-  // Holds the timer ID returned by setInterval for the slideshow
   slideshowTimerId: null,
-
-  // The duration in seconds for the slideshow timer
   timerDuration: 5,
-
-  // Whether the slideshow timer is running
   isTimerRunning: false,
-
-  // Current media filter: 'All', 'Images', 'Videos'
   mediaFilter: 'All',
-
-  // Whether the sources modal is visible
   isSourcesModalVisible: false,
-
-  // List of media directories
   mediaDirectories: [],
-
-  // Supported file extensions from main process
   supportedExtensions: {
     images: [],
     videos: [],
@@ -52,7 +52,22 @@ const state = reactive({
   },
 });
 
+/**
+ * A Vue composable that provides access to the global application state and related actions.
+ * @returns {{
+ *   state: object,
+ *   initializeApp: () => Promise<void>,
+ *   resetState: () => void,
+ *   stopSlideshow: () => void,
+ *   ...toRefs<object>
+ * }}
+ */
 export function useAppState() {
+  /**
+   * Initializes the application state by fetching data from the main process.
+   * This includes loading models, media directories, and supported extensions.
+   * @returns {Promise<void>}
+   */
   const initializeApp = async () => {
     try {
       if (!window.electronAPI) {
@@ -60,10 +75,8 @@ export function useAppState() {
       }
       state.allModels = await window.electronAPI.getModelsWithViewCounts();
       state.mediaDirectories = await window.electronAPI.getMediaDirectories();
-      state.supportedExtensions =
-        await window.electronAPI.getSupportedExtensions();
+      state.supportedExtensions = await window.electronAPI.getSupportedExtensions();
 
-      // Select all models by default
       state.allModels.forEach((model) => {
         state.modelsSelectedForSlideshow[model.name] = true;
       });
@@ -72,6 +85,9 @@ export function useAppState() {
     }
   };
 
+  /**
+   * Resets the slideshow-related state to its initial values.
+   */
   const resetState = () => {
     state.isSlideshowActive = false;
     state.displayedMediaFiles = [];
@@ -80,6 +96,9 @@ export function useAppState() {
     state.globalMediaPoolForSelection = [];
   };
 
+  /**
+   * Stops the slideshow timer if it is running.
+   */
   const stopSlideshow = () => {
     if (state.slideshowTimerId) {
       clearInterval(state.slideshowTimerId);

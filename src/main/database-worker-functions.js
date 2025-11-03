@@ -16,10 +16,10 @@ export function generateFileId(filePath) {
 
 /**
  * Promisifies the db.run method.
- * @param {object} db - The database instance.
+ * @param {import('sqlite3').Database} db - The database instance.
  * @param {string} sql - The SQL query to run.
- * @param {Array<any>} params - The parameters for the SQL query.
- * @returns {Promise<void>}
+ * @param {Array<any>} [params=[]] - The parameters for the SQL query.
+ * @returns {Promise<void>} A promise that resolves when the query is complete.
  */
 export function dbRun(db, sql, params = []) {
   return new Promise((resolve, reject) => {
@@ -35,10 +35,10 @@ export function dbRun(db, sql, params = []) {
 
 /**
  * Promisifies the db.all method.
- * @param {object} db - The database instance.
+ * @param {import('sqlite3').Database} db - The database instance.
  * @param {string} sql - The SQL query to run.
- * @param {Array<any>} params - The parameters for the SQL query.
- * @returns {Promise<Array>}
+ * @param {Array<any>} [params=[]] - The parameters for the SQL query.
+ * @returns {Promise<Array<any>>} A promise that resolves with an array of rows.
  */
 export function dbAll(db, sql, params = []) {
   return new Promise((resolve, reject) => {
@@ -54,10 +54,10 @@ export function dbAll(db, sql, params = []) {
 
 /**
  * Promisifies the db.get method.
- * @param {object} db - The database instance.
+ * @param {import('sqlite3').Database} db - The database instance.
  * @param {string} sql - The SQL query to run.
- * @param {Array<any>} params - The parameters for the SQL query.
- * @returns {Promise<any>}
+ * @param {Array<any>} [params=[]] - The parameters for the SQL query.
+ * @returns {Promise<any>} A promise that resolves with a single row.
  */
 export function dbGet(db, sql, params = []) {
   return new Promise((resolve, reject) => {
@@ -73,8 +73,8 @@ export function dbGet(db, sql, params = []) {
 
 /**
  * Promisifies the db.close method.
- * @param {object} db - The database instance.
- * @returns {Promise<void>}
+ * @param {import('sqlite3').Database} db - The database instance.
+ * @returns {Promise<void>} A promise that resolves when the database is closed.
  */
 export function dbClose(db) {
   return new Promise((resolve, reject) => {
@@ -89,11 +89,11 @@ export function dbClose(db) {
 }
 
 /**
- * Initialize the database connection
- * @param {object} Database - The sqlite3.Database constructor
- * @param {string} dbPath - Path to the database file
- * @param {object|null} existingDb - Existing database connection to close
- * @returns {Promise<{db: object, success: boolean, error?: string}>}
+ * Initializes the database connection and creates tables if they don't exist.
+ * @param {import('sqlite3').Database} Database - The sqlite3.Database constructor.
+ * @param {string} dbPath - Path to the database file.
+ * @param {import('sqlite3').Database|null} [existingDb=null] - An existing database connection to close before creating a new one.
+ * @returns {Promise<{db: import('sqlite3').Database|null, success: boolean, error?: string}>} An object containing the new database instance and success status.
  */
 export async function initDatabase(Database, dbPath, existingDb = null) {
   try {
@@ -143,10 +143,10 @@ export async function initDatabase(Database, dbPath, existingDb = null) {
 }
 
 /**
- * Record a view for a media file
- * @param {object} db - The database instance
- * @param {string} filePath - The file path to record a view for
- * @returns {Promise<{success: boolean, error?: string}>}
+ * Records a view for a media file, incrementing its view count.
+ * @param {import('sqlite3').Database} db - The database instance.
+ * @param {string} filePath - The file path to record a view for.
+ * @returns {Promise<{success: boolean, error?: string}>} An object indicating the success of the operation.
  */
 export async function recordMediaView(db, filePath) {
   if (!db) {
@@ -182,11 +182,10 @@ export async function recordMediaView(db, filePath) {
 }
 
 /**
- * Get view counts for multiple file paths
- * Uses batch processing to avoid SQLite's SQLITE_MAX_VARIABLE_NUMBER limit
- * @param {object} db - The database instance
- * @param {string[]} filePaths - Array of file paths
- * @returns {Promise<{success: boolean, data?: object, error?: string}>}
+ * Gets view counts for multiple file paths in batches.
+ * @param {import('sqlite3').Database} db - The database instance.
+ * @param {string[]} filePaths - Array of file paths.
+ * @returns {Promise<{success: boolean, data?: {[filePath: string]: number}, error?: string}>} An object containing a map of file paths to view counts.
  */
 export async function getMediaViewCounts(db, filePaths) {
   if (!db || !filePaths || filePaths.length === 0) {
@@ -197,7 +196,6 @@ export async function getMediaViewCounts(db, filePaths) {
     const viewCountsMap = {};
     const BATCH_SIZE = 500; // Process in batches to avoid SQLite variable limit
 
-    // Process file paths in batches
     for (let i = 0; i < filePaths.length; i += BATCH_SIZE) {
       const batch = filePaths.slice(i, i + BATCH_SIZE);
       const placeholders = batch.map(() => '?').join(',');
@@ -225,11 +223,11 @@ export async function getMediaViewCounts(db, filePaths) {
 }
 
 /**
- * Cache models in the database
- * @param {object} db - The database instance
- * @param {string} cacheKey - The cache key
- * @param {Array} models - The models to cache
- * @returns {Promise<{success: boolean, error?: string}>}
+ * Caches a key-value pair (e.g., models) in the database.
+ * @param {import('sqlite3').Database} db - The database instance.
+ * @param {string} cacheKey - The key for the cache entry.
+ * @param {any} models - The data to be cached (will be JSON stringified).
+ * @returns {Promise<{success: boolean, error?: string}>} An object indicating the success of the operation.
  */
 export async function cacheModels(db, cacheKey, models) {
   if (!db) {
@@ -252,10 +250,10 @@ export async function cacheModels(db, cacheKey, models) {
 }
 
 /**
- * Get cached models from the database
- * @param {object} db - The database instance
- * @param {string} cacheKey - The cache key
- * @returns {Promise<{success: boolean, data?: any, error?: string}>}
+ * Gets cached data from the database.
+ * @param {import('sqlite3').Database} db - The database instance.
+ * @param {string} cacheKey - The key of the cache entry to retrieve.
+ * @returns {Promise<{success: boolean, data?: any, error?: string}>} An object containing the parsed cached data, or null if not found.
  */
 export async function getCachedModels(db, cacheKey) {
   if (!db) {
@@ -280,9 +278,9 @@ export async function getCachedModels(db, cacheKey) {
 }
 
 /**
- * Close the database connection
- * @param {object} db - The database instance
- * @returns {Promise<{success: boolean, error?: string}>}
+ * Closes the database connection.
+ * @param {import('sqlite3').Database} db - The database instance to close.
+ * @returns {Promise<{success: boolean, error?: string}>} An object indicating the success of the operation.
  */
 export async function closeDatabase(db) {
   if (db) {
@@ -299,10 +297,10 @@ export async function closeDatabase(db) {
 }
 
 /**
- * Adds a new media directory path to the database.
- * @param {object} db - The database instance
+ * Adds a new media directory path to the database or activates it if it exists.
+ * @param {import('sqlite3').Database} db - The database instance.
  * @param {string} directoryPath - The absolute path of the directory to add.
- * @returns {Promise<{success: boolean, error?: string}>}
+ * @returns {Promise<{success: boolean, error?: string}>} An object indicating the success of the operation.
  */
 export async function addMediaDirectory(db, directoryPath) {
   if (!db) {
@@ -330,8 +328,8 @@ export async function addMediaDirectory(db, directoryPath) {
 
 /**
  * Retrieves all media directory paths from the database.
- * @param {object} db - The database instance
- * @returns {Promise<{success: boolean, data?: {path: string, isActive: boolean}[], error?: string}>}
+ * @param {import('sqlite3').Database} db - The database instance.
+ * @returns {Promise<{success: boolean, data?: {path: string, isActive: boolean}[], error?: string}>} An object containing an array of directory objects.
  */
 export async function getMediaDirectories(db) {
   if (!db) {
@@ -356,9 +354,9 @@ export async function getMediaDirectories(db) {
 
 /**
  * Removes a media directory path from the database.
- * @param {object} db - The database instance
+ * @param {import('sqlite3').Database} db - The database instance.
  * @param {string} directoryPath - The absolute path of the directory to remove.
- * @returns {Promise<{success: boolean, error?: string}>}
+ * @returns {Promise<{success: boolean, error?: string}>} An object indicating the success of the operation.
  */
 export async function removeMediaDirectory(db, directoryPath) {
   if (!db) {
@@ -381,10 +379,10 @@ export async function removeMediaDirectory(db, directoryPath) {
 
 /**
  * Updates the active state of a media directory.
- * @param {object} db - The database instance
+ * @param {import('sqlite3.Database')} db - The database instance.
  * @param {string} directoryPath - The path of the directory to update.
  * @param {boolean} isActive - The new active state.
- * @returns {Promise<{success: boolean, error?: string}>}
+ * @returns {Promise<{success: boolean, error?: string}>} An object indicating the success of the operation.
  */
 export async function setDirectoryActiveState(db, directoryPath, isActive) {
   if (!db) {
