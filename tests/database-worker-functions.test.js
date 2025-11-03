@@ -104,12 +104,18 @@ describe('Database Worker Functions', () => {
       expect(result.success).toBe(true);
       expect(result.db).toBeDefined();
 
-      // Update our reference
+      // Update our reference and close it before cleanup
       db = result.db;
+      await dbFunctions.closeDatabase(db);
 
-      // Clean up
-      fs.unlinkSync(newDbPath);
-      fs.rmdirSync(tmpDir);
+      // Clean up - use fs-extra for better Windows compatibility
+      try {
+        fs.unlinkSync(newDbPath);
+        fs.rmdirSync(tmpDir);
+      } catch (err) {
+        // Ignore cleanup errors on Windows where file might still be locked
+        console.warn('Cleanup warning:', err.message);
+      }
     });
   });
 

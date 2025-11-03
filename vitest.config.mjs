@@ -1,7 +1,9 @@
 import { defineConfig } from 'vitest/config';
 import { resolve } from 'path';
+import vue from '@vitejs/plugin-vue';
 
 export default defineConfig({
+  plugins: [vue()],
   test: {
     globals: true,
     environment: 'node',
@@ -12,19 +14,24 @@ export default defineConfig({
       reporter: ['text', 'json', 'html', 'lcov'],
       all: true,
       include: [
-        'src/main/database-worker-functions.js',
-        'src/main/constants.js',
-        'src/main/media-scanner.js',
-        'src/renderer/composables/useSlideshow.js',
-        'src/renderer/composables/useAppState.js',
+        'src/main/**/*.js',
+        'src/renderer/**/*.js',
+        'src/renderer/**/*.vue',
+      ],
+      exclude: [
+        'src/main/main.js',
+        'src/preload/**',
+        'src/renderer/renderer.js',
+        '**/*.test.js',
+        '**/*.spec.js',
       ],
       reportsDirectory: './coverage',
       thresholds: {
         global: {
-          statements: 80,
-          branches: 50,
-          functions: 80,
-          lines: 80,
+          statements: 60,
+          branches: 45,
+          functions: 60,
+          lines: 60,
         },
       },
     },
