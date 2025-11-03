@@ -55,7 +55,12 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+/**
+ * @file This component displays the list of all available media models.
+ * It provides controls for starting a global slideshow, managing the timer,
+ * opening the sources modal, and selecting/deselecting models for the slideshow.
+ * Clicking on a model's name starts a slideshow for that specific model.
+ */
 import { useAppState } from '../composables/useAppState';
 import { useSlideshow } from '../composables/useSlideshow';
 
@@ -74,22 +79,39 @@ const {
   toggleSlideshowTimer,
 } = useSlideshow();
 
+/**
+ * Toggles the selection of a model for the global slideshow.
+ * @param {string} modelName - The name of the model to toggle.
+ */
 const handleToggleSelection = (modelName) => {
   toggleModelSelection(modelName);
 };
 
+/**
+ * Starts the global slideshow with all selected models.
+ */
 const handleStartSlideshow = () => {
   startSlideshow();
 };
 
+/**
+ * Starts a slideshow for a single, specific model.
+ * @param {import('../../main/media-scanner.js').Model} model - The model to start the slideshow for.
+ */
 const handleClickModel = (model) => {
   startIndividualModelSlideshow(model);
 };
 
+/**
+ * Toggles the slideshow timer (play/pause).
+ */
 const handleToggleTimer = () => {
   toggleSlideshowTimer();
 };
 
+/**
+ * Opens the 'Manage Sources' modal.
+ */
 const openModal = () => {
   isSourcesModalVisible.value = true;
 };

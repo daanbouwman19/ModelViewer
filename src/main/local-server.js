@@ -6,6 +6,7 @@
  * @requires fs
  * @requires path
  * @requires ./constants.js
+ * @requires ./database.js
  */
 import http from 'http';
 import fs from 'fs';
@@ -14,32 +15,31 @@ import {
   SUPPORTED_IMAGE_EXTENSIONS,
   SUPPORTED_VIDEO_EXTENSIONS,
 } from './constants.js';
+import { getMediaDirectories } from './database.js';
 
 /**
  * Holds the singleton instance of the HTTP server.
  * @type {http.Server | null}
  */
-let serverInstance = null; // To keep a reference to the server
+let serverInstance = null;
 
 /**
- * Stores the port the server is currently running on. 0 if not running.
+ * Stores the port the server is currently running on. Defaults to 0 if not running.
  * @type {number}
  */
-let serverPort = 0; // Stores the port the server is running on.
+let serverPort = 0;
 
 /**
  * Determines the MIME type of a file based on its extension.
  * @param {string} filePath - The path to the file.
- * @returns {string} The MIME type string.
+ * @returns {string} The corresponding MIME type string (e.g., 'image/jpeg', 'video/mp4').
  */
 function getMimeType(filePath) {
   const extension = path.extname(filePath).substring(1).toLowerCase();
   if (SUPPORTED_IMAGE_EXTENSIONS.includes(`.${extension}`)) {
-    // Special case for jpeg
     return `image/${extension === 'jpg' ? 'jpeg' : extension}`;
   }
   if (SUPPORTED_VIDEO_EXTENSIONS.includes(`.${extension}`)) {
-    // Provide specific MIME types for common video formats
     switch (extension) {
       case 'mp4':
         return 'video/mp4';
@@ -54,50 +54,74 @@ function getMimeType(filePath) {
       case 'mkv':
         return 'video/x-matroska';
       default:
-        return `video/${extension}`; // Fallback for other video types
+        return `video/${extension}`;
     }
   }
-  return 'application/octet-stream'; // Default for unknown or unsupported types
+  return 'application/octet-stream'; // Default for unknown types
 }
 
 /**
- * Starts a local HTTP server to stream media files if it's not already running.
- * This is primarily used for larger video files that exceed Data URL limits.
- * The server listens on a random available port on 127.0.0.1 and supports
- * HTTP Range requests for video streaming.
- * @param {() => void} onReadyCallback - A callback function that is executed once the server has successfully started and is listening for requests.
+ * Checks if a file path is within the allowed media directories.
+ * @param {string} filePath - The file path to validate.
+ * @param {Array<{path: string}>} allowedDirectories - Array of allowed directory objects.
+ * @returns {boolean} True if the file is within an allowed directory, false otherwise.
+ */
+function isPathAllowed(filePath, allowedDirectories) {
+  const normalizedPath = path.resolve(filePath);
+  return allowedDirectories.some((dir) => {
+    const normalizedDir = path.resolve(dir.path);
+    return (
+      normalizedPath.startsWith(normalizedDir + path.sep) ||
+      normalizedPath === normalizedDir
+    );
+  });
+}
+
+/**
+ * Starts the local HTTP server if it is not already running.
+ * The server listens on a random available port and handles range requests for video streaming.
+ * @param {() => void} onReadyCallback - A callback function executed once the server has started.
  * @returns {void}
  */
 function startLocalServer(onReadyCallback) {
   if (serverInstance) {
     console.warn('[local-server.js] Server already started. Ignoring request.');
     if (onReadyCallback && typeof onReadyCallback === 'function') {
-      onReadyCallback(); // Call callback if already running
+      onReadyCallback();
     }
     return;
   }
 
-  const server = http.createServer((req, res) => {
-    // Use WHATWG URL API instead of deprecated url.parse()
+  const server = http.createServer(async (req, res) => {
     const parsedUrl = new URL(
       req.url,
       `http://${req.headers.host || 'localhost'}`,
     );
-    // Decode URI component to handle spaces or special characters in file paths
     const requestedPath = decodeURIComponent(parsedUrl.pathname.substring(1));
-
-    // Security: Define the allowed base directory from which files can be served.
-    // This prevents directory traversal attacks.
-    // TODO: This should be configurable or derived more safely in a real application.
-    // For now, allowing access to any path that fs.existsSync confirms.
-    // A more robust solution would involve checking against a list of allowed base paths.
     const normalizedFilePath = path.normalize(requestedPath);
 
     if (!fs.existsSync(normalizedFilePath)) {
-      // Simplified check
       console.error(`[local-server.js] File not found: ${normalizedFilePath}`);
       res.writeHead(404, { 'Content-Type': 'text/plain' });
       return res.end('File not found.');
+    }
+
+    // Security: Validate that the requested file is within allowed media directories
+    try {
+      const allowedDirectories = await getMediaDirectories();
+      if (!isPathAllowed(normalizedFilePath, allowedDirectories)) {
+        console.error(
+          `[local-server.js] Access denied: ${normalizedFilePath} is not within allowed directories`,
+        );
+        res.writeHead(403, { 'Content-Type': 'text/plain' });
+        return res.end('Access denied.');
+      }
+    } catch (error) {
+      console.error(
+        `[local-server.js] Error validating path: ${error.message}`,
+      );
+      res.writeHead(500, { 'Content-Type': 'text/plain' });
+      return res.end('Internal server error.');
     }
 
     try {
@@ -106,12 +130,10 @@ function startLocalServer(onReadyCallback) {
       const range = req.headers.range;
 
       if (range) {
-        // Handle byte range requests for streaming
         const parts = range.replace(/bytes=/, '').split('-');
         const start = parseInt(parts[0], 10);
-        let end = parts[1] ? parseInt(parts[1], 10) : totalSize - 1;
+        const end = parts[1] ? parseInt(parts[1], 10) : totalSize - 1;
 
-        // Validate range
         if (
           isNaN(start) ||
           start >= totalSize ||
@@ -121,10 +143,7 @@ function startLocalServer(onReadyCallback) {
           console.error(
             `[local-server.js] Invalid range: ${range} for ${normalizedFilePath}`,
           );
-          res.writeHead(416, {
-            'Content-Range': `bytes */${totalSize}`,
-            'Content-Type': 'text/plain',
-          });
+          res.writeHead(416, { 'Content-Range': `bytes */${totalSize}` });
           return res.end('Requested range not satisfiable.');
         }
 
@@ -142,11 +161,10 @@ function startLocalServer(onReadyCallback) {
         res.writeHead(206, head); // 206 Partial Content
         fileStream.pipe(res);
       } else {
-        // Serve the whole file
         const head = {
           'Content-Length': totalSize,
           'Content-Type': getMimeType(normalizedFilePath),
-          'Accept-Ranges': 'bytes', // Indicate that range requests are supported
+          'Accept-Ranges': 'bytes',
         };
         res.writeHead(200, head); // 200 OK
         fs.createReadStream(normalizedFilePath).pipe(res);
@@ -161,16 +179,15 @@ function startLocalServer(onReadyCallback) {
     }
   });
 
-  serverInstance = server; // Store the server instance
+  serverInstance = server;
 
   serverInstance.listen(0, '127.0.0.1', () => {
-    // Listen on port 0 for a random available port
-    serverPort = serverInstance.address().port;
+    const address = serverInstance.address();
+    serverPort = address ? address.port : 0;
     console.log(
       `[local-server.js] Local media server started on http://localhost:${serverPort}`,
     );
 
-    // Allow the process to exit even if the server is still running (useful for tests)
     if (process.env.NODE_ENV === 'test') {
       serverInstance.unref();
     }
@@ -182,22 +199,18 @@ function startLocalServer(onReadyCallback) {
 
   serverInstance.on('error', (err) => {
     console.error('[local-server.js] Server Error:', err);
-    serverInstance = null; // Reset serverInstance on error
+    serverInstance = null;
     serverPort = 0;
-    // Handle server errors, e.g., if the server fails to start.
   });
 }
 
 /**
  * Stops the local HTTP server if it is running.
- * @param {() => void} [callback] - An optional callback to execute after the server has been successfully closed.
+ * @param {() => void} [callback] - An optional callback to execute after the server has closed.
  * @returns {void}
  */
 function stopLocalServer(callback) {
   if (serverInstance) {
-    // Close all existing connections
-    serverInstance.closeAllConnections?.(); // Available in Node 18.2+
-
     serverInstance.close((err) => {
       if (err) {
         console.error('[local-server.js] Error stopping server:', err);
@@ -210,16 +223,14 @@ function stopLocalServer(callback) {
         callback();
       }
     });
-  } else {
-    if (callback && typeof callback === 'function') {
-      callback(); // Call immediately if not running
-    }
+  } else if (callback && typeof callback === 'function') {
+    callback();
   }
 }
 
 /**
- * Gets the port the local server is running on.
- * @returns {number} The server port, or 0 if not started/listening.
+ * Gets the port the local server is currently running on.
+ * @returns {number} The server port, or 0 if the server is not running.
  */
 function getServerPort() {
   return serverPort;

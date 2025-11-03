@@ -1,7 +1,7 @@
 /**
  * @file Provides functionality to scan the filesystem for media files.
  * This module is responsible for finding all supported media files within a
- * given directory structure and organizing them into "models" (subdirectories).
+ * given directory structure and organizing them into "models".
  * @requires fs
  * @requires path
  * @requires ./constants.js
@@ -11,12 +11,22 @@ import path from 'path';
 import { ALL_SUPPORTED_EXTENSIONS } from './constants.js';
 
 /**
+ * @typedef {Object} MediaFile
+ * @property {string} name - The name of the media file (e.g., 'image.jpg').
+ * @property {string} path - The absolute path to the media file.
+ */
+
+/**
+ * @typedef {Object} Model
+ * @property {string} name - The name of the model, typically the subdirectory name.
+ * @property {MediaFile[]} textures - An array of media files belonging to this model.
+ */
+
+/**
  * Recursively finds all supported media files in a directory and its subdirectories.
- * It populates a list with objects containing the name and full path of each found file.
  * @param {string} directoryPath - The absolute path to the directory to scan.
- * @param {Array<Object>} [mediaFilesList=[]] - An accumulator array for the media files found. This is used for recursion.
- * @returns {Array<{name: string, path: string}>} A list of objects, where each object represents a media file
- * and has `name` and `path` properties.
+ * @param {MediaFile[]} [mediaFilesList=[]] - An accumulator array for the media files found (used for recursion).
+ * @returns {MediaFile[]} A list of media file objects.
  */
 function findAllMediaFiles(directoryPath, mediaFilesList = []) {
   try {
@@ -24,7 +34,7 @@ function findAllMediaFiles(directoryPath, mediaFilesList = []) {
     for (const item of items) {
       const fullPath = path.join(directoryPath, item.name);
       if (item.isDirectory()) {
-        findAllMediaFiles(fullPath, mediaFilesList); // Recurse into subdirectories
+        findAllMediaFiles(fullPath, mediaFilesList);
       } else if (item.isFile()) {
         const fileExtension = path.extname(item.name).toLowerCase();
         if (ALL_SUPPORTED_EXTENSIONS.includes(fileExtension)) {
@@ -33,24 +43,21 @@ function findAllMediaFiles(directoryPath, mediaFilesList = []) {
       }
     }
   } catch (err) {
-    // Log errors only if not in test environment to keep test output clean
     if (process.env.NODE_ENV !== 'test') {
       console.error(
         `[media-scanner.js] Error reading directory ${directoryPath}:`,
         err.message,
       );
     }
-    // Optionally, could re-throw or handle more gracefully depending on requirements
   }
   return mediaFilesList;
 }
 
 /**
- * Performs a full scan across multiple base media directories to find models and their media files.
- * Models with the same name from different base directories will be merged.
+ * Performs a full scan across multiple base directories to find models and their associated media files.
+ * Models with the same name from different directories will have their media files merged.
  * @param {string[]} baseMediaDirectories - An array of root directories to scan.
- * @returns {Promise<Array<Object>>} A promise that resolves to an array of model objects.
- * Returns an empty array if the scan fails or no models are found.
+ * @returns {Promise<Model[]>} A promise that resolves to an array of model objects. Returns an empty array on failure.
  */
 async function performFullMediaScan(baseMediaDirectories) {
   if (process.env.NODE_ENV !== 'test') {
@@ -68,10 +75,9 @@ async function performFullMediaScan(baseMediaDirectories) {
             `[media-scanner.js] Media directory not found: ${baseDir}`,
           );
         }
-        continue; // Skip non-existent directories
+        continue;
       }
 
-      // --- New: Scan for files directly in the base directory ---
       const rootDirName = path.basename(baseDir);
       const rootFiles = fs
         .readdirSync(baseDir, { withFileTypes: true })
@@ -97,7 +103,6 @@ async function performFullMediaScan(baseMediaDirectories) {
           });
         }
       }
-      // --- End New ---
 
       const modelFolders = fs
         .readdirSync(baseDir, { withFileTypes: true })
@@ -110,11 +115,9 @@ async function performFullMediaScan(baseMediaDirectories) {
 
         if (filesInModelFolder.length > 0) {
           if (modelsMap.has(folderName)) {
-            // If model exists, merge textures
             const existingModel = modelsMap.get(folderName);
             existingModel.textures.push(...filesInModelFolder);
           } else {
-            // Otherwise, create a new model entry
             modelsMap.set(folderName, {
               name: folderName,
               textures: filesInModelFolder,
@@ -134,13 +137,8 @@ async function performFullMediaScan(baseMediaDirectories) {
     if (process.env.NODE_ENV !== 'test') {
       console.error(`[media-scanner.js] Error scanning disk for models:`, e);
     }
-    return []; // Return empty array on error
+    return [];
   }
 }
 
-export {
-  // findAllMediaFiles is primarily used internally by performFullMediaScan,
-  // but exporting it might be useful for testing or other specific scenarios.
-  findAllMediaFiles,
-  performFullMediaScan,
-};
+export { findAllMediaFiles, performFullMediaScan };

@@ -4,14 +4,9 @@
  * backend logic and communication with the renderer process via IPC.
  * This includes file system operations, database management, and running a local server.
  */
-console.log('[main.js] Script started. Electron main process initializing...');
-
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import path from 'path';
 import fs from 'fs';
-
-// Check if we're in development mode
-const isDev = !app.isPackaged;
 
 import {
   MAX_DATA_URL_SIZE_MB,
@@ -40,18 +35,30 @@ import {
   getMimeType as resolveMimeType,
 } from './local-server.js';
 
+/**
+ * A flag indicating if the application is running in development mode.
+ * @type {boolean}
+ */
+const isDev = !app.isPackaged;
+
+/**
+ * The main browser window instance.
+ * @type {BrowserWindow | null}
+ */
+let mainWindow = null;
+
 // --- IPC Handlers ---
 
+/**
+ * Handles the 'load-file-as-data-url' IPC call from the renderer process.
+ * It loads a file and returns its content as a Data URL or an HTTP URL from the local server
+ * for large video files.
+ * @returns {Promise<{type: 'data-url' | 'http-url' | 'error', url?: string, message?: string}>} An object containing the result.
+ */
 ipcMain.handle('load-file-as-data-url', (event, filePath) => {
   try {
     if (!filePath || !fs.existsSync(filePath)) {
-      console.error(
-        `[main.js] File does not exist for load-file-as-data-url: ${filePath}`,
-      );
-      return {
-        type: 'error',
-        message: `File does not exist: ${filePath}`,
-      };
+      return { type: 'error', message: `File does not exist: ${filePath}` };
     }
     const stats = fs.statSync(filePath);
     const isVideo = SUPPORTED_VIDEO_EXTENSIONS.includes(
@@ -59,18 +66,13 @@ ipcMain.handle('load-file-as-data-url', (event, filePath) => {
     );
     const currentServerPort = getServerPort();
 
-    // If it's a large video, serve via HTTP URL from local server
     if (isVideo && stats.size > MAX_DATA_URL_SIZE_MB * 1024 * 1024) {
       if (currentServerPort === 0) {
-        console.error(
-          '[main.js] Server not ready (port 0), cannot provide HTTP URL for large video.',
-        );
         return {
           type: 'error',
           message: 'Local server not ready to stream large video.',
         };
       }
-      // Ensure backslashes are forward slashes for URL compatibility
       const pathForUrl = filePath.replace(/\\/g, '/');
       return {
         type: 'http-url',
@@ -78,14 +80,13 @@ ipcMain.handle('load-file-as-data-url', (event, filePath) => {
       };
     }
 
-    // Otherwise, load as Data URL
-    const mimeType = resolveMimeType(filePath); // Use imported resolveMimeType
+    const mimeType = resolveMimeType(filePath);
     const fileBuffer = fs.readFileSync(filePath);
     const dataURL = `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
     return { type: 'data-url', url: dataURL };
   } catch (error) {
     console.error(
-      `[main.js] CRITICAL ERROR while processing ${filePath} in load-file-as-data-url:`,
+      `[main.js] Error processing ${filePath} in load-file-as-data-url:`,
       error,
     );
     return {
@@ -95,71 +96,61 @@ ipcMain.handle('load-file-as-data-url', (event, filePath) => {
   }
 });
 
+/**
+ * Handles the 'record-media-view' IPC call.
+ * @param {string} filePath - The path of the media file to record a view for.
+ */
 ipcMain.handle('record-media-view', async (event, filePath) => {
   await recordMediaView(filePath);
 });
 
+/**
+ * Handles the 'get-media-view-counts' IPC call.
+ * @param {string[]} filePaths - An array of file paths.
+ * @returns {Promise<{[filePath: string]: number}>} A map of file paths to their view counts.
+ */
 ipcMain.handle('get-media-view-counts', async (event, filePaths) => {
   return getMediaViewCounts(filePaths);
 });
 
 /**
- * Scans the disk for media models based on a configured directory,
- * then caches the results in the database.
- * @returns {Promise<Array<Object>>} The list of models found.
+ * Scans active media directories for models, caches the result in the database,
+ * and returns the list of models found.
+ * @returns {Promise<import('./media-scanner.js').Model[]>} The list of models found.
  */
 async function scanDiskForModelsAndCache() {
-  console.log(
-    '[main.js] scanDiskForModelsAndCache called. Delegating to media-scanner and database.',
-  );
-
   const allDirectories = await getMediaDirectories();
   const activeDirectories = allDirectories
     .filter((dir) => dir.isActive)
     .map((dir) => dir.path);
 
   if (!activeDirectories || activeDirectories.length === 0) {
-    console.log(
-      '[main.js] No active media directories configured. Skipping scan.',
-    );
     await cacheModels([]);
     return [];
   }
 
   const models = await performFullMediaScan(activeDirectories);
-
-  if (!models || models.length === 0) {
-    console.log('[main.js] Media scan returned no models.');
-    // Cache an empty result to avoid re-scanning constantly if the directory is truly empty.
-  }
-
-  await cacheModels(models);
-  return models;
+  await cacheModels(models || []);
+  return models || [];
 }
 
 /**
- * Retrieves models, first trying the cache, then scanning the disk if cache is empty.
- * @returns {Promise<Array<Object>>} The list of models.
+ * Retrieves models by first checking the cache, and if the cache is empty,
+ * performs a disk scan.
+ * @returns {Promise<import('./media-scanner.js').Model[]>} The list of models.
  */
 async function getModelsFromCacheOrDisk() {
   let models = await getCachedModels();
   if (models && models.length > 0) {
-    // Check if cache is not empty
-    console.log('[main.js] Loaded models from cache.');
     return models;
   }
-  console.log(
-    '[main.js] No file index cache found or cache empty. Scanning disk...',
-  );
-  models = await scanDiskForModelsAndCache();
-  return models;
+  return scanDiskForModelsAndCache();
 }
 
 /**
- * Scans the disk for models and returns them with their view counts.
- * This is a helper function to avoid code duplication in handlers that need
- * to re-index and return models with view counts.
- * @returns {Promise<Array<Object>>} The list of models with view counts.
+ * Performs a fresh disk scan and returns the models with their view counts.
+ * This is a utility function to combine scanning and view count retrieval.
+ * @returns {Promise<import('./media-scanner.js').Model[]>} The list of models with view counts.
  */
 async function getModelsWithViewCountsAfterScan() {
   const models = await scanDiskForModelsAndCache();
@@ -181,12 +172,17 @@ async function getModelsWithViewCountsAfterScan() {
   }));
 }
 
+/**
+ * Handles the 'get-models-with-view-counts' IPC call.
+ * Retrieves models (from cache or disk) and augments them with view counts.
+ * @returns {Promise<import('./media-scanner.js').Model[]>} A promise that resolves to the list of models with view counts.
+ */
 ipcMain.handle('get-models-with-view-counts', async () => {
   const models = await getModelsFromCacheOrDisk();
   if (!models || models.length === 0) {
-    console.log('[main.js] No models found for get-models-with-view-counts.');
     return [];
   }
+
   const allFilePaths = models.flatMap((model) =>
     model.textures.map((texture) => texture.path),
   );
@@ -201,49 +197,66 @@ ipcMain.handle('get-models-with-view-counts', async () => {
   }));
 });
 
+/**
+ * Handles the 'add-media-directory' IPC call. Opens a dialog to select a directory,
+ * adds it to the database, and triggers a re-scan.
+ * @returns {Promise<import('./media-scanner.js').Model[] | null>} The updated list of models, or null if the dialog was canceled.
+ */
 ipcMain.handle('add-media-directory', async () => {
-  if (!mainWindow) {
-    return null;
-  }
+  if (!mainWindow) return null;
+
   const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
     properties: ['openDirectory'],
     title: 'Select Media Directory',
   });
 
   if (canceled || !filePaths || filePaths.length === 0) {
-    return null; // User cancelled
+    return null;
   }
 
-  const newDirectory = filePaths[0];
-  await addMediaDirectory(newDirectory);
-
-  // After adding, trigger a full re-index and get the updated models
-  console.log('[main.js] New directory added. Re-indexing media library...');
+  await addMediaDirectory(filePaths[0]);
   return getModelsWithViewCountsAfterScan();
 });
 
+/**
+ * Handles the 'reindex-media-library' IPC call.
+ * @returns {Promise<import('./media-scanner.js').Model[]>} The updated list of models.
+ */
 ipcMain.handle('reindex-media-library', async () => {
-  console.log('[main.js] Re-indexing media library requested...');
   return getModelsWithViewCountsAfterScan();
 });
 
+/**
+ * Handles the 'remove-media-directory' IPC call.
+ * @param {string} directoryPath - The path of the directory to remove.
+ */
 ipcMain.handle('remove-media-directory', async (event, directoryPath) => {
   await removeMediaDirectory(directoryPath);
-  // No need to return anything, the frontend will trigger a re-index.
 });
 
+/**
+ * Handles the 'set-directory-active-state' IPC call.
+ * @param {{directoryPath: string, isActive: boolean}} options - The directory path and its new active state.
+ */
 ipcMain.handle(
   'set-directory-active-state',
   async (event, { directoryPath, isActive }) => {
     await setDirectoryActiveState(directoryPath, isActive);
-    // No need to return anything, the frontend will trigger a re-index.
   },
 );
 
+/**
+ * Handles the 'get-media-directories' IPC call.
+ * @returns {Promise<{path: string, isActive: boolean}[]>} The list of media directories.
+ */
 ipcMain.handle('get-media-directories', async () => {
   return getMediaDirectories();
 });
 
+/**
+ * Handles the 'get-supported-extensions' IPC call.
+ * @returns {{images: string[], videos: string[], all: string[]}} The supported file extensions.
+ */
 ipcMain.handle('get-supported-extensions', () => {
   return {
     images: SUPPORTED_IMAGE_EXTENSIONS,
@@ -253,10 +266,11 @@ ipcMain.handle('get-supported-extensions', () => {
 });
 
 // --- Window Creation ---
-let mainWindow; // Keep a reference to the main window
 
+/**
+ * Creates and configures the main application window.
+ */
 function createWindow() {
-  // Get the preload script path - electron-vite outputs to out/preload/preload.cjs
   const preloadPath = path.join(__dirname, '../preload/preload.cjs');
 
   mainWindow = new BrowserWindow({
@@ -269,46 +283,36 @@ function createWindow() {
     },
   });
 
-  // Load the renderer
   if (isDev) {
-    // In development, use the dev server (electron-vite provides VITE_DEV_SERVER_URL)
     const devServerURL =
       process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173';
     mainWindow
       .loadURL(devServerURL)
-      .then(() => {
-        console.log('[main.js] Development server loaded successfully.');
-      })
       .catch((err) =>
-        console.error('[main.js] FAILED to load development server:', err),
+        console.error('[main.js] Failed to load development server:', err),
       );
   } else {
-    // In production, load the built index.html
     mainWindow
       .loadFile(path.join(__dirname, '../renderer/index.html'))
-      .then(() => {
-        console.log('[main.js] index.html loaded successfully.');
-      })
       .catch((err) =>
-        console.error('[main.js] FAILED to load index.html:', err),
+        console.error('[main.js] Failed to load index.html:', err),
       );
   }
 
   mainWindow.on('closed', () => {
-    mainWindow = null; // Dereference the window object
+    mainWindow = null;
   });
 }
 
 // --- App Lifecycle ---
+
 app.on('ready', async () => {
   try {
     await initDatabase();
-    console.log('[main.js] Database initialization requested on app ready.');
-    // Start local server and pass createWindow as a callback
     startLocalServer(createWindow);
   } catch (error) {
     console.error(
-      '[main.js] Further error context: Database initialization failed during app ready sequence.',
+      '[main.js] Database initialization failed during app ready sequence:',
       error,
     );
     app.quit();
@@ -316,38 +320,24 @@ app.on('ready', async () => {
 });
 
 app.on('window-all-closed', () => {
-  // On macOS it is common for applications and their menu bar
-  // to stay active until the user quits explicitly with Cmd + Q
   if (process.platform !== 'darwin') {
     app.quit();
   }
 });
 
 app.on('activate', () => {
-  // On macOS it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
   if (BrowserWindow.getAllWindows().length === 0) {
     if (getServerPort() > 0) {
-      // Ensure server is running before creating a window
       createWindow();
     } else {
-      console.warn(
-        '[main.js] Activate event: Server not running, not creating window. Attempting to start server again.',
-      );
-      startLocalServer(createWindow); // Try to start server again
+      startLocalServer(createWindow);
     }
   }
 });
 
-// Called before quitting
 app.on('will-quit', () => {
-  console.log('[main.js] App will-quit event triggered.');
-  // Stop the local server
   stopLocalServer(() => {
     console.log('[main.js] Local server stopped during will-quit.');
   });
-  // Close the database connection
-  if (typeof closeDatabase === 'function') {
-    closeDatabase();
-  }
+  closeDatabase();
 });

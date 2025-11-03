@@ -18,6 +18,11 @@
 </template>
 
 <script setup>
+/**
+ * @file The main Vue component for the application.
+ * It sets up the overall layout, initializes the application state,
+ * and handles global keyboard shortcuts for media navigation.
+ */
 import { onMounted, onBeforeUnmount } from 'vue';
 import ModelsList from './components/ModelsList.vue';
 import MediaDisplay from './components/MediaDisplay.vue';
@@ -28,9 +33,12 @@ import { useSlideshow } from './composables/useSlideshow';
 const { initializeApp } = useAppState();
 const { navigateMedia, toggleSlideshowTimer } = useSlideshow();
 
-// Global keyboard event handler
+/**
+ * Handles global keydown events for slideshow control.
+ * @param {KeyboardEvent} event - The keyboard event object.
+ */
 const handleKeydown = (event) => {
-  // Only handle events if not typing in an input field
+  // Ignore keyboard events if an input field is focused
   if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
     return;
   }
@@ -38,184 +46,29 @@ const handleKeydown = (event) => {
   switch (event.key) {
     case 'ArrowLeft':
       event.preventDefault();
-      navigateMedia(-1);
+      navigateMedia(-1); // Navigate to the previous media item
       break;
     case 'ArrowRight':
       event.preventDefault();
-      navigateMedia(1);
+      navigateMedia(1); // Navigate to the next media item
       break;
     case ' ':
       event.preventDefault();
-      toggleSlideshowTimer();
+      toggleSlideshowTimer(); // Play or pause the slideshow timer
       break;
   }
 };
 
+// On component mount, initialize the app and add the keyboard event listener
 onMounted(async () => {
   await initializeApp();
   document.addEventListener('keydown', handleKeydown);
 });
 
+// Before unmounting, clean up by removing the event listener
 onBeforeUnmount(() => {
   document.removeEventListener('keydown', handleKeydown);
 });
 </script>
 
-<style>
-/* Import Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Quicksand:wght@500;700&display=swap');
-
-/*
- * Custom Color Palette & Typography using CSS Variables.
- * This allows for easy theming and consistent styling.
- */
-:root {
-  --primary-bg: #111827; /* Dark Gray for main background */
-  --secondary-bg: #1f2937; /* Lighter Gray for panels */
-  --tertiary-bg: #374151; /* Accent Gray for borders, disabled states */
-  --accent-color: #ec4899; /* Vibrant Pink for interactive elements */
-  --accent-hover: #db2777; /* Darker Pink for hover states */
-  --text-color: #f3f4f6; /* Light Gray for primary text */
-  --text-muted: #9ca3af; /* Muted Gray for secondary text, placeholders */
-  --border-color: #4b5563; /* Mid Gray for borders */
-  --selection-color: #374151; /* Accent Gray for list item hover */
-  --button-text-color: #ffffff; /* White text for buttons */
-
-  /* Fonts imported via Google Fonts */
-  --header-font: 'Dancing Script', cursive;
-  --body-font: 'Quicksand', sans-serif;
-}
-
-/* Custom Scrollbar Styling */
-::-webkit-scrollbar {
-  width: 10px;
-}
-::-webkit-scrollbar-track {
-  background: var(--secondary-bg);
-}
-::-webkit-scrollbar-thumb {
-  background: var(--accent-color);
-  border-radius: 10px;
-  border: 2px solid var(--secondary-bg);
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-hover);
-}
-
-/* General Body Styling */
-body {
-  font-family: var(--body-font);
-  background-color: var(--primary-bg);
-  color: var(--text-color);
-  overscroll-behavior: none;
-  font-weight: 500;
-}
-
-/* Typography for Headings */
-h1,
-h2,
-.model-title {
-  font-family: var(--header-font);
-  color: var(--accent-color);
-  font-weight: 700;
-  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
-}
-
-header h1 {
-  font-size: 2.5rem;
-}
-
-.model-title {
-  font-size: 2.2rem;
-  padding: 0.5rem 0;
-}
-
-/* Header Styling */
-header {
-  background-color: var(--secondary-bg);
-  border-bottom: 1px solid var(--border-color);
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-}
-
-/* Main Content Area Layout */
-main {
-  height: calc(100vh - 70px - 45px);
-}
-
-/* Button Styling */
-.action-button,
-.nav-button,
-.timer-button {
-  background-color: var(--accent-color);
-  color: var(--button-text-color);
-  padding: 0.6rem 1.2rem;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
-  transition:
-    background-color 0.2s ease-in-out,
-    transform 0.15s ease,
-    box-shadow 0.2s ease;
-  user-select: none;
-  font-size: 0.85rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-family: var(--body-font);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.action-button:hover,
-.nav-button:hover,
-.timer-button:hover {
-  background-color: var(--accent-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
-}
-
-.action-button:active,
-.nav-button:active,
-.timer-button:active {
-  transform: translateY(0px);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-}
-
-.nav-button:disabled,
-.timer-button:disabled {
-  background-color: var(--tertiary-bg);
-  color: var(--text-muted);
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-}
-
-.filter-button {
-  background-color: var(--tertiary-bg);
-  color: var(--text-muted);
-  padding: 0.4rem 0.8rem;
-  border-radius: 6px;
-  border: 1px solid var(--border-color);
-  margin: 0 4px;
-  transition: all 0.2s ease;
-  cursor: pointer;
-}
-
-.filter-button:hover {
-  background-color: var(--selection-color);
-  color: var(--text-color);
-}
-
-.filter-button.active {
-  background-color: var(--accent-color);
-  color: var(--button-text-color);
-  border-color: var(--accent-hover);
-  font-weight: 700;
-}
-
-/* Footer Styling */
-footer {
-  background-color: var(--secondary-bg);
-  border-top: 1px solid var(--border-color);
-  color: var(--text-muted);
-}
-</style>
+<style></style>
