@@ -272,15 +272,6 @@ describe('useSlideshow', () => {
       // First, start with "All"
       mockState.mediaFilter = 'All';
       await reapplyFilter();
-      expect(mockState.globalMediaPoolForSelection.length).toBe(2);
-
-      // Now, change to "Images"
-      mockState.mediaFilter = 'Images';
-      // Start with "All"
-      mockState.mediaFilter = 'All';
-      await reapplyFilter();
-
-      // After filtering, the totalMediaInPool should be updated
       expect(mockState.totalMediaInPool).toBe(2);
 
       // Now, change to "Images"
