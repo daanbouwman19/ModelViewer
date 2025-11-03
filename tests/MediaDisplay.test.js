@@ -160,7 +160,10 @@ describe('MediaDisplay.vue', () => {
     global.window = {
       electronAPI: {
         loadFileAsDataURL: vi.fn(() =>
-          Promise.resolve({ type: 'data-url', url: 'data:image/png;base64,abc' }),
+          Promise.resolve({
+            type: 'data-url',
+            url: 'data:image/png;base64,abc',
+          }),
         ),
       },
     };
@@ -180,7 +183,10 @@ describe('MediaDisplay.vue', () => {
     global.window = {
       electronAPI: {
         loadFileAsDataURL: vi.fn(() =>
-          Promise.resolve({ type: 'http-url', url: 'http://localhost/test.mp4' }),
+          Promise.resolve({
+            type: 'http-url',
+            url: 'http://localhost/test.mp4',
+          }),
         ),
       },
     };
@@ -205,9 +211,7 @@ describe('MediaDisplay.vue', () => {
   it('should show default title when slideshow is not active', () => {
     mockRefs.isSlideshowActive.value = false;
     const wrapper = mount(MediaDisplay);
-    expect(wrapper.find('h2').text()).toBe(
-      'Select models and start slideshow',
-    );
+    expect(wrapper.find('h2').text()).toBe('Select models and start slideshow');
   });
 
   it('should display count info when slideshow is active', () => {
@@ -251,7 +255,10 @@ describe('MediaDisplay.vue', () => {
     global.window = {
       electronAPI: {
         loadFileAsDataURL: vi.fn(() =>
-          Promise.resolve({ type: 'data-url', url: 'data:image/png;base64,abc' }),
+          Promise.resolve({
+            type: 'data-url',
+            url: 'data:image/png;base64,abc',
+          }),
         ),
       },
     };
@@ -288,7 +295,9 @@ describe('MediaDisplay.vue', () => {
       selectWeightedRandom: vi.fn(),
     });
 
-    mockRefs.displayedMediaFiles.value = [{ name: 'test.jpg', path: '/test.jpg' }];
+    mockRefs.displayedMediaFiles.value = [
+      { name: 'test.jpg', path: '/test.jpg' },
+    ];
 
     const wrapper = mount(MediaDisplay);
     const prevButton = wrapper.findAll('.nav-button')[0];
@@ -315,7 +324,9 @@ describe('MediaDisplay.vue', () => {
       selectWeightedRandom: vi.fn(),
     });
 
-    mockRefs.displayedMediaFiles.value = [{ name: 'test.jpg', path: '/test.jpg' }];
+    mockRefs.displayedMediaFiles.value = [
+      { name: 'test.jpg', path: '/test.jpg' },
+    ];
 
     const wrapper = mount(MediaDisplay);
     const nextButton = wrapper.findAll('.nav-button')[1];
