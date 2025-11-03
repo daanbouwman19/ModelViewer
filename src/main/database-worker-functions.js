@@ -100,7 +100,7 @@ export async function initDatabase(Database, dbPath, existingDb = null) {
     if (existingDb) {
       await dbClose(existingDb);
       console.log(
-        '[database-worker.js] Closed existing DB connection before re-init.',
+        '[db-functions] Closed existing DB connection before re-init.',
       );
     }
 
@@ -134,10 +134,10 @@ export async function initDatabase(Database, dbPath, existingDb = null) {
     )`,
     );
 
-    console.log('[database-worker.js] SQLite database initialized at:', dbPath);
+    console.log('[db-functions] SQLite database initialized at:', dbPath);
     return { db, success: true };
   } catch (error) {
-    console.error('[database-worker.js] Failed to initialize database:', error);
+    console.error('[db-functions] Failed to initialize database:', error);
     return { db: null, success: false, error: error.message };
   }
 }
@@ -172,9 +172,9 @@ export async function recordMediaView(db, filePath) {
 
     return { success: true };
   } catch (error) {
-    await dbRun(db, 'ROLLBACK').catch(() => {});
+    await dbRun(db, 'ROLLBACK').catch(console.error);
     console.error(
-      `[database-worker.js] Error recording view for ${filePath}:`,
+      `[db-functions] Error recording view for ${filePath}:`,
       error,
     );
     return { success: false, error: error.message };
@@ -183,6 +183,7 @@ export async function recordMediaView(db, filePath) {
 
 /**
  * Get view counts for multiple file paths
+ * Uses batch processing to avoid SQLite's SQLITE_MAX_VARIABLE_NUMBER limit
  * @param {object} db - The database instance
  * @param {string[]} filePaths - Array of file paths
  * @returns {Promise<{success: boolean, data?: object, error?: string}>}
@@ -194,26 +195,31 @@ export async function getMediaViewCounts(db, filePaths) {
 
   try {
     const viewCountsMap = {};
-    const placeholders = filePaths.map(() => '?').join(',');
-    const fileIds = filePaths.map(generateFileId);
+    const BATCH_SIZE = 500; // Process in batches to avoid SQLite variable limit
 
-    const sql = `SELECT file_path_hash, view_count FROM media_views WHERE file_path_hash IN (${placeholders})`;
+    // Process file paths in batches
+    for (let i = 0; i < filePaths.length; i += BATCH_SIZE) {
+      const batch = filePaths.slice(i, i + BATCH_SIZE);
+      const placeholders = batch.map(() => '?').join(',');
+      const fileIds = batch.map(generateFileId);
 
-    const rows = await dbAll(db, sql, fileIds);
+      const sql = `SELECT file_path_hash, view_count FROM media_views WHERE file_path_hash IN (${placeholders})`;
+      const rows = await dbAll(db, sql, fileIds);
 
-    const countsByHash = {};
-    rows.forEach((row) => {
-      countsByHash[row.file_path_hash] = row.view_count;
-    });
+      const countsByHash = {};
+      rows.forEach((row) => {
+        countsByHash[row.file_path_hash] = row.view_count;
+      });
 
-    filePaths.forEach((filePath) => {
-      const fileId = generateFileId(filePath);
-      viewCountsMap[filePath] = countsByHash[fileId] || 0;
-    });
+      batch.forEach((filePath) => {
+        const fileId = generateFileId(filePath);
+        viewCountsMap[filePath] = countsByHash[fileId] || 0;
+      });
+    }
 
     return { success: true, data: viewCountsMap };
   } catch (error) {
-    console.error('[database-worker.js] Error fetching view counts:', error);
+    console.error('[db-functions] Error fetching view counts:', error);
     return { success: false, error: error.message };
   }
 }
@@ -237,10 +243,10 @@ export async function cacheModels(db, cacheKey, models) {
       [cacheKey, JSON.stringify(models), new Date().toISOString()],
     );
 
-    console.log('[database-worker.js] Models cached successfully.');
+    console.log('[db-functions] Models cached successfully.');
     return { success: true };
   } catch (error) {
-    console.error('[database-worker.js] Error caching models:', error);
+    console.error('[db-functions] Error caching models:', error);
     return { success: false, error: error.message };
   }
 }
@@ -261,14 +267,14 @@ export async function getCachedModels(db, cacheKey) {
     const row = await dbGet(db, sql, [cacheKey]);
 
     if (row && row.cache_value) {
-      console.log('[database-worker.js] Loaded models from cache.');
+      console.log('[db-functions] Loaded models from cache.');
       return { success: true, data: JSON.parse(row.cache_value) };
     }
 
-    console.log('[database-worker.js] No cached models found.');
+    console.log('[db-functions] No cached models found.');
     return { success: true, data: null };
   } catch (error) {
-    console.error('[database-worker.js] Error reading cached models:', error);
+    console.error('[db-functions] Error reading cached models:', error);
     return { success: false, error: error.message };
   }
 }
@@ -282,10 +288,10 @@ export async function closeDatabase(db) {
   if (db) {
     try {
       await dbClose(db);
-      console.log('[database-worker.js] Database connection closed.');
+      console.log('[db-functions] Database connection closed.');
       return { success: true };
     } catch (error) {
-      console.error('[database-worker.js] Error closing database:', error);
+      console.error('[db-functions] Error closing database:', error);
       return { success: false, error: error.message };
     }
   }
@@ -310,12 +316,12 @@ export async function addMediaDirectory(db, directoryPath) {
     `;
     await dbRun(db, sql, [directoryPath]);
     console.log(
-      `[database-worker.js] Ensured media directory is present and active: ${directoryPath}`,
+      `[db-functions] Ensured media directory is present and active: ${directoryPath}`,
     );
     return { success: true };
   } catch (error) {
     console.error(
-      `[database-worker.js] Error adding media directory ${directoryPath}:`,
+      `[db-functions] Error adding media directory ${directoryPath}:`,
       error,
     );
     return { success: false, error: error.message };
@@ -343,10 +349,7 @@ export async function getMediaDirectories(db) {
     }));
     return { success: true, data: directories };
   } catch (error) {
-    console.error(
-      '[database-worker.js] Error fetching media directories:',
-      error,
-    );
+    console.error('[db-functions] Error fetching media directories:', error);
     return { success: false, error: error.message };
   }
 }
@@ -365,13 +368,11 @@ export async function removeMediaDirectory(db, directoryPath) {
     await dbRun(db, 'DELETE FROM media_directories WHERE path = ?', [
       directoryPath,
     ]);
-    console.log(
-      `[database-worker.js] Removed media directory: ${directoryPath}`,
-    );
+    console.log(`[db-functions] Removed media directory: ${directoryPath}`);
     return { success: true };
   } catch (error) {
     console.error(
-      `[database-worker.js] Error removing media directory ${directoryPath}:`,
+      `[db-functions] Error removing media directory ${directoryPath}:`,
       error,
     );
     return { success: false, error: error.message };
@@ -396,12 +397,12 @@ export async function setDirectoryActiveState(db, directoryPath, isActive) {
       [isActive ? 1 : 0, directoryPath],
     );
     console.log(
-      `[database-worker.js] Set directory ${directoryPath} active state to ${isActive}`,
+      `[db-functions] Set directory ${directoryPath} active state to ${isActive}`,
     );
     return { success: true };
   } catch (error) {
     console.error(
-      `[database-worker.js] Error updating active state for ${directoryPath}:`,
+      `[db-functions] Error updating active state for ${directoryPath}:`,
       error,
     );
     return { success: false, error: error.message };
