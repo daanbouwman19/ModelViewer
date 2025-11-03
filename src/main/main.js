@@ -48,7 +48,10 @@ ipcMain.handle('load-file-as-data-url', (event, filePath) => {
       console.error(
         `[main.js] File does not exist for load-file-as-data-url: ${filePath}`,
       );
-      return { type: 'error', message: 'File does not exist.' };
+      return {
+        type: 'error',
+        message: `File does not exist: ${filePath}`,
+      };
     }
     const stats = fs.statSync(filePath);
     const isVideo = SUPPORTED_VIDEO_EXTENSIONS.includes(
