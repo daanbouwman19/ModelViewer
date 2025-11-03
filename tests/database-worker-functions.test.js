@@ -108,10 +108,9 @@ describe('Database Worker Functions', () => {
       db = result.db;
       await dbFunctions.closeDatabase(db);
 
-      // Clean up - use fs-extra for better Windows compatibility
+      // Clean up temporary directory and its contents
       try {
-        fs.unlinkSync(newDbPath);
-        fs.rmdirSync(tmpDir);
+        fs.rmSync(tmpDir, { recursive: true, force: true });
       } catch (err) {
         // Ignore cleanup errors on Windows where file might still be locked
         console.warn('Cleanup warning:', err.message);
