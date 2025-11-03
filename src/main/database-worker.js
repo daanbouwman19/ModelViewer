@@ -38,17 +38,64 @@ function dbRun(sql, params = []) {
 }
 
 /**
+ * Promisifies the db.all method.
+ * @param {string} sql - The SQL query to run.
+ * @param {Array<any>} params - The parameters for the SQL query.
+ * @returns {Promise<Array>}
+ */
+function dbAll(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(rows);
+      }
+    });
+  });
+}
+
+/**
+ * Promisifies the db.get method.
+ * @param {string} sql - The SQL query to run.
+ * @param {Array<any>} params - The parameters for the SQL query.
+ * @returns {Promise<any>}
+ */
+function dbGet(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(row);
+      }
+    });
+  });
+}
+
+/**
+ * Promisifies the db.close method.
+ * @returns {Promise<void>}
+ */
+function dbClose() {
+  return new Promise((resolve, reject) => {
+    db.close((err) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve();
+      }
+    });
+  });
+}
+
+/**
  * Initialize the database connection in the worker thread
  */
 async function initDatabase(dbPath) {
   try {
     if (db) {
-      await new Promise((resolve, reject) => {
-        db.close((err) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
+      await dbClose();
       console.log(
         '[database-worker.js] Closed existing DB connection before re-init.',
       );
@@ -126,38 +173,35 @@ async function recordMediaView(filePath) {
 /**
  * Get view counts for multiple file paths
  */
-function getMediaViewCounts(filePaths) {
+async function getMediaViewCounts(filePaths) {
   if (!db || !filePaths || filePaths.length === 0) {
     return { success: true, data: {} };
   }
 
-  return new Promise((resolve) => {
+  try {
     const viewCountsMap = {};
     const placeholders = filePaths.map(() => '?').join(',');
     const fileIds = filePaths.map(generateFileId);
 
     const sql = `SELECT file_path_hash, view_count FROM media_views WHERE file_path_hash IN (${placeholders})`;
 
-    db.all(sql, fileIds, (err, rows) => {
-      if (err) {
-        console.error('[database-worker.js] Error fetching view counts:', err);
-        resolve({ success: false, error: err.message });
-        return;
-      }
+    const rows = await dbAll(sql, fileIds);
 
-      const countsByHash = {};
-      rows.forEach((row) => {
-        countsByHash[row.file_path_hash] = row.view_count;
-      });
-
-      filePaths.forEach((filePath) => {
-        const fileId = generateFileId(filePath);
-        viewCountsMap[filePath] = countsByHash[fileId] || 0;
-      });
-
-      resolve({ success: true, data: viewCountsMap });
+    const countsByHash = {};
+    rows.forEach((row) => {
+      countsByHash[row.file_path_hash] = row.view_count;
     });
-  });
+
+    filePaths.forEach((filePath) => {
+      const fileId = generateFileId(filePath);
+      viewCountsMap[filePath] = countsByHash[fileId] || 0;
+    });
+
+    return { success: true, data: viewCountsMap };
+  } catch (error) {
+    console.error('[database-worker.js] Error fetching view counts:', error);
+    return { success: false, error: error.message };
+  }
 }
 
 /**
@@ -185,27 +229,26 @@ async function cacheModels(cacheKey, models) {
 /**
  * Get cached models from the database
  */
-function getCachedModels(cacheKey) {
+async function getCachedModels(cacheKey) {
   if (!db) {
     return { success: false, error: 'Database not initialized' };
   }
-  return new Promise((resolve) => {
+
+  try {
     const sql = `SELECT cache_value FROM app_cache WHERE cache_key = ?`;
-    db.get(sql, [cacheKey], (err, row) => {
-      if (err) {
-        console.error('[database-worker.js] Error reading cached models:', err);
-        resolve({ success: false, error: err.message });
-        return;
-      }
-      if (row && row.cache_value) {
-        console.log('[database-worker.js] Loaded models from cache.');
-        resolve({ success: true, data: JSON.parse(row.cache_value) });
-      } else {
-        console.log('[database-worker.js] No cached models found.');
-        resolve({ success: true, data: null });
-      }
-    });
-  });
+    const row = await dbGet(sql, [cacheKey]);
+
+    if (row && row.cache_value) {
+      console.log('[database-worker.js] Loaded models from cache.');
+      return { success: true, data: JSON.parse(row.cache_value) };
+    }
+
+    console.log('[database-worker.js] No cached models found.');
+    return { success: true, data: null };
+  } catch (error) {
+    console.error('[database-worker.js] Error reading cached models:', error);
+    return { success: false, error: error.message };
+  }
 }
 
 /**
@@ -214,12 +257,7 @@ function getCachedModels(cacheKey) {
 async function closeDatabase() {
   if (db) {
     try {
-      await new Promise((resolve, reject) => {
-        db.close((err) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
+      await dbClose();
       console.log('[database-worker.js] Database connection closed.');
       db = null;
       return { success: true };
@@ -259,27 +297,25 @@ async function addMediaDirectory(directoryPath) {
  * Retrieves all media directory paths from the database.
  * @returns {{success: boolean, data?: {path: string, isActive: boolean}[], error?: string}}
  */
-function getMediaDirectories() {
+async function getMediaDirectories() {
   if (!db) {
     return { success: false, error: 'Database not initialized' };
   }
-  return new Promise((resolve) => {
-    db.all('SELECT path, is_active FROM media_directories', (err, rows) => {
-      if (err) {
-        console.error(
-          '[database-worker.js] Error fetching media directories:',
-          err,
-        );
-        resolve({ success: false, error: err.message });
-        return;
-      }
-      const directories = rows.map((row) => ({
-        path: row.path,
-        isActive: !!row.is_active,
-      }));
-      resolve({ success: true, data: directories });
-    });
-  });
+
+  try {
+    const rows = await dbAll('SELECT path, is_active FROM media_directories');
+    const directories = rows.map((row) => ({
+      path: row.path,
+      isActive: !!row.is_active,
+    }));
+    return { success: true, data: directories };
+  } catch (error) {
+    console.error(
+      '[database-worker.js] Error fetching media directories:',
+      error,
+    );
+    return { success: false, error: error.message };
+  }
 }
 
 /**
