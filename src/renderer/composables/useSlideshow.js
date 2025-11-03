@@ -310,5 +310,6 @@ export function useSlideshow() {
     // Export for testing
     filterMedia,
     selectWeightedRandom,
+    shuffleArray,
   };
 }
