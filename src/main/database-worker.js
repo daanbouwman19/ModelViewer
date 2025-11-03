@@ -264,24 +264,21 @@ function getMediaDirectories() {
     return { success: false, error: 'Database not initialized' };
   }
   return new Promise((resolve) => {
-    db.all(
-      'SELECT path, is_active FROM media_directories',
-      (err, rows) => {
-        if (err) {
-          console.error(
-            '[database-worker.js] Error fetching media directories:',
-            err,
-          );
-          resolve({ success: false, error: err.message });
-          return;
-        }
-        const directories = rows.map((row) => ({
-          path: row.path,
-          isActive: !!row.is_active,
-        }));
-        resolve({ success: true, data: directories });
-      },
-    );
+    db.all('SELECT path, is_active FROM media_directories', (err, rows) => {
+      if (err) {
+        console.error(
+          '[database-worker.js] Error fetching media directories:',
+          err,
+        );
+        resolve({ success: false, error: err.message });
+        return;
+      }
+      const directories = rows.map((row) => ({
+        path: row.path,
+        isActive: !!row.is_active,
+      }));
+      resolve({ success: true, data: directories });
+    });
   });
 }
 
