@@ -6,5 +6,9 @@ export default defineConfig({
     rollupOptions: {
       external: ['electron'],
     },
+    sourcemap: true,
+    minify: process.env.NODE_ENV === 'production',
+    brotliSize: false,
+    chunkSizeWarningLimit: 2048,
   },
 });

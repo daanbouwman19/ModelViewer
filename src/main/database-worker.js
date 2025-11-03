@@ -1,5 +1,5 @@
 /**
- * @file Database Worker Thread - Handles all better-sqlite3 operations
+ * @file Database Worker Thread - Handles all sqlite3 operations
  * This worker runs in a separate thread to avoid blocking the main process.
  * It receives messages from the main thread to perform database operations
  * and sends results back via the worker messaging API.
@@ -7,7 +7,7 @@
 
 const { parentPort } = require('worker_threads');
 const crypto = require('crypto');
-const Database = require('better-sqlite3');
+const sqlite3 = require('sqlite3');
 
 let db = null;
 
@@ -19,39 +19,114 @@ let db = null;
 function generateFileId(filePath) {
   return crypto.createHash('md5').update(filePath).digest('hex');
 }
+/**
+ * Promisifies the db.run method.
+ * @param {string} sql - The SQL query to run.
+ * @param {Array<any>} params - The parameters for the SQL query.
+ * @returns {Promise<void>}
+ */
+function dbRun(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function (err) {
+      if (err) {
+        reject(err);
+      } else {
+        resolve();
+      }
+    });
+  });
+}
+
+/**
+ * Promisifies the db.all method.
+ * @param {string} sql - The SQL query to run.
+ * @param {Array<any>} params - The parameters for the SQL query.
+ * @returns {Promise<Array>}
+ */
+function dbAll(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(rows);
+      }
+    });
+  });
+}
+
+/**
+ * Promisifies the db.get method.
+ * @param {string} sql - The SQL query to run.
+ * @param {Array<any>} params - The parameters for the SQL query.
+ * @returns {Promise<any>}
+ */
+function dbGet(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(row);
+      }
+    });
+  });
+}
+
+/**
+ * Promisifies the db.close method.
+ * @returns {Promise<void>}
+ */
+function dbClose() {
+  return new Promise((resolve, reject) => {
+    db.close((err) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve();
+      }
+    });
+  });
+}
 
 /**
  * Initialize the database connection in the worker thread
  */
-function initDatabase(dbPath) {
+async function initDatabase(dbPath) {
   try {
     if (db) {
-      db.close();
+      await dbClose();
       console.log(
         '[database-worker.js] Closed existing DB connection before re-init.',
       );
     }
 
-    db = new Database(dbPath);
+    db = new sqlite3.Database(dbPath);
 
     // Create tables
-    db.exec(`CREATE TABLE IF NOT EXISTS media_views (
+    await dbRun(
+      `CREATE TABLE IF NOT EXISTS media_views (
       file_path_hash TEXT PRIMARY KEY,
       file_path TEXT UNIQUE,
       view_count INTEGER DEFAULT 0,
       last_viewed TEXT
-    );`);
+    )`,
+    );
 
-    db.exec(`CREATE TABLE IF NOT EXISTS app_cache (
+    await dbRun(
+      `CREATE TABLE IF NOT EXISTS app_cache (
       cache_key TEXT PRIMARY KEY,
       cache_value TEXT,
       last_updated TEXT
-    );`);
+    )`,
+    );
 
-    db.exec(`CREATE TABLE IF NOT EXISTS media_directories (
+    await dbRun(
+      `CREATE TABLE IF NOT EXISTS media_directories (
       path TEXT PRIMARY KEY,
       is_active INTEGER DEFAULT 1
-    );`);
+    )`,
+    );
 
     console.log('[database-worker.js] SQLite database initialized at:', dbPath);
     return { success: true };
@@ -64,7 +139,7 @@ function initDatabase(dbPath) {
 /**
  * Record a view for a media file
  */
-function recordMediaView(filePath) {
+async function recordMediaView(filePath) {
   if (!db) {
     return { success: false, error: 'Database not initialized' };
   }
@@ -73,20 +148,20 @@ function recordMediaView(filePath) {
   const now = new Date().toISOString();
 
   try {
-    const stmt_insert = db.prepare(
+    await dbRun('BEGIN TRANSACTION');
+    await dbRun(
       `INSERT OR IGNORE INTO media_views (file_path_hash, file_path, view_count, last_viewed) VALUES (?, ?, 0, ?)`,
+      [fileId, filePath, now],
     );
-    const stmt_update = db.prepare(
+    await dbRun(
       `UPDATE media_views SET view_count = view_count + 1, last_viewed = ? WHERE file_path_hash = ?`,
+      [now, fileId],
     );
-
-    db.transaction(() => {
-      stmt_insert.run(fileId, filePath, now);
-      stmt_update.run(now, fileId);
-    })();
+    await dbRun('COMMIT');
 
     return { success: true };
   } catch (error) {
+    await dbRun('ROLLBACK');
     console.error(
       `[database-worker.js] Error recording view for ${filePath}:`,
       error,
@@ -98,7 +173,7 @@ function recordMediaView(filePath) {
 /**
  * Get view counts for multiple file paths
  */
-function getMediaViewCounts(filePaths) {
+async function getMediaViewCounts(filePaths) {
   if (!db || !filePaths || filePaths.length === 0) {
     return { success: true, data: {} };
   }
@@ -108,10 +183,9 @@ function getMediaViewCounts(filePaths) {
     const placeholders = filePaths.map(() => '?').join(',');
     const fileIds = filePaths.map(generateFileId);
 
-    const stmt = db.prepare(
-      `SELECT file_path_hash, view_count FROM media_views WHERE file_path_hash IN (${placeholders})`,
-    );
-    const rows = stmt.all(fileIds);
+    const sql = `SELECT file_path_hash, view_count FROM media_views WHERE file_path_hash IN (${placeholders})`;
+
+    const rows = await dbAll(sql, fileIds);
 
     const countsByHash = {};
     rows.forEach((row) => {
@@ -133,15 +207,16 @@ function getMediaViewCounts(filePaths) {
 /**
  * Cache models in the database
  */
-function cacheModels(cacheKey, models) {
+async function cacheModels(cacheKey, models) {
   if (!db) {
     return { success: false, error: 'Database not initialized' };
   }
 
   try {
-    db.prepare(
+    await dbRun(
       `INSERT OR REPLACE INTO app_cache (cache_key, cache_value, last_updated) VALUES (?, ?, ?)`,
-    ).run(cacheKey, JSON.stringify(models), new Date().toISOString());
+      [cacheKey, JSON.stringify(models), new Date().toISOString()],
+    );
 
     console.log('[database-worker.js] Models cached successfully.');
     return { success: true };
@@ -154,15 +229,14 @@ function cacheModels(cacheKey, models) {
 /**
  * Get cached models from the database
  */
-function getCachedModels(cacheKey) {
+async function getCachedModels(cacheKey) {
   if (!db) {
     return { success: false, error: 'Database not initialized' };
   }
 
   try {
-    const row = db
-      .prepare(`SELECT cache_value FROM app_cache WHERE cache_key = ?`)
-      .get(cacheKey);
+    const sql = `SELECT cache_value FROM app_cache WHERE cache_key = ?`;
+    const row = await dbGet(sql, [cacheKey]);
 
     if (row && row.cache_value) {
       console.log('[database-worker.js] Loaded models from cache.');
@@ -180,10 +254,10 @@ function getCachedModels(cacheKey) {
 /**
  * Close the database connection
  */
-function closeDatabase() {
+async function closeDatabase() {
   if (db) {
     try {
-      db.close();
+      await dbClose();
       console.log('[database-worker.js] Database connection closed.');
       db = null;
       return { success: true };
@@ -200,15 +274,14 @@ function closeDatabase() {
  * @param {string} directoryPath - The absolute path of the directory to add.
  * @returns {{success: boolean, error?: string}}
  */
-function addMediaDirectory(directoryPath) {
+async function addMediaDirectory(directoryPath) {
   if (!db) {
     return { success: false, error: 'Database not initialized' };
   }
   try {
-    const stmt = db.prepare(
-      'INSERT OR IGNORE INTO media_directories (path) VALUES (?)',
-    );
-    stmt.run(directoryPath);
+    await dbRun('INSERT OR IGNORE INTO media_directories (path) VALUES (?)', [
+      directoryPath,
+    ]);
     console.log(`[database-worker.js] Added media directory: ${directoryPath}`);
     return { success: true };
   } catch (error) {
@@ -224,14 +297,13 @@ function addMediaDirectory(directoryPath) {
  * Retrieves all media directory paths from the database.
  * @returns {{success: boolean, data?: {path: string, isActive: boolean}[], error?: string}}
  */
-function getMediaDirectories() {
+async function getMediaDirectories() {
   if (!db) {
     return { success: false, error: 'Database not initialized' };
   }
+
   try {
-    const rows = db
-      .prepare('SELECT path, is_active FROM media_directories')
-      .all();
+    const rows = await dbAll('SELECT path, is_active FROM media_directories');
     const directories = rows.map((row) => ({
       path: row.path,
       isActive: !!row.is_active,
@@ -251,13 +323,14 @@ function getMediaDirectories() {
  * @param {string} directoryPath - The absolute path of the directory to remove.
  * @returns {{success: boolean, error?: string}}
  */
-function removeMediaDirectory(directoryPath) {
+async function removeMediaDirectory(directoryPath) {
   if (!db) {
     return { success: false, error: 'Database not initialized' };
   }
   try {
-    const stmt = db.prepare('DELETE FROM media_directories WHERE path = ?');
-    stmt.run(directoryPath);
+    await dbRun('DELETE FROM media_directories WHERE path = ?', [
+      directoryPath,
+    ]);
     console.log(
       `[database-worker.js] Removed media directory: ${directoryPath}`,
     );
@@ -277,15 +350,15 @@ function removeMediaDirectory(directoryPath) {
  * @param {boolean} isActive - The new active state.
  * @returns {{success: boolean, error?: string}}
  */
-function setDirectoryActiveState(directoryPath, isActive) {
+async function setDirectoryActiveState(directoryPath, isActive) {
   if (!db) {
     return { success: false, error: 'Database not initialized' };
   }
   try {
-    const stmt = db.prepare(
-      'UPDATE media_directories SET is_active = ? WHERE path = ?',
-    );
-    stmt.run(isActive ? 1 : 0, directoryPath);
+    await dbRun('UPDATE media_directories SET is_active = ? WHERE path = ?', [
+      isActive ? 1 : 0,
+      directoryPath,
+    ]);
     console.log(
       `[database-worker.js] Set directory ${directoryPath} active state to ${isActive}`,
     );
@@ -300,50 +373,53 @@ function setDirectoryActiveState(directoryPath, isActive) {
 }
 
 // Message handler - receives commands from main thread
-parentPort.on('message', (message) => {
+parentPort.on('message', async (message) => {
   const { id, type, payload } = message;
 
   let result;
 
   switch (type) {
     case 'init':
-      result = initDatabase(payload.dbPath);
+      result = await initDatabase(payload.dbPath);
       break;
 
     case 'recordMediaView':
-      result = recordMediaView(payload.filePath);
+      result = await recordMediaView(payload.filePath);
       break;
 
     case 'getMediaViewCounts':
-      result = getMediaViewCounts(payload.filePaths);
+      result = await getMediaViewCounts(payload.filePaths);
       break;
 
     case 'cacheModels':
-      result = cacheModels(payload.cacheKey, payload.models);
+      result = await cacheModels(payload.cacheKey, payload.models);
       break;
 
     case 'getCachedModels':
-      result = getCachedModels(payload.cacheKey);
+      result = await getCachedModels(payload.cacheKey);
       break;
 
     case 'close':
-      result = closeDatabase();
+      result = await closeDatabase();
       break;
 
     case 'addMediaDirectory':
-      result = addMediaDirectory(payload.directoryPath);
+      result = await addMediaDirectory(payload.directoryPath);
       break;
 
     case 'getMediaDirectories':
-      result = getMediaDirectories();
+      result = await getMediaDirectories();
       break;
 
     case 'removeMediaDirectory':
-      result = removeMediaDirectory(payload.directoryPath);
+      result = await removeMediaDirectory(payload.directoryPath);
       break;
 
     case 'setDirectoryActiveState':
-      result = setDirectoryActiveState(payload.directoryPath, payload.isActive);
+      result = await setDirectoryActiveState(
+        payload.directoryPath,
+        payload.isActive,
+      );
       break;
 
     default:
