@@ -36,7 +36,7 @@ async function recordMediaView(filePath) {
 async function getMediaViewCounts(filePaths) {
   const result = await dbFunctions.getMediaViewCounts(db, filePaths);
   if (result.success) {
-    return { success: true, viewCounts: result.data };
+    return { success: true, data: result.data };
   }
   return { success: false, error: result.error };
 }

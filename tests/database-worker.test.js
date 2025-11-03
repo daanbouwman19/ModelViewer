@@ -1,11 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Worker } from 'worker_threads';
 import path from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // Resolve the path to the worker script.
 // Using a relative path to the project root.
@@ -104,7 +100,7 @@ describe('Database Worker', () => {
       filePaths: ['test/file.jpg'],
     });
     expect(result.success).toBe(true);
-    expect(result.viewCounts['test/file.jpg']).toBe(2);
+    expect(result.data['test/file.jpg']).toBe(2);
   });
 
   it('should cache models', async () => {
