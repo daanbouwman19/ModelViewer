@@ -8,7 +8,7 @@ export default defineConfig({
     rollupOptions: {
       external: [
         'electron',
-        'better-sqlite3',
+        'sqlite3',
         ...builtinModules.flatMap((m) => [m, `node:${m}`]),
       ],
       output: {
@@ -16,12 +16,11 @@ export default defineConfig({
       },
     },
     sourcemap: true,
-    minify: true,
+    minify: process.env.NODE_ENV === 'production',
+    brotliSize: false,
+    chunkSizeWarningLimit: 2048,
   },
   resolve: {
-    browserField: false,
-    conditions: ['node'],
-    mainFields: ['module', 'jsnext:main', 'jsnext'],
     alias: {
       '@': path.resolve(__dirname, './src'),
     },

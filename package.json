@@ -14,7 +14,7 @@
   "author": "Daan Bouwman",
   "license": "MIT",
   "dependencies": {
-    "better-sqlite3": "^12.0.0",
+    "sqlite3": "^5.1.7",
     "vue": "^3.5.12"
   },
   "devDependencies": {
@@ -28,7 +28,7 @@
     "@electron-forge/plugin-vite": "^7.5.0",
     "@tailwindcss/forms": "^0.5.9",
     "@vitejs/plugin-vue": "^6.0.1",
-    "electron": "^38.0.0",
+    "electron": "^39.0.0",
     "fs-extra": "^11.3.2",
     "prettier": "^3.3.3",
     "vite": "7.1.12"
