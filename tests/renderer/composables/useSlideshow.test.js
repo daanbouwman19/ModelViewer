@@ -51,6 +51,32 @@ describe('useSlideshow', () => {
     });
   });
 
+  describe('shuffleArray', () => {
+    it('should contain the same elements after shuffling', () => {
+      const { shuffleArray } = useSlideshow();
+      const originalArray = [1, 2, 3, 4, 5];
+      const shuffled = shuffleArray(originalArray);
+
+      expect(shuffled).toHaveLength(originalArray.length);
+      expect(shuffled.sort()).toEqual(originalArray.sort());
+    });
+
+    it('should produce a different order (most of the time)', () => {
+      const { shuffleArray } = useSlideshow();
+      const originalArray = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+      const shuffled = shuffleArray(originalArray);
+
+      // This is not a guaranteed test, but it's very likely to pass
+      expect(shuffled).not.toEqual(originalArray);
+    });
+
+    it('should handle empty and single-element arrays', () => {
+      const { shuffleArray } = useSlideshow();
+      expect(shuffleArray([])).toEqual([]);
+      expect(shuffleArray([1])).toEqual([1]);
+    });
+  });
+
   describe('filterMedia', () => {
     const mediaFiles = [
       { path: 'video.mp4' },
@@ -114,6 +140,13 @@ describe('useSlideshow', () => {
       const filesWithCaps = [{ path: 'image.PNG' }, { path: 'photo.JPEG' }];
       const filtered = filterMedia(filesWithCaps);
       expect(filtered.length).toBe(2);
+    });
+
+    it('should return all media if filter is not "Videos" or "Images"', () => {
+      mockState.mediaFilter = 'SomethingElse';
+      const { filterMedia } = useSlideshow();
+      const filtered = filterMedia(mediaFiles);
+      expect(filtered.length).toBe(6);
     });
   });
 

@@ -2,7 +2,7 @@
  * Direct unit tests for database-worker functions
  * These tests import and test the functions directly to ensure proper coverage
  */
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import sqlite3 from 'sqlite3';
 import fs from 'fs';
 import path from 'path';
@@ -115,6 +115,20 @@ describe('Database Worker Functions', () => {
         // Ignore cleanup errors on Windows where file might still be locked
         console.warn('Cleanup warning:', err.message);
       }
+    });
+
+    it('should return error if database constructor fails', async () => {
+      class MockDatabase {
+        constructor(path, callback) {
+          // This is how sqlite3 constructor can fail, by throwing.
+          throw new Error('Failed to open');
+        }
+      }
+
+      const result = await dbFunctions.initDatabase(MockDatabase, 'anypath');
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Failed to open');
+      expect(result.db).toBeNull();
     });
   });
 
@@ -450,6 +464,17 @@ describe('Database Worker Functions', () => {
 
       expect(result.success).toBe(true);
     });
+
+    it('should handle error when closing', async () => {
+      const mockDb = {
+        close: vi.fn((callback) => {
+          callback(new Error('Close failed'));
+        }),
+      };
+      const result = await dbFunctions.closeDatabase(mockDb);
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Close failed');
+    });
   });
 
   describe('dbRun', () => {
@@ -475,6 +500,10 @@ describe('Database Worker Functions', () => {
       const rows = await dbFunctions.dbAll(db, 'SELECT name FROM test_params');
       expect(rows[0].name).toBe('test_name');
     });
+
+    it('should reject with an error for invalid SQL', async () => {
+      await expect(dbFunctions.dbRun(db, 'INVALID SQL')).rejects.toThrow();
+    });
   });
 
   describe('dbAll', () => {
@@ -495,6 +524,10 @@ describe('Database Worker Functions', () => {
         'SELECT * FROM media_views WHERE 1=0',
       );
       expect(rows).toHaveLength(0);
+    });
+
+    it('should reject with an error for invalid SQL', async () => {
+      await expect(dbFunctions.dbAll(db, 'INVALID SQL')).rejects.toThrow();
     });
   });
 
@@ -520,6 +553,69 @@ describe('Database Worker Functions', () => {
       );
 
       expect(row).toBeUndefined();
+    });
+
+    it('should reject with an error for invalid SQL', async () => {
+      await expect(dbFunctions.dbGet(db, 'INVALID SQL')).rejects.toThrow();
+    });
+  });
+
+  describe('Error handling with a closed database', () => {
+    beforeEach(async () => {
+      // Directly close the database connection to trigger errors
+      await dbFunctions.dbClose(db);
+    });
+
+    it('recordMediaView should fail', async () => {
+      const result = await dbFunctions.recordMediaView(db, '/test.png');
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+    });
+
+    it('getMediaViewCounts should fail', async () => {
+      const result = await dbFunctions.getMediaViewCounts(db, ['/test.png']);
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+    });
+
+    it('cacheModels should fail', async () => {
+      const result = await dbFunctions.cacheModels(db, 'key', []);
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+    });
+
+    it('getCachedModels should fail', async () => {
+      const result = await dbFunctions.getCachedModels(db, 'key');
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+    });
+
+    it('addMediaDirectory should fail', async () => {
+      const result = await dbFunctions.addMediaDirectory(db, '/test');
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+    });
+
+    it('getMediaDirectories should fail', async () => {
+      const result = await dbFunctions.getMediaDirectories(db);
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+    });
+
+    it('removeMediaDirectory should fail', async () => {
+      const result = await dbFunctions.removeMediaDirectory(db, '/test');
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+    });
+
+    it('setDirectoryActiveState should fail', async () => {
+      const result = await dbFunctions.setDirectoryActiveState(
+        db,
+        '/test',
+        true,
+      );
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
     });
   });
 });
