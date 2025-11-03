@@ -50,7 +50,7 @@
             Add Media Directory
           </button>
           <button @click="handleReindex" class="action-button">
-            Re-index Library
+            Apply Changes & Re-index
           </button>
         </div>
       </div>
@@ -78,7 +78,11 @@ const resetSlideshowState = () => {
 const handleToggleActive = async (path, isActive) => {
   try {
     await window.electronAPI.setDirectoryActiveState(path, isActive);
-    await handleReindex();
+    // Update local state
+    const dir = mediaDirectories.value.find((d) => d.path === path);
+    if (dir) {
+      dir.isActive = isActive;
+    }
   } catch (error) {
     console.error('Error toggling directory active state:', error);
   }
@@ -87,7 +91,11 @@ const handleToggleActive = async (path, isActive) => {
 const handleRemove = async (path) => {
   try {
     await window.electronAPI.removeMediaDirectory(path);
-    await handleReindex();
+    // Update local state
+    const index = mediaDirectories.value.findIndex((d) => d.path === path);
+    if (index !== -1) {
+      mediaDirectories.value.splice(index, 1);
+    }
   } catch (error) {
     console.error('Error removing directory:', error);
   }

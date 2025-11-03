@@ -24,8 +24,8 @@ export function useSlideshow() {
     const filter = state.mediaFilter;
     if (filter === 'All') return mediaFiles;
 
-    const videoExtensions = ['.mp4', '.mov', '.avi', '.mkv', '.webm'];
-    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'];
+    const videoExtensions = state.supportedExtensions.videos;
+    const imageExtensions = state.supportedExtensions.images;
 
     return mediaFiles.filter((file) => {
       const ext = file.path.toLowerCase().slice(file.path.lastIndexOf('.'));
@@ -92,26 +92,6 @@ export function useSlideshow() {
 
     // Fallback to last item if rounding errors occur
     return weightedItems[weightedItems.length - 1];
-  };
-
-  const prepareMediaListForIndividualView = (model) => {
-    if (!model || !model.textures || model.textures.length === 0) {
-      return [];
-    }
-
-    state.originalMediaFilesForIndividualView = [...model.textures];
-
-    // Apply the current media filter
-    const filteredFiles = filterMedia(model.textures);
-
-    // Check if random mode is enabled for this model
-    const isRandomEnabled = state.modelRandomModeSettings[model.name] || false;
-
-    if (isRandomEnabled) {
-      return shuffleArray(filteredFiles);
-    }
-
-    return filteredFiles;
   };
 
   const navigateMedia = async (direction) => {

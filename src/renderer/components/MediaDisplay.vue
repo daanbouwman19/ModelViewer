@@ -83,6 +83,7 @@ const {
   isSlideshowActive,
   mediaFilter,
   totalMediaInPool,
+  supportedExtensions,
 } = useAppState();
 
 const { navigateMedia, reapplyFilter } = useSlideshow();
@@ -94,7 +95,7 @@ const error = ref(null);
 
 const isImage = computed(() => {
   if (!currentMediaItem.value) return false;
-  const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'];
+  const imageExtensions = supportedExtensions.value.images;
   const dotIndex = currentMediaItem.value.path.lastIndexOf('.');
   const ext =
     dotIndex === -1

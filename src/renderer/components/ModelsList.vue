@@ -208,7 +208,7 @@ const openModal = () => {
   align-items: center;
 }
 
-/* Girly custom checkbox styling */
+/* Custom checkbox styling */
 .checkbox-container {
   display: inline-block;
   position: relative;

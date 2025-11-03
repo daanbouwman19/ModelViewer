@@ -43,6 +43,13 @@ const state = reactive({
 
   // List of media directories
   mediaDirectories: [],
+
+  // Supported file extensions from main process
+  supportedExtensions: {
+    images: [],
+    videos: [],
+    all: [],
+  },
 });
 
 export function useAppState() {
@@ -53,6 +60,8 @@ export function useAppState() {
       }
       state.allModels = await window.electronAPI.getModelsWithViewCounts();
       state.mediaDirectories = await window.electronAPI.getMediaDirectories();
+      state.supportedExtensions =
+        await window.electronAPI.getSupportedExtensions();
 
       // Select all models by default
       state.allModels.forEach((model) => {
