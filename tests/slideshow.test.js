@@ -298,4 +298,70 @@ describe('useSlideshow', () => {
       expect(mockStopSlideshow).toHaveBeenCalled();
     });
   });
+
+  describe('toggleModelSelection', () => {
+    it('should toggle the selection state of a model', () => {
+      const { toggleModelSelection } = useSlideshow();
+
+      // Initially undefined, should become true
+      toggleModelSelection('modelA');
+      expect(mockState.modelsSelectedForSlideshow['modelA']).toBe(true);
+
+      // Toggle to false
+      toggleModelSelection('modelA');
+      expect(mockState.modelsSelectedForSlideshow['modelA']).toBe(false);
+
+      // Toggle back to true
+      toggleModelSelection('modelA');
+      expect(mockState.modelsSelectedForSlideshow['modelA']).toBe(true);
+    });
+  });
+
+  describe('startIndividualModelSlideshow', () => {
+    it('should start a slideshow with the media from a single model', async () => {
+      const model = {
+        name: 'singleModel',
+        textures: [{ path: 's1.png' }, { path: 's2.png' }],
+      };
+      const { startIndividualModelSlideshow } = useSlideshow();
+
+      await startIndividualModelSlideshow(model);
+
+      expect(mockState.isSlideshowActive).toBe(true);
+      expect(mockState.globalMediaPoolForSelection.length).toBe(2);
+      expect(mockState.displayedMediaFiles.length).toBe(1);
+      expect(['s1.png', 's2.png']).toContain(mockState.currentMediaItem.path);
+    });
+
+    it('should do nothing if the model has no textures', async () => {
+      const model = { name: 'emptyModel', textures: [] };
+      const { startIndividualModelSlideshow } = useSlideshow();
+      const consoleWarnSpy = vi
+        .spyOn(console, 'warn')
+        .mockImplementation(() => {});
+
+      await startIndividualModelSlideshow(model);
+
+      expect(mockState.isSlideshowActive).toBe(false);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'No media files in this model.',
+      );
+      consoleWarnSpy.mockRestore();
+    });
+
+    it('should handle invalid model input gracefully', async () => {
+      const { startIndividualModelSlideshow } = useSlideshow();
+      const consoleWarnSpy = vi
+        .spyOn(console, 'warn')
+        .mockImplementation(() => {});
+
+      await startIndividualModelSlideshow({ name: 'badModel', textures: null });
+
+      expect(mockState.isSlideshowActive).toBe(false);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'Model has no valid textures array.',
+      );
+      consoleWarnSpy.mockRestore();
+    });
+  });
 });
