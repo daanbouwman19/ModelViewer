@@ -8,16 +8,25 @@ export default defineConfig({
     include: ['**/*.test.js', '**/*.spec.js'],
     exclude: ['node_modules', 'out', 'release', '.vite', 'dist'],
     coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-      exclude: [
-        'node_modules/',
-        'out/',
-        'release/',
-        'dist/',
-        '**/*.config.*',
-        '**/.*',
+      provider: 'istanbul',
+      reporter: ['text', 'json', 'html', 'lcov'],
+      all: true,
+      include: [
+        'src/main/database-worker-functions.js',
+        'src/main/constants.js',
+        'src/main/media-scanner.js',
+        'src/renderer/composables/useSlideshow.js',
+        'src/renderer/composables/useAppState.js',
       ],
+      reportsDirectory: './coverage',
+      thresholds: {
+        global: {
+          statements: 80,
+          branches: 50,
+          functions: 80,
+          lines: 80,
+        },
+      },
     },
   },
   resolve: {
