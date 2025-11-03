@@ -1,0 +1,197 @@
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { findAllMediaFiles, performFullMediaScan } from '../src/main/media-scanner.js';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+
+describe('Media Scanner', () => {
+  let testDir;
+
+  beforeEach(() => {
+    // Create a temporary test directory
+    testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'media-scanner-test-'));
+  });
+
+  afterEach(() => {
+    // Clean up test directory
+    if (fs.existsSync(testDir)) {
+      fs.rmSync(testDir, { recursive: true, force: true });
+    }
+  });
+
+  describe('findAllMediaFiles', () => {
+    it('should find image files in a directory', () => {
+      // Create test files
+      fs.writeFileSync(path.join(testDir, 'image1.png'), '');
+      fs.writeFileSync(path.join(testDir, 'image2.jpg'), '');
+      fs.writeFileSync(path.join(testDir, 'not-media.txt'), '');
+
+      const result = findAllMediaFiles(testDir);
+
+      expect(result).toHaveLength(2);
+      expect(result.some((f) => f.name === 'image1.png')).toBe(true);
+      expect(result.some((f) => f.name === 'image2.jpg')).toBe(true);
+      expect(result.some((f) => f.name === 'not-media.txt')).toBe(false);
+    });
+
+    it('should find video files in a directory', () => {
+      fs.writeFileSync(path.join(testDir, 'video1.mp4'), '');
+      fs.writeFileSync(path.join(testDir, 'video2.webm'), '');
+
+      const result = findAllMediaFiles(testDir);
+
+      expect(result).toHaveLength(2);
+      expect(result.some((f) => f.name === 'video1.mp4')).toBe(true);
+      expect(result.some((f) => f.name === 'video2.webm')).toBe(true);
+    });
+
+    it('should recursively find files in subdirectories', () => {
+      const subDir = path.join(testDir, 'subfolder');
+      fs.mkdirSync(subDir);
+      fs.writeFileSync(path.join(testDir, 'root.png'), '');
+      fs.writeFileSync(path.join(subDir, 'nested.jpg'), '');
+
+      const result = findAllMediaFiles(testDir);
+
+      expect(result).toHaveLength(2);
+      expect(result.some((f) => f.name === 'root.png')).toBe(true);
+      expect(result.some((f) => f.name === 'nested.jpg')).toBe(true);
+    });
+
+    it('should handle empty directories', () => {
+      const result = findAllMediaFiles(testDir);
+      expect(result).toHaveLength(0);
+    });
+
+    it('should be case-insensitive for file extensions', () => {
+      fs.writeFileSync(path.join(testDir, 'image.PNG'), '');
+      fs.writeFileSync(path.join(testDir, 'video.MP4'), '');
+
+      const result = findAllMediaFiles(testDir);
+
+      expect(result).toHaveLength(2);
+    });
+
+    it('should return empty array for non-existent directory', () => {
+      const result = findAllMediaFiles(path.join(testDir, 'non-existent'));
+      expect(result).toHaveLength(0);
+    });
+  });
+
+  describe('performFullMediaScan', () => {
+    it('should scan multiple base directories', async () => {
+      const dir1 = path.join(testDir, 'dir1');
+      const dir2 = path.join(testDir, 'dir2');
+      fs.mkdirSync(dir1);
+      fs.mkdirSync(dir2);
+
+      const model1 = path.join(dir1, 'model1');
+      const model2 = path.join(dir2, 'model2');
+      fs.mkdirSync(model1);
+      fs.mkdirSync(model2);
+
+      fs.writeFileSync(path.join(model1, 'image1.png'), '');
+      fs.writeFileSync(path.join(model2, 'image2.jpg'), '');
+
+      const result = await performFullMediaScan([dir1, dir2]);
+
+      expect(result).toHaveLength(2);
+      expect(result.some((m) => m.name === 'model1')).toBe(true);
+      expect(result.some((m) => m.name === 'model2')).toBe(true);
+    });
+
+    it('should include files in root directory as a model', async () => {
+      fs.writeFileSync(path.join(testDir, 'root-image.png'), '');
+
+      const result = await performFullMediaScan([testDir]);
+
+      expect(result).toHaveLength(1);
+      const baseName = path.basename(testDir);
+      expect(result[0].name).toBe(baseName);
+      expect(result[0].textures).toHaveLength(1);
+      expect(result[0].textures[0].name).toBe('root-image.png');
+    });
+
+    it('should merge models with the same name from different directories', async () => {
+      const dir1 = path.join(testDir, 'dir1');
+      const dir2 = path.join(testDir, 'dir2');
+      fs.mkdirSync(dir1);
+      fs.mkdirSync(dir2);
+
+      const model1a = path.join(dir1, 'shared-model');
+      const model1b = path.join(dir2, 'shared-model');
+      fs.mkdirSync(model1a);
+      fs.mkdirSync(model1b);
+
+      fs.writeFileSync(path.join(model1a, 'image1.png'), '');
+      fs.writeFileSync(path.join(model1b, 'image2.jpg'), '');
+
+      const result = await performFullMediaScan([dir1, dir2]);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('shared-model');
+      expect(result[0].textures).toHaveLength(2);
+    });
+
+    it('should return empty array for non-existent directories', async () => {
+      const result = await performFullMediaScan([
+        path.join(testDir, 'non-existent'),
+      ]);
+      expect(result).toHaveLength(0);
+    });
+
+    it('should skip empty model folders', async () => {
+      const emptyModel = path.join(testDir, 'empty-model');
+      fs.mkdirSync(emptyModel);
+
+      const result = await performFullMediaScan([testDir]);
+
+      // Should not include the empty model
+      expect(result.some((m) => m.name === 'empty-model')).toBe(false);
+    });
+
+    it('should organize files correctly in model structure', async () => {
+      const modelDir = path.join(testDir, 'test-model');
+      fs.mkdirSync(modelDir);
+      fs.writeFileSync(path.join(modelDir, 'texture1.png'), '');
+      fs.writeFileSync(path.join(modelDir, 'texture2.jpg'), '');
+
+      const result = await performFullMediaScan([testDir]);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('test-model');
+      expect(result[0].textures).toHaveLength(2);
+      expect(result[0].textures.every((t) => typeof t.name === 'string')).toBe(
+        true,
+      );
+      expect(result[0].textures.every((t) => typeof t.path === 'string')).toBe(
+        true,
+      );
+    });
+
+    it('should handle mixed content (root files and model folders)', async () => {
+      // Create root files
+      fs.writeFileSync(path.join(testDir, 'root1.png'), '');
+      fs.writeFileSync(path.join(testDir, 'root2.jpg'), '');
+
+      // Create model folder
+      const modelDir = path.join(testDir, 'model-folder');
+      fs.mkdirSync(modelDir);
+      fs.writeFileSync(path.join(modelDir, 'model-texture.png'), '');
+
+      const result = await performFullMediaScan([testDir]);
+
+      // Should have 2 models: one for root files, one for the folder
+      expect(result).toHaveLength(2);
+
+      const rootModel = result.find((m) => m.name === path.basename(testDir));
+      const folderModel = result.find((m) => m.name === 'model-folder');
+
+      expect(rootModel).toBeDefined();
+      expect(rootModel.textures).toHaveLength(2);
+
+      expect(folderModel).toBeDefined();
+      expect(folderModel.textures).toHaveLength(1);
+    });
+  });
+});
