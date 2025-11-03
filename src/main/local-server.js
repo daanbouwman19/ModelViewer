@@ -74,7 +74,10 @@ function startLocalServer(onReadyCallback) {
   }
 
   const server = http.createServer((req, res) => {
-    const parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    const parsedUrl = new URL(
+      req.url,
+      `http://${req.headers.host || 'localhost'}`,
+    );
     const requestedPath = decodeURIComponent(parsedUrl.pathname.substring(1));
     const normalizedFilePath = path.normalize(requestedPath);
 
@@ -94,13 +97,21 @@ function startLocalServer(onReadyCallback) {
         const start = parseInt(parts[0], 10);
         const end = parts[1] ? parseInt(parts[1], 10) : totalSize - 1;
 
-        if (isNaN(start) || start >= totalSize || end >= totalSize || start > end) {
+        if (
+          isNaN(start) ||
+          start >= totalSize ||
+          end >= totalSize ||
+          start > end
+        ) {
           res.writeHead(416, { 'Content-Range': `bytes */${totalSize}` });
           return res.end('Requested range not satisfiable.');
         }
 
         const chunkSize = end - start + 1;
-        const fileStream = fs.createReadStream(normalizedFilePath, { start, end });
+        const fileStream = fs.createReadStream(normalizedFilePath, {
+          start,
+          end,
+        });
         const head = {
           'Content-Range': `bytes ${start}-${end}/${totalSize}`,
           'Accept-Ranges': 'bytes',
@@ -119,7 +130,10 @@ function startLocalServer(onReadyCallback) {
         fs.createReadStream(normalizedFilePath).pipe(res);
       }
     } catch (serverError) {
-      console.error(`[local-server.js] Error processing file ${normalizedFilePath}:`, serverError);
+      console.error(
+        `[local-server.js] Error processing file ${normalizedFilePath}:`,
+        serverError,
+      );
       res.writeHead(500, { 'Content-Type': 'text/plain' });
       res.end('Server error processing the file.');
     }
@@ -130,7 +144,9 @@ function startLocalServer(onReadyCallback) {
   serverInstance.listen(0, '127.0.0.1', () => {
     const address = serverInstance.address();
     serverPort = address ? address.port : 0;
-    console.log(`[local-server.js] Local media server started on http://localhost:${serverPort}`);
+    console.log(
+      `[local-server.js] Local media server started on http://localhost:${serverPort}`,
+    );
 
     if (process.env.NODE_ENV === 'test') {
       serverInstance.unref();

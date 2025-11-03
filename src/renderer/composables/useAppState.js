@@ -75,7 +75,8 @@ export function useAppState() {
       }
       state.allModels = await window.electronAPI.getModelsWithViewCounts();
       state.mediaDirectories = await window.electronAPI.getMediaDirectories();
-      state.supportedExtensions = await window.electronAPI.getSupportedExtensions();
+      state.supportedExtensions =
+        await window.electronAPI.getSupportedExtensions();
 
       state.allModels.forEach((model) => {
         state.modelsSelectedForSlideshow[model.name] = true;

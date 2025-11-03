@@ -71,5 +71,4 @@ onBeforeUnmount(() => {
 });
 </script>
 
-<style>
-</style>
+<style></style>
