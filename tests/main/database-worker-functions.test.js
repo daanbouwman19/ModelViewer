@@ -7,7 +7,7 @@ import sqlite3 from 'sqlite3';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import * as dbFunctions from '../src/main/database-worker-functions.js';
+import * as dbFunctions from '../../src/main/database-worker-functions.js';
 
 describe('Database Worker Functions', () => {
   let db;

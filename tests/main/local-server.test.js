@@ -7,7 +7,7 @@ import {
   stopLocalServer,
   getServerPort,
   getMimeType,
-} from '../src/main/local-server.js';
+} from '../../src/main/local-server.js';
 
 // Helper to promisify callback-based functions
 const startServer = () =>

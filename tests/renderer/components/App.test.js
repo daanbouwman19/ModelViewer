@@ -1,22 +1,22 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { ref } from 'vue';
-import App from '../src/renderer/App.vue';
-import { useAppState } from '../src/renderer/composables/useAppState.js';
-import { useSlideshow } from '../src/renderer/composables/useSlideshow.js';
+import App from '@/App.vue';
+import { useAppState } from '@/composables/useAppState.js';
+import { useSlideshow } from '@/composables/useSlideshow.js';
 
 // Mock the composables
-vi.mock('../src/renderer/composables/useAppState.js');
-vi.mock('../src/renderer/composables/useSlideshow.js');
+vi.mock('@/composables/useAppState.js');
+vi.mock('@/composables/useSlideshow.js');
 
 // Mock the child components
-vi.mock('../src/renderer/components/ModelsList.vue', () => ({
+vi.mock('@/components/ModelsList.vue', () => ({
   default: { template: '<div class="models-list-mock">ModelsList</div>' },
 }));
-vi.mock('../src/renderer/components/MediaDisplay.vue', () => ({
+vi.mock('@/components/MediaDisplay.vue', () => ({
   default: { template: '<div class="media-display-mock">MediaDisplay</div>' },
 }));
-vi.mock('../src/renderer/components/SourcesModal.vue', () => ({
+vi.mock('@/components/SourcesModal.vue', () => ({
   default: { template: '<div class="sources-modal-mock">SourcesModal</div>' },
 }));
 

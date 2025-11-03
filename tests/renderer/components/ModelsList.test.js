@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { ref } from 'vue';
-import ModelsList from '../src/renderer/components/ModelsList.vue';
-import { useAppState } from '../src/renderer/composables/useAppState.js';
-import { useSlideshow } from '../src/renderer/composables/useSlideshow.js';
+import ModelsList from '@/components/ModelsList.vue';
+import { useAppState } from '@/composables/useAppState.js';
+import { useSlideshow } from '@/composables/useSlideshow.js';
 
 // Mock the composables
-vi.mock('../src/renderer/composables/useAppState.js');
-vi.mock('../src/renderer/composables/useSlideshow.js');
+vi.mock('@/composables/useAppState.js');
+vi.mock('@/composables/useSlideshow.js');
 
 describe('ModelsList.vue', () => {
   let mockRefs;
