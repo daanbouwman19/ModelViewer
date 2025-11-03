@@ -23,12 +23,10 @@ import ModelsList from './components/ModelsList.vue';
 import MediaDisplay from './components/MediaDisplay.vue';
 import SourcesModal from './components/SourcesModal.vue';
 import { useAppState } from './composables/useAppState';
-import {
-  navigateMedia,
-  toggleSlideshowTimer,
-} from './composables/useSlideshow';
+import { useSlideshow } from './composables/useSlideshow';
 
 const { initializeApp } = useAppState();
+const { navigateMedia, toggleSlideshowTimer } = useSlideshow();
 
 // Global keyboard event handler
 const handleKeydown = (event) => {

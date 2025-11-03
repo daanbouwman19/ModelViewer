@@ -82,33 +82,11 @@ export function useAppState() {
     state.isTimerRunning = false;
   };
 
-  const getFilteredMediaFiles = computed(() => {
-    if (!state.displayedMediaFiles.length) return [];
-
-    if (state.mediaFilter === 'All') {
-      return state.displayedMediaFiles;
-    }
-
-    const videoExtensions = ['.mp4', '.mov', '.avi', '.mkv', '.webm'];
-    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'];
-
-    return state.displayedMediaFiles.filter((file) => {
-      const ext = file.path.toLowerCase().slice(file.path.lastIndexOf('.'));
-      if (state.mediaFilter === 'Videos') {
-        return videoExtensions.includes(ext);
-      } else if (state.mediaFilter === 'Images') {
-        return imageExtensions.includes(ext);
-      }
-      return true;
-    });
-  });
-
   return {
     ...toRefs(state),
     state,
     initializeApp,
     resetState,
     stopSlideshow,
-    getFilteredMediaFiles,
   };
 }

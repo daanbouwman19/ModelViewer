@@ -347,6 +347,3 @@ export function useSlideshow() {
     reapplyFilter,
   };
 }
-
-// Export standalone functions for use in App.vue
-export const { navigateMedia, toggleSlideshowTimer } = useSlideshow();

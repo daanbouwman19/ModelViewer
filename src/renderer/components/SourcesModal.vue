@@ -67,6 +67,15 @@ const closeModal = () => {
   isSourcesModalVisible.value = false;
 };
 
+const resetSlideshowState = () => {
+  state.currentSelectedModelForIndividualView = null;
+  state.isGlobalSlideshowActive = false;
+  state.displayedMediaFiles = [];
+  state.currentMediaIndex = -1;
+  state.currentMediaItem = null;
+  state.globalMediaPoolForSelection = [];
+};
+
 const handleToggleActive = async (path, isActive) => {
   try {
     await window.electronAPI.setDirectoryActiveState(path, isActive);
@@ -96,14 +105,7 @@ const handleAddDirectory = async () => {
 
     state.allModels = updatedModels;
     state.mediaDirectories = await window.electronAPI.getMediaDirectories();
-
-    // Reset state
-    state.currentSelectedModelForIndividualView = null;
-    state.isGlobalSlideshowActive = false;
-    state.displayedMediaFiles = [];
-    state.currentMediaIndex = -1;
-    state.currentMediaItem = null;
-    state.globalMediaPoolForSelection = [];
+    resetSlideshowState();
   } catch (error) {
     console.error('Error adding media directory:', error);
   }
@@ -114,14 +116,7 @@ const handleReindex = async () => {
     const updatedModels = await window.electronAPI.reindexMediaLibrary();
     state.allModels = updatedModels;
     state.mediaDirectories = await window.electronAPI.getMediaDirectories();
-
-    // Reset state
-    state.currentSelectedModelForIndividualView = null;
-    state.isGlobalSlideshowActive = false;
-    state.displayedMediaFiles = [];
-    state.currentMediaIndex = -1;
-    state.currentMediaItem = null;
-    state.globalMediaPoolForSelection = [];
+    resetSlideshowState();
   } catch (error) {
     console.error('Error re-indexing library:', error);
   }

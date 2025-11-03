@@ -22,14 +22,14 @@ The application scans a designated root directory, treating each sub-directory a
 
 ## 3. Tech Stack
 
-- **Framework**: [Electron](https://www.electronjs.org/) 38.0.0
-- **UI Framework**: [Vue 3](https://vuejs.org/) 3.5.12 with Composition API
-- **Build Tool**: [Vite](https://vitejs.dev/) 6.0.0 with HMR
-- **Packaging**: [Electron Forge](https://www.electronforge.io/) 7.5.0
+- **Framework**: [Electron](https://www.electronjs.org/)
+- **UI Framework**: [Vue 3](https://vuejs.org/) with Composition API
+- **Build Tool**: [Vite](https://vitejs.dev/) with HMR
+- **Packaging**: [Electron Forge](https://www.electronforge.io/)
 - **Database**: [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) for local data persistence
 - **Styling**: [Tailwind CSS](https://tailwindcss.com/) for UI components
-- **Testing**: [Jest](https://jestjs.io/) 29.7.0 for unit and integration tests
-- **Formatting**: [Prettier](https://prettier.io/) 3.3.3 for consistent code style
+- **Testing**: [Jest](https://jestjs.io/) for unit and integration tests
+- **Formatting**: [Prettier](https://prettier.io/) for consistent code style
 
 ## 4. Setup and Installation
 

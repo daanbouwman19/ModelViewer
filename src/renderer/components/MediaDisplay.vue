@@ -95,9 +95,11 @@ const error = ref(null);
 const isImage = computed(() => {
   if (!currentMediaItem.value) return false;
   const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'];
-  const ext = currentMediaItem.value.path
-    .toLowerCase()
-    .slice(currentMediaItem.value.path.lastIndexOf('.'));
+  const dotIndex = currentMediaItem.value.path.lastIndexOf('.');
+  const ext =
+    dotIndex === -1
+      ? ''
+      : currentMediaItem.value.path.slice(dotIndex).toLowerCase();
   return imageExtensions.includes(ext);
 });
 
