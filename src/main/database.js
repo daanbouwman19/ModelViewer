@@ -111,7 +111,10 @@ async function initDatabase() {
         pendingMessages.delete(id);
 
         if (result.success) {
-          pending.resolve(result.data);
+          // The data is in result.data, unless it's a viewCounts result
+          const data =
+            result.viewCounts !== undefined ? result.viewCounts : result.data;
+          pending.resolve(data);
         } else {
           pending.reject(new Error(result.error || 'Unknown database error'));
         }
