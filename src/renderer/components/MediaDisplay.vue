@@ -222,5 +222,52 @@ watch(currentMediaItem, loadMediaUrl, { immediate: true });
 </script>
 
 <style scoped>
-/* ... styles remain unchanged ... */
+.panel {
+  background-color: var(--secondary-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+}
+
+.filter-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.media-display-area {
+  border: 2px dashed var(--tertiary-bg);
+  border-radius: 10px;
+  flex-grow: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  padding: 0;
+  background-color: var(--primary-bg);
+}
+
+.placeholder {
+  color: var(--text-muted);
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1rem;
+}
+
+.media-display-area video,
+.media-display-area img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+  border-radius: 8px;
+}
+
+.media-info p {
+  margin: 0.25rem 0;
+}
 </style>

@@ -152,5 +152,48 @@ const handleReindex = async () => {
 </script>
 
 <style scoped>
-/* ... styles remain unchanged ... */
+.modal-overlay {
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: var(--secondary-bg);
+  border: 1px solid var(--border-color);
+}
+
+.close-button {
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.sources-list {
+  list-style: none;
+  padding: 0;
+}
+
+.source-item {
+  background-color: var(--primary-bg);
+  border-radius: 6px;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.source-checkbox {
+  cursor: pointer;
+}
+
+.source-path {
+  font-size: 0.9rem;
+  color: var(--text-color);
+}
+
+.remove-button {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.75rem;
+}
+
+.modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+}
 </style>
