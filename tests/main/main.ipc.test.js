@@ -40,7 +40,7 @@ describe('main.js IPC Handlers', () => {
     }
   });
 
-  it('should return a generic error for a non-existent file', () => {
+  it('should return a descriptive error for a non-existent file', () => {
     const nonExistentPath = '/path/to/nothing.txt';
     fs.existsSync.mockReturnValue(false);
 
