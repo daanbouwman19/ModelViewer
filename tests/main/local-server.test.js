@@ -278,6 +278,93 @@ describe('Local Server', () => {
     });
   });
 
+  describe('Security - Path Validation', () => {
+    let testFilePath;
+
+    afterEach(() => {
+      // Clean up test file after each test
+      if (testFilePath && fs.existsSync(testFilePath)) {
+        fs.unlinkSync(testFilePath);
+      }
+    });
+
+    it('should return 403 for files outside allowed directories', async () => {
+      // Mock getMediaDirectories to return a specific directory
+      const allowedDir = path.join(process.cwd(), 'tests', 'temp');
+      getMediaDirectories.mockResolvedValue([{ path: allowedDir }]);
+
+      // Create a file outside the allowed directory
+      const outsideDir = path.join(process.cwd(), 'tests', 'forbidden');
+      if (!fs.existsSync(outsideDir)) {
+        fs.mkdirSync(outsideDir, { recursive: true });
+      }
+      testFilePath = path.join(outsideDir, 'forbidden-file.txt');
+      fs.writeFileSync(testFilePath, 'You should not see this');
+
+      await startServer();
+      const port = getServerPort();
+
+      const response = await new Promise((resolve, reject) => {
+        const req = http.get(
+          `http://127.0.0.1:${port}/${encodeURIComponent(testFilePath)}`,
+          (res) => {
+            let data = '';
+            res.on('data', (chunk) => (data += chunk));
+            res.on('end', () =>
+              resolve({ statusCode: res.statusCode, data }),
+            );
+          },
+        );
+        req.on('error', reject);
+      });
+
+      expect(response.statusCode).toBe(403);
+      expect(response.data).toBe('Access denied.');
+
+      // Cleanup directory (file cleanup handled by afterEach)
+      if (fs.existsSync(outsideDir)) {
+        const files = fs.readdirSync(outsideDir);
+        files.forEach((file) => fs.unlinkSync(path.join(outsideDir, file)));
+        fs.rmdirSync(outsideDir);
+      }
+    });
+
+    it('should return 500 when database error occurs during path validation', async () => {
+      // Mock getMediaDirectories to throw an error
+      getMediaDirectories.mockRejectedValue(new Error('Database error'));
+
+      const testDir = path.join(process.cwd(), 'tests', 'temp');
+      if (!fs.existsSync(testDir)) {
+        fs.mkdirSync(testDir, { recursive: true });
+      }
+      testFilePath = path.join(testDir, 'test-file.txt');
+      fs.writeFileSync(testFilePath, 'Test content');
+
+      await startServer();
+      const port = getServerPort();
+
+      const response = await new Promise((resolve, reject) => {
+        const req = http.get(
+          `http://127.0.0.1:${port}/${encodeURIComponent(testFilePath)}`,
+          (res) => {
+            let data = '';
+            res.on('data', (chunk) => (data += chunk));
+            res.on('end', () =>
+              resolve({ statusCode: res.statusCode, data }),
+            );
+          },
+        );
+        req.on('error', reject);
+      });
+
+      expect(response.statusCode).toBe(500);
+      expect(response.data).toBe('Internal server error.');
+
+      // Restore mock for subsequent tests
+      getMediaDirectories.mockResolvedValue([{ path: process.cwd() }]);
+    });
+  });
+
   describe('Server Error Handling', () => {
     it('should handle server listen errors gracefully', async () => {
       // Start first server
