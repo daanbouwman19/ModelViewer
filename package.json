@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
     "package": "npm run build && electron-builder",
     "package:win": "npm run build && electron-builder --win",
     "package:mac": "npm run build && electron-builder --mac",
@@ -60,6 +61,7 @@
   "devDependencies": {
     "@tailwindcss/forms": "^0.5.9",
     "@vitejs/plugin-vue": "^6.0.1",
+    "@vitest/coverage-istanbul": "^4.0.6",
     "@vitest/ui": "^4.0.6",
     "electron": "^39.0.0",
     "electron-builder": "^26.1.0",
