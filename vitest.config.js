@@ -8,7 +8,7 @@ export default defineConfig({
     globals: true,
     environment: 'happy-dom',
     testTimeout: 10000,
-    include: ['**/*.test.js', '**/*.spec.js'],
+    include: ['tests/**/*.test.js'],
     exclude: ['node_modules', 'out', 'release', '.vite', 'dist'],
     coverage: {
       provider: 'istanbul',

@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { ref } from 'vue';
-import MediaDisplay from '../src/renderer/components/MediaDisplay.vue';
-import { useAppState } from '../src/renderer/composables/useAppState.js';
-import { useSlideshow } from '../src/renderer/composables/useSlideshow.js';
+import MediaDisplay from '@/components/MediaDisplay.vue';
+import { useAppState } from '@/composables/useAppState.js';
+import { useSlideshow } from '@/composables/useSlideshow.js';
 
 // Mock the composables
-vi.mock('../src/renderer/composables/useAppState.js');
-vi.mock('../src/renderer/composables/useSlideshow.js');
+vi.mock('@/composables/useAppState.js');
+vi.mock('@/composables/useSlideshow.js');
 
 describe('MediaDisplay.vue', () => {
   let mockSetFilter;

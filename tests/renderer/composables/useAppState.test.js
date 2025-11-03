@@ -2,7 +2,7 @@
  * Tests for useAppState composable
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { useAppState } from '../src/renderer/composables/useAppState.js';
+import { useAppState } from '@/composables/useAppState.js';
 
 describe('useAppState', () => {
   let appState;

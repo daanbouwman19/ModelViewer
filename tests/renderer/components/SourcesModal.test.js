@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { ref } from 'vue';
-import SourcesModal from '../src/renderer/components/SourcesModal.vue';
-import { useAppState } from '../src/renderer/composables/useAppState.js';
+import SourcesModal from '@/components/SourcesModal.vue';
+import { useAppState } from '@/composables/useAppState.js';
 
 // Mock the composables
-vi.mock('../src/renderer/composables/useAppState.js');
+vi.mock('@/composables/useAppState.js');
 
 // Mock window.electronAPI
 global.window.electronAPI = {
