@@ -566,56 +566,21 @@ describe('Database Worker Functions', () => {
       await dbFunctions.dbClose(db);
     });
 
-    it('recordMediaView should fail', async () => {
-      const result = await dbFunctions.recordMediaView(db, '/test.png');
-      expect(result.success).toBe(false);
-      expect(result.error).toBeDefined();
-    });
+    const testCases = [
+        { funcName: 'recordMediaView', args: ['/test.png'] },
+        { funcName: 'getMediaViewCounts', args: [['/test.png']] },
+        { funcName: 'cacheModels', args: ['key', []] },
+        { funcName: 'getCachedModels', args: ['key'] },
+        { funcName: 'addMediaDirectory', args: ['/test'] },
+        { funcName: 'getMediaDirectories', args: [] },
+        { funcName: 'removeMediaDirectory', args: ['/test'] },
+        { funcName: 'setDirectoryActiveState', args: ['/test', true] },
+    ];
 
-    it('getMediaViewCounts should fail', async () => {
-      const result = await dbFunctions.getMediaViewCounts(db, ['/test.png']);
-      expect(result.success).toBe(false);
-      expect(result.error).toBeDefined();
-    });
-
-    it('cacheModels should fail', async () => {
-      const result = await dbFunctions.cacheModels(db, 'key', []);
-      expect(result.success).toBe(false);
-      expect(result.error).toBeDefined();
-    });
-
-    it('getCachedModels should fail', async () => {
-      const result = await dbFunctions.getCachedModels(db, 'key');
-      expect(result.success).toBe(false);
-      expect(result.error).toBeDefined();
-    });
-
-    it('addMediaDirectory should fail', async () => {
-      const result = await dbFunctions.addMediaDirectory(db, '/test');
-      expect(result.success).toBe(false);
-      expect(result.error).toBeDefined();
-    });
-
-    it('getMediaDirectories should fail', async () => {
-      const result = await dbFunctions.getMediaDirectories(db);
-      expect(result.success).toBe(false);
-      expect(result.error).toBeDefined();
-    });
-
-    it('removeMediaDirectory should fail', async () => {
-      const result = await dbFunctions.removeMediaDirectory(db, '/test');
-      expect(result.success).toBe(false);
-      expect(result.error).toBeDefined();
-    });
-
-    it('setDirectoryActiveState should fail', async () => {
-      const result = await dbFunctions.setDirectoryActiveState(
-        db,
-        '/test',
-        true,
-      );
-      expect(result.success).toBe(false);
-      expect(result.error).toBeDefined();
+    it.each(testCases)('$funcName should fail', async ({ funcName, args }) => {
+        const result = await dbFunctions[funcName](db, ...args);
+        expect(result.success).toBe(false);
+        expect(result.error).toBeDefined();
     });
   });
 });
