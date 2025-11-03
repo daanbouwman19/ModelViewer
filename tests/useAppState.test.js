@@ -54,13 +54,15 @@ describe('useAppState', () => {
 
     it('should handle error when electronAPI is not available', async () => {
       global.window = {};
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
 
       await appState.initializeApp();
 
       expect(consoleSpy).toHaveBeenCalledWith(
         '[useAppState] Error during initial load:',
-        expect.any(Error)
+        expect.any(Error),
       );
 
       consoleSpy.mockRestore();
@@ -76,13 +78,15 @@ describe('useAppState', () => {
           getSupportedExtensions: vi.fn(),
         },
       };
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
 
       await appState.initializeApp();
 
       expect(consoleSpy).toHaveBeenCalledWith(
         '[useAppState] Error during initial load:',
-        expect.any(Error)
+        expect.any(Error),
       );
 
       consoleSpy.mockRestore();
