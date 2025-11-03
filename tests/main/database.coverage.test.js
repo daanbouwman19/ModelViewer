@@ -22,9 +22,15 @@ class MockWorker extends EventEmitter {
   }
 
   // Helper methods
-  simulateMessage(message) { this.emit('message', message); }
-  simulateError(error) { this.emit('error', error); }
-  simulateExit(code) { this.emit('exit', code); }
+  simulateMessage(message) {
+    this.emit('message', message);
+  }
+  simulateError(error) {
+    this.emit('error', error);
+  }
+  simulateExit(code) {
+    this.emit('exit', code);
+  }
 }
 
 vi.mock('worker_threads', () => ({
@@ -89,11 +95,16 @@ describe('database.js additional coverage', () => {
           });
         } else {
           // Call the original mock for other messages like 'close'
-          mockWorkerInstance.constructor.prototype.postMessage.call(mockWorkerInstance, message);
+          mockWorkerInstance.constructor.prototype.postMessage.call(
+            mockWorkerInstance,
+            message,
+          );
         }
       });
 
-      await expect(db.addMediaDirectory(directoryPath)).rejects.toThrow(errorMessage);
+      await expect(db.addMediaDirectory(directoryPath)).rejects.toThrow(
+        errorMessage,
+      );
       postMessageSpy.mockRestore();
     });
 
@@ -109,11 +120,16 @@ describe('database.js additional coverage', () => {
             result: { success: false, error: errorMessage },
           });
         } else {
-          mockWorkerInstance.constructor.prototype.postMessage.call(mockWorkerInstance, message);
+          mockWorkerInstance.constructor.prototype.postMessage.call(
+            mockWorkerInstance,
+            message,
+          );
         }
       });
 
-      await expect(db.removeMediaDirectory(directoryPath)).rejects.toThrow(errorMessage);
+      await expect(db.removeMediaDirectory(directoryPath)).rejects.toThrow(
+        errorMessage,
+      );
       postMessageSpy.mockRestore();
     });
 
@@ -129,12 +145,17 @@ describe('database.js additional coverage', () => {
             result: { success: false, error: errorMessage },
           });
         } else {
-          mockWorkerInstance.constructor.prototype.postMessage.call(mockWorkerInstance, message);
+          mockWorkerInstance.constructor.prototype.postMessage.call(
+            mockWorkerInstance,
+            message,
+          );
         }
       });
 
-      await expect(db.setDirectoryActiveState(directoryPath, false)).rejects.toThrow(errorMessage);
+      await expect(
+        db.setDirectoryActiveState(directoryPath, false),
+      ).rejects.toThrow(errorMessage);
       postMessageSpy.mockRestore();
     });
-});
+  });
 });

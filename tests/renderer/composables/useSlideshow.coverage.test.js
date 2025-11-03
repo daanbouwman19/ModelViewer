@@ -56,7 +56,9 @@ describe('useSlideshow additional coverage', () => {
       ];
       const { selectWeightedRandom } = useSlideshow();
 
-      const mathRandomSpy = vi.spyOn(global.Math, 'random').mockReturnValue(0.6);
+      const mathRandomSpy = vi
+        .spyOn(global.Math, 'random')
+        .mockReturnValue(0.6);
 
       const selected = selectWeightedRandom(items);
       expect(selected.path).toBe('b');
@@ -65,28 +67,26 @@ describe('useSlideshow additional coverage', () => {
     });
 
     it('should not return null if no eligible items and total weight is near zero', () => {
-        const items = [
-          { path: 'a', viewCount: 1e9 },
-        ];
-        const { selectWeightedRandom } = useSlideshow();
-        const selected = selectWeightedRandom(items, ['a']);
-        expect(selected).not.toBeNull();
+      const items = [{ path: 'a', viewCount: 1e9 }];
+      const { selectWeightedRandom } = useSlideshow();
+      const selected = selectWeightedRandom(items, ['a']);
+      expect(selected).not.toBeNull();
     });
   });
 
   describe('pickAndDisplayNextMediaItem', () => {
     it('should use fallback if weighted selection fails', async () => {
-        mockState.globalMediaPoolForSelection = [{ path: 'a' }];
-        const { pickAndDisplayNextMediaItem } = useSlideshow();
+      mockState.globalMediaPoolForSelection = [{ path: 'a' }];
+      const { pickAndDisplayNextMediaItem } = useSlideshow();
 
-        // This will cause selectWeightedRandom to return null
-        const mathRandomSpy = vi.spyOn(global.Math, 'random').mockReturnValue(1);
+      // This will cause selectWeightedRandom to return null
+      const mathRandomSpy = vi.spyOn(global.Math, 'random').mockReturnValue(1);
 
-        await pickAndDisplayNextMediaItem();
+      await pickAndDisplayNextMediaItem();
 
-        expect(mockState.currentMediaItem.path).toBe('a');
+      expect(mockState.currentMediaItem.path).toBe('a');
 
-        mathRandomSpy.mockRestore();
+      mathRandomSpy.mockRestore();
     });
   });
 });
