@@ -62,7 +62,6 @@
     "@tailwindcss/forms": "^0.5.9",
     "@vitejs/plugin-vue": "^6.0.1",
     "@vitest/coverage-istanbul": "^4.0.6",
-    "@vitest/coverage-v8": "^4.0.6",
     "@vue/test-utils": "^2.4.6",
     "electron": "^39.0.0",
     "electron-builder": "^26.1.0",
