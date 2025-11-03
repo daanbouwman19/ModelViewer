@@ -4,14 +4,15 @@ const state = reactive({
   // The complete list of all models discovered by the media scanner
   allModels: [],
 
-  // The model object that is currently selected for individual viewing
-  currentSelectedModelForIndividualView: null,
+  // A map where keys are model names and values are booleans indicating if
+  // the model is selected for the slideshow (all selected by default)
+  modelsSelectedForSlideshow: {},
 
-  // The original, unsorted list of media files for the currently selected individual model
-  originalMediaFilesForIndividualView: [],
-
-  // A flat array of all media files from all models that are currently selected
+  // A flat array of all media files from all selected models
   globalMediaPoolForSelection: [],
+
+  // Total number of media items in the filtered pool
+  totalMediaInPool: 0,
 
   // Represents the current "playlist"
   displayedMediaFiles: [],
@@ -22,16 +23,8 @@ const state = reactive({
   // The index of currentMediaItem within the displayedMediaFiles array
   currentMediaIndex: -1,
 
-  // A map where keys are model names and values are booleans indicating if
-  // random playback mode is enabled for that model's individual slideshow
-  modelRandomModeSettings: {},
-
-  // A map where keys are model names and values are booleans indicating if
-  // the model is included in the global slideshow
-  modelsSelectedForGlobal: {},
-
-  // A flag that is true when the global slideshow is active
-  isGlobalSlideshowActive: false,
+  // A flag that is true when the slideshow is active
+  isSlideshowActive: false,
 
   // Holds the timer ID returned by setInterval for the slideshow
   slideshowTimerId: null,
@@ -50,6 +43,13 @@ const state = reactive({
 
   // List of media directories
   mediaDirectories: [],
+
+  // Supported file extensions from main process
+  supportedExtensions: {
+    images: [],
+    videos: [],
+    all: [],
+  },
 });
 
 export function useAppState() {
@@ -60,14 +60,20 @@ export function useAppState() {
       }
       state.allModels = await window.electronAPI.getModelsWithViewCounts();
       state.mediaDirectories = await window.electronAPI.getMediaDirectories();
+      state.supportedExtensions =
+        await window.electronAPI.getSupportedExtensions();
+
+      // Select all models by default
+      state.allModels.forEach((model) => {
+        state.modelsSelectedForSlideshow[model.name] = true;
+      });
     } catch (error) {
       console.error('[useAppState] Error during initial load:', error);
     }
   };
 
   const resetState = () => {
-    state.currentSelectedModelForIndividualView = null;
-    state.isGlobalSlideshowActive = false;
+    state.isSlideshowActive = false;
     state.displayedMediaFiles = [];
     state.currentMediaIndex = -1;
     state.currentMediaItem = null;
