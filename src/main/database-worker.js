@@ -279,10 +279,15 @@ async function addMediaDirectory(directoryPath) {
     return { success: false, error: 'Database not initialized' };
   }
   try {
-    await dbRun('INSERT OR IGNORE INTO media_directories (path) VALUES (?)', [
-      directoryPath,
-    ]);
-    console.log(`[database-worker.js] Added media directory: ${directoryPath}`);
+    const sql = `
+      INSERT INTO media_directories (path, is_active)
+      VALUES (?, 1)
+      ON CONFLICT(path) DO UPDATE SET is_active = 1;
+    `;
+    await dbRun(sql, [directoryPath]);
+    console.log(
+      `[database-worker.js] Ensured media directory is present and active: ${directoryPath}`,
+    );
     return { success: true };
   } catch (error) {
     console.error(
