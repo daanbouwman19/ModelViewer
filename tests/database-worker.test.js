@@ -278,6 +278,30 @@ describe('Database Worker', () => {
       const dirs = result.data.filter((d) => d.path === dirPath);
       expect(dirs).toHaveLength(1);
     });
+
+    it('should re-activate an existing directory when it is added again', async () => {
+      const directoryPath = '/test/media/directory';
+
+      // 1. Add the directory, it should be active by default.
+      await sendMessage('addMediaDirectory', { directoryPath });
+      let result = await sendMessage('getMediaDirectories');
+      expect(result.data).toEqual([{ path: directoryPath, isActive: true }]);
+
+      // 2. Deactivate the directory.
+      await sendMessage('setDirectoryActiveState', {
+        directoryPath,
+        isActive: false,
+      });
+      result = await sendMessage('getMediaDirectories');
+      expect(result.data).toEqual([{ path: directoryPath, isActive: false }]);
+
+      // 3. Re-add the same directory.
+      await sendMessage('addMediaDirectory', { directoryPath });
+      result = await sendMessage('getMediaDirectories');
+
+      // 4. Assert that the directory is now active again.
+      expect(result.data).toEqual([{ path: directoryPath, isActive: true }]);
+    });
   });
 
   describe('getMediaDirectories', () => {
