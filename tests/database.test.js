@@ -38,7 +38,7 @@ describe('database.js with Worker Thread', () => {
       Worker.__resetStore();
       Worker.__resetConfig();
 
-      database = require('../main/database.js');
+      database = require('../src/main/database.js');
       // Set shorter timeout for tests
       database.setOperationTimeout(1000);
       await database.initDatabase();
@@ -260,7 +260,7 @@ describe('database.js with Worker Thread', () => {
       const workerThreads = require('worker_threads');
       Worker = workerThreads.Worker;
       Worker.__setConfig({ shouldFailToInitialize: true });
-      const db = require('../main/database.js');
+      const db = require('../src/main/database.js');
       await expect(db.initDatabase()).rejects.toThrow(
         'Simulated initialization error',
       );

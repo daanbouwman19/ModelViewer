@@ -6,7 +6,7 @@ const {
   stopLocalServer,
   getServerPort,
   getMimeType,
-} = require('../main/local-server');
+} = require('../src/main/local-server');
 
 const TEST_DIR = path.join(__dirname, 'local_server_test_files');
 const TEST_IMAGE_FILE = path.join(TEST_DIR, 'test_image.png');

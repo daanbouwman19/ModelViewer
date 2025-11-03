@@ -10,6 +10,21 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
+// Vite environment variables injected by @electron-forge/plugin-vite
+// These are defined at build time by Vite
+// In development, MAIN_WINDOW_VITE_DEV_SERVER_URL points to the dev server
+// In production, MAIN_WINDOW_VITE_NAME is the renderer name
+// eslint-disable-next-line no-undef
+const devServerURL =
+  typeof MAIN_WINDOW_VITE_DEV_SERVER_URL !== 'undefined'
+    ? MAIN_WINDOW_VITE_DEV_SERVER_URL
+    : undefined;
+// eslint-disable-next-line no-undef
+const rendererName =
+  typeof MAIN_WINDOW_VITE_NAME !== 'undefined'
+    ? MAIN_WINDOW_VITE_NAME
+    : undefined;
+
 const {
   MAX_DATA_URL_SIZE_MB,
   SUPPORTED_VIDEO_EXTENSIONS,
@@ -250,23 +265,45 @@ ipcMain.handle('get-supported-extensions', () => {
 let mainWindow; // Keep a reference to the main window
 
 function createWindow() {
-  console.log('[main.js] createWindow() called.');
+  // Get the preload script path from Vite/Electron Forge
+  // In development, it's built to .vite/build/preload.js
+  // eslint-disable-next-line no-undef
+  const preloadPath =
+    typeof MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY !== 'undefined'
+      ? MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY
+      : path.join(__dirname, 'preload.js'); // Relative to the build output
+
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     webPreferences: {
-      preload: path.join(__dirname, '../preload.js'),
+      preload: preloadPath,
       contextIsolation: true,
+      nodeIntegration: false,
     },
   });
-  console.log('[main.js] BrowserWindow created.');
 
-  mainWindow
-    .loadFile(path.join(__dirname, '../index.html'))
-    .then(() => {
-      console.log('[main.js] index.html loaded successfully.');
-    })
-    .catch((err) => console.error('[main.js] FAILED to load index.html:', err));
+  // devServerURL is set by @electron-forge/plugin-vite during development
+  // rendererName is set by @electron-forge/plugin-vite in production
+  if (devServerURL) {
+    mainWindow
+      .loadURL(devServerURL)
+      .then(() => {
+        console.log('[main.js] Development server loaded successfully.');
+      })
+      .catch((err) =>
+        console.error('[main.js] FAILED to load development server:', err),
+      );
+  } else {
+    mainWindow
+      .loadFile(path.join(__dirname, `../renderer/${rendererName}/index.html`))
+      .then(() => {
+        console.log('[main.js] index.html loaded successfully.');
+      })
+      .catch((err) =>
+        console.error('[main.js] FAILED to load index.html:', err),
+      );
+  }
 
   mainWindow.on('closed', () => {
     mainWindow = null; // Dereference the window object

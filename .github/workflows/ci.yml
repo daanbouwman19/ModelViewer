@@ -32,10 +32,12 @@ jobs:
 
   electron-build:
     name: Build Electron App (${{ matrix.os }})
+    needs: test
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        # Only build Linux for PRs to save time, build both for main branch
+        os: ${{ github.event_name == 'pull_request' && fromJSON('["ubuntu-latest"]') || fromJSON('["ubuntu-latest", "windows-latest"]') }}
 
     runs-on: ${{ matrix.os }}
 
@@ -67,24 +69,32 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-electron-
 
+      - name: Cache native modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules/better-sqlite3
+            node_modules/.bin
+          key: ${{ runner.os }}-native-modules-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-native-modules-
+
       - name: Install dependencies
         run: npm ci
 
-      - name: Rebuild native modules for Electron
-        run: npm run rebuild
-
-      - name: Build Electron app
-        run: npm run dist
+      - name: Make distributables
+        run: npm run make
         env:
-          GH_TOKEN: ''
+          # Skip native module rebuild if already cached
+          ELECTRON_SKIP_BINARY_DOWNLOAD: 1
 
       - name: Verify build artifacts
         shell: bash
         run: |
           if [ "$RUNNER_OS" == "Linux" ]; then
-            ls -lh dist/*.AppImage 2>/dev/null || ls -lh dist/*.deb 2>/dev/null || echo "No Linux artifacts found"
+            ls -lh out/make/**/*.deb 2>/dev/null || ls -lh out/make/**/*.rpm 2>/dev/null || echo "No Linux artifacts found"
           elif [ "$RUNNER_OS" == "Windows" ]; then
-            ls -lh dist/*.exe 2>/dev/null || echo "No Windows artifacts found"
+            ls -lh out/make/**/*.exe 2>/dev/null || echo "No Windows artifacts found"
           fi
 
   electron-smoke-test:
@@ -93,7 +103,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        # Only test Linux for PRs to save time, test both for main branch
+        os: ${{ github.event_name == 'pull_request' && fromJSON('["ubuntu-latest"]') || fromJSON('["ubuntu-latest", "windows-latest"]') }}
 
     runs-on: ${{ matrix.os }}
 
@@ -126,16 +137,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Rebuild native modules for Electron
-        run: npm run rebuild
-
       - name: Start Electron app (Linux)
         if: runner.os == 'Linux'
+        env:
+          ELECTRON_DISABLE_SANDBOX: 1
         run: |
           export DISPLAY=:99
           Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
-          # Run Electron with --no-sandbox flag for CI environment
-          timeout 15s npx electron . --no-sandbox || if [ $? -eq 124 ]; then echo "App started successfully"; exit 0; else exit 1; fi
+          # Run Electron with disabled sandbox for CI environment
+          timeout 15s npm start || if [ $? -eq 124 ]; then echo "App started successfully"; exit 0; else exit 1; fi
 
       - name: Start Electron app (Windows)
         if: runner.os == 'Windows'

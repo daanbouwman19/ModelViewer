@@ -2,11 +2,20 @@ const { ipcMain } = require('electron');
 const fs = 'fs';
 const path = 'path';
 
+// Mock Vite environment variables
+global.MAIN_WINDOW_VITE_DEV_SERVER_URL = undefined;
+global.MAIN_WINDOW_VITE_NAME = undefined;
+global.MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY = undefined;
+
 // Mock dependencies
 jest.mock('electron', () => {
   const mockBrowserWindowInstance = {
     loadFile: jest.fn(() => Promise.resolve()),
+    loadURL: jest.fn(() => Promise.resolve()),
     on: jest.fn(),
+    webContents: {
+      openDevTools: jest.fn(),
+    },
   };
   const mockBrowserWindow = jest.fn(() => mockBrowserWindowInstance);
   mockBrowserWindow.getAllWindows = jest.fn(() => []);
@@ -33,26 +42,26 @@ jest.mock('path', () => ({
   extname: jest.fn().mockReturnValue(''),
 }));
 
-jest.mock('../main/database.js', () => ({
-  initDatabase: jest.fn(),
-  recordMediaView: jest.fn(),
-  getMediaViewCounts: jest.fn(),
-  cacheModels: jest.fn(),
-  getCachedModels: jest.fn(),
-  closeDatabase: jest.fn(),
-  getMediaDirectories: jest.fn(),
-  addMediaDirectory: jest.fn(),
-  removeMediaDirectory: jest.fn(),
-  setDirectoryActiveState: jest.fn(),
+jest.mock('../src/main/database.js', () => ({
+  initDatabase: jest.fn(() => Promise.resolve()),
+  recordMediaView: jest.fn(() => Promise.resolve()),
+  getMediaViewCounts: jest.fn(() => Promise.resolve({})),
+  cacheModels: jest.fn(() => Promise.resolve()),
+  getCachedModels: jest.fn(() => Promise.resolve([])),
+  closeDatabase: jest.fn(() => Promise.resolve()),
+  getMediaDirectories: jest.fn(() => Promise.resolve([])),
+  addMediaDirectory: jest.fn(() => Promise.resolve()),
+  removeMediaDirectory: jest.fn(() => Promise.resolve()),
+  setDirectoryActiveState: jest.fn(() => Promise.resolve()),
 }));
-jest.mock('../main/media-scanner.js', () => ({
-  performFullMediaScan: jest.fn(),
+jest.mock('../src/main/media-scanner.js', () => ({
+  performFullMediaScan: jest.fn(() => Promise.resolve([])),
 }));
-jest.mock('../main/local-server.js', () => ({
+jest.mock('../src/main/local-server.js', () => ({
   startLocalServer: jest.fn(),
   stopLocalServer: jest.fn(),
-  getServerPort: jest.fn(),
-  getMimeType: jest.fn(),
+  getServerPort: jest.fn(() => 8080),
+  getMimeType: jest.fn(() => 'text/plain'),
 }));
 
 describe('Main Process', () => {
@@ -66,7 +75,7 @@ describe('Main Process', () => {
     // Import the mock ipcMain
     ipcMain = require('electron').ipcMain;
 
-    require('../main/main.js');
+    require('../src/main/main.js');
   });
 
   describe('IPC Handlers', () => {
@@ -104,8 +113,8 @@ describe('Main Process', () => {
       it('should return an http-url for a large video file when the server is running', async () => {
         const fs = require('fs');
         const path = require('path');
-        const { getServerPort } = require('../main/local-server.js');
-        const { MAX_DATA_URL_SIZE_MB } = require('../main/constants.js');
+        const { getServerPort } = require('../src/main/local-server.js');
+        const { MAX_DATA_URL_SIZE_MB } = require('../src/main/constants.js');
 
         fs.existsSync.mockReturnValue(true);
         fs.statSync.mockReturnValue({
@@ -126,8 +135,8 @@ describe('Main Process', () => {
       it('should return an error for a large video file when the server is not ready', async () => {
         const fs = require('fs');
         const path = require('path');
-        const { getServerPort } = require('../main/local-server.js');
-        const { MAX_DATA_URL_SIZE_MB } = require('../main/constants.js');
+        const { getServerPort } = require('../src/main/local-server.js');
+        const { MAX_DATA_URL_SIZE_MB } = require('../src/main/constants.js');
 
         fs.existsSync.mockReturnValue(true);
         fs.statSync.mockReturnValue({
@@ -146,8 +155,8 @@ describe('Main Process', () => {
 
       it('should return a data-url for a small file', async () => {
         const fs = require('fs');
-        const { getMimeType } = require('../main/local-server.js');
-        const { MAX_DATA_URL_SIZE_MB } = require('../main/constants.js');
+        const { getMimeType } = require('../src/main/local-server.js');
+        const { MAX_DATA_URL_SIZE_MB } = require('../src/main/constants.js');
 
         fs.existsSync.mockReturnValue(true);
         fs.statSync.mockReturnValue({
@@ -188,14 +197,14 @@ describe('Main Process', () => {
 
     describe('Other IPC Handlers', () => {
       it('should call recordMediaView', async () => {
-        const { recordMediaView } = require('../main/database.js');
+        const { recordMediaView } = require('../src/main/database.js');
         const handler = getIpcHandler('record-media-view');
         await handler(null, 'file/path');
         expect(recordMediaView).toHaveBeenCalledWith('file/path');
       });
 
       it('should call getMediaViewCounts', async () => {
-        const { getMediaViewCounts } = require('../main/database.js');
+        const { getMediaViewCounts } = require('../src/main/database.js');
         const handler = getIpcHandler('get-media-view-counts');
         await handler(null, ['file/path']);
         expect(getMediaViewCounts).toHaveBeenCalledWith(['file/path']);
@@ -205,7 +214,7 @@ describe('Main Process', () => {
         const {
           getCachedModels,
           getMediaViewCounts,
-        } = require('../main/database.js');
+        } = require('../src/main/database.js');
         const handler = getIpcHandler('get-models-with-view-counts');
 
         getCachedModels.mockResolvedValue([
@@ -221,12 +230,14 @@ describe('Main Process', () => {
       });
 
       it('should re-index and return models with view counts', async () => {
-        const { performFullMediaScan } = require('../main/media-scanner.js');
+        const {
+          performFullMediaScan,
+        } = require('../src/main/media-scanner.js');
         const {
           cacheModels,
           getMediaViewCounts,
           getMediaDirectories,
-        } = require('../main/database.js');
+        } = require('../src/main/database.js');
         const handler = getIpcHandler('reindex-media-library');
 
         getMediaDirectories.mockResolvedValue([
@@ -250,8 +261,10 @@ describe('Main Process', () => {
         const {
           getCachedModels,
           getMediaDirectories,
-        } = require('../main/database.js');
-        const { performFullMediaScan } = require('../main/media-scanner.js');
+        } = require('../src/main/database.js');
+        const {
+          performFullMediaScan,
+        } = require('../src/main/media-scanner.js');
         const handler = getIpcHandler('get-models-with-view-counts');
         getCachedModels.mockResolvedValue([]); // No models in cache
         getMediaDirectories.mockResolvedValue([
@@ -263,8 +276,10 @@ describe('Main Process', () => {
       });
 
       it('should handle no models being found for reindex-media-library', async () => {
-        const { performFullMediaScan } = require('../main/media-scanner.js');
-        const { getMediaDirectories } = require('../main/database.js');
+        const {
+          performFullMediaScan,
+        } = require('../src/main/media-scanner.js');
+        const { getMediaDirectories } = require('../src/main/database.js');
         const handler = getIpcHandler('reindex-media-library');
         getMediaDirectories.mockResolvedValue([
           { path: '/test/directory', isActive: true },
@@ -291,8 +306,8 @@ describe('Main Process', () => {
     };
 
     it('should initialize database and start server on ready', async () => {
-      const { initDatabase } = require('../main/database.js');
-      const { startLocalServer } = require('../main/local-server.js');
+      const { initDatabase } = require('../src/main/database.js');
+      const { startLocalServer } = require('../src/main/local-server.js');
       const readyHandler = getAppEventHandler('ready');
 
       await readyHandler();
@@ -303,8 +318,8 @@ describe('Main Process', () => {
 
     it('should quit the app if database initialization fails', async () => {
       const { app } = require('electron');
-      const { initDatabase } = require('../main/database.js');
-      const { startLocalServer } = require('../main/local-server.js');
+      const { initDatabase } = require('../src/main/database.js');
+      const { startLocalServer } = require('../src/main/local-server.js');
       const readyHandler = getAppEventHandler('ready');
 
       initDatabase.mockRejectedValue(new Error('DB init failed'));
@@ -350,7 +365,7 @@ describe('Main Process', () => {
 
     it('should create a window on activate when no windows are open', () => {
       const { BrowserWindow } = require('electron');
-      const { getServerPort } = require('../main/local-server.js');
+      const { getServerPort } = require('../src/main/local-server.js');
       getServerPort.mockReturnValue(8080);
       BrowserWindow.getAllWindows.mockReturnValue([]);
       const handler = getAppEventHandler('activate');
@@ -360,7 +375,7 @@ describe('Main Process', () => {
 
     it('should not create a window on activate when windows are open', () => {
       const { BrowserWindow } = require('electron');
-      const { getServerPort } = require('../main/local-server.js');
+      const { getServerPort } = require('../src/main/local-server.js');
       getServerPort.mockReturnValue(8080);
       BrowserWindow.getAllWindows.mockReturnValue([{}]); // One window is open
       const handler = getAppEventHandler('activate');
@@ -369,8 +384,8 @@ describe('Main Process', () => {
     });
 
     it('should stop server and close database on will-quit', () => {
-      const { stopLocalServer } = require('../main/local-server.js');
-      const { closeDatabase } = require('../main/database.js');
+      const { stopLocalServer } = require('../src/main/local-server.js');
+      const { closeDatabase } = require('../src/main/database.js');
       const handler = getAppEventHandler('will-quit');
       handler();
       expect(stopLocalServer).toHaveBeenCalled();

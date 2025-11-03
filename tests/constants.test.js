@@ -4,7 +4,7 @@ const {
   SUPPORTED_IMAGE_EXTENSIONS,
   SUPPORTED_VIDEO_EXTENSIONS,
   ALL_SUPPORTED_EXTENSIONS,
-} = require('../main/constants');
+} = require('../src/main/constants');
 
 describe('Constants', () => {
   test('MAX_DATA_URL_SIZE_MB should be a number', () => {
