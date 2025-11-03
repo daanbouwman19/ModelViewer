@@ -11,7 +11,7 @@ import {
   getMediaDirectories,
   removeMediaDirectory,
   setDirectoryActiveState,
-} from '../src/main/database.js';
+} from '../../src/main/database.js';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';

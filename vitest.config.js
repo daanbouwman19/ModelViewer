@@ -4,12 +4,14 @@ import vue from '@vitejs/plugin-vue';
 
 export default defineConfig({
   plugins: [vue()],
+  root: '.',
   test: {
     globals: true,
-    environment: 'happy-dom',
+    environment: 'jsdom',
     testTimeout: 10000,
-    include: ['**/*.test.js', '**/*.spec.js'],
+    include: ['tests/**/*.test.js'],
     exclude: ['node_modules', 'out', 'release', '.vite', 'dist'],
+    setupFiles: ['tests/renderer/setup.js'],
     coverage: {
       provider: 'istanbul',
       reporter: ['text', 'json', 'html', 'lcov'],

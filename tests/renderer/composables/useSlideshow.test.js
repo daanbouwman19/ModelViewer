@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useSlideshow } from '../src/renderer/composables/useSlideshow.js';
-import { useAppState } from '../src/renderer/composables/useAppState.js';
+import { useSlideshow } from '@/composables/useSlideshow.js';
+import { useAppState } from '@/composables/useAppState.js';
 
 // Mock the entire useAppState module
-vi.mock('../src/renderer/composables/useAppState.js', () => ({
+vi.mock('@/composables/useAppState.js', () => ({
   useAppState: vi.fn(),
 }));
 
