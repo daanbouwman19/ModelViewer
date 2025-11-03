@@ -23,6 +23,7 @@ import { FILE_INDEX_CACHE_KEY } from './constants.js';
  * @type {Worker | null}
  */
 let dbWorker = null;
+let isTerminating = false;
 
 /**
  * Counter for generating unique message IDs
@@ -64,8 +65,17 @@ function sendMessageToWorker(type, payload = {}) {
     }, operationTimeout);
 
     pendingMessages.set(id, { resolve, reject, timeoutId });
-
-    dbWorker.postMessage({ id, type, payload });
+    try {
+      dbWorker.postMessage({ id, type, payload });
+    } catch (error) {
+      // This can happen if the worker is terminated unexpectedly
+      console.error(
+        `[database.js] Error posting message to worker: ${error.message}`,
+      );
+      clearTimeout(timeoutId);
+      pendingMessages.delete(id);
+      reject(error);
+    }
   });
 }
 
@@ -79,12 +89,15 @@ async function initDatabase() {
     console.log(
       '[database.js] Terminating existing database worker before re-init.',
     );
+    isTerminating = true;
     await dbWorker.terminate();
     dbWorker = null;
   }
 
   try {
-    const workerPath = path.join(__dirname, 'database-worker.js');
+    // Use a path relative to the current module, which is more reliable
+    // especially in packaged apps.
+    const workerPath = new URL('./database-worker.js', import.meta.url);
     dbWorker = new Worker(workerPath);
 
     // Handle messages from the worker
@@ -118,10 +131,11 @@ async function initDatabase() {
 
     // Handle worker exit
     dbWorker.on('exit', (code) => {
-      if (code !== 0) {
+      if (code !== 0 && !isTerminating) {
         console.error(`[database.js] Database worker exited with code ${code}`);
       }
       dbWorker = null;
+      isTerminating = false;
       // Reject all pending messages and clear timeouts
       for (const [id, pending] of pendingMessages.entries()) {
         clearTimeout(pending.timeoutId);
@@ -224,7 +238,11 @@ async function closeDatabase() {
   if (dbWorker) {
     try {
       await sendMessageToWorker('close');
-      await dbWorker.terminate();
+      // Check if worker still exists before terminating
+      if (dbWorker) {
+        isTerminating = true;
+        await dbWorker.terminate();
+      }
       if (process.env.NODE_ENV !== 'test') {
         console.log('[database.js] Database worker terminated.');
       }
