@@ -93,57 +93,63 @@ async function setDirectoryActiveState(directoryPath, isActive) {
 // Message handler - receives commands from main thread
 parentPort.on('message', async (message) => {
   const { id, type, payload } = message;
-
   let result;
 
-  switch (type) {
-    case 'init':
-      result = await initDatabase(payload.dbPath);
-      break;
+  try {
+    switch (type) {
+      case 'init':
+        result = await initDatabase(payload.dbPath);
+        break;
 
-    case 'recordMediaView':
-      result = await recordMediaView(payload.filePath);
-      break;
+      case 'recordMediaView':
+        result = await recordMediaView(payload.filePath);
+        break;
 
-    case 'getMediaViewCounts':
-      result = await getMediaViewCounts(payload.filePaths);
-      break;
+      case 'getMediaViewCounts':
+        result = await getMediaViewCounts(payload.filePaths);
+        break;
 
-    case 'cacheModels':
-      result = await cacheModels(payload.cacheKey, payload.models);
-      break;
+      case 'cacheModels':
+        result = await cacheModels(payload.cacheKey, payload.models);
+        break;
 
-    case 'getCachedModels':
-      result = await getCachedModels(payload.cacheKey);
-      break;
+      case 'getCachedModels':
+        result = await getCachedModels(payload.cacheKey);
+        break;
 
-    case 'close':
-      result = await closeDatabase();
-      break;
+      case 'close':
+        result = await closeDatabase();
+        break;
 
-    case 'addMediaDirectory':
-      result = await addMediaDirectory(payload.directoryPath);
-      break;
+      case 'addMediaDirectory':
+        result = await addMediaDirectory(payload.directoryPath);
+        break;
 
-    case 'getMediaDirectories':
-      result = await getMediaDirectories();
-      break;
+      case 'getMediaDirectories':
+        result = await getMediaDirectories();
+        break;
 
-    case 'removeMediaDirectory':
-      result = await removeMediaDirectory(payload.directoryPath);
-      break;
+      case 'removeMediaDirectory':
+        result = await removeMediaDirectory(payload.directoryPath);
+        break;
 
-    case 'setDirectoryActiveState':
-      result = await setDirectoryActiveState(
-        payload.directoryPath,
-        payload.isActive,
-      );
-      break;
+      case 'setDirectoryActiveState':
+        result = await setDirectoryActiveState(
+          payload.directoryPath,
+          payload.isActive,
+        );
+        break;
 
-    default:
-      result = { success: false, error: `Unknown message type: ${type}` };
+      default:
+        result = { success: false, error: `Unknown message type: ${type}` };
+    }
+  } catch (error) {
+    console.error(
+      `[worker] Error processing message id=${id}, type=${type}:`,
+      error,
+    );
+    result = { success: false, error: error.message };
   }
-
   // Send result back to main thread
   parentPort.postMessage({ id, result });
 });

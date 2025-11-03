@@ -7,6 +7,10 @@ import {
   getCachedModels,
   closeDatabase,
   setOperationTimeout,
+  addMediaDirectory,
+  getMediaDirectories,
+  removeMediaDirectory,
+  setDirectoryActiveState,
 } from '../src/main/database.js';
 import fs from 'fs';
 import path from 'path';
@@ -258,6 +262,34 @@ describe('Database', () => {
 
       const counts = await getMediaViewCounts(files);
       expect(Object.keys(counts)).toHaveLength(100);
+    });
+  });
+
+  describe('media directories', () => {
+    it('should add and retrieve a media directory', async () => {
+      const dirPath = '/test/media/directory';
+      await addMediaDirectory(dirPath);
+      const dirs = await getMediaDirectories();
+      expect(dirs).toEqual([{ path: dirPath, isActive: true }]);
+    });
+
+    it('should add and remove a media directory', async () => {
+      const dirPath = '/test/media/to-remove';
+      await addMediaDirectory(dirPath);
+      await removeMediaDirectory(dirPath);
+      const dirs = await getMediaDirectories();
+      expect(dirs).toEqual([]);
+    });
+
+    it('should set directory active state', async () => {
+      const dirPath = '/test/media/toggle';
+      await addMediaDirectory(dirPath);
+      await setDirectoryActiveState(dirPath, false);
+      let dirs = await getMediaDirectories();
+      expect(dirs).toEqual([{ path: dirPath, isActive: false }]);
+      await setDirectoryActiveState(dirPath, true);
+      dirs = await getMediaDirectories();
+      expect(dirs).toEqual([{ path: dirPath, isActive: true }]);
     });
   });
 });

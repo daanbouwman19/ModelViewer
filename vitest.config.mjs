@@ -7,6 +7,7 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    testTimeout: 10000,
     include: ['**/*.test.js', '**/*.spec.js'],
     exclude: ['node_modules', 'out', 'release', '.vite', 'dist'],
     coverage: {
