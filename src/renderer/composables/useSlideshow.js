@@ -105,10 +105,10 @@ export function useSlideshow() {
     );
 
     if (totalWeight <= 1e-9) {
-        if (eligibleItems.length > 0) {
-            return eligibleItems[Math.floor(Math.random() * eligibleItems.length)];
-        }
-        return null;
+      if (eligibleItems.length > 0) {
+        return eligibleItems[Math.floor(Math.random() * eligibleItems.length)];
+      }
+      return null;
     }
 
     let random = Math.random() * totalWeight;
@@ -128,18 +128,22 @@ export function useSlideshow() {
   const navigateMedia = async (direction) => {
     if (!state.isSlideshowActive) return;
 
-    if (direction > 0) { // Next
+    if (direction > 0) {
+      // Next
       if (state.currentMediaIndex < state.displayedMediaFiles.length - 1) {
         state.currentMediaIndex++;
-        state.currentMediaItem = state.displayedMediaFiles[state.currentMediaIndex];
+        state.currentMediaItem =
+          state.displayedMediaFiles[state.currentMediaIndex];
         await displayMedia(state.currentMediaItem);
       } else {
         await pickAndDisplayNextMediaItem();
       }
-    } else { // Previous
+    } else {
+      // Previous
       if (state.currentMediaIndex > 0) {
         state.currentMediaIndex--;
-        state.currentMediaItem = state.displayedMediaFiles[state.currentMediaIndex];
+        state.currentMediaItem =
+          state.displayedMediaFiles[state.currentMediaIndex];
         await displayMedia(state.currentMediaItem);
       }
     }
@@ -150,8 +154,8 @@ export function useSlideshow() {
    */
   const pickAndDisplayNextMediaItem = async () => {
     if (state.globalMediaPoolForSelection.length === 0) {
-        console.warn('No media files available in the pool.');
-        return;
+      console.warn('No media files available in the pool.');
+      return;
     }
     const filteredPool = filterMedia(state.globalMediaPoolForSelection);
     state.totalMediaInPool = filteredPool.length;
@@ -162,8 +166,12 @@ export function useSlideshow() {
     }
 
     const historySize = Math.min(5, state.displayedMediaFiles.length);
-    const historyPaths = state.displayedMediaFiles.slice(-historySize).map((item) => item.path);
-    const selectedMedia = selectWeightedRandom(filteredPool, historyPaths) || filteredPool[Math.floor(Math.random() * filteredPool.length)];
+    const historyPaths = state.displayedMediaFiles
+      .slice(-historySize)
+      .map((item) => item.path);
+    const selectedMedia =
+      selectWeightedRandom(filteredPool, historyPaths) ||
+      filteredPool[Math.floor(Math.random() * filteredPool.length)];
 
     if (selectedMedia) {
       state.displayedMediaFiles.push(selectedMedia);
@@ -208,7 +216,8 @@ export function useSlideshow() {
    * @param {string} modelName - The name of the model to toggle.
    */
   const toggleModelSelection = (modelName) => {
-    state.modelsSelectedForSlideshow[modelName] = !state.modelsSelectedForSlideshow[modelName];
+    state.modelsSelectedForSlideshow[modelName] =
+      !state.modelsSelectedForSlideshow[modelName];
   };
 
   /**
@@ -216,10 +225,10 @@ export function useSlideshow() {
    */
   const startSlideshow = async () => {
     if (!state.allModels) {
-        return;
+      return;
     }
     state.globalMediaPoolForSelection = state.allModels.flatMap((model) =>
-      state.modelsSelectedForSlideshow[model.name] ? model.textures : []
+      state.modelsSelectedForSlideshow[model.name] ? model.textures : [],
     );
     if (state.globalMediaPoolForSelection.length === 0) {
       console.warn('No models selected for slideshow.');
@@ -237,12 +246,12 @@ export function useSlideshow() {
    */
   const startIndividualModelSlideshow = async (model) => {
     if (!model || !Array.isArray(model.textures)) {
-        console.warn('Model has no valid textures array.');
-        return;
+      console.warn('Model has no valid textures array.');
+      return;
     }
     if (model.textures.length === 0) {
-        console.warn('No media files in this model.');
-        return;
+      console.warn('No media files in this model.');
+      return;
     }
     state.globalMediaPoolForSelection = [...model.textures];
     state.isSlideshowActive = true;
@@ -256,9 +265,10 @@ export function useSlideshow() {
    */
   const reapplyFilter = async () => {
     if (state.isSlideshowActive) {
-        state.globalMediaPoolForSelection = (state.allModels || []).flatMap((model) =>
-            state.modelsSelectedForSlideshow[model.name] ? model.textures : []
-        );
+      state.globalMediaPoolForSelection = (state.allModels || []).flatMap(
+        (model) =>
+          state.modelsSelectedForSlideshow[model.name] ? model.textures : [],
+      );
       state.displayedMediaFiles = [];
       state.currentMediaIndex = -1;
       await pickAndDisplayNextMediaItem();

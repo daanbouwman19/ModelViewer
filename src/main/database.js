@@ -70,7 +70,9 @@ function sendMessageToWorker(type, payload = {}) {
     try {
       dbWorker.postMessage({ id, type, payload });
     } catch (error) {
-      console.error(`[database.js] Error posting message to worker: ${error.message}`);
+      console.error(
+        `[database.js] Error posting message to worker: ${error.message}`,
+      );
       clearTimeout(timeoutId);
       pendingMessages.delete(id);
       reject(error);
@@ -86,7 +88,9 @@ function sendMessageToWorker(type, payload = {}) {
  */
 async function initDatabase() {
   if (dbWorker) {
-    console.log('[database.js] Terminating existing database worker before re-init.');
+    console.log(
+      '[database.js] Terminating existing database worker before re-init.',
+    );
     isTerminating = true;
     await dbWorker.terminate();
     dbWorker = null;
@@ -96,7 +100,8 @@ async function initDatabase() {
 
   try {
     let workerPath;
-    const isTest = process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+    const isTest =
+      process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
 
     if (isTest || !import.meta.url.startsWith('file://')) {
       const path = await import('path');
@@ -132,7 +137,9 @@ async function initDatabase() {
 
     dbWorker.on('exit', (code) => {
       if (code !== 0 && !isTerminating) {
-        console.error(`[database.js] Database worker exited unexpectedly with code ${code}`);
+        console.error(
+          `[database.js] Database worker exited unexpectedly with code ${code}`,
+        );
       }
       dbWorker = null;
       for (const [id, pending] of pendingMessages.entries()) {
@@ -142,14 +149,20 @@ async function initDatabase() {
       }
     });
 
-    const dbPath = path.join(app.getPath('userData'), 'media_slideshow_stats.sqlite');
+    const dbPath = path.join(
+      app.getPath('userData'),
+      'media_slideshow_stats.sqlite',
+    );
     await sendMessageToWorker('init', { dbPath });
 
     if (process.env.NODE_ENV !== 'test') {
       console.log('[database.js] Database worker initialized successfully.');
     }
   } catch (error) {
-    console.error('[database.js] CRITICAL ERROR: Failed to initialize database worker:', error);
+    console.error(
+      '[database.js] CRITICAL ERROR: Failed to initialize database worker:',
+      error,
+    );
     dbWorker = null;
     throw error;
   }
@@ -165,7 +178,9 @@ async function recordMediaView(filePath) {
     await sendMessageToWorker('recordMediaView', { filePath });
   } catch (error) {
     if (process.env.NODE_ENV !== 'test') {
-      console.warn(`[database.js] Error recording media view: ${error.message}`);
+      console.warn(
+        `[database.js] Error recording media view: ${error.message}`,
+      );
     }
   }
 }
@@ -214,7 +229,9 @@ async function getCachedModels() {
     });
   } catch (error) {
     if (process.env.NODE_ENV !== 'test') {
-      console.warn(`[database.js] Error getting cached models: ${error.message}`);
+      console.warn(
+        `[database.js] Error getting cached models: ${error.message}`,
+      );
     }
     return null;
   }
@@ -261,7 +278,10 @@ async function addMediaDirectory(directoryPath) {
   try {
     await sendMessageToWorker('addMediaDirectory', { directoryPath });
   } catch (error) {
-    console.error(`[database.js] Error adding media directory '${directoryPath}':`, error);
+    console.error(
+      `[database.js] Error adding media directory '${directoryPath}':`,
+      error,
+    );
     throw error;
   }
 }
@@ -290,7 +310,10 @@ async function removeMediaDirectory(directoryPath) {
   try {
     await sendMessageToWorker('removeMediaDirectory', { directoryPath });
   } catch (error) {
-    console.error(`[database.js] Error removing media directory '${directoryPath}':`, error);
+    console.error(
+      `[database.js] Error removing media directory '${directoryPath}':`,
+      error,
+    );
     throw error;
   }
 }
@@ -309,7 +332,10 @@ async function setDirectoryActiveState(directoryPath, isActive) {
       isActive,
     });
   } catch (error) {
-    console.error(`[database.js] Error setting active state for '${directoryPath}':`, error);
+    console.error(
+      `[database.js] Error setting active state for '${directoryPath}':`,
+      error,
+    );
     throw error;
   }
 }
