@@ -567,20 +567,20 @@ describe('Database Worker Functions', () => {
     });
 
     const testCases = [
-        { funcName: 'recordMediaView', args: ['/test.png'] },
-        { funcName: 'getMediaViewCounts', args: [['/test.png']] },
-        { funcName: 'cacheModels', args: ['key', []] },
-        { funcName: 'getCachedModels', args: ['key'] },
-        { funcName: 'addMediaDirectory', args: ['/test'] },
-        { funcName: 'getMediaDirectories', args: [] },
-        { funcName: 'removeMediaDirectory', args: ['/test'] },
-        { funcName: 'setDirectoryActiveState', args: ['/test', true] },
+      { funcName: 'recordMediaView', args: ['/test.png'] },
+      { funcName: 'getMediaViewCounts', args: [['/test.png']] },
+      { funcName: 'cacheModels', args: ['key', []] },
+      { funcName: 'getCachedModels', args: ['key'] },
+      { funcName: 'addMediaDirectory', args: ['/test'] },
+      { funcName: 'getMediaDirectories', args: [] },
+      { funcName: 'removeMediaDirectory', args: ['/test'] },
+      { funcName: 'setDirectoryActiveState', args: ['/test', true] },
     ];
 
     it.each(testCases)('$funcName should fail', async ({ funcName, args }) => {
-        const result = await dbFunctions[funcName](db, ...args);
-        expect(result.success).toBe(false);
-        expect(result.error).toBeDefined();
+      const result = await dbFunctions[funcName](db, ...args);
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
     });
   });
 });
