@@ -4,6 +4,7 @@
  */
 
 import crypto from 'crypto';
+import fs from 'fs';
 
 /**
  * Generates a unique MD5 hash for a given file path.
@@ -11,7 +12,18 @@ import crypto from 'crypto';
  * @returns {string} The MD5 hash of the file path.
  */
 export function generateFileId(filePath) {
-  return crypto.createHash('md5').update(filePath).digest('hex');
+  try {
+    const stats = fs.statSync(filePath);
+    const uniqueString = `${stats.size}-${stats.mtime.getTime()}`;
+    return crypto.createHash('md5').update(uniqueString).digest('hex');
+  } catch (error) {
+    console.error(
+      `[db-functions] Error generating file ID for ${filePath}:`,
+      error,
+    );
+    // Fallback to old method if stats fail, though this is unlikely
+    return crypto.createHash('md5').update(filePath).digest('hex');
+  }
 }
 
 /**

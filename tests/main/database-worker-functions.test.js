@@ -7,6 +7,7 @@ import sqlite3 from 'sqlite3';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import crypto from 'crypto';
 import * as dbFunctions from '../../src/main/database-worker-functions.js';
 
 describe('Database Worker Functions', () => {
@@ -45,34 +46,66 @@ describe('Database Worker Functions', () => {
   });
 
   describe('generateFileId', () => {
-    it('should generate consistent MD5 hash for same path', () => {
-      const filePath = '/test/file.png';
+    it('should generate consistent MD5 hash for the same file', () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hashes-test-'));
+      const filePath = path.join(tmpDir, 'file.png');
+      fs.writeFileSync(filePath, 'some data');
+
       const hash1 = dbFunctions.generateFileId(filePath);
       const hash2 = dbFunctions.generateFileId(filePath);
 
       expect(hash1).toBe(hash2);
       expect(hash1).toHaveLength(32);
+      fs.rmSync(tmpDir, { recursive: true, force: true });
     });
 
-    it('should generate different hashes for different paths', () => {
-      const path1 = '/test/file1.png';
-      const path2 = '/test/file2.png';
+    it('should generate different hashes for different files', () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hashes-test-'));
+      const path1 = path.join(tmpDir, 'file1.png');
+      const path2 = path.join(tmpDir, 'file2.png');
+
+      fs.writeFileSync(path1, 'file content 1'); // Different content
+      fs.writeFileSync(path2, 'file content 22'); // Different content and size
 
       const hash1 = dbFunctions.generateFileId(path1);
       const hash2 = dbFunctions.generateFileId(path2);
 
       expect(hash1).not.toBe(hash2);
+
+      fs.rmSync(tmpDir, { recursive: true, force: true });
     });
 
-    it('should handle empty strings', () => {
-      const hash = dbFunctions.generateFileId('');
-      expect(hash).toHaveLength(32);
+    it('should generate the same hash for the same file even if renamed', () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'hashes-test-'));
+      const content = 'this is the same file';
+      const path1 = path.join(tmpDir, 'file.png');
+      const path2 = path.join(tmpDir, 'renamed-file.png');
+
+      fs.writeFileSync(path1, content);
+
+      const hash1 = dbFunctions.generateFileId(path1);
+      fs.renameSync(path1, path2);
+      const hash2 = dbFunctions.generateFileId(path2);
+
+      expect(hash1).toBe(hash2);
+
+      fs.rmSync(tmpDir, { recursive: true, force: true });
     });
 
-    it('should handle special characters', () => {
-      const filePath = '/test/file with spaces & special!.png';
+    it('should fall back to path hashing for non-existent files', () => {
+      const filePath = '/non/existent/file.png';
       const hash = dbFunctions.generateFileId(filePath);
-      expect(hash).toHaveLength(32);
+      const expectedHash = crypto
+        .createHash('md5')
+        .update(filePath)
+        .digest('hex');
+      expect(hash).toBe(expectedHash);
+    });
+
+    it('should fall back to path hashing for empty strings', () => {
+      const hash = dbFunctions.generateFileId('');
+      const expectedHash = crypto.createHash('md5').update('').digest('hex');
+      expect(hash).toBe(expectedHash);
     });
   });
 
@@ -133,8 +166,21 @@ describe('Database Worker Functions', () => {
   });
 
   describe('recordMediaView', () => {
+    let tmpDir;
+
+    beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'media-view-test-'));
+    });
+
+    afterEach(() => {
+      if (tmpDir && fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
     it('should record a new media view', async () => {
-      const filePath = '/test/image.png';
+      const filePath = path.join(tmpDir, 'image.png');
+      fs.writeFileSync(filePath, 'image data');
       const result = await dbFunctions.recordMediaView(db, filePath);
 
       expect(result.success).toBe(true);
@@ -144,7 +190,8 @@ describe('Database Worker Functions', () => {
     });
 
     it('should increment view count on multiple views', async () => {
-      const filePath = '/test/video.mp4';
+      const filePath = path.join(tmpDir, 'video.mp4');
+      fs.writeFileSync(filePath, 'video data');
 
       await dbFunctions.recordMediaView(db, filePath);
       await dbFunctions.recordMediaView(db, filePath);
@@ -162,7 +209,8 @@ describe('Database Worker Functions', () => {
     });
 
     it('should handle special characters in file paths', async () => {
-      const filePath = '/test/file with spaces & special!.png';
+      const filePath = path.join(tmpDir, 'file with spaces & special!.png');
+      fs.writeFileSync(filePath, 'special data');
       const result = await dbFunctions.recordMediaView(db, filePath);
 
       expect(result.success).toBe(true);
@@ -170,17 +218,39 @@ describe('Database Worker Functions', () => {
   });
 
   describe('getMediaViewCounts', () => {
+    let tmpDir;
+
+    beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'view-counts-test-'));
+    });
+
+    afterEach(() => {
+      if (tmpDir && fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
     it('should return zero for files with no views', async () => {
-      const result = await dbFunctions.getMediaViewCounts(db, [
-        '/never/viewed.png',
-      ]);
+      const filePath = path.join(tmpDir, 'never-viewed.png');
+      fs.writeFileSync(filePath, 'never viewed');
+
+      const result = await dbFunctions.getMediaViewCounts(db, [filePath]);
 
       expect(result.success).toBe(true);
-      expect(result.data['/never/viewed.png']).toBe(0);
+      expect(result.data[filePath]).toBe(0);
     });
 
     it('should return correct counts for multiple files', async () => {
-      const files = ['/test/a.png', '/test/b.jpg', '/test/c.mp4'];
+      const files = [
+        path.join(tmpDir, 'a.png'),
+        path.join(tmpDir, 'b.jpg'),
+        path.join(tmpDir, 'c.mp4'),
+      ];
+
+      // Use different content to ensure different file IDs
+      fs.writeFileSync(files[0], 'test data a');
+      fs.writeFileSync(files[1], 'test data bb');
+      fs.writeFileSync(files[2], 'test data ccc');
 
       await dbFunctions.recordMediaView(db, files[0]);
       await dbFunctions.recordMediaView(db, files[1]);

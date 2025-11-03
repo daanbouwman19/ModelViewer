@@ -86,21 +86,25 @@ describe('Database Worker', () => {
 
   it('should record a media view', async () => {
     await sendMessage('init', { dbPath });
+    const filePath = path.join(tempDir, 'file.jpg');
+    fs.writeFileSync(filePath, 'test data');
     const result = await sendMessage('recordMediaView', {
-      filePath: 'test/file.jpg',
+      filePath,
     });
     expect(result.success).toBe(true);
   });
 
   it('should get media view counts', async () => {
     await sendMessage('init', { dbPath });
-    await sendMessage('recordMediaView', { filePath: 'test/file.jpg' });
-    await sendMessage('recordMediaView', { filePath: 'test/file.jpg' });
+    const filePath = path.join(tempDir, 'file.jpg');
+    fs.writeFileSync(filePath, 'test data');
+    await sendMessage('recordMediaView', { filePath });
+    await sendMessage('recordMediaView', { filePath });
     const result = await sendMessage('getMediaViewCounts', {
-      filePaths: ['test/file.jpg'],
+      filePaths: [filePath],
     });
     expect(result.success).toBe(true);
-    expect(result.data['test/file.jpg']).toBe(2);
+    expect(result.data[filePath]).toBe(2);
   });
 
   it('should cache models', async () => {
