@@ -22,6 +22,9 @@ export default defineConfig({
         input: {
           preload: resolve(__dirname, 'src/preload/preload.js'),
         },
+        output: {
+          format: 'cjs',
+        },
       },
     },
   },

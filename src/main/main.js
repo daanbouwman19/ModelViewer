@@ -253,10 +253,8 @@ ipcMain.handle('get-supported-extensions', () => {
 let mainWindow; // Keep a reference to the main window
 
 function createWindow() {
-  // Get the preload script path
-  const preloadPath = isDev
-    ? path.join(__dirname, '../../out/preload/preload.js')
-    : path.join(__dirname, '../preload/preload.js');
+  // Get the preload script path - electron-vite outputs to out/preload/preload.cjs
+  const preloadPath = path.join(__dirname, '../preload/preload.cjs');
 
   mainWindow = new BrowserWindow({
     width: 1200,
