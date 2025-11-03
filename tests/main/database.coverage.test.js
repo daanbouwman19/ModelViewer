@@ -106,15 +106,15 @@ describe('database.js additional coverage', () => {
 
     const originalPostMessage = mockWorkerInstance.postMessage;
     // Simulate a failure in worker communication for the recordMediaView call
-    vi.spyOn(mockWorkerInstance, 'postMessage').mockImplementation(
-      (message) => {
+    const postMessageSpy = vi
+      .spyOn(mockWorkerInstance, 'postMessage')
+      .mockImplementation((message) => {
         if (message.type === 'recordMediaView') {
           throw new Error('Test worker error');
         }
         // Let other messages (like init) pass through the original implementation
         originalPostMessage.call(mockWorkerInstance, message);
-      },
-    );
+      });
 
     await db.recordMediaView('/some/file.jpg');
 
@@ -123,6 +123,7 @@ describe('database.js additional coverage', () => {
     );
 
     // Cleanup
+    postMessageSpy.mockRestore();
     consoleWarnSpy.mockRestore();
     process.env.NODE_ENV = originalNodeEnv;
   });
