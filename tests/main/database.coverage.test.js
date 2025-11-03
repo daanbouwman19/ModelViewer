@@ -47,18 +47,18 @@ vi.mock('electron', () => ({
 }));
 
 describe('database.js additional coverage - uninitialized', () => {
-    beforeEach(() => {
-      vi.resetModules();
-      mockWorkerInstance = null;
-    });
-
-    it('should reject if dbWorker is not initialized', async () => {
-      const freshDb = await import('../../src/main/database.js');
-      await expect(freshDb.addMediaDirectory('/test/path')).rejects.toThrow(
-        'Database worker not initialized',
-      );
-    });
+  beforeEach(() => {
+    vi.resetModules();
+    mockWorkerInstance = null;
   });
+
+  it('should reject if dbWorker is not initialized', async () => {
+    const freshDb = await import('../../src/main/database.js');
+    await expect(freshDb.addMediaDirectory('/test/path')).rejects.toThrow(
+      'Database worker not initialized',
+    );
+  });
+});
 
 describe('database.js additional coverage', () => {
   let db;
@@ -76,7 +76,9 @@ describe('database.js additional coverage', () => {
   });
 
   it('logs an error when worker exits unexpectedly', async () => {
-    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
 
     expect(mockWorkerInstance).toBeDefined();
     expect(mockWorkerInstance).not.toBeNull();
@@ -95,20 +97,24 @@ describe('database.js additional coverage', () => {
     const originalNodeEnv = process.env.NODE_ENV;
     process.env.NODE_ENV = 'development';
 
-    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const consoleWarnSpy = vi
+      .spyOn(console, 'warn')
+      .mockImplementation(() => {});
 
     expect(mockWorkerInstance).toBeDefined();
     expect(mockWorkerInstance).not.toBeNull();
 
     const originalPostMessage = mockWorkerInstance.postMessage;
     // Simulate a failure in worker communication for the recordMediaView call
-    vi.spyOn(mockWorkerInstance, 'postMessage').mockImplementation((message) => {
+    vi.spyOn(mockWorkerInstance, 'postMessage').mockImplementation(
+      (message) => {
         if (message.type === 'recordMediaView') {
-            throw new Error('Test worker error');
+          throw new Error('Test worker error');
         }
         // Let other messages (like init) pass through the original implementation
         originalPostMessage.call(mockWorkerInstance, message);
-    });
+      },
+    );
 
     await db.recordMediaView('/some/file.jpg');
 
