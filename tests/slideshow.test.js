@@ -164,7 +164,7 @@ describe('useSlideshow', () => {
 
       // Now handles null textures gracefully (fixed)
       await slideshow.startIndividualModelSlideshow(model);
-      
+
       expect(appState.state.isSlideshowActive).toBe(false);
       expect(appState.state.currentMediaItem).toBeNull();
     });
@@ -517,7 +517,7 @@ describe('useSlideshow', () => {
 
       // Now handles null allModels array gracefully (fixed)
       await slideshow.startSlideshow();
-      
+
       expect(appState.state.isSlideshowActive).toBe(false);
       expect(appState.state.currentMediaItem).toBeNull();
     });
@@ -723,7 +723,7 @@ describe('useSlideshow', () => {
 
       // FIXED: Now handles null textures gracefully
       await slideshow.startIndividualModelSlideshow(model);
-      
+
       expect(appState.state.isSlideshowActive).toBe(false);
       expect(appState.state.currentMediaItem).toBeNull();
     });
@@ -734,7 +734,7 @@ describe('useSlideshow', () => {
 
       // FIXED: Now handles null allModels gracefully
       await slideshow.startSlideshow();
-      
+
       expect(appState.state.isSlideshowActive).toBe(false);
       expect(appState.state.currentMediaItem).toBeNull();
     });
@@ -754,7 +754,7 @@ describe('useSlideshow', () => {
 
       // FIXED: filterMedia now skips items with invalid path
       await slideshow.startSlideshow();
-      
+
       expect(appState.state.isSlideshowActive).toBe(true);
       // Should have filtered pool with only the valid item
       expect(appState.state.globalMediaPoolForSelection).toHaveLength(2);
@@ -770,7 +770,7 @@ describe('useSlideshow', () => {
 
       // FIXED: Now handles undefined textures gracefully
       await slideshow.startIndividualModelSlideshow(model);
-      
+
       expect(appState.state.isSlideshowActive).toBe(false);
       expect(appState.state.currentMediaItem).toBeNull();
     });
