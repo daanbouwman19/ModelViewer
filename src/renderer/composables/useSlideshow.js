@@ -22,7 +22,6 @@ export function useSlideshow() {
     if (!mediaFiles || mediaFiles.length === 0) return [];
 
     const filter = state.mediaFilter;
-    if (filter === 'All') return mediaFiles;
 
     const videoExtensions = state.supportedExtensions.videos;
     const imageExtensions = state.supportedExtensions.images;
@@ -34,13 +33,15 @@ export function useSlideshow() {
         return false;
       }
 
+      if (filter === 'All') return true;
+
       const ext = file.path.toLowerCase().slice(file.path.lastIndexOf('.'));
       if (filter === 'Videos') {
         return videoExtensions.includes(ext);
       } else if (filter === 'Images') {
         return imageExtensions.includes(ext);
       }
-      return true;
+      return true; // Should not be reached with controlled filters
     });
   };
 
@@ -306,5 +307,8 @@ export function useSlideshow() {
     startIndividualModelSlideshow,
     pickAndDisplayNextMediaItem,
     reapplyFilter,
+    // Export for testing
+    filterMedia,
+    selectWeightedRandom,
   };
 }
