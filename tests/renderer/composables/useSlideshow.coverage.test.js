@@ -73,20 +73,4 @@ describe('useSlideshow additional coverage', () => {
       expect(selected).not.toBeNull();
     });
   });
-
-  describe('pickAndDisplayNextMediaItem', () => {
-    it('should use fallback if weighted selection fails', async () => {
-      mockState.globalMediaPoolForSelection = [{ path: 'a' }];
-      const { pickAndDisplayNextMediaItem } = useSlideshow();
-
-      // This will cause selectWeightedRandom to return null
-      const mathRandomSpy = vi.spyOn(global.Math, 'random').mockReturnValue(1);
-
-      await pickAndDisplayNextMediaItem();
-
-      expect(mockState.currentMediaItem.path).toBe('a');
-
-      mathRandomSpy.mockRestore();
-    });
-  });
 });

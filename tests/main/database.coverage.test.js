@@ -82,80 +82,42 @@ describe('database.js additional coverage', () => {
   });
 
   describe('functions that throw errors', () => {
-    it('should throw an error when adding a media directory fails', async () => {
-      const directoryPath = '/test/media/directory';
-      const errorMessage = 'Failed to add directory';
+    it.each([
+      {
+        method: 'addMediaDirectory',
+        args: ['/test/media/directory'],
+        errorMessage: 'Failed to add directory',
+      },
+      {
+        method: 'removeMediaDirectory',
+        args: ['/test/media/directory'],
+        errorMessage: 'Failed to remove directory',
+      },
+      {
+        method: 'setDirectoryActiveState',
+        args: ['/test/media/directory', false],
+        errorMessage: 'Failed to set active state',
+      },
+    ])(
+      'should throw an error when $method fails',
+      async ({ method, args, errorMessage }) => {
+        const postMessageSpy = vi.spyOn(mockWorkerInstance, 'postMessage');
+        const originalPostMessage = postMessageSpy.getMockImplementation();
 
-      const postMessageSpy = vi.spyOn(mockWorkerInstance, 'postMessage');
-      postMessageSpy.mockImplementation((message) => {
-        if (message.type === 'addMediaDirectory') {
-          mockWorkerInstance.simulateMessage({
-            id: message.id,
-            result: { success: false, error: errorMessage },
-          });
-        } else {
-          // Call the original mock for other messages like 'close'
-          mockWorkerInstance.constructor.prototype.postMessage.call(
-            mockWorkerInstance,
-            message,
-          );
-        }
-      });
+        postMessageSpy.mockImplementation((message) => {
+          if (message.type === method) {
+            mockWorkerInstance.simulateMessage({
+              id: message.id,
+              result: { success: false, error: errorMessage },
+            });
+          } else if (originalPostMessage) {
+            originalPostMessage.call(mockWorkerInstance, message);
+          }
+        });
 
-      await expect(db.addMediaDirectory(directoryPath)).rejects.toThrow(
-        errorMessage,
-      );
-      postMessageSpy.mockRestore();
-    });
-
-    it('should throw an error when removing a media directory fails', async () => {
-      const directoryPath = '/test/media/directory';
-      const errorMessage = 'Failed to remove directory';
-
-      const postMessageSpy = vi.spyOn(mockWorkerInstance, 'postMessage');
-      postMessageSpy.mockImplementation((message) => {
-        if (message.type === 'removeMediaDirectory') {
-          mockWorkerInstance.simulateMessage({
-            id: message.id,
-            result: { success: false, error: errorMessage },
-          });
-        } else {
-          mockWorkerInstance.constructor.prototype.postMessage.call(
-            mockWorkerInstance,
-            message,
-          );
-        }
-      });
-
-      await expect(db.removeMediaDirectory(directoryPath)).rejects.toThrow(
-        errorMessage,
-      );
-      postMessageSpy.mockRestore();
-    });
-
-    it('should throw an error when setting directory active state fails', async () => {
-      const directoryPath = '/test/media/directory';
-      const errorMessage = 'Failed to set active state';
-
-      const postMessageSpy = vi.spyOn(mockWorkerInstance, 'postMessage');
-      postMessageSpy.mockImplementation((message) => {
-        if (message.type === 'setDirectoryActiveState') {
-          mockWorkerInstance.simulateMessage({
-            id: message.id,
-            result: { success: false, error: errorMessage },
-          });
-        } else {
-          mockWorkerInstance.constructor.prototype.postMessage.call(
-            mockWorkerInstance,
-            message,
-          );
-        }
-      });
-
-      await expect(
-        db.setDirectoryActiveState(directoryPath, false),
-      ).rejects.toThrow(errorMessage);
-      postMessageSpy.mockRestore();
-    });
+        await expect(db[method](...args)).rejects.toThrow(errorMessage);
+        postMessageSpy.mockRestore();
+      },
+    );
   });
 });
