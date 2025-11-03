@@ -4,14 +4,31 @@
  */
 
 import crypto from 'crypto';
+import fs from 'fs';
 
 /**
- * Generates a unique MD5 hash for a given file path.
+ * Generates a stable, unique identifier for a file.
+ * This ID is based on the file's size and last modification time, making it resilient
+ * to file renames or moves. It does not depend on the file's content.
+ * If the file path does not exist, it falls back to hashing the path itself.
  * @param {string} filePath - The path to the file.
- * @returns {string} The MD5 hash of the file path.
+ * @returns {string} A unique MD5 hash for the file.
  */
 export function generateFileId(filePath) {
-  return crypto.createHash('md5').update(filePath).digest('hex');
+  try {
+    const stats = fs.statSync(filePath);
+    // Note: There's a theoretical, though extremely low, risk of collision if two
+    // different files have the exact same size and modification timestamp.
+    const uniqueString = `${stats.size}-${stats.mtime.getTime()}`;
+    return crypto.createHash('md5').update(uniqueString).digest('hex');
+  } catch (error) {
+    console.error(
+      `[db-functions] Error generating file ID for ${filePath}:`,
+      error,
+    );
+    // Fallback to path hashing if fs.statSync fails (e.g., file not found).
+    return crypto.createHash('md5').update(filePath).digest('hex');
+  }
 }
 
 /**

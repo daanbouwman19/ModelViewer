@@ -29,6 +29,7 @@ vi.mock('electron', () => ({
 
 describe('Database', () => {
   beforeEach(async () => {
+    vi.resetModules();
     // Set a shorter timeout for tests
     setOperationTimeout(5000);
     // Initialize database before each test
