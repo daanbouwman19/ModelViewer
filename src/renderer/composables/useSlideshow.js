@@ -28,6 +28,12 @@ export function useSlideshow() {
     const imageExtensions = state.supportedExtensions.images;
 
     return mediaFiles.filter((file) => {
+      // Guard against missing path property
+      if (!file || !file.path || typeof file.path !== 'string') {
+        console.warn('Skipping media item with invalid or missing path:', file);
+        return false;
+      }
+
       const ext = file.path.toLowerCase().slice(file.path.lastIndexOf('.'));
       if (filter === 'Videos') {
         return videoExtensions.includes(ext);
@@ -216,6 +222,12 @@ export function useSlideshow() {
       state.modelsSelectedForSlideshow,
     );
 
+    // Guard against null/undefined allModels
+    if (!state.allModels || !Array.isArray(state.allModels)) {
+      console.warn('No models available (allModels is null or not an array).');
+      return;
+    }
+
     state.allModels.forEach((model) => {
       if (state.modelsSelectedForSlideshow[model.name]) {
         console.log(
@@ -244,6 +256,12 @@ export function useSlideshow() {
 
   const startIndividualModelSlideshow = async (model) => {
     console.log(`Starting individual slideshow for: ${model.name}`);
+
+    // Guard against null/undefined textures
+    if (!model.textures || !Array.isArray(model.textures)) {
+      console.warn('Model has no valid textures array.');
+      return;
+    }
 
     // Build pool from just this one model
     state.globalMediaPoolForSelection = [...model.textures];

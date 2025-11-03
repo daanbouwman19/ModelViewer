@@ -13,10 +13,10 @@
  * @typedef {import('../renderer/state.js').Model} Model
  */
 
-const path = require('path');
-const { app } = require('electron');
-const { Worker } = require('worker_threads');
-const { FILE_INDEX_CACHE_KEY } = require('./constants.js');
+import path from 'path';
+import { app } from 'electron';
+import { Worker } from 'worker_threads';
+import { FILE_INDEX_CACHE_KEY } from './constants.js';
 
 /**
  * The database worker thread instance.
@@ -314,7 +314,7 @@ async function setDirectoryActiveState(directoryPath, isActive) {
   }
 }
 
-module.exports = {
+export {
   initDatabase,
   recordMediaView,
   getMediaViewCounts,

@@ -27,9 +27,29 @@ jobs:
       - name: Check formatting
         run: npm run format:check
 
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
   electron-build:
     name: Build Electron App (${{ matrix.os }})
-    needs: lint
+    needs: [lint, test]
     strategy:
       fail-fast: false
       matrix:
@@ -70,7 +90,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            node_modules/better-sqlite3
+            node_modules/sqlite3
             node_modules/.bin
           key: ${{ runner.os }}-native-modules-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
@@ -79,8 +99,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Make distributables
-        run: npm run make
+      - name: Build and package
+        run: npm run package
         env:
           # Skip native module rebuild if already cached
           ELECTRON_SKIP_BINARY_DOWNLOAD: 1
@@ -89,14 +109,14 @@ jobs:
         shell: bash
         run: |
           if [ "$RUNNER_OS" == "Linux" ]; then
-            ls -lh out/make/**/*.deb 2>/dev/null || ls -lh out/make/**/*.rpm 2>/dev/null || echo "No Linux artifacts found"
+            ls -lh release/*.{deb,AppImage} 2>/dev/null || echo "No Linux artifacts found"
           elif [ "$RUNNER_OS" == "Windows" ]; then
-            ls -lh out/make/**/*.exe 2>/dev/null || echo "No Windows artifacts found"
+            ls -lh release/*.exe 2>/dev/null || echo "No Windows artifacts found"
           fi
 
   electron-smoke-test:
     name: Smoke Test Electron App (${{ matrix.os }})
-    needs: lint
+    needs: [lint, test]
     strategy:
       fail-fast: false
       matrix:
@@ -142,7 +162,7 @@ jobs:
           export DISPLAY=:99
           Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
           # Run Electron with disabled sandbox for CI environment
-          timeout 15s npm start || if [ $? -eq 124 ]; then echo "App started successfully"; exit 0; else exit 1; fi
+          timeout 15s npm run dev || if [ $? -eq 124 ]; then echo "App started successfully"; exit 0; else exit 1; fi
 
       - name: Start Electron app (Windows)
         if: runner.os == 'Windows'
@@ -151,7 +171,7 @@ jobs:
         run: |
           $job = Start-Job -ScriptBlock { 
             Set-Location $using:PWD
-            npm start 
+            npm run dev
           }
           Start-Sleep -Seconds 10
           $state = $job.State
