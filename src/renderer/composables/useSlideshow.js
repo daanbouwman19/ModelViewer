@@ -13,6 +13,31 @@ export function useSlideshow() {
   };
 
   /**
+   * Filters a list of media files based on the current filter setting.
+   * @param {Array<Object>} mediaFiles - The array of media files to filter.
+   * @returns {Array<Object>} The filtered array of media files.
+   */
+  const filterMedia = (mediaFiles) => {
+    if (!mediaFiles || mediaFiles.length === 0) return [];
+
+    const filter = state.mediaFilter;
+    if (filter === 'All') return mediaFiles;
+
+    const videoExtensions = ['.mp4', '.mov', '.avi', '.mkv', '.webm'];
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'];
+
+    return mediaFiles.filter((file) => {
+      const ext = file.path.toLowerCase().slice(file.path.lastIndexOf('.'));
+      if (filter === 'Videos') {
+        return videoExtensions.includes(ext);
+      } else if (filter === 'Images') {
+        return imageExtensions.includes(ext);
+      }
+      return true;
+    });
+  };
+
+  /**
    * Selects a random item from a list, weighted by view count (less viewed items are more likely).
    * @param {Array<Object>} items - Array of media items, each with a 'path' and optional 'viewCount'.
    * @param {Array<string>} excludePaths - Array of paths to exclude from selection (e.g., recently shown).
@@ -75,14 +100,17 @@ export function useSlideshow() {
 
     state.originalMediaFilesForIndividualView = [...model.textures];
 
+    // Apply the current media filter
+    const filteredFiles = filterMedia(model.textures);
+
     // Check if random mode is enabled for this model
     const isRandomEnabled = state.modelRandomModeSettings[model.name] || false;
 
     if (isRandomEnabled) {
-      return shuffleArray(model.textures);
+      return shuffleArray(filteredFiles);
     }
 
-    return [...model.textures];
+    return filteredFiles;
   };
 
   const navigateMedia = async (direction) => {
@@ -134,6 +162,16 @@ export function useSlideshow() {
       return;
     }
 
+    // Apply the current media filter to the global pool
+    const filteredPool = filterMedia(state.globalMediaPoolForSelection);
+
+    if (filteredPool.length === 0) {
+      console.warn(
+        'Global media pool is empty or no media matches the filter.',
+      );
+      return;
+    }
+
     // Exclude recently shown items to avoid quick repeats (e.g., last 5 items)
     const historySize = Math.min(5, state.displayedMediaFiles.length);
     const historyPaths = state.displayedMediaFiles
@@ -141,21 +179,16 @@ export function useSlideshow() {
       .map((item) => item.path);
 
     // Use weighted random selection to prioritize less-viewed items
-    const selectedMedia = selectWeightedRandom(
-      state.globalMediaPoolForSelection,
-      historyPaths,
-    );
+    const selectedMedia = selectWeightedRandom(filteredPool, historyPaths);
 
     if (!selectedMedia) {
       console.warn(
         'Could not select a new distinct global media item. Pool might be exhausted or too small.',
       );
       // Fallback: pick any item if weighted selection fails
-      if (state.globalMediaPoolForSelection.length > 0) {
-        const randomIndex = Math.floor(
-          Math.random() * state.globalMediaPoolForSelection.length,
-        );
-        const fallbackMedia = state.globalMediaPoolForSelection[randomIndex];
+      if (filteredPool.length > 0) {
+        const randomIndex = Math.floor(Math.random() * filteredPool.length);
+        const fallbackMedia = filteredPool[randomIndex];
         state.displayedMediaFiles.push(fallbackMedia);
         state.currentMediaIndex = state.displayedMediaFiles.length - 1;
         state.currentMediaItem = fallbackMedia;
@@ -262,6 +295,46 @@ export function useSlideshow() {
     state.modelsSelectedForGlobal[modelName] = !currentValue;
   };
 
+  const reapplyFilter = async () => {
+    // If viewing an individual model, re-prepare the media list with the new filter
+    if (state.currentSelectedModelForIndividualView) {
+      const model = state.currentSelectedModelForIndividualView;
+      const filteredFiles = prepareMediaListForIndividualView(model);
+
+      if (filteredFiles.length === 0) {
+        // No media matches the filter
+        state.displayedMediaFiles = [];
+        state.currentMediaIndex = -1;
+        state.currentMediaItem = null;
+        return;
+      }
+
+      state.displayedMediaFiles = filteredFiles;
+
+      // Try to stay on the same item if it's still in the filtered list
+      if (state.currentMediaItem) {
+        const newIndex = state.displayedMediaFiles.findIndex(
+          (item) => item.path === state.currentMediaItem.path,
+        );
+        if (newIndex !== -1) {
+          state.currentMediaIndex = newIndex;
+        } else {
+          // Current item is filtered out, go to first item
+          state.currentMediaIndex = 0;
+          state.currentMediaItem = state.displayedMediaFiles[0];
+          await displayMedia(state.currentMediaItem);
+        }
+      } else {
+        // No current item, select the first one
+        state.currentMediaIndex = 0;
+        state.currentMediaItem = state.displayedMediaFiles[0];
+        await displayMedia(state.currentMediaItem);
+      }
+    }
+    // Note: For global slideshow, the filter is already applied in pickAndDisplayNextGlobalMediaItem
+    // So no need to reapply it here - it will automatically use the filter on the next navigation
+  };
+
   return {
     navigateMedia,
     toggleSlideshowTimer,
@@ -271,6 +344,7 @@ export function useSlideshow() {
     toggleGlobalSelection,
     pickAndDisplayNextGlobalMediaItem,
     prepareMediaListForIndividualView,
+    reapplyFilter,
   };
 }
 

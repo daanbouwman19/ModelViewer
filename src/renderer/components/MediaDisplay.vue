@@ -85,7 +85,7 @@ const {
   mediaFilter,
 } = useAppState();
 
-const { navigateMedia } = useSlideshow();
+const { navigateMedia, reapplyFilter } = useSlideshow();
 
 const filters = ['All', 'Images', 'Videos'];
 const mediaUrl = ref(null);
@@ -163,8 +163,10 @@ const handleNext = () => {
   navigateMedia(1);
 };
 
-const setFilter = (filter) => {
+const setFilter = async (filter) => {
   mediaFilter.value = filter;
+  // Reapply the filter to update the displayed files
+  await reapplyFilter();
 };
 
 // Watch for changes to currentMediaItem and load the media URL
