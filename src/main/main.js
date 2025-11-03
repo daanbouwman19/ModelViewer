@@ -270,9 +270,10 @@ function createWindow() {
 
   // Load the renderer
   if (isDev) {
-    // In development, use the dev server (default port is 5173)
+    // In development, use the dev server (electron-vite provides VITE_DEV_SERVER_URL)
+    const devServerURL = process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173';
     mainWindow
-      .loadURL('http://localhost:5173')
+      .loadURL(devServerURL)
       .then(() => {
         console.log('[main.js] Development server loaded successfully.');
       })

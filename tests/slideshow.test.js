@@ -1,29 +1,28 @@
+/** @vitest-environment happy-dom */
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { useSlideshow } from '../src/renderer/composables/useSlideshow.js';
 import { useAppState } from '../src/renderer/composables/useAppState.js';
 
-// Mock the electronAPI
-global.window = {
-  electronAPI: {
-    recordMediaView: vi.fn().mockResolvedValue(undefined),
-    getModelsWithViewCounts: vi.fn().mockResolvedValue([]),
-    getMediaDirectories: vi.fn().mockResolvedValue([]),
-    getSupportedExtensions: vi.fn().mockResolvedValue({
-      images: ['.jpg', '.jpeg', '.png', '.gif', '.webp'],
-      videos: ['.mp4', '.webm', '.mov', '.avi'],
-      all: [
-        '.jpg',
-        '.jpeg',
-        '.png',
-        '.gif',
-        '.webp',
-        '.mp4',
-        '.webm',
-        '.mov',
-        '.avi',
-      ],
-    }),
-  },
+// Mock the electronAPI in the window object provided by happy-dom
+window.electronAPI = {
+  recordMediaView: vi.fn().mockResolvedValue(undefined),
+  getModelsWithViewCounts: vi.fn().mockResolvedValue([]),
+  getMediaDirectories: vi.fn().mockResolvedValue([]),
+  getSupportedExtensions: vi.fn().mockResolvedValue({
+    images: ['.jpg', '.jpeg', '.png', '.gif', '.webp'],
+    videos: ['.mp4', '.webm', '.mov', '.avi'],
+    all: [
+      '.jpg',
+      '.jpeg',
+      '.png',
+      '.gif',
+      '.webp',
+      '.mp4',
+      '.webm',
+      '.mov',
+      '.avi',
+    ],
+  }),
 };
 
 describe('useSlideshow', () => {
@@ -163,10 +162,11 @@ describe('useSlideshow', () => {
     it('should handle model with null textures', async () => {
       const model = { name: 'NullModel', textures: null };
 
-      // This should throw an error because the code doesn't handle null textures
-      await expect(
-        slideshow.startIndividualModelSlideshow(model),
-      ).rejects.toThrow();
+      // Now handles null textures gracefully (fixed)
+      await slideshow.startIndividualModelSlideshow(model);
+      
+      expect(appState.state.isSlideshowActive).toBe(false);
+      expect(appState.state.currentMediaItem).toBeNull();
     });
   });
 
@@ -515,9 +515,11 @@ describe('useSlideshow', () => {
       appState.state.allModels = null;
       appState.state.modelsSelectedForSlideshow = {};
 
-      // BAD: The code doesn't handle null allModels array
-      // This should throw an error
-      await expect(slideshow.startSlideshow()).rejects.toThrow();
+      // Now handles null allModels array gracefully (fixed)
+      await slideshow.startSlideshow();
+      
+      expect(appState.state.isSlideshowActive).toBe(false);
+      expect(appState.state.currentMediaItem).toBeNull();
     });
 
     it('should handle malformed media items without path', async () => {
@@ -716,49 +718,61 @@ describe('useSlideshow', () => {
   });
 
   describe('BAD EXAMPLES - exposing bugs and edge cases', () => {
-    it('should crash when textures array is null (BAD)', async () => {
+    it('should handle null textures array gracefully (FIXED)', async () => {
       const model = { name: 'NullTextures', textures: null };
 
-      // BUG: Spread operator on null throws TypeError
-      await expect(
-        slideshow.startIndividualModelSlideshow(model),
-      ).rejects.toThrow('model.textures is not iterable');
+      // FIXED: Now handles null textures gracefully
+      await slideshow.startIndividualModelSlideshow(model);
+      
+      expect(appState.state.isSlideshowActive).toBe(false);
+      expect(appState.state.currentMediaItem).toBeNull();
     });
 
-    it('should crash when allModels is null (BAD)', async () => {
+    it('should handle null allModels gracefully (FIXED)', async () => {
       appState.state.allModels = null;
       appState.state.modelsSelectedForSlideshow = {};
 
-      // BUG: forEach on null throws TypeError
-      await expect(slideshow.startSlideshow()).rejects.toThrow(
-        "Cannot read properties of null (reading 'forEach')",
-      );
+      // FIXED: Now handles null allModels gracefully
+      await slideshow.startSlideshow();
+      
+      expect(appState.state.isSlideshowActive).toBe(false);
+      expect(appState.state.currentMediaItem).toBeNull();
     });
 
-    it('should crash when media item has no path property (BAD)', async () => {
+    it('should handle media items without path property gracefully (FIXED)', async () => {
       appState.state.allModels = [
         {
           name: 'BadData',
           textures: [
             { viewCount: 5 }, // Missing required 'path' property
+            { path: '/valid/path.jpg', viewCount: 0 },
           ],
         },
       ];
       appState.state.modelsSelectedForSlideshow = { BadData: true };
+      appState.state.mediaFilter = 'All';
 
-      // BUG: filterMedia tries to call path.toLowerCase() on undefined
-      await expect(slideshow.startSlideshow()).rejects.toThrow(
-        'Cannot read properties of undefined',
-      );
+      // FIXED: filterMedia now skips items with invalid path
+      await slideshow.startSlideshow();
+      
+      expect(appState.state.isSlideshowActive).toBe(true);
+      // Should have filtered pool with only the valid item
+      expect(appState.state.globalMediaPoolForSelection).toHaveLength(2);
+      // currentMediaItem could be null if only bad items exist, or valid if good items are found
+      expect(appState.state.currentMediaItem).toBeTruthy();
+      if (appState.state.currentMediaItem) {
+        expect(appState.state.currentMediaItem.path).toBe('/valid/path.jpg');
+      }
     });
 
-    it('should fail with undefined textures array (BAD)', async () => {
+    it('should handle undefined textures array gracefully (FIXED)', async () => {
       const model = { name: 'UndefinedTextures' }; // No textures property at all
 
-      // BUG: Trying to spread undefined causes TypeError
-      await expect(
-        slideshow.startIndividualModelSlideshow(model),
-      ).rejects.toThrow();
+      // FIXED: Now handles undefined textures gracefully
+      await slideshow.startIndividualModelSlideshow(model);
+      
+      expect(appState.state.isSlideshowActive).toBe(false);
+      expect(appState.state.currentMediaItem).toBeNull();
     });
 
     it('should expose filter causing empty results (BAD)', async () => {
