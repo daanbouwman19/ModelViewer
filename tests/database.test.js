@@ -249,10 +249,7 @@ describe('Database', () => {
     });
 
     it('should handle large batches of view counts', async () => {
-      const files = Array.from(
-        { length: 100 },
-        (_, i) => `/test/file${i}.png`,
-      );
+      const files = Array.from({ length: 100 }, (_, i) => `/test/file${i}.png`);
 
       // Record views for some files
       for (let i = 0; i < 50; i++) {

@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { findAllMediaFiles, performFullMediaScan } from '../src/main/media-scanner.js';
+import {
+  findAllMediaFiles,
+  performFullMediaScan,
+} from '../src/main/media-scanner.js';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
