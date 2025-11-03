@@ -182,7 +182,7 @@ export async function recordMediaView(db, filePath) {
 }
 
 /**
- * Gets view counts for multiple file paths in batches.
+ * Gets view counts for multiple file paths in batches to avoid SQLite's SQLITE_MAX_VARIABLE_NUMBER limit.
  * @param {import('sqlite3').Database} db - The database instance.
  * @param {string[]} filePaths - Array of file paths.
  * @returns {Promise<{success: boolean, data?: {[filePath: string]: number}, error?: string}>} An object containing a map of file paths to view counts.
@@ -379,7 +379,7 @@ export async function removeMediaDirectory(db, directoryPath) {
 
 /**
  * Updates the active state of a media directory.
- * @param {import('sqlite3.Database')} db - The database instance.
+ * @param {import('sqlite3').Database} db - The database instance.
  * @param {string} directoryPath - The path of the directory to update.
  * @param {boolean} isActive - The new active state.
  * @returns {Promise<{success: boolean, error?: string}>} An object indicating the success of the operation.

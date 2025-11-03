@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi, beforeEach } from 'vitest';
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
@@ -8,6 +8,13 @@ import {
   getServerPort,
   getMimeType,
 } from '../../src/main/local-server.js';
+
+// Mock the database module
+vi.mock('../../src/main/database.js', () => ({
+  getMediaDirectories: vi.fn(),
+}));
+
+import { getMediaDirectories } from '../../src/main/database.js';
 
 // Helper to promisify callback-based functions
 const startServer = () =>
@@ -21,11 +28,18 @@ const stopServer = () =>
   });
 
 describe('Local Server', () => {
+  beforeEach(() => {
+    // Mock getMediaDirectories to return the process's current working directory
+    // This allows tests to serve files from the test environment
+    getMediaDirectories.mockResolvedValue([{ path: process.cwd() }]);
+  });
+
   afterEach(async () => {
     // Clean up server after each test
     if (getServerPort() > 0) {
       await stopServer();
     }
+    vi.clearAllMocks();
   });
 
   describe('getMimeType', () => {

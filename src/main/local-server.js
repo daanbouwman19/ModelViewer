@@ -6,6 +6,7 @@
  * @requires fs
  * @requires path
  * @requires ./constants.js
+ * @requires ./database.js
  */
 import http from 'http';
 import fs from 'fs';
@@ -14,6 +15,7 @@ import {
   SUPPORTED_IMAGE_EXTENSIONS,
   SUPPORTED_VIDEO_EXTENSIONS,
 } from './constants.js';
+import { getMediaDirectories } from './database.js';
 
 /**
  * Holds the singleton instance of the HTTP server.
@@ -59,6 +61,20 @@ function getMimeType(filePath) {
 }
 
 /**
+ * Checks if a file path is within the allowed media directories.
+ * @param {string} filePath - The file path to validate.
+ * @param {Array<{path: string}>} allowedDirectories - Array of allowed directory objects.
+ * @returns {boolean} True if the file is within an allowed directory, false otherwise.
+ */
+function isPathAllowed(filePath, allowedDirectories) {
+  const normalizedPath = path.resolve(filePath);
+  return allowedDirectories.some((dir) => {
+    const normalizedDir = path.resolve(dir.path);
+    return normalizedPath.startsWith(normalizedDir + path.sep) || normalizedPath === normalizedDir;
+  });
+}
+
+/**
  * Starts the local HTTP server if it is not already running.
  * The server listens on a random available port and handles range requests for video streaming.
  * @param {() => void} onReadyCallback - A callback function executed once the server has started.
@@ -73,7 +89,7 @@ function startLocalServer(onReadyCallback) {
     return;
   }
 
-  const server = http.createServer((req, res) => {
+  const server = http.createServer(async (req, res) => {
     const parsedUrl = new URL(
       req.url,
       `http://${req.headers.host || 'localhost'}`,
@@ -85,6 +101,24 @@ function startLocalServer(onReadyCallback) {
       console.error(`[local-server.js] File not found: ${normalizedFilePath}`);
       res.writeHead(404, { 'Content-Type': 'text/plain' });
       return res.end('File not found.');
+    }
+
+    // Security: Validate that the requested file is within allowed media directories
+    try {
+      const allowedDirectories = await getMediaDirectories();
+      if (!isPathAllowed(normalizedFilePath, allowedDirectories)) {
+        console.error(
+          `[local-server.js] Access denied: ${normalizedFilePath} is not within allowed directories`,
+        );
+        res.writeHead(403, { 'Content-Type': 'text/plain' });
+        return res.end('Access denied.');
+      }
+    } catch (error) {
+      console.error(
+        `[local-server.js] Error validating path: ${error.message}`,
+      );
+      res.writeHead(500, { 'Content-Type': 'text/plain' });
+      return res.end('Internal server error.');
     }
 
     try {
@@ -103,6 +137,9 @@ function startLocalServer(onReadyCallback) {
           end >= totalSize ||
           start > end
         ) {
+          console.error(
+            `[local-server.js] Invalid range: ${range} for ${normalizedFilePath}`,
+          );
           res.writeHead(416, { 'Content-Range': `bytes */${totalSize}` });
           return res.end('Requested range not satisfiable.');
         }
