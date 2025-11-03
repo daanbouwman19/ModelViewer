@@ -111,7 +111,7 @@ const handleAddDirectory = async () => {
 
 const handleReindex = async () => {
   try {
-    const updatedModels = await window.electronAPI.reindexLibrary();
+    const updatedModels = await window.electronAPI.reindexMediaLibrary();
     state.allModels = updatedModels;
     state.mediaDirectories = await window.electronAPI.getMediaDirectories();
 

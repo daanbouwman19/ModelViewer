@@ -42,6 +42,12 @@ module.exports = {
       config: {
         // `build` can specify multiple entry builds, which can be Main process, Preload scripts, Worker process, etc.
         // If you are familiar with Vite configuration, it will look really familiar.
+        //
+        // IMPORTANT: The @electron-forge/plugin-vite requires explicit entry declarations.
+        // Glob patterns are not supported. When adding new files to src/main/, you must:
+        // 1. Add a new entry object to this build array
+        // 2. Specify the correct entry path, config, and target
+        // 3. Ensure the file is imported/required somewhere in the main process chain
         build: [
           {
             entry: 'src/main/main.js',
@@ -108,6 +114,16 @@ module.exports = {
       console.log(
         'Running packageAfterCopy hook to copy worker dependencies...',
       );
+      // IMPORTANT: This list must be kept in sync with dependencies used by database-worker.js
+      // Currently, database-worker.js requires:
+      // - better-sqlite3: SQLite database interface (main dependency)
+      // - bindings: Native addon loader (required by better-sqlite3)
+      // - file-uri-to-path: File URI utilities (required by bindings)
+      //
+      // If you modify database-worker.js to use additional packages, add them here.
+      // To identify new dependencies, check:
+      // 1. Direct requires/imports in database-worker.js
+      // 2. Dependencies of those packages (check their package.json)
       const requiredWorkerPackages = [
         'better-sqlite3',
         'bindings',
