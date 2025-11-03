@@ -5,6 +5,18 @@ const {
 } = require('@electron-forge/plugin-auto-unpack-natives');
 const { join, dirname } = require('path');
 const { copy, mkdirs } = require('fs-extra');
+const fs = require('fs');
+const path = require('path');
+
+// Dynamically generate build entries for all JavaScript files in src/main
+const mainSrcDir = path.join(__dirname, 'src', 'main');
+const mainFiles = fs.readdirSync(mainSrcDir).filter((f) => f.endsWith('.js'));
+
+const mainBuildEntries = mainFiles.map((file) => ({
+  entry: `src/main/${file}`,
+  config: 'vite.main.config.mjs',
+  target: 'main',
+}));
 
 module.exports = {
   packagerConfig: {
@@ -42,43 +54,9 @@ module.exports = {
       config: {
         // `build` can specify multiple entry builds, which can be Main process, Preload scripts, Worker process, etc.
         // If you are familiar with Vite configuration, it will look really familiar.
-        //
-        // IMPORTANT: The @electron-forge/plugin-vite requires explicit entry declarations.
-        // Glob patterns are not supported. When adding new files to src/main/, you must:
-        // 1. Add a new entry object to this build array
-        // 2. Specify the correct entry path, config, and target
-        // 3. Ensure the file is imported/required somewhere in the main process chain
         build: [
-          {
-            entry: 'src/main/main.js',
-            config: 'vite.main.config.mjs',
-            target: 'main',
-          },
-          {
-            entry: 'src/main/constants.js',
-            config: 'vite.main.config.mjs',
-            target: 'main',
-          },
-          {
-            entry: 'src/main/database.js',
-            config: 'vite.main.config.mjs',
-            target: 'main',
-          },
-          {
-            entry: 'src/main/media-scanner.js',
-            config: 'vite.main.config.mjs',
-            target: 'main',
-          },
-          {
-            entry: 'src/main/local-server.js',
-            config: 'vite.main.config.mjs',
-            target: 'main',
-          },
-          {
-            entry: 'src/main/database-worker.js',
-            config: 'vite.main.config.mjs',
-            target: 'main',
-          },
+          // Dynamically include all .js files from src/main/
+          ...mainBuildEntries,
           {
             entry: 'src/preload/preload.js',
             config: 'vite.preload.config.mjs',
