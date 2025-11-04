@@ -222,13 +222,34 @@ export function useSlideshow() {
    * Toggles the slideshow timer on or off.
    */
   const toggleSlideshowTimer = () => {
-    if (state.slideshowTimerId) {
-      stopSlideshow();
+    if (state.isTimerRunning) {
+      pauseSlideshowTimer();
     } else {
-      const duration = state.timerDuration * 1000;
-      state.slideshowTimerId = setInterval(() => navigateMedia(1), duration);
-      state.isTimerRunning = true;
+      resumeSlideshowTimer();
     }
+  };
+
+  /**
+   * Pauses the slideshow timer.
+   */
+  const pauseSlideshowTimer = () => {
+    if (state.slideshowTimerId) {
+      clearInterval(state.slideshowTimerId);
+      state.slideshowTimerId = null;
+    }
+    state.isTimerRunning = false;
+  };
+
+  /**
+   * Resumes the slideshow timer.
+   */
+  const resumeSlideshowTimer = () => {
+    if (state.slideshowTimerId) {
+      clearInterval(state.slideshowTimerId);
+    }
+    const duration = state.timerDuration * 1000;
+    state.slideshowTimerId = setInterval(() => navigateMedia(1), duration);
+    state.isTimerRunning = true;
   };
 
   /**
@@ -305,6 +326,8 @@ export function useSlideshow() {
   return {
     navigateMedia,
     toggleSlideshowTimer,
+    pauseSlideshowTimer,
+    resumeSlideshowTimer,
     toggleAlbumSelection,
     startSlideshow,
     startIndividualAlbumSlideshow,

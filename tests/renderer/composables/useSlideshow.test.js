@@ -478,11 +478,31 @@ describe('useSlideshow', () => {
       expect(mockState.isTimerRunning).toBe(true);
     });
 
-    it('should stop the timer if running', () => {
-      mockState.slideshowTimerId = 123;
+    it('should pause the timer if running', () => {
+      mockState.isTimerRunning = true;
       const { toggleSlideshowTimer } = useSlideshow();
       toggleSlideshowTimer();
-      expect(mockStopSlideshow).toHaveBeenCalled();
+      expect(mockState.isTimerRunning).toBe(false);
+    });
+  });
+
+  describe('pauseSlideshowTimer', () => {
+    it('should clear the timer and set isTimerRunning to false', () => {
+      mockState.slideshowTimerId = 123;
+      mockState.isTimerRunning = true;
+      const { pauseSlideshowTimer } = useSlideshow();
+      pauseSlideshowTimer();
+      expect(mockState.slideshowTimerId).toBeNull();
+      expect(mockState.isTimerRunning).toBe(false);
+    });
+  });
+
+  describe('resumeSlideshowTimer', () => {
+    it('should start the timer and set isTimerRunning to true', () => {
+      const { resumeSlideshowTimer } = useSlideshow();
+      resumeSlideshowTimer();
+      expect(mockState.slideshowTimerId).not.toBeNull();
+      expect(mockState.isTimerRunning).toBe(true);
     });
   });
 

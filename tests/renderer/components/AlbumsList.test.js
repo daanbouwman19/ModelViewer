@@ -54,6 +54,8 @@ describe('AlbumsList.vue', () => {
       timerDuration: ref(5),
       isTimerRunning: ref(false),
       isSourcesModalVisible: ref(false),
+      playFullVideo: ref(false),
+      pauseTimerOnPlay: ref(false),
     };
 
     useAppState.mockReturnValue(mockAppState);
