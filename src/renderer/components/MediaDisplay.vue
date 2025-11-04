@@ -58,12 +58,14 @@
     </div>
 
     <div class="smart-timer-controls-media">
-      <label>
+      <label class="checkbox-container">
         <input type="checkbox" v-model="playFullVideo" />
+        <span class="checkmark"></span>
         Play Full Video
       </label>
-      <label>
+      <label class="checkbox-container">
         <input type="checkbox" v-model="pauseTimerOnPlay" />
+        <span class="checkmark"></span>
         Pause Timer on Play
       </label>
     </div>
@@ -355,5 +357,75 @@ const handleVideoPause = () => {
   align-items: center;
   gap: 0.5rem;
   font-size: 0.875rem;
+}
+
+/* Custom checkbox styling */
+.checkbox-container {
+  display: inline-block;
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox-container input[type='checkbox'] {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.checkmark {
+  position: relative;
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  background: linear-gradient(135deg, #ffeef8 0%, #ffe0f0 100%);
+  border: 2px solid #ffb6c1;
+  border-radius: 8px;
+  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  box-shadow: 0 2px 6px rgba(255, 105, 180, 0.15);
+}
+
+.checkbox-container:hover .checkmark {
+  border-color: #ff69b4;
+  box-shadow: 0 4px 12px rgba(255, 105, 180, 0.3);
+  transform: scale(1.1);
+}
+
+.checkbox-container input[type='checkbox']:checked ~ .checkmark {
+  background: linear-gradient(135deg, #ff69b4 0%, #ff1493 100%);
+  border-color: #ff1493;
+  box-shadow: 0 4px 16px rgba(255, 20, 147, 0.4);
+}
+
+.checkmark::after {
+  content: '';
+  position: absolute;
+  display: none;
+  left: 7px;
+  top: 3px;
+  width: 6px;
+  height: 11px;
+  border: solid white;
+  border-width: 0 3px 3px 0;
+  transform: rotate(45deg);
+}
+
+.checkbox-container input[type='checkbox']:checked ~ .checkmark::after {
+  display: block;
+  animation: checkmark-pop 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes checkmark-pop {
+  0% {
+    transform: rotate(45deg) scale(0);
+  }
+  50% {
+    transform: rotate(45deg) scale(1.2);
+  }
+  100% {
+    transform: rotate(45deg) scale(1);
+  }
 }
 </style>
