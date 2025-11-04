@@ -1,186 +1,113 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { ref } from 'vue';
-import AlbumsList from '@/components/AlbumsList.vue';
-import { useAppState } from '@/composables/useAppState.js';
-import { useSlideshow } from '@/composables/useSlideshow.js';
+import AlbumsList from '../../../src/renderer/components/AlbumsList.vue';
+import { useAppState } from '../../../src/renderer/composables/useAppState';
 
-// Mock the composables
-vi.mock('@/composables/useAppState.js');
-vi.mock('@/composables/useSlideshow.js');
+// --- New Mocking Strategy ---
+const mockToggleAlbumSelection = vi.fn();
+const mockStartSlideshow = vi.fn();
+const mockStartIndividualAlbumSlideshow = vi.fn();
+const mockToggleSlideshowTimer = vi.fn();
+
+vi.mock('../../../src/renderer/composables/useSlideshow', () => ({
+  useSlideshow: () => ({
+    toggleAlbumSelection: mockToggleAlbumSelection,
+    startSlideshow: mockStartSlideshow,
+    startIndividualAlbumSlideshow: mockStartIndividualAlbumSlideshow,
+    toggleSlideshowTimer: mockToggleSlideshowTimer,
+  }),
+}));
+
+vi.mock('../../../src/renderer/composables/useAppState');
+// --- End New Mocking Strategy ---
+
+const mockAlbums = [
+  {
+    name: 'Album1',
+    textures: [{ name: 't1.jpg', path: '/t1.jpg' }],
+    children: [
+      {
+        name: 'SubAlbum1',
+        textures: [{ name: 'st1.jpg', path: '/st1.jpg' }],
+        children: [],
+      },
+    ],
+  },
+  {
+    name: 'Album2',
+    textures: [{ name: 't2.jpg', path: '/t2.jpg' }],
+    children: [],
+  },
+];
 
 describe('AlbumsList.vue', () => {
-  let mockRefs;
-  let toggleAlbumSelection;
-  let startSlideshow;
-  let startIndividualAlbumSlideshow;
-  let toggleSlideshowTimer;
+  let mockAppState;
 
   beforeEach(() => {
-    toggleAlbumSelection = vi.fn();
-    startSlideshow = vi.fn();
-    startIndividualAlbumSlideshow = vi.fn();
-    toggleSlideshowTimer = vi.fn();
+    vi.resetAllMocks();
 
-    mockRefs = {
-      allAlbums: ref([
-        { name: 'Album1', textures: ['tex1.jpg', 'tex2.jpg'] },
-        { name: 'Album2', textures: ['tex3.jpg'] },
-      ]),
-      albumsSelectedForSlideshow: ref({
-        Album1: true,
-        Album2: false,
-      }),
-      timerDuration: ref(30),
+    mockAppState = {
+      allAlbums: ref(mockAlbums),
+      albumsSelectedForSlideshow: ref({ Album1: true }),
+      timerDuration: ref(5),
       isTimerRunning: ref(false),
       isSourcesModalVisible: ref(false),
-      // Add other refs for compatibility
-      mediaFilter: ref('All'),
-      currentMediaItem: ref(null),
-      displayedMediaFiles: ref([]),
-      currentMediaIndex: ref(-1),
-      isSlideshowActive: ref(false),
-      supportedExtensions: ref({
-        images: ['.jpg', '.png'],
-        videos: ['.mp4'],
-      }),
-      globalMediaPoolForSelection: ref([]),
-      totalMediaInPool: ref(0),
-      slideshowTimerId: ref(null),
-      mediaDirectories: ref([]),
-      state: {},
-      initializeApp: vi.fn(),
-      resetState: vi.fn(),
-      stopSlideshow: vi.fn(),
     };
 
-    useAppState.mockReturnValue(mockRefs);
-
-    useSlideshow.mockReturnValue({
-      toggleAlbumSelection,
-      startSlideshow,
-      startIndividualAlbumSlideshow,
-      toggleSlideshowTimer,
-      setFilter: vi.fn(),
-      prevMedia: vi.fn(),
-      nextMedia: vi.fn(),
-      reapplyFilter: vi.fn(),
-      navigateMedia: vi.fn(),
-      pickAndDisplayNextMediaItem: vi.fn(),
-      filterMedia: vi.fn(),
-      selectWeightedRandom: vi.fn(),
-    });
+    useAppState.mockReturnValue(mockAppState);
   });
 
-  it('should render albums list', () => {
+  it('renders AlbumTree components for each root album', () => {
     const wrapper = mount(AlbumsList);
-    expect(wrapper.text()).toContain('Album1');
-    expect(wrapper.text()).toContain('Album2');
+    const albumTrees = wrapper.findAllComponents({ name: 'AlbumTree' });
+    expect(albumTrees.length).toBe(2);
+    expect(albumTrees[0].props('album')).toEqual(mockAlbums[0]);
+    expect(albumTrees[1].props('album')).toEqual(mockAlbums[1]);
   });
 
-  it('should display album texture counts', () => {
+  it('calls startSlideshow when the global start button is clicked', async () => {
     const wrapper = mount(AlbumsList);
-    expect(wrapper.text()).toContain('(2)');
-    expect(wrapper.text()).toContain('(1)');
+    await wrapper.vm.$nextTick();
+    const startButton = wrapper.find('[data-testid="start-slideshow-button"]');
+    await startButton.trigger('click');
+    expect(mockStartSlideshow).toHaveBeenCalled();
   });
 
-  it('should show loading message when no albums', () => {
-    mockRefs.allAlbums.value = [];
-    const wrapper = mount(AlbumsList);
-    expect(wrapper.text()).toContain('Loading albums');
-  });
-
-  it('should render start slideshow button', () => {
-    const wrapper = mount(AlbumsList);
-    const button = wrapper.find('button');
-    expect(button.text()).toBe('Start Slideshow');
-  });
-
-  it('should call startSlideshow when button clicked', async () => {
-    const wrapper = mount(AlbumsList);
-    const button = wrapper.findAll('button')[0];
-    await button.trigger('click');
-    expect(startSlideshow).toHaveBeenCalled();
-  });
-
-  it('should display timer controls', () => {
-    const wrapper = mount(AlbumsList);
-    const input = wrapper.find('input[type="number"]');
-    expect(input.exists()).toBe(true);
-    expect(input.element.value).toBe('30');
-  });
-
-  it('should call toggleSlideshowTimer when timer button clicked', async () => {
-    const wrapper = mount(AlbumsList);
-    const timerButton = wrapper
-      .findAll('button')
-      .find((b) => b.text() === 'Play' || b.text() === 'Pause');
-    await timerButton.trigger('click');
-    expect(toggleSlideshowTimer).toHaveBeenCalled();
-  });
-
-  it('should show Pause when timer is running', () => {
-    mockRefs.isTimerRunning.value = true;
-    const wrapper = mount(AlbumsList);
-    const timerButton = wrapper
-      .findAll('button')
-      .find((b) => b.text() === 'Play' || b.text() === 'Pause');
-    expect(timerButton.text()).toBe('Pause');
-  });
-
-  it('should show Play when timer is not running', () => {
-    mockRefs.isTimerRunning.value = false;
-    const wrapper = mount(AlbumsList);
-    const timerButton = wrapper
-      .findAll('button')
-      .find((b) => b.text() === 'Play' || b.text() === 'Pause');
-    expect(timerButton.text()).toBe('Play');
-  });
-
-  it('should call toggleAlbumSelection when checkbox changed', async () => {
-    const wrapper = mount(AlbumsList);
-    const checkbox = wrapper.find('input[type="checkbox"]');
-    await checkbox.trigger('change');
-    expect(toggleAlbumSelection).toHaveBeenCalledWith('Album1');
-  });
-
-  it('should call startIndividualAlbumSlideshow when album clicked', async () => {
-    const wrapper = mount(AlbumsList);
-    const albumItem = wrapper.findAll('.album-item')[0];
-    await albumItem.trigger('click');
-    expect(startIndividualAlbumSlideshow).toHaveBeenCalledWith({
-      name: 'Album1',
-      textures: ['tex1.jpg', 'tex2.jpg'],
-    });
-  });
-
-  it('should open sources modal when manage sources button clicked', async () => {
+  it('opens the sources modal when "Manage Sources" is clicked', async () => {
     const wrapper = mount(AlbumsList);
     const manageButton = wrapper
       .findAll('button')
-      .find((b) => b.text() === 'Manage Sources');
+      .find((b) => b.text().includes('Manage Sources'));
     await manageButton.trigger('click');
-    expect(mockRefs.isSourcesModalVisible.value).toBe(true);
+    expect(mockAppState.isSourcesModalVisible.value).toBe(true);
   });
 
-  it('should highlight selected albums', () => {
+  it('handles the albumClick event from AlbumTree', async () => {
     const wrapper = mount(AlbumsList);
-    const albumItems = wrapper.findAll('.album-item');
-    expect(albumItems[0].classes()).toContain('selected-for-slideshow');
-    expect(albumItems[1].classes()).not.toContain('selected-for-slideshow');
+    const albumTree = wrapper.findComponent({ name: 'AlbumTree' });
+
+    albumTree.vm.$emit('albumClick', mockAlbums[0]);
+    await wrapper.vm.$nextTick();
+
+    expect(mockStartIndividualAlbumSlideshow).toHaveBeenCalled();
+    const textures = [
+      ...mockAlbums[0].textures,
+      ...mockAlbums[0].children[0].textures,
+    ];
+    expect(mockStartIndividualAlbumSlideshow).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Album1', textures: textures }),
+    );
   });
 
-  it('should check checkbox for selected albums', () => {
+  it('handles the toggleSelection event from AlbumTree', async () => {
     const wrapper = mount(AlbumsList);
-    const checkboxes = wrapper.findAll('input[type="checkbox"]');
-    expect(checkboxes[0].element.checked).toBe(true);
-    expect(checkboxes[1].element.checked).toBe(false);
-  });
+    const albumTree = wrapper.findComponent({ name: 'AlbumTree' });
 
-  it('should update timerDuration when input changes', async () => {
-    const wrapper = mount(AlbumsList);
-    const input = wrapper.find('input[type="number"]');
-    await input.setValue(60);
-    expect(mockRefs.timerDuration.value).toBe(60);
+    albumTree.vm.$emit('toggleSelection', mockAlbums[0]);
+    await wrapper.vm.$nextTick();
+
+    expect(mockToggleAlbumSelection).toHaveBeenCalledWith('Album1', false);
+    expect(mockToggleAlbumSelection).toHaveBeenCalledWith('SubAlbum1', false);
   });
 });

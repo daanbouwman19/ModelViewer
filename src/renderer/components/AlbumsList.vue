@@ -3,7 +3,11 @@
     class="w-full md:w-1/3 bg-gray-800 shadow-lg rounded-lg p-4 flex flex-col overflow-y-auto panel"
   >
     <div class="header-controls">
-      <button @click="handleStartSlideshow" class="action-button">
+      <button
+        @click="handleStartSlideshow"
+        class="action-button"
+        data-testid="start-slideshow-button"
+      >
         Start Slideshow
       </button>
       <div class="timer-controls">
@@ -27,42 +31,28 @@
       <li v-if="allAlbums.length === 0" class="text-gray-400">
         Loading albums...
       </li>
-      <li
+      <AlbumTree
         v-for="album in allAlbums"
         :key="album.name"
-        class="album-item"
-        :class="{
-          'selected-for-slideshow': albumsSelectedForSlideshow[album.name],
-        }"
-        @click="handleClickAlbum(album)"
-      >
-        <div class="album-controls" @click.stop>
-          <label class="checkbox-container">
-            <input
-              type="checkbox"
-              :checked="!!albumsSelectedForSlideshow[album.name]"
-              @change="handleToggleSelection(album.name)"
-            />
-            <span class="checkmark"></span>
-          </label>
-        </div>
-        <span class="album-name-clickable">
-          {{ album.name }} ({{ album.textures.length }})
-        </span>
-      </li>
+        :album="album"
+        :selection="albumsSelectedForSlideshow"
+        @toggleSelection="handleToggleSelection"
+        @albumClick="handleClickAlbum"
+      />
     </ul>
   </div>
 </template>
 
 <script setup>
 /**
- * @file This component displays the list of all available media albums.
+ * @file This component displays the list of all available media albums in a tree structure.
  * It provides controls for starting a global slideshow, managing the timer,
  * opening the sources modal, and selecting/deselecting albums for the slideshow.
- * Clicking on an album's name starts a slideshow for that specific album.
+ * Clicking on an album's name starts a slideshow for that specific album and its sub-albums.
  */
 import { useAppState } from '../composables/useAppState';
 import { useSlideshow } from '../composables/useSlideshow';
+import AlbumTree from './AlbumTree.vue';
 
 const {
   allAlbums,
@@ -72,41 +62,72 @@ const {
   isSourcesModalVisible,
 } = useAppState();
 
-const {
-  toggleAlbumSelection,
-  startSlideshow,
-  startIndividualAlbumSlideshow,
-  toggleSlideshowTimer,
-} = useSlideshow();
+const slideshow = useSlideshow();
 
 /**
- * Toggles the selection of an album for the global slideshow.
- * @param {string} albumName - The name of the album to toggle.
+ * Recursively gets all album names from a given album and its children.
+ * @param {import('../../main/media-scanner.js').Album} album - The album to start from.
+ * @returns {string[]} A list of album names.
  */
-const handleToggleSelection = (albumName) => {
-  toggleAlbumSelection(albumName);
+const getAlbumAndChildrenNames = (album) => {
+  let names = [album.name];
+  if (album.children) {
+    for (const child of album.children) {
+      names = names.concat(getAlbumAndChildrenNames(child));
+    }
+  }
+  return names;
 };
 
 /**
- * Starts the global slideshow with all selected albums.
+ * Toggles the selection of an album and all its children for the global slideshow.
+ * @param {import('../../main/media-scanner.js').Album} album - The album to toggle.
  */
-const handleStartSlideshow = () => {
-  startSlideshow();
+const handleToggleSelection = (album) => {
+  const names = getAlbumAndChildrenNames(album);
+  const isSelected = !!albumsSelectedForSlideshow.value[album.name];
+  for (const name of names) {
+    slideshow.toggleAlbumSelection(name, !isSelected);
+  }
 };
 
 /**
- * Starts a slideshow for a single, specific album.
+ * Recursively collects all textures from an album and its children.
+ * @param {import('../../main/media-scanner.js').Album} album - The album to start from.
+ * @returns {import('../../main/media-scanner.js').MediaFile[]} A list of media files.
+ */
+const collectTexturesRecursive = (album) => {
+  let textures = [...album.textures];
+  if (album.children) {
+    for (const child of album.children) {
+      textures = textures.concat(collectTexturesRecursive(child));
+    }
+  }
+  return textures;
+};
+
+/**
+ * Starts a slideshow for a single album and all its sub-albums.
  * @param {import('../../main/media-scanner.js').Album} album - The album to start the slideshow for.
  */
 const handleClickAlbum = (album) => {
-  startIndividualAlbumSlideshow(album);
+  const textures = collectTexturesRecursive(album);
+  const albumWithAllTextures = { ...album, textures };
+  slideshow.startIndividualAlbumSlideshow(albumWithAllTextures);
+};
+
+/**
+ * Starts the global slideshow.
+ */
+const handleStartSlideshow = () => {
+  slideshow.startSlideshow();
 };
 
 /**
  * Toggles the slideshow timer (play/pause).
  */
 const handleToggleTimer = () => {
-  toggleSlideshowTimer();
+  slideshow.toggleSlideshowTimer();
 };
 
 /**
@@ -118,6 +139,7 @@ const openModal = () => {
 </script>
 
 <style scoped>
+/* Scoped styles from the original AlbumsList.vue */
 .panel {
   background-color: var(--secondary-bg);
   border: 1px solid var(--border-color);
@@ -186,117 +208,5 @@ const openModal = () => {
 .albums-list {
   list-style: none;
   padding: 0;
-}
-
-.album-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 15px;
-  border-radius: 12px;
-  transition: all 0.3s ease;
-  border: 2px solid transparent;
-  margin-bottom: 8px;
-  cursor: pointer;
-}
-
-.album-item:hover {
-  background-color: rgba(255, 182, 193, 0.1);
-  border-color: #ffb6c1;
-  transform: translateX(3px);
-  box-shadow: 0 4px 12px rgba(255, 182, 193, 0.2);
-}
-
-.album-item.selected-for-slideshow {
-  background-color: rgba(255, 192, 203, 0.15);
-  border-color: #ffb6c1;
-}
-
-.album-name-clickable {
-  flex-grow: 1;
-  font-size: 0.95rem;
-  font-weight: 500;
-  color: var(--text-color);
-  transition: color 0.2s ease;
-  pointer-events: none; /* Let the parent handle clicks */
-}
-
-.album-item:hover .album-name-clickable {
-  color: #ff69b4;
-}
-
-.album-controls {
-  display: flex;
-  align-items: center;
-}
-
-/* Custom checkbox styling */
-.checkbox-container {
-  display: inline-block;
-  position: relative;
-  cursor: pointer;
-  user-select: none;
-}
-
-.checkbox-container input[type='checkbox'] {
-  position: absolute;
-  opacity: 0;
-  cursor: pointer;
-  height: 0;
-  width: 0;
-}
-
-.checkmark {
-  position: relative;
-  display: inline-block;
-  width: 24px;
-  height: 24px;
-  background: linear-gradient(135deg, #ffeef8 0%, #ffe0f0 100%);
-  border: 2px solid #ffb6c1;
-  border-radius: 8px;
-  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-  box-shadow: 0 2px 6px rgba(255, 105, 180, 0.15);
-}
-
-.checkbox-container:hover .checkmark {
-  border-color: #ff69b4;
-  box-shadow: 0 4px 12px rgba(255, 105, 180, 0.3);
-  transform: scale(1.1);
-}
-
-.checkbox-container input[type='checkbox']:checked ~ .checkmark {
-  background: linear-gradient(135deg, #ff69b4 0%, #ff1493 100%);
-  border-color: #ff1493;
-  box-shadow: 0 4px 16px rgba(255, 20, 147, 0.4);
-}
-
-.checkmark::after {
-  content: '';
-  position: absolute;
-  display: none;
-  left: 7px;
-  top: 3px;
-  width: 6px;
-  height: 11px;
-  border: solid white;
-  border-width: 0 3px 3px 0;
-  transform: rotate(45deg);
-}
-
-.checkbox-container input[type='checkbox']:checked ~ .checkmark::after {
-  display: block;
-  animation: checkmark-pop 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-}
-
-@keyframes checkmark-pop {
-  0% {
-    transform: rotate(45deg) scale(0);
-  }
-  50% {
-    transform: rotate(45deg) scale(1.2);
-  }
-  100% {
-    transform: rotate(45deg) scale(1);
-  }
 }
 </style>
