@@ -196,7 +196,7 @@ async function getMediaViewCounts(filePaths) {
 
   try {
     const viewCountsMap = {};
-    const BATCH_SIZE = 500;
+    const BATCH_SIZE = 500; // Process in batches to avoid SQLite variable limit
 
     for (let i = 0; i < filePaths.length; i += BATCH_SIZE) {
       const batch = filePaths.slice(i, i + BATCH_SIZE);
