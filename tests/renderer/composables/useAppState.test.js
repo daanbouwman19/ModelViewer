@@ -10,8 +10,8 @@ describe('useAppState', () => {
   beforeEach(() => {
     // Reset the state before each test
     appState = useAppState();
-    appState.state.allModels = [];
-    appState.state.modelsSelectedForSlideshow = {};
+    appState.state.allAlbums = [];
+    appState.state.albumsSelectedForSlideshow = {};
     appState.state.mediaDirectories = [];
     appState.state.supportedExtensions = { images: [], videos: [], all: [] };
     appState.state.isSlideshowActive = false;
@@ -22,9 +22,9 @@ describe('useAppState', () => {
   describe('initializeApp', () => {
     it('should initialize app state with data from electronAPI', async () => {
       // Mock window.electronAPI
-      const mockModels = [
-        { name: 'Model1', files: [], totalViews: 0 },
-        { name: 'Model2', files: [], totalViews: 5 },
+      const mockAlbums = [
+        { name: 'Album1', files: [], totalViews: 0 },
+        { name: 'Album2', files: [], totalViews: 5 },
       ];
       const mockDirectories = [{ path: '/test/dir', isActive: true }];
       const mockExtensions = {
@@ -35,7 +35,7 @@ describe('useAppState', () => {
 
       global.window = {
         electronAPI: {
-          getModelsWithViewCounts: vi.fn().mockResolvedValue(mockModels),
+          getAlbumsWithViewCounts: vi.fn().mockResolvedValue(mockAlbums),
           getMediaDirectories: vi.fn().mockResolvedValue(mockDirectories),
           getSupportedExtensions: vi.fn().mockResolvedValue(mockExtensions),
         },
@@ -43,12 +43,12 @@ describe('useAppState', () => {
 
       await appState.initializeApp();
 
-      expect(appState.state.allModels).toEqual(mockModels);
+      expect(appState.state.allAlbums).toEqual(mockAlbums);
       expect(appState.state.mediaDirectories).toEqual(mockDirectories);
       expect(appState.state.supportedExtensions).toEqual(mockExtensions);
-      expect(appState.state.modelsSelectedForSlideshow).toEqual({
-        Model1: true,
-        Model2: true,
+      expect(appState.state.albumsSelectedForSlideshow).toEqual({
+        Album1: true,
+        Album2: true,
       });
     });
 
@@ -71,7 +71,7 @@ describe('useAppState', () => {
     it('should handle error when API calls fail', async () => {
       global.window = {
         electronAPI: {
-          getModelsWithViewCounts: vi
+          getAlbumsWithViewCounts: vi
             .fn()
             .mockRejectedValue(new Error('API Error')),
           getMediaDirectories: vi.fn(),
@@ -137,8 +137,8 @@ describe('useAppState', () => {
 
   describe('state management', () => {
     it('should expose reactive state properties', () => {
-      expect(appState.allModels).toBeDefined();
-      expect(appState.modelsSelectedForSlideshow).toBeDefined();
+      expect(appState.allAlbums).toBeDefined();
+      expect(appState.albumsSelectedForSlideshow).toBeDefined();
       expect(appState.globalMediaPoolForSelection).toBeDefined();
       expect(appState.totalMediaInPool).toBeDefined();
       expect(appState.displayedMediaFiles).toBeDefined();

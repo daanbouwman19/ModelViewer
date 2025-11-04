@@ -36,8 +36,8 @@ describe('useSlideshow additional coverage', () => {
       slideshowTimerId: null,
       isTimerRunning: false,
       timerDuration: 30,
-      modelsSelectedForSlideshow: {},
-      allModels: [],
+      albumsSelectedForSlideshow: {},
+      allAlbums: [],
       totalMediaInPool: 0,
     };
 

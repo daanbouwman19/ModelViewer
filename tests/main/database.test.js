@@ -3,8 +3,8 @@ import {
   initDatabase,
   recordMediaView,
   getMediaViewCounts,
-  cacheModels,
-  getCachedModels,
+  cacheAlbums,
+  getCachedAlbums,
   closeDatabase,
   setOperationTimeout,
   addMediaDirectory,
@@ -123,65 +123,65 @@ describe('Database', () => {
     });
   });
 
-  describe('cacheModels', () => {
-    it('should cache models successfully', async () => {
-      const models = [
+  describe('cacheAlbums', () => {
+    it('should cache albums successfully', async () => {
+      const albums = [
         {
-          name: 'model1',
+          name: 'album1',
           textures: [
-            { name: 'texture1.png', path: '/test/model1/texture1.png' },
+            { name: 'texture1.png', path: '/test/album1/texture1.png' },
           ],
         },
         {
-          name: 'model2',
+          name: 'album2',
           textures: [
-            { name: 'texture2.jpg', path: '/test/model2/texture2.jpg' },
+            { name: 'texture2.jpg', path: '/test/album2/texture2.jpg' },
           ],
         },
       ];
 
-      await cacheModels(models);
+      await cacheAlbums(albums);
 
-      const cached = await getCachedModels();
+      const cached = await getCachedAlbums();
       expect(cached).toHaveLength(2);
-      expect(cached[0].name).toBe('model1');
-      expect(cached[1].name).toBe('model2');
+      expect(cached[0].name).toBe('album1');
+      expect(cached[1].name).toBe('album2');
     });
 
     it('should overwrite existing cache', async () => {
-      const models1 = [
+      const albums1 = [
         {
-          name: 'model1',
+          name: 'album1',
           textures: [{ name: 'tex1.png', path: '/test/tex1.png' }],
         },
       ];
 
-      const models2 = [
+      const albums2 = [
         {
-          name: 'model2',
+          name: 'album2',
           textures: [{ name: 'tex2.png', path: '/test/tex2.png' }],
         },
       ];
 
-      await cacheModels(models1);
-      await cacheModels(models2);
+      await cacheAlbums(albums1);
+      await cacheAlbums(albums2);
 
-      const cached = await getCachedModels();
+      const cached = await getCachedAlbums();
       expect(cached).toHaveLength(1);
-      expect(cached[0].name).toBe('model2');
+      expect(cached[0].name).toBe('album2');
     });
 
-    it('should handle empty models array', async () => {
-      await cacheModels([]);
+    it('should handle empty albums array', async () => {
+      await cacheAlbums([]);
 
-      const cached = await getCachedModels();
+      const cached = await getCachedAlbums();
       expect(cached).toEqual([]);
     });
 
-    it('should preserve model structure', async () => {
-      const models = [
+    it('should preserve album structure', async () => {
+      const albums = [
         {
-          name: 'test-model',
+          name: 'test-album',
           textures: [
             { name: 'texture1.png', path: '/test/texture1.png' },
             { name: 'texture2.jpg', path: '/test/texture2.jpg' },
@@ -189,34 +189,34 @@ describe('Database', () => {
         },
       ];
 
-      await cacheModels(models);
+      await cacheAlbums(albums);
 
-      const cached = await getCachedModels();
+      const cached = await getCachedAlbums();
       expect(cached[0].textures).toHaveLength(2);
       expect(cached[0].textures[0].name).toBe('texture1.png');
       expect(cached[0].textures[0].path).toBe('/test/texture1.png');
     });
   });
 
-  describe('getCachedModels', () => {
+  describe('getCachedAlbums', () => {
     it('should return null when no cache exists', async () => {
-      const cached = await getCachedModels();
+      const cached = await getCachedAlbums();
       expect(cached).toBeNull();
     });
 
-    it('should retrieve cached models', async () => {
-      const models = [
+    it('should retrieve cached albums', async () => {
+      const albums = [
         {
-          name: 'cached-model',
+          name: 'cached-album',
           textures: [{ name: 'tex.png', path: '/test/tex.png' }],
         },
       ];
 
-      await cacheModels(models);
-      const cached = await getCachedModels();
+      await cacheAlbums(albums);
+      const cached = await getCachedAlbums();
 
       expect(cached).toHaveLength(1);
-      expect(cached[0].name).toBe('cached-model');
+      expect(cached[0].name).toBe('cached-album');
     });
   });
 

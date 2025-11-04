@@ -5,12 +5,12 @@
     </header>
 
     <main class="flex-grow flex flex-col md:flex-row p-4 gap-4 overflow-hidden">
-      <ModelsList />
+      <AlbumsList />
       <MediaDisplay />
     </main>
 
     <footer class="bg-gray-800 text-center p-3 text-sm text-gray-500">
-      Model Slideshow App | Use ← → for navigation, Space to Play/Pause timer.
+      Album Slideshow App | Use ← → for navigation, Space to Play/Pause timer.
     </footer>
 
     <SourcesModal />
@@ -24,7 +24,7 @@
  * and handles global keyboard shortcuts for media navigation.
  */
 import { onMounted, onBeforeUnmount } from 'vue';
-import ModelsList from './components/ModelsList.vue';
+import AlbumsList from './components/AlbumsList.vue';
 import MediaDisplay from './components/MediaDisplay.vue';
 import SourcesModal from './components/SourcesModal.vue';
 import { useAppState } from './composables/useAppState';

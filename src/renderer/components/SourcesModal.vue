@@ -125,9 +125,9 @@ const handleRemove = async (path) => {
  */
 const handleAddDirectory = async () => {
   try {
-    const updatedModels = await window.electronAPI.addMediaDirectory();
-    if (updatedModels !== null) {
-      state.allModels = updatedModels;
+    const updatedAlbums = await window.electronAPI.addMediaDirectory();
+    if (updatedAlbums !== null) {
+      state.allAlbums = updatedAlbums;
       state.mediaDirectories = await window.electronAPI.getMediaDirectories();
       resetSlideshowState();
     }
@@ -141,8 +141,8 @@ const handleAddDirectory = async () => {
  */
 const handleReindex = async () => {
   try {
-    const updatedModels = await window.electronAPI.reindexMediaLibrary();
-    state.allModels = updatedModels;
+    const updatedAlbums = await window.electronAPI.reindexMediaLibrary();
+    state.allAlbums = updatedAlbums;
     state.mediaDirectories = await window.electronAPI.getMediaDirectories();
     resetSlideshowState();
   } catch (error) {

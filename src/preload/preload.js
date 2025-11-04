@@ -9,7 +9,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 /**
- * @typedef {import('../main/media-scanner.js').Model} Model
+ * @typedef {import('../main/media-scanner.js').Album} Album
  * @typedef {import('../main/media-scanner.js').MediaFile} MediaFile
  */
 
@@ -25,9 +25,9 @@ const { contextBridge, ipcRenderer } = require('electron');
  * @property {(filePath: string) => Promise<LoadResult>} loadFileAsDataURL
  * @property {(filePath: string) => Promise<void>} recordMediaView
  * @property {(filePaths: string[]) => Promise<{[filePath: string]: number}>} getMediaViewCounts
- * @property {() => Promise<Model[]>} getModelsWithViewCounts
- * @property {() => Promise<Model[]>} reindexMediaLibrary
- * @property {() => Promise<Model[] | null>} addMediaDirectory
+ * @property {() => Promise<Album[]>} getAlbumsWithViewCounts
+ * @property {() => Promise<Album[]>} reindexMediaLibrary
+ * @property {() => Promise<Album[] | null>} addMediaDirectory
  * @property {(directoryPath: string) => Promise<void>} removeMediaDirectory
  * @property {(directoryPath: string, isActive: boolean) => Promise<void>} setDirectoryActiveState
  * @property {() => Promise<{path: string, isActive: boolean}[]>} getMediaDirectories
@@ -63,21 +63,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('get-media-view-counts', filePaths),
 
   /**
-   * Retrieves the complete list of all models, including their media files and view counts.
-   * @returns {Promise<Model[]>} A promise that resolves to an array of model objects.
+   * Retrieves the complete list of all albums, including their media files and view counts.
+   * @returns {Promise<Album[]>} A promise that resolves to an array of album objects.
    */
-  getModelsWithViewCounts: () =>
-    ipcRenderer.invoke('get-models-with-view-counts'),
+  getAlbumsWithViewCounts: () =>
+    ipcRenderer.invoke('get-albums-with-view-counts'),
 
   /**
    * Triggers a full re-scan of the media library on disk.
-   * @returns {Promise<Model[]>} A promise that resolves to the newly scanned array of model objects.
+   * @returns {Promise<Album[]>} A promise that resolves to the newly scanned array of album objects.
    */
   reindexMediaLibrary: () => ipcRenderer.invoke('reindex-media-library'),
 
   /**
    * Opens a dialog to select a new media directory, adds it, and triggers a re-index.
-   * @returns {Promise<Model[]|null>} A promise that resolves to the updated list of models, or null if the user cancels.
+   * @returns {Promise<Album[]|null>} A promise that resolves to the updated list of albums, or null if the user cancels.
    */
   addMediaDirectory: () => ipcRenderer.invoke('add-media-directory'),
 

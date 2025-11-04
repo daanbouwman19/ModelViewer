@@ -7,16 +7,16 @@
 import { reactive, toRefs } from 'vue';
 
 /**
- * @typedef {import('../../main/media-scanner.js').Model} Model
+ * @typedef {import('../../main/media-scanner.js').Album} Album
  * @typedef {import('../../main/media-scanner.js').MediaFile} MediaFile
  */
 
 /**
  * The reactive state object that holds the application's global state.
  * @type {object}
- * @property {Model[]} allModels - The complete list of all models discovered by the media scanner.
- * @property {{[modelName: string]: boolean}} modelsSelectedForSlideshow - A map indicating if a model is selected for the slideshow.
- * @property {MediaFile[]} globalMediaPoolForSelection - A flat array of all media files from all selected models.
+ * @property {Album[]} allAlbums - The complete list of all albums discovered by the media scanner.
+ * @property {{[albumName: string]: boolean}} albumsSelectedForSlideshow - A map indicating if an album is selected for the slideshow.
+ * @property {MediaFile[]} globalMediaPoolForSelection - A flat array of all media files from all selected albums.
  * @property {number} totalMediaInPool - The total number of media items in the filtered pool.
  * @property {MediaFile[]} displayedMediaFiles - The history of media files that have been displayed in the current slideshow.
  * @property {MediaFile | null} currentMediaItem - The media item currently being displayed.
@@ -31,8 +31,8 @@ import { reactive, toRefs } from 'vue';
  * @property {{images: string[], videos: string[], all: string[]}} supportedExtensions - The supported file extensions.
  */
 const state = reactive({
-  allModels: [],
-  modelsSelectedForSlideshow: {},
+  allAlbums: [],
+  albumsSelectedForSlideshow: {},
   globalMediaPoolForSelection: [],
   totalMediaInPool: 0,
   displayedMediaFiles: [],
@@ -65,7 +65,7 @@ const state = reactive({
 export function useAppState() {
   /**
    * Initializes the application state by fetching data from the main process.
-   * This includes loading models, media directories, and supported extensions.
+   * This includes loading albums, media directories, and supported extensions.
    * @returns {Promise<void>}
    */
   const initializeApp = async () => {
@@ -73,13 +73,13 @@ export function useAppState() {
       if (!window.electronAPI) {
         throw new Error('electronAPI is not available');
       }
-      state.allModels = await window.electronAPI.getModelsWithViewCounts();
+      state.allAlbums = await window.electronAPI.getAlbumsWithViewCounts();
       state.mediaDirectories = await window.electronAPI.getMediaDirectories();
       state.supportedExtensions =
         await window.electronAPI.getSupportedExtensions();
 
-      state.allModels.forEach((model) => {
-        state.modelsSelectedForSlideshow[model.name] = true;
+      state.allAlbums.forEach((album) => {
+        state.albumsSelectedForSlideshow[album.name] = true;
       });
     } catch (error) {
       console.error('[useAppState] Error during initial load:', error);

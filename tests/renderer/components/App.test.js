@@ -10,8 +10,8 @@ vi.mock('@/composables/useAppState.js');
 vi.mock('@/composables/useSlideshow.js');
 
 // Mock the child components
-vi.mock('@/components/ModelsList.vue', () => ({
-  default: { template: '<div class="models-list-mock">ModelsList</div>' },
+vi.mock('@/components/AlbumsList.vue', () => ({
+  default: { template: '<div class="albums-list-mock">AlbumsList</div>' },
 }));
 vi.mock('@/components/MediaDisplay.vue', () => ({
   default: { template: '<div class="media-display-mock">MediaDisplay</div>' },
@@ -32,8 +32,8 @@ describe('App.vue', () => {
     toggleSlideshowTimer = vi.fn();
 
     mockRefs = {
-      allModels: ref([]),
-      modelsSelectedForSlideshow: ref({}),
+      allAlbums: ref([]),
+      albumsSelectedForSlideshow: ref({}),
       mediaFilter: ref('All'),
       currentMediaItem: ref(null),
       displayedMediaFiles: ref([]),
@@ -61,9 +61,9 @@ describe('App.vue', () => {
     useSlideshow.mockReturnValue({
       navigateMedia,
       toggleSlideshowTimer,
-      toggleModelSelection: vi.fn(),
+      toggleAlbumSelection: vi.fn(),
       startSlideshow: vi.fn(),
-      startIndividualModelSlideshow: vi.fn(),
+      startIndividualAlbumSlideshow: vi.fn(),
       setFilter: vi.fn(),
       prevMedia: vi.fn(),
       nextMedia: vi.fn(),
@@ -79,9 +79,9 @@ describe('App.vue', () => {
     expect(wrapper.find('h1').text()).toBe('Media Slideshow Viewer');
   });
 
-  it('should render ModelsList component', () => {
+  it('should render AlbumsList component', () => {
     const wrapper = mount(App);
-    expect(wrapper.find('.models-list-mock').exists()).toBe(true);
+    expect(wrapper.find('.albums-list-mock').exists()).toBe(true);
   });
 
   it('should render MediaDisplay component', () => {

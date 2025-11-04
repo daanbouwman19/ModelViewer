@@ -1,12 +1,12 @@
-# My Model Slideshow Viewer
+# My Album Slideshow Viewer
 
 A desktop application built with Electron and Vue 3 for browsing and viewing local media files, with a focus on creating dynamic, weighted slideshows.
 
 ## Features
 
-- **Model-Based Organization**: Automatically groups media files based on their parent directory, referring to each as a "model".
+- **Album-Based Organization**: Automatically groups media files based on their parent directory, referring to each as an "album".
 - **Media Viewer**: Supports a wide range of image and video formats. For performance, large videos are streamed via a local server.
-- **Weighted Random Slideshows**: Start a slideshow for a single model or a global slideshow from multiple selected models. The selection algorithm prioritizes less-viewed items, ensuring you see fresh content more often.
+- **Weighted Random Slideshows**: Start a slideshow for a single album or a global slideshow from multiple selected albums. The selection algorithm prioritizes less-viewed items, ensuring you see fresh content more often.
 - **View Count Tracking**: Keeps track of how many times each media file has been viewed, which feeds into the slideshow weighting system.
 - **Persistent Cache**: Your media library index is cached in a local SQLite database for fast startups.
 - **Configurable Media Sources**: Easily add and manage multiple root directories for your media library.
