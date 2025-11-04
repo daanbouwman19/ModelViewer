@@ -16,8 +16,29 @@ describe('Media Scanner', () => {
   });
 
   afterEach(() => {
-    // Clean up test directory
+    // Clean up test directory: ensure directories are writable before removal
     if (fs.existsSync(testDir)) {
+      // Recursively attempt to make files/dirs writable so rmSync can delete them
+      const chmodRecursive = (p) => {
+        try {
+          fs.chmodSync(p, 0o700);
+        } catch (e) {
+          // ignore chmod failures
+        }
+        try {
+          const stat = fs.statSync(p);
+          if (stat.isDirectory()) {
+            const entries = fs.readdirSync(p);
+            for (const ent of entries) {
+              chmodRecursive(path.join(p, ent));
+            }
+          }
+        } catch (e) {
+          // ignore traversal errors
+        }
+      };
+
+      chmodRecursive(testDir);
       fs.rmSync(testDir, { recursive: true, force: true });
     }
   });
@@ -234,6 +255,24 @@ describe('Media Scanner', () => {
       // Pass an invalid input that will cause an error in the try block
       const result = await performFullMediaScan(null);
       expect(result).toEqual([]);
+    });
+
+    it('should continue scanning even if a directory is unreadable', async () => {
+      const dir1 = path.join(testDir, 'dir1');
+      const unreadableDir = path.join(testDir, 'unreadable');
+      const dir2 = path.join(testDir, 'dir2');
+      fs.mkdirSync(dir1);
+      fs.mkdirSync(unreadableDir, { mode: 0o000 }); // Make it unreadable
+      fs.mkdirSync(dir2);
+
+      fs.writeFileSync(path.join(dir1, 'image1.png'), '');
+      fs.writeFileSync(path.join(dir2, 'image2.jpg'), '');
+
+      const result = await performFullMediaScan([dir1, unreadableDir, dir2]);
+
+      expect(result).toHaveLength(2);
+      expect(result.some((m) => m.name === 'dir1')).toBe(true);
+      expect(result.some((m) => m.name === 'dir2')).toBe(true);
     });
   });
 });

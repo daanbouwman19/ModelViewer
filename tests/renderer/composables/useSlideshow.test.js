@@ -191,6 +191,15 @@ describe('useSlideshow', () => {
       expect(selectWeightedRandom([])).toBeNull();
       expect(selectWeightedRandom(null)).toBeNull();
     });
+
+    it('should perform uniform random selection when items have no view counts', () => {
+      const items = [{ path: 'a' }, { path: 'b' }];
+      const { selectWeightedRandom } = useSlideshow();
+      const randomSpy = vi.spyOn(global.Math, 'random').mockReturnValue(0.6);
+      const selected = selectWeightedRandom(items);
+      expect(selected.path).toBe('b');
+      randomSpy.mockRestore();
+    });
   });
 
   describe('navigateMedia', () => {

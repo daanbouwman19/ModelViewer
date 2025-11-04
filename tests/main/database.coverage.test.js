@@ -190,4 +190,76 @@ describe('database.js additional coverage', () => {
       },
     );
   });
+
+  it('rejects pending messages when worker emits an error', async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+
+    // Call a function that would normally reject on error
+    const addDirPromise = db.addMediaDirectory('/test/dir');
+    // Call a function that would normally resolve with a default value on error
+    const getViewCountsPromise = db.getMediaViewCounts(['/file.txt']);
+
+    // Simulate a catastrophic worker error
+    const testError = new Error('Test worker crash');
+    mockWorkerInstance.simulateError(testError);
+
+    // Assertions
+    await expect(addDirPromise).rejects.toThrow(testError);
+    await expect(getViewCountsPromise).resolves.toEqual({}); // This one handles its own errors
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '[database.js] Database worker error:',
+      testError,
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('getMediaDirectories should return [] on falsy worker response', async () => {
+    const originalPostMessage = mockWorkerInstance.postMessage;
+    const postMessageSpy = vi.spyOn(mockWorkerInstance, 'postMessage');
+
+    postMessageSpy.mockImplementation((message) => {
+      if (message.type === 'getMediaDirectories') {
+        mockWorkerInstance.simulateMessage({
+          id: message.id,
+          result: { success: true, data: null }, // Simulate null response
+        });
+      } else {
+        originalPostMessage.call(mockWorkerInstance, message);
+      }
+    });
+
+    const directories = await db.getMediaDirectories();
+    expect(directories).toEqual([]);
+    postMessageSpy.mockRestore();
+  });
+
+  it('should handle errors when terminating the worker during close', async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    const terminateError = new Error('Failed to terminate');
+    mockWorkerInstance.terminate.mockRejectedValue(terminateError);
+
+    await db.closeDatabase();
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '[database.js] Error closing database worker:',
+      terminateError,
+    );
+
+    // After closing, the worker should be null, and subsequent calls should fail.
+    // Use a function that is expected to throw on error, not one that returns a default value.
+    await expect(db.addMediaDirectory('/test/path')).rejects.toThrow(
+      'Database worker not initialized',
+    );
+
+    consoleErrorSpy.mockRestore();
+
+    // Re-initialize for the afterEach hook to run without issues.
+    await db.initDatabase();
+  });
 });
