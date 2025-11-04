@@ -359,7 +359,7 @@ describe('useSlideshow', () => {
   });
 
   describe('toggleAlbumSelection', () => {
-    it('should toggle the selection state of a album', () => {
+    it('should toggle the selection state of an album', () => {
       const { toggleAlbumSelection } = useSlideshow();
 
       // Initially undefined, should become true
