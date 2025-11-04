@@ -1,12 +1,12 @@
 /**
  * @file Provides functionality to scan the filesystem for media files.
  * This module is responsible for finding all supported media files within a
- * given directory structure and organizing them into "albums".
- * @requires fs
+ * given directory structure and organizing them into a hierarchical tree of "albums".
+ * @requires fs/promises
  * @requires path
  * @requires ./constants.js
  */
-import fs from 'fs';
+import fs from 'fs/promises';
 import path from 'path';
 import { ALL_SUPPORTED_EXTENSIONS } from './constants.js';
 
@@ -18,29 +18,44 @@ import { ALL_SUPPORTED_EXTENSIONS } from './constants.js';
 
 /**
  * @typedef {Object} Album
- * @property {string} name - The name of the album, typically the subdirectory name.
- * @property {MediaFile[]} textures - An array of media files belonging to this album.
+ * @property {string} name - The name of the album, typically the directory name.
+ * @property {MediaFile[]} textures - An array of media files directly in this album.
+ * @property {Album[]} children - An array of child albums (subdirectories).
  */
 
 /**
- * Recursively finds all supported media files in a directory and its subdirectories.
+ * Asynchronously and recursively scans a directory to build a hierarchical album structure.
+ * An album is created for any directory that contains media files or has subdirectories
+ * that contain media files.
  * @param {string} directoryPath - The absolute path to the directory to scan.
- * @param {MediaFile[]} [mediaFilesList=[]] - An accumulator array for the media files found (used for recursion).
- * @returns {MediaFile[]} A list of media file objects.
+ * @returns {Promise<Album|null>} A promise that resolves to an Album object if media is found, otherwise null.
  */
-function findAllMediaFiles(directoryPath, mediaFilesList = []) {
+async function scanDirectoryRecursive(directoryPath) {
   try {
-    const items = fs.readdirSync(directoryPath, { withFileTypes: true });
+    const items = await fs.readdir(directoryPath, { withFileTypes: true });
+    const textures = [];
+    const childrenPromises = [];
+
     for (const item of items) {
       const fullPath = path.join(directoryPath, item.name);
       if (item.isDirectory()) {
-        findAllMediaFiles(fullPath, mediaFilesList);
+        childrenPromises.push(scanDirectoryRecursive(fullPath));
       } else if (item.isFile()) {
         const fileExtension = path.extname(item.name).toLowerCase();
         if (ALL_SUPPORTED_EXTENSIONS.includes(fileExtension)) {
-          mediaFilesList.push({ name: item.name, path: fullPath });
+          textures.push({ name: item.name, path: fullPath });
         }
       }
+    }
+
+    const children = (await Promise.all(childrenPromises)).filter(Boolean);
+
+    if (textures.length > 0 || children.length > 0) {
+      return {
+        name: path.basename(directoryPath),
+        textures,
+        children,
+      };
     }
   } catch (err) {
     if (process.env.NODE_ENV !== 'test') {
@@ -50,14 +65,35 @@ function findAllMediaFiles(directoryPath, mediaFilesList = []) {
       );
     }
   }
-  return mediaFilesList;
+  return null;
 }
 
 /**
- * Performs a full scan across multiple base directories to find albums and their associated media files.
- * Albums with the same name from different directories will have their media files merged.
+ * Merges the children of two albums.
+ * @param {Album[]} targetChildren - The list to merge into.
+ * @param {Album[]} sourceChildren - The list to merge from.
+ */
+function mergeChildren(targetChildren, sourceChildren) {
+  const targetChildrenMap = new Map(
+    targetChildren.map((child) => [child.name, child]),
+  );
+
+  for (const sourceChild of sourceChildren) {
+    if (targetChildrenMap.has(sourceChild.name)) {
+      const targetChild = targetChildrenMap.get(sourceChild.name);
+      targetChild.textures.push(...sourceChild.textures);
+      mergeChildren(targetChild.children, sourceChild.children);
+    } else {
+      targetChildren.push(sourceChild);
+    }
+  }
+}
+
+/**
+ * Performs a full scan across multiple base directories to find albums and their associated media files,
+ * creating a hierarchical structure. Albums with the same name at the root level will be merged.
  * @param {string[]} baseMediaDirectories - An array of root directories to scan.
- * @returns {Promise<Album[]>} A promise that resolves to an array of album objects. Returns an empty array on failure.
+ * @returns {Promise<Album[]>} A promise that resolves to an array of root album objects. Returns an empty array on failure.
  */
 async function performFullMediaScan(baseMediaDirectories) {
   if (process.env.NODE_ENV !== 'test') {
@@ -66,82 +102,42 @@ async function performFullMediaScan(baseMediaDirectories) {
       baseMediaDirectories,
     );
   }
-  const albumsMap = new Map();
+  const rootAlbumsMap = new Map();
+
   try {
-    for (const baseDir of baseMediaDirectories) {
+    const scanPromises = baseMediaDirectories.map(async (baseDir) => {
       try {
-        if (!fs.existsSync(baseDir)) {
-          if (process.env.NODE_ENV !== 'test') {
-            console.error(
-              `[media-scanner.js] Media directory not found: ${baseDir}`,
-            );
-          }
-          continue;
-        }
-
-        const rootDirName = path.basename(baseDir);
-        const rootFiles = fs
-          .readdirSync(baseDir, { withFileTypes: true })
-          .filter(
-            (dirent) =>
-              dirent.isFile() &&
-              ALL_SUPPORTED_EXTENSIONS.includes(
-                path.extname(dirent.name).toLowerCase(),
-              ),
-          )
-          .map((dirent) => ({
-            name: dirent.name,
-            path: path.join(baseDir, dirent.name),
-          }));
-
-        if (rootFiles.length > 0) {
-          if (albumsMap.has(rootDirName)) {
-            albumsMap.get(rootDirName).textures.push(...rootFiles);
-          } else {
-            albumsMap.set(rootDirName, {
-              name: rootDirName,
-              textures: rootFiles,
-            });
-          }
-        }
-
-        const albumFolders = fs
-          .readdirSync(baseDir, { withFileTypes: true })
-          .filter((dirent) => dirent.isDirectory())
-          .map((dirent) => dirent.name);
-
-        for (const folderName of albumFolders) {
-          const albumPath = path.join(baseDir, folderName);
-          const filesInAlbumFolder = findAllMediaFiles(albumPath);
-
-          if (filesInAlbumFolder.length > 0) {
-            if (albumsMap.has(folderName)) {
-              const existingAlbum = albumsMap.get(folderName);
-              existingAlbum.textures.push(...filesInAlbumFolder);
-            } else {
-              albumsMap.set(folderName, {
-                name: folderName,
-                textures: filesInAlbumFolder,
-              });
-            }
-          }
-        }
+        await fs.access(baseDir);
+        return scanDirectoryRecursive(baseDir);
       } catch (dirError) {
         if (process.env.NODE_ENV !== 'test') {
           console.error(
-            `[media-scanner.js] Error scanning directory ${baseDir}: ${dirError.message}`,
+            `[media-scanner.js] Error accessing or scanning directory ${baseDir}: ${dirError.message}`,
           );
         }
-        continue; // Continue to the next directory
+        return null;
+      }
+    });
+
+    const albums = (await Promise.all(scanPromises)).filter(Boolean);
+
+    for (const album of albums) {
+      if (rootAlbumsMap.has(album.name)) {
+        const existingAlbum = rootAlbumsMap.get(album.name);
+        existingAlbum.textures.push(...album.textures);
+        mergeChildren(existingAlbum.children, album.children);
+      } else {
+        rootAlbumsMap.set(album.name, album);
       }
     }
-    const albums = Array.from(albumsMap.values());
+
+    const result = Array.from(rootAlbumsMap.values());
     if (process.env.NODE_ENV !== 'test') {
       console.log(
-        `[media-scanner.js] Found ${albums.length} albums during scan.`,
+        `[media-scanner.js] Found ${result.length} root albums during scan.`,
       );
     }
-    return albums;
+    return result;
   } catch (e) {
     if (process.env.NODE_ENV !== 'test') {
       console.error(`[media-scanner.js] Error scanning disk for albums:`, e);
@@ -150,4 +146,4 @@ async function performFullMediaScan(baseMediaDirectories) {
   }
 }
 
-export { findAllMediaFiles, performFullMediaScan };
+export { performFullMediaScan };
