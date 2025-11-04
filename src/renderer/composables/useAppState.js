@@ -15,7 +15,7 @@ import { reactive, toRefs } from 'vue';
  * The reactive state object that holds the application's global state.
  * @type {object}
  * @property {Album[]} allAlbums - The complete list of all albums discovered by the media scanner.
- * @property {{[albumName: string]: boolean}} albumsSelectedForSlideshow - A map indicating if a album is selected for the slideshow.
+ * @property {{[albumName: string]: boolean}} albumsSelectedForSlideshow - A map indicating if an album is selected for the slideshow.
  * @property {MediaFile[]} globalMediaPoolForSelection - A flat array of all media files from all selected albums.
  * @property {number} totalMediaInPool - The total number of media items in the filtered pool.
  * @property {MediaFile[]} displayedMediaFiles - The history of media files that have been displayed in the current slideshow.
