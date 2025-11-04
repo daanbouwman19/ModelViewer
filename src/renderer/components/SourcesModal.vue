@@ -49,7 +49,7 @@
           <button @click="handleAddDirectory" class="action-button">
             Add Media Directory
           </button>
-          <button @click="handleReindex" class="action-button">
+          <button @click="closeModalAndReindex" class="action-button">
             Apply Changes & Re-index
           </button>
         </div>
@@ -125,11 +125,9 @@ const handleRemove = async (path) => {
  */
 const handleAddDirectory = async () => {
   try {
-    const updatedAlbums = await window.electronAPI.addMediaDirectory();
-    if (updatedAlbums !== null) {
-      state.allAlbums = updatedAlbums;
-      state.mediaDirectories = await window.electronAPI.getMediaDirectories();
-      resetSlideshowState();
+    const newPath = await window.electronAPI.addMediaDirectory();
+    if (newPath) {
+      mediaDirectories.value.push({ path: newPath, isActive: true });
     }
   } catch (error) {
     console.error('Error adding media directory:', error);
@@ -139,7 +137,8 @@ const handleAddDirectory = async () => {
 /**
  * Triggers a full re-scan and re-index of the media library.
  */
-const handleReindex = async () => {
+const reindex = async () => {
+  state.isScanning = true;
   try {
     const updatedAlbums = await window.electronAPI.reindexMediaLibrary();
     state.allAlbums = updatedAlbums;
@@ -147,7 +146,17 @@ const handleReindex = async () => {
     resetSlideshowState();
   } catch (error) {
     console.error('Error re-indexing library:', error);
+  } finally {
+    state.isScanning = false;
   }
+};
+
+/**
+ * Closes the modal and triggers a re-index.
+ */
+const closeModalAndReindex = () => {
+  closeModal();
+  reindex();
 };
 </script>
 

@@ -14,6 +14,7 @@
     </footer>
 
     <SourcesModal />
+    <LoadingMask v-if="isScanning" />
   </div>
 </template>
 
@@ -27,10 +28,11 @@ import { onMounted, onBeforeUnmount } from 'vue';
 import AlbumsList from './components/AlbumsList.vue';
 import MediaDisplay from './components/MediaDisplay.vue';
 import SourcesModal from './components/SourcesModal.vue';
+import LoadingMask from './components/LoadingMask.vue';
 import { useAppState } from './composables/useAppState';
 import { useSlideshow } from './composables/useSlideshow';
 
-const { initializeApp } = useAppState();
+const { initializeApp, isScanning } = useAppState();
 const { navigateMedia, toggleSlideshowTimer } = useSlideshow();
 
 /**
