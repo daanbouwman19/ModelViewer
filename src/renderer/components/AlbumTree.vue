@@ -283,10 +283,11 @@ onMounted(() => {
 
 .checkmark.indeterminate::after {
   display: block;
-  left: 5px;
-  top: 8px;
+  left: 50%;
+  top: 50%;
   width: 10px;
   height: 3px;
   background-color: white;
+  transform: translate(-50%, -50%);
 }
 </style>
