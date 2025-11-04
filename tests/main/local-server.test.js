@@ -363,15 +363,35 @@ describe('Local Server', () => {
 
   describe('Server Error Handling', () => {
     it('should handle server listen errors gracefully', async () => {
-      // Start first server
-      await startServer();
-      const port1 = getServerPort();
-      expect(port1).toBeGreaterThan(0);
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
 
-      // Since we're using port 0 (random), we can't easily force a port conflict
-      // But we can at least verify the server started successfully
-      // The error handler is tested by virtue of the server starting without throwing
-      await stopServer();
+      const mockServer = new (require('events').EventEmitter)();
+      mockServer.listen = vi.fn((port, host, cb) => {
+        // Defer error emission to ensure the '.on('error',...)' handler is attached.
+        process.nextTick(() =>
+          mockServer.emit('error', new Error('EADDRINUSE test error')),
+        );
+        if (cb) cb();
+      });
+      mockServer.address = () => ({ port: 12345 });
+      mockServer.unref = vi.fn();
+      mockServer.close = vi.fn((cb) => cb && cb()); // For afterEach cleanup
+
+      vi.spyOn(http, 'createServer').mockReturnValue(mockServer);
+
+      await startServer();
+
+      // Give the event loop a chance to process the error
+      await new Promise(setImmediate);
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '[local-server.js] Server Error:',
+        expect.objectContaining({ message: 'EADDRINUSE test error' }),
+      );
+
+      consoleErrorSpy.mockRestore();
     });
   });
 
@@ -389,6 +409,31 @@ describe('Local Server', () => {
 
       expect(callbackCalled).toBe(true);
       expect(getServerPort()).toBe(0);
+    });
+
+    it('should log an error if closing fails', async () => {
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      const closeError = new Error('Server close failed');
+
+      const mockServer = new (require('events').EventEmitter)();
+      mockServer.listen = vi.fn((port, host, cb) => cb && cb());
+      mockServer.address = () => ({ port: 12345 });
+      mockServer.unref = vi.fn();
+      mockServer.close = vi.fn((cb) => cb && cb(closeError));
+
+      vi.spyOn(http, 'createServer').mockReturnValue(mockServer);
+
+      await startServer();
+      await stopServer();
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '[local-server.js] Error stopping server:',
+        closeError,
+      );
+
+      consoleErrorSpy.mockRestore();
     });
   });
 });

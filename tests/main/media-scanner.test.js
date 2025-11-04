@@ -235,5 +235,23 @@ describe('Media Scanner', () => {
       const result = await performFullMediaScan(null);
       expect(result).toEqual([]);
     });
+
+    it('should continue scanning even if a directory is unreadable', async () => {
+      const dir1 = path.join(testDir, 'dir1');
+      const unreadableDir = path.join(testDir, 'unreadable');
+      const dir2 = path.join(testDir, 'dir2');
+      fs.mkdirSync(dir1);
+      fs.mkdirSync(unreadableDir, { mode: 0o000 }); // Make it unreadable
+      fs.mkdirSync(dir2);
+
+      fs.writeFileSync(path.join(dir1, 'image1.png'), '');
+      fs.writeFileSync(path.join(dir2, 'image2.jpg'), '');
+
+      const result = await performFullMediaScan([dir1, unreadableDir, dir2]);
+
+      expect(result).toHaveLength(2);
+      expect(result.some((m) => m.name === 'dir1')).toBe(true);
+      expect(result.some((m) => m.name === 'dir2')).toBe(true);
+    });
   });
 });

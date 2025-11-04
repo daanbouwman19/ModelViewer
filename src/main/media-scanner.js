@@ -69,61 +69,70 @@ async function performFullMediaScan(baseMediaDirectories) {
   const modelsMap = new Map();
   try {
     for (const baseDir of baseMediaDirectories) {
-      if (!fs.existsSync(baseDir)) {
-        if (process.env.NODE_ENV !== 'test') {
-          console.error(
-            `[media-scanner.js] Media directory not found: ${baseDir}`,
-          );
+      try {
+        if (!fs.existsSync(baseDir)) {
+          if (process.env.NODE_ENV !== 'test') {
+            console.error(
+              `[media-scanner.js] Media directory not found: ${baseDir}`,
+            );
+          }
+          continue;
         }
-        continue;
-      }
 
-      const rootDirName = path.basename(baseDir);
-      const rootFiles = fs
-        .readdirSync(baseDir, { withFileTypes: true })
-        .filter(
-          (dirent) =>
-            dirent.isFile() &&
-            ALL_SUPPORTED_EXTENSIONS.includes(
-              path.extname(dirent.name).toLowerCase(),
-            ),
-        )
-        .map((dirent) => ({
-          name: dirent.name,
-          path: path.join(baseDir, dirent.name),
-        }));
+        const rootDirName = path.basename(baseDir);
+        const rootFiles = fs
+          .readdirSync(baseDir, { withFileTypes: true })
+          .filter(
+            (dirent) =>
+              dirent.isFile() &&
+              ALL_SUPPORTED_EXTENSIONS.includes(
+                path.extname(dirent.name).toLowerCase(),
+              ),
+          )
+          .map((dirent) => ({
+            name: dirent.name,
+            path: path.join(baseDir, dirent.name),
+          }));
 
-      if (rootFiles.length > 0) {
-        if (modelsMap.has(rootDirName)) {
-          modelsMap.get(rootDirName).textures.push(...rootFiles);
-        } else {
-          modelsMap.set(rootDirName, {
-            name: rootDirName,
-            textures: rootFiles,
-          });
-        }
-      }
-
-      const modelFolders = fs
-        .readdirSync(baseDir, { withFileTypes: true })
-        .filter((dirent) => dirent.isDirectory())
-        .map((dirent) => dirent.name);
-
-      for (const folderName of modelFolders) {
-        const modelPath = path.join(baseDir, folderName);
-        const filesInModelFolder = findAllMediaFiles(modelPath);
-
-        if (filesInModelFolder.length > 0) {
-          if (modelsMap.has(folderName)) {
-            const existingModel = modelsMap.get(folderName);
-            existingModel.textures.push(...filesInModelFolder);
+        if (rootFiles.length > 0) {
+          if (modelsMap.has(rootDirName)) {
+            modelsMap.get(rootDirName).textures.push(...rootFiles);
           } else {
-            modelsMap.set(folderName, {
-              name: folderName,
-              textures: filesInModelFolder,
+            modelsMap.set(rootDirName, {
+              name: rootDirName,
+              textures: rootFiles,
             });
           }
         }
+
+        const modelFolders = fs
+          .readdirSync(baseDir, { withFileTypes: true })
+          .filter((dirent) => dirent.isDirectory())
+          .map((dirent) => dirent.name);
+
+        for (const folderName of modelFolders) {
+          const modelPath = path.join(baseDir, folderName);
+          const filesInModelFolder = findAllMediaFiles(modelPath);
+
+          if (filesInModelFolder.length > 0) {
+            if (modelsMap.has(folderName)) {
+              const existingModel = modelsMap.get(folderName);
+              existingModel.textures.push(...filesInModelFolder);
+            } else {
+              modelsMap.set(folderName, {
+                name: folderName,
+                textures: filesInModelFolder,
+              });
+            }
+          }
+        }
+      } catch (dirError) {
+        if (process.env.NODE_ENV !== 'test') {
+          console.error(
+            `[media-scanner.js] Error scanning directory ${baseDir}: ${dirError.message}`,
+          );
+        }
+        continue; // Continue to the next directory
       }
     }
     const models = Array.from(modelsMap.values());
