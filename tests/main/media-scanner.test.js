@@ -16,8 +16,29 @@ describe('Media Scanner', () => {
   });
 
   afterEach(() => {
-    // Clean up test directory
+    // Clean up test directory: ensure directories are writable before removal
     if (fs.existsSync(testDir)) {
+      // Recursively attempt to make files/dirs writable so rmSync can delete them
+      const chmodRecursive = (p) => {
+        try {
+          fs.chmodSync(p, 0o700);
+        } catch (e) {
+          // ignore chmod failures
+        }
+        try {
+          const stat = fs.statSync(p);
+          if (stat.isDirectory()) {
+            const entries = fs.readdirSync(p);
+            for (const ent of entries) {
+              chmodRecursive(path.join(p, ent));
+            }
+          }
+        } catch (e) {
+          // ignore traversal errors
+        }
+      };
+
+      chmodRecursive(testDir);
       fs.rmSync(testDir, { recursive: true, force: true });
     }
   });
