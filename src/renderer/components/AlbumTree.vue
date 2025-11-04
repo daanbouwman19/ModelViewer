@@ -1,7 +1,7 @@
 <template>
   <li
     class="album-item"
-    :class="{ 'selected-for-slideshow': isSelected }"
+    :class="{ 'selected-for-slideshow': selectionState !== 'none' }"
     @click="handleClickAlbum(album)"
     :style="{ marginLeft: `${depth * 20}px` }"
   >
@@ -13,10 +13,15 @@
         <label class="checkbox-container">
           <input
             type="checkbox"
-            :checked="isSelected"
+            :checked="selectionState === 'all'"
+            :indeterminate="selectionState === 'some'"
             @change="handleToggleSelection(album)"
+            ref="checkbox"
           />
-          <span class="checkmark"></span>
+          <span
+            class="checkmark"
+            :class="{ indeterminate: selectionState === 'some' }"
+          ></span>
         </label>
       </div>
       <span class="album-name-clickable">
@@ -43,7 +48,7 @@
  * Each node in the tree can be expanded or collapsed to show/hide its children.
  * It emits events for album selection and clicks, which are handled by the parent component.
  */
-import { ref, computed } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 
 const props = defineProps({
   album: {
@@ -61,7 +66,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['toggleSelection', 'albumClick']);
-
+const checkbox = ref(null);
 const isOpen = ref(false);
 
 /**
@@ -100,11 +105,28 @@ const countTextures = (album) => {
  */
 const totalTextureCount = computed(() => countTextures(props.album));
 
-/**
- * Checks if the current album is selected.
- * @type {import('vue').ComputedRef<boolean>}
- */
-const isSelected = computed(() => !!props.selection[props.album.name]);
+const getAlbumAndChildrenNames = (album) => {
+  let names = [album.name];
+  if (album.children) {
+    for (const child of album.children) {
+      names = names.concat(getAlbumAndChildrenNames(child));
+    }
+  }
+  return names;
+};
+
+const selectionState = computed(() => {
+  const allChildren = getAlbumAndChildrenNames(props.album);
+  const selectedChildren = allChildren.filter((name) => props.selection[name]);
+
+  if (selectedChildren.length === 0) {
+    return 'none';
+  }
+  if (selectedChildren.length === allChildren.length) {
+    return 'all';
+  }
+  return 'some';
+});
 
 /**
  * Emits an event to toggle the selection of an album.
@@ -121,6 +143,18 @@ const handleToggleSelection = (album) => {
 const handleClickAlbum = (album) => {
   emit('albumClick', album);
 };
+
+onMounted(() => {
+  watch(
+    selectionState,
+    (newState) => {
+      if (checkbox.value) {
+        checkbox.value.indeterminate = newState === 'some';
+      }
+    },
+    { immediate: true },
+  );
+});
 </script>
 
 <style scoped>
@@ -225,10 +259,19 @@ const handleClickAlbum = (album) => {
   border-color: #ff1493;
 }
 
+.checkmark.indeterminate {
+  background: linear-gradient(135deg, #ff69b4 0%, #ff1493 100%);
+  border-color: #ff1493;
+}
+
 .checkmark::after {
   content: '';
   position: absolute;
   display: none;
+}
+
+.checkbox-container input[type='checkbox']:checked ~ .checkmark::after {
+  display: block;
   left: 6px;
   top: 2px;
   width: 5px;
@@ -238,7 +281,12 @@ const handleClickAlbum = (album) => {
   transform: rotate(45deg);
 }
 
-.checkbox-container input[type='checkbox']:checked ~ .checkmark::after {
+.checkmark.indeterminate::after {
   display: block;
+  left: 5px;
+  top: 8px;
+  width: 10px;
+  height: 3px;
+  background-color: white;
 }
 </style>

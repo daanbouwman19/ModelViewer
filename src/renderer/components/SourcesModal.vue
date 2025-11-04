@@ -134,6 +134,15 @@ const handleAddDirectory = async () => {
   }
 };
 
+const selectAllAlbums = (albums) => {
+  for (const album of albums) {
+    state.albumsSelectedForSlideshow[album.name] = true;
+    if (album.children) {
+      selectAllAlbums(album.children);
+    }
+  }
+};
+
 /**
  * Triggers a full re-scan and re-index of the media library.
  */
@@ -143,6 +152,7 @@ const reindex = async () => {
     const updatedAlbums = await window.electronAPI.reindexMediaLibrary();
     state.allAlbums = updatedAlbums;
     state.mediaDirectories = await window.electronAPI.getMediaDirectories();
+    selectAllAlbums(updatedAlbums);
     resetSlideshowState();
   } catch (error) {
     console.error('Error re-indexing library:', error);

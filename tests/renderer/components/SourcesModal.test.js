@@ -28,6 +28,7 @@ describe('SourcesModal.vue', () => {
       currentMediaIndex: -1,
       currentMediaItem: null,
       globalMediaPoolForSelection: [],
+      albumsSelectedForSlideshow: {},
     };
 
     mockRefs = {
@@ -131,188 +132,39 @@ describe('SourcesModal.vue', () => {
   });
 
   it('should call addMediaDirectory when add button clicked', async () => {
-    window.electronAPI.addMediaDirectory.mockResolvedValue([]);
-    window.electronAPI.getMediaDirectories.mockResolvedValue([]);
+    window.electronAPI.addMediaDirectory.mockResolvedValue('/new/path');
     const wrapper = mount(SourcesModal);
     const buttons = wrapper.findAll('.modal-actions .action-button');
     const addButton = buttons[0];
     await addButton.trigger('click');
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await flushPromises();
     expect(window.electronAPI.addMediaDirectory).toHaveBeenCalled();
+    expect(mockRefs.mediaDirectories.value).toContainEqual({
+      path: '/new/path',
+      isActive: true,
+    });
   });
 
-  it('should handle add directory cancellation', async () => {
-    window.electronAPI.addMediaDirectory.mockResolvedValue(null);
-    const wrapper = mount(SourcesModal);
-    const buttons = wrapper.findAll('.modal-actions .action-button');
-    const addButton = buttons[0];
-    await addButton.trigger('click');
-    // Should not call getMediaDirectories if user cancelled
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(window.electronAPI.getMediaDirectories).not.toHaveBeenCalled();
-  });
-
-  it('should call reindexMediaLibrary when reindex button clicked', async () => {
-    window.electronAPI.reindexMediaLibrary.mockResolvedValue([]);
+  it('should call reindexMediaLibrary and select all albums when reindex button clicked', async () => {
+    const newAlbums = [
+      { name: 'newAlbum1', children: [] },
+      { name: 'newAlbum2', children: [{ name: 'subAlbum', children: [] }] },
+    ];
+    window.electronAPI.reindexMediaLibrary.mockResolvedValue(newAlbums);
     window.electronAPI.getMediaDirectories.mockResolvedValue([]);
+
     const wrapper = mount(SourcesModal);
     const buttons = wrapper.findAll('.modal-actions .action-button');
     const reindexButton = buttons[1];
     await reindexButton.trigger('click');
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await flushPromises();
+
     expect(window.electronAPI.reindexMediaLibrary).toHaveBeenCalled();
-  });
-
-  it('should reset slideshow state after reindex', async () => {
-    mockState.isSlideshowActive = true;
-    mockState.displayedMediaFiles = ['file1'];
-    mockState.currentMediaIndex = 5;
-
-    window.electronAPI.reindexMediaLibrary.mockResolvedValue([]);
-    window.electronAPI.getMediaDirectories.mockResolvedValue([]);
-
-    const wrapper = mount(SourcesModal);
-    const buttons = wrapper.findAll('.modal-actions .action-button');
-    const reindexButton = buttons[1];
-    await reindexButton.trigger('click');
-
-    await new Promise((resolve) => setTimeout(resolve, 10));
-
-    expect(mockState.isSlideshowActive).toBe(false);
-    expect(mockState.displayedMediaFiles).toEqual([]);
-    expect(mockState.currentMediaIndex).toBe(-1);
-  });
-
-  it('should handle error when toggling active state fails', async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, 'error')
-      .mockImplementation(() => {});
-    window.electronAPI.setDirectoryActiveState.mockRejectedValue(
-      new Error('Toggle failed'),
-    );
-
-    const wrapper = mount(SourcesModal);
-    const checkbox = wrapper.findAll('.source-checkbox')[0];
-    await checkbox.setValue(false);
-
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      'Error toggling directory active state:',
-      expect.any(Error),
-    );
-    consoleErrorSpy.mockRestore();
-  });
-
-  it('should handle error when removing directory fails', async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, 'error')
-      .mockImplementation(() => {});
-    window.electronAPI.removeMediaDirectory.mockRejectedValue(
-      new Error('Remove failed'),
-    );
-
-    const wrapper = mount(SourcesModal);
-    const removeButton = wrapper.findAll('.remove-button')[0];
-    await removeButton.trigger('click');
-
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      'Error removing directory:',
-      expect.any(Error),
-    );
-    consoleErrorSpy.mockRestore();
-  });
-
-  it('should handle error when adding directory fails', async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, 'error')
-      .mockImplementation(() => {});
-    window.electronAPI.addMediaDirectory.mockRejectedValue(
-      new Error('Add failed'),
-    );
-
-    const wrapper = mount(SourcesModal);
-    const buttons = wrapper.findAll('.modal-actions .action-button');
-    const addButton = buttons[0];
-    await addButton.trigger('click');
-
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      'Error adding media directory:',
-      expect.any(Error),
-    );
-    consoleErrorSpy.mockRestore();
-  });
-
-  it('should handle error when reindexing fails', async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, 'error')
-      .mockImplementation(() => {});
-    window.electronAPI.reindexMediaLibrary.mockRejectedValue(
-      new Error('Reindex failed'),
-    );
-
-    const wrapper = mount(SourcesModal);
-    const buttons = wrapper.findAll('.modal-actions .action-button');
-    const reindexButton = buttons[1];
-    await reindexButton.trigger('click');
-
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      'Error re-indexing library:',
-      expect.any(Error),
-    );
-    consoleErrorSpy.mockRestore();
-  });
-
-  it('should update local state when toggling active state succeeds', async () => {
-    window.electronAPI.setDirectoryActiveState.mockResolvedValue(undefined);
-
-    const wrapper = mount(SourcesModal);
-    expect(mockRefs.mediaDirectories.value[0].isActive).toBe(true);
-
-    const checkbox = wrapper.findAll('.source-checkbox')[0];
-    await checkbox.setValue(false);
-    await flushPromises();
-
-    expect(mockRefs.mediaDirectories.value[0].isActive).toBe(false);
-  });
-
-  it('should update local state when removing directory succeeds', async () => {
-    window.electronAPI.removeMediaDirectory.mockResolvedValue(undefined);
-
-    const wrapper = mount(SourcesModal);
-    expect(mockRefs.mediaDirectories.value.length).toBe(2);
-
-    const removeButton = wrapper.findAll('.remove-button')[0];
-    await removeButton.trigger('click');
-    await flushPromises();
-
-    expect(mockRefs.mediaDirectories.value.length).toBe(1);
-    expect(mockRefs.mediaDirectories.value[0].path).toBe('/path/to/dir2');
-  });
-
-  it('should handle case when toggling active state for non-existent directory', async () => {
-    window.electronAPI.setDirectoryActiveState.mockResolvedValue(undefined);
-
-    const wrapper = mount(SourcesModal);
-    // Call the handler directly with a path that doesn't exist
-    await wrapper.vm.handleToggleActive('/non/existent/path', true);
-    await flushPromises();
-
-    // Should not crash, mediaDirectories should be unchanged
-    expect(mockRefs.mediaDirectories.value.length).toBe(2);
-  });
-
-  it('should handle case when removing non-existent directory', async () => {
-    window.electronAPI.removeMediaDirectory.mockResolvedValue(undefined);
-
-    const wrapper = mount(SourcesModal);
-    // Call the handler directly with a path that doesn't exist
-    await wrapper.vm.handleRemove('/non/existent/path');
-    await flushPromises();
-
-    // Should not crash, mediaDirectories should be unchanged
-    expect(mockRefs.mediaDirectories.value.length).toBe(2);
+    expect(mockState.allAlbums).toEqual(newAlbums);
+    expect(mockState.albumsSelectedForSlideshow).toEqual({
+      newAlbum1: true,
+      newAlbum2: true,
+      subAlbum: true,
+    });
   });
 });

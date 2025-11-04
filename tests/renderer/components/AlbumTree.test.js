@@ -91,4 +91,59 @@ describe('AlbumTree.vue', () => {
     expect(wrapper.emitted().albumClick).toBeTruthy();
     expect(wrapper.emitted().albumClick[0][0]).toEqual(testAlbum);
   });
+
+  describe('selectionState', () => {
+    it('is "none" when no children are selected', () => {
+      const wrapper = mount(AlbumTree, {
+        props: {
+          album: testAlbum,
+          selection: {},
+        },
+      });
+      expect(wrapper.vm.selectionState).toBe('none');
+    });
+
+    it('is "all" when all children are selected', () => {
+      const wrapper = mount(AlbumTree, {
+        props: {
+          album: testAlbum,
+          selection: {
+            root: true,
+            child1: true,
+            child2: true,
+            grandchild: true,
+          },
+        },
+      });
+      expect(wrapper.vm.selectionState).toBe('all');
+    });
+
+    it('is "some" when some children are selected', () => {
+      const wrapper = mount(AlbumTree, {
+        props: {
+          album: testAlbum,
+          selection: {
+            root: true,
+            child1: true,
+          },
+        },
+      });
+      expect(wrapper.vm.selectionState).toBe('some');
+    });
+
+    it('sets checkbox to indeterminate when selectionState is "some"', async () => {
+      const wrapper = mount(AlbumTree, {
+        props: {
+          album: testAlbum,
+          selection: {
+            child1: true,
+          },
+        },
+      });
+
+      expect(wrapper.find('input[type="checkbox"]').element.indeterminate).toBe(
+        true,
+      );
+    });
+  });
 });

@@ -100,7 +100,25 @@ describe('AlbumsList.vue', () => {
     );
   });
 
-  it('handles the toggleSelection event from AlbumTree', async () => {
+  it('selects all children when a partially selected parent is toggled', async () => {
+    // Set initial state to partially selected
+    mockAppState.albumsSelectedForSlideshow.value = { Album1: true };
+    const wrapper = mount(AlbumsList);
+    const albumTree = wrapper.findComponent({ name: 'AlbumTree' });
+
+    albumTree.vm.$emit('toggleSelection', mockAlbums[0]);
+    await wrapper.vm.$nextTick();
+
+    expect(mockToggleAlbumSelection).toHaveBeenCalledWith('Album1', true);
+    expect(mockToggleAlbumSelection).toHaveBeenCalledWith('SubAlbum1', true);
+  });
+
+  it('deselects all children when a fully selected parent is toggled', async () => {
+    // Set initial state to fully selected
+    mockAppState.albumsSelectedForSlideshow.value = {
+      Album1: true,
+      SubAlbum1: true,
+    };
     const wrapper = mount(AlbumsList);
     const albumTree = wrapper.findComponent({ name: 'AlbumTree' });
 

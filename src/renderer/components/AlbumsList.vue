@@ -80,14 +80,20 @@ const getAlbumAndChildrenNames = (album) => {
 };
 
 /**
- * Toggles the selection of an album and all its children for the global slideshow.
+ * Toggles the selection of an album and all its children. If any child is unselected,
+ * it selects all of them. If all are already selected, it deselects all of them.
  * @param {import('../../main/media-scanner.js').Album} album - The album to toggle.
  */
 const handleToggleSelection = (album) => {
   const names = getAlbumAndChildrenNames(album);
-  const isSelected = !!albumsSelectedForSlideshow.value[album.name];
+  // Determine the new state: if any child is unselected, the new state is "selected" (true).
+  // Otherwise, if all are selected, the new state is "unselected" (false).
+  const newSelectionState = names.some(
+    (name) => !albumsSelectedForSlideshow.value[name],
+  );
+
   for (const name of names) {
-    slideshow.toggleAlbumSelection(name, !isSelected);
+    slideshow.toggleAlbumSelection(name, newSelectionState);
   }
 };
 
