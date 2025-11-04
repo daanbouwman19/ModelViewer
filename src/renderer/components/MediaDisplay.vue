@@ -42,6 +42,9 @@
         controls
         autoplay
         @error="handleMediaError"
+        @ended="handleVideoEnded"
+        @play="handleVideoPlay"
+        @pause="handleVideoPause"
       />
     </div>
 
@@ -89,9 +92,13 @@ const {
   mediaFilter,
   totalMediaInPool,
   supportedExtensions,
+  playFullVideo,
+  pauseTimerOnPlay,
+  isTimerRunning,
 } = useAppState();
 
-const { navigateMedia, reapplyFilter } = useSlideshow();
+const { navigateMedia, reapplyFilter, pauseSlideshowTimer, resumeSlideshowTimer } =
+  useSlideshow();
 
 /**
  * An array of available media filters.
@@ -224,7 +231,43 @@ const setFilter = async (filter) => {
 };
 
 // Watch for changes to the currentMediaItem and trigger a load.
-watch(currentMediaItem, loadMediaUrl, { immediate: true });
+watch(
+  currentMediaItem,
+  (newItem, oldItem) => {
+    loadMediaUrl();
+    if (
+      newItem &&
+      isImage.value &&
+      playFullVideo.value &&
+      !isTimerRunning.value
+    ) {
+      resumeSlideshowTimer();
+    }
+  },
+  { immediate: true },
+);
+
+const handleVideoEnded = () => {
+  if (playFullVideo.value) {
+    navigateMedia(1);
+  }
+};
+
+const handleVideoPlay = () => {
+  if (isTimerRunning.value) {
+    if (playFullVideo.value || pauseTimerOnPlay.value) {
+      pauseSlideshowTimer();
+    }
+  }
+};
+
+const handleVideoPause = () => {
+  if (!isTimerRunning.value) {
+    if (pauseTimerOnPlay.value && !playFullVideo.value) {
+      resumeSlideshowTimer();
+    }
+  }
+};
 </script>
 
 <style scoped>

@@ -42,6 +42,8 @@ describe('MediaDisplay.vue', () => {
       slideshowTimerId: ref(null),
       isSourcesModalVisible: ref(false),
       mediaDirectories: ref([]),
+      playFullVideo: ref(false),
+      pauseTimerOnPlay: ref(false),
       state: {}, // Also include state for compatibility
       initializeApp: vi.fn(),
       resetState: vi.fn(),
@@ -58,6 +60,8 @@ describe('MediaDisplay.vue', () => {
       reapplyFilter: vi.fn(),
       navigateMedia: vi.fn(),
       toggleSlideshowTimer: vi.fn(),
+      pauseSlideshowTimer: vi.fn(),
+      resumeSlideshowTimer: vi.fn(),
       toggleAlbumSelection: vi.fn(),
       startSlideshow: vi.fn(),
       startIndividualAlbumSlideshow: vi.fn(),
@@ -135,8 +139,6 @@ describe('MediaDisplay.vue', () => {
     const wrapper = mount(MediaDisplay);
 
     await wrapper.vm.$nextTick();
-    // Give it a moment to start loading
-    await new Promise((resolve) => setTimeout(resolve, 10));
     expect(wrapper.text()).toContain('Loading media...');
   });
 
@@ -152,7 +154,8 @@ describe('MediaDisplay.vue', () => {
     mockRefs.currentMediaItem.value = { name: 'test.jpg', path: '/test.jpg' };
     const wrapper = mount(MediaDisplay);
 
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await wrapper.vm.$nextTick();
+    await wrapper.vm.$nextTick();
     expect(wrapper.text()).toContain('File not found');
   });
 
@@ -174,7 +177,8 @@ describe('MediaDisplay.vue', () => {
     };
     const wrapper = mount(MediaDisplay);
 
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await wrapper.vm.$nextTick();
+    await wrapper.vm.$nextTick();
     const img = wrapper.find('img');
     expect(img.exists()).toBe(true);
   });
@@ -197,7 +201,8 @@ describe('MediaDisplay.vue', () => {
     };
     const wrapper = mount(MediaDisplay);
 
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await wrapper.vm.$nextTick();
+    await wrapper.vm.$nextTick();
     const video = wrapper.find('video');
     expect(video.exists()).toBe(true);
   });
@@ -247,7 +252,8 @@ describe('MediaDisplay.vue', () => {
     mockRefs.currentMediaItem.value = { name: 'test.jpg', path: '/test.jpg' };
     const wrapper = mount(MediaDisplay);
 
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await wrapper.vm.$nextTick();
+    await wrapper.vm.$nextTick();
     expect(wrapper.text()).toContain('Failed to load media file');
   });
 
@@ -355,5 +361,66 @@ describe('MediaDisplay.vue', () => {
     const wrapper = mount(MediaDisplay);
     // Should fallback to historyLength (1)
     expect(wrapper.text()).toContain('1 / 1 (viewed 1)');
+  });
+
+  describe('Smart Timer Video Events', () => {
+    let pauseSlideshowTimer;
+    let resumeSlideshowTimer;
+    let navigateMedia;
+
+    beforeEach(() => {
+      pauseSlideshowTimer = vi.fn();
+      resumeSlideshowTimer = vi.fn();
+      navigateMedia = vi.fn();
+      useSlideshow.mockReturnValue({
+        ...useSlideshow(),
+        pauseSlideshowTimer,
+        resumeSlideshowTimer,
+        navigateMedia,
+      });
+    });
+
+    it('should pause the timer when a video is played and playFullVideo is true', async () => {
+      mockRefs.playFullVideo.value = true;
+      mockRefs.isTimerRunning.value = true;
+      const wrapper = mount(MediaDisplay);
+      wrapper.vm.handleVideoPlay();
+      expect(pauseSlideshowTimer).toHaveBeenCalled();
+    });
+
+    it('should pause the timer when a video is played and pauseTimerOnPlay is true', async () => {
+      mockRefs.pauseTimerOnPlay.value = true;
+      mockRefs.isTimerRunning.value = true;
+      const wrapper = mount(MediaDisplay);
+      wrapper.vm.handleVideoPlay();
+      expect(pauseSlideshowTimer).toHaveBeenCalled();
+    });
+
+    it('should resume the timer when a video is paused and pauseTimerOnPlay is true', async () => {
+      mockRefs.pauseTimerOnPlay.value = true;
+      mockRefs.isTimerRunning.value = false;
+      const wrapper = mount(MediaDisplay);
+      wrapper.vm.handleVideoPause();
+      expect(resumeSlideshowTimer).toHaveBeenCalled();
+    });
+
+    it('should navigate to the next media when a video ends and playFullVideo is true', async () => {
+      mockRefs.playFullVideo.value = true;
+      const wrapper = mount(MediaDisplay);
+      wrapper.vm.handleVideoEnded();
+      expect(navigateMedia).toHaveBeenCalledWith(1);
+    });
+
+    it('should resume the timer when an image is displayed and playFullVideo is true', async () => {
+      mockRefs.playFullVideo.value = true;
+      mockRefs.isTimerRunning.value = false;
+      mockRefs.currentMediaItem.value = {
+        name: 'test.jpg',
+        path: '/test.jpg',
+      };
+      const wrapper = mount(MediaDisplay);
+      await wrapper.vm.$nextTick();
+      expect(resumeSlideshowTimer).toHaveBeenCalled();
+    });
   });
 });

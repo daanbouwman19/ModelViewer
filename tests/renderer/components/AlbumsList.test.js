@@ -34,6 +34,8 @@ describe('AlbumsList.vue', () => {
       timerDuration: ref(30),
       isTimerRunning: ref(false),
       isSourcesModalVisible: ref(false),
+      playFullVideo: ref(false),
+      pauseTimerOnPlay: ref(false),
       // Add other refs for compatibility
       mediaFilter: ref('All'),
       currentMediaItem: ref(null),
@@ -139,7 +141,7 @@ describe('AlbumsList.vue', () => {
 
   it('should call toggleAlbumSelection when checkbox changed', async () => {
     const wrapper = mount(AlbumsList);
-    const checkbox = wrapper.find('input[type="checkbox"]');
+    const checkbox = wrapper.find('.album-item input[type="checkbox"]');
     await checkbox.trigger('change');
     expect(toggleAlbumSelection).toHaveBeenCalledWith('Album1');
   });
@@ -172,7 +174,7 @@ describe('AlbumsList.vue', () => {
 
   it('should check checkbox for selected albums', () => {
     const wrapper = mount(AlbumsList);
-    const checkboxes = wrapper.findAll('input[type="checkbox"]');
+    const checkboxes = wrapper.findAll('.album-item input[type="checkbox"]');
     expect(checkboxes[0].element.checked).toBe(true);
     expect(checkboxes[1].element.checked).toBe(false);
   });
@@ -182,5 +184,34 @@ describe('AlbumsList.vue', () => {
     const input = wrapper.find('input[type="number"]');
     await input.setValue(60);
     expect(mockRefs.timerDuration.value).toBe(60);
+  });
+
+  describe('Smart Timer Controls', () => {
+    it('should render the smart timer controls', () => {
+      const wrapper = mount(AlbumsList);
+      expect(wrapper.text()).toContain('Play Full Video');
+      expect(wrapper.text()).toContain('Pause Timer on Play');
+    });
+
+    it('should toggle playFullVideo when the checkbox is clicked', async () => {
+      const wrapper = mount(AlbumsList);
+      const checkbox = wrapper.find('.smart-timer-controls input[type="checkbox"]');
+      await checkbox.setValue(true);
+      expect(mockRefs.playFullVideo.value).toBe(true);
+    });
+
+    it('should toggle pauseTimerOnPlay when the checkbox is clicked', async () => {
+      const wrapper = mount(AlbumsList);
+      const checkbox = wrapper.findAll('.smart-timer-controls input[type="checkbox"]')[1];
+      await checkbox.setValue(true);
+      expect(mockRefs.pauseTimerOnPlay.value).toBe(true);
+    });
+
+    it('should disable the pauseTimerOnPlay checkbox when playFullVideo is true', async () => {
+      mockRefs.playFullVideo.value = true;
+      const wrapper = mount(AlbumsList);
+      const checkbox = wrapper.findAll('.smart-timer-controls input[type="checkbox"]')[1];
+      expect(checkbox.element.disabled).toBe(true);
+    });
   });
 });

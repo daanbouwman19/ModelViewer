@@ -21,6 +21,22 @@
       </div>
       <button @click="openModal" class="action-button">Manage Sources</button>
     </div>
+    <div class="smart-timer-controls">
+      <label class="checkbox-container">
+        <input type="checkbox" v-model="playFullVideo" />
+        <span class="checkmark"></span>
+        Play Full Video
+      </label>
+      <label class="checkbox-container">
+        <input
+          type="checkbox"
+          v-model="pauseTimerOnPlay"
+          :disabled="playFullVideo"
+        />
+        <span class="checkmark"></span>
+        Pause Timer on Play
+      </label>
+    </div>
 
     <h2 class="albums-list-header">Albums</h2>
     <ul class="space-y-1 flex-grow pr-2 albums-list">
@@ -70,6 +86,8 @@ const {
   timerDuration,
   isTimerRunning,
   isSourcesModalVisible,
+  playFullVideo,
+  pauseTimerOnPlay,
 } = useAppState();
 
 const {
@@ -130,6 +148,15 @@ const openModal = () => {
   flex-wrap: wrap;
   gap: 10px;
   align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.smart-timer-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   margin-bottom: 1rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--border-color);

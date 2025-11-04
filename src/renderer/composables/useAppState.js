@@ -42,6 +42,8 @@ const state = reactive({
   slideshowTimerId: null,
   timerDuration: 5,
   isTimerRunning: false,
+  playFullVideo: false,
+  pauseTimerOnPlay: false,
   mediaFilter: 'All',
   isSourcesModalVisible: false,
   mediaDirectories: [],
