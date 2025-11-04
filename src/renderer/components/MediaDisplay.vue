@@ -110,8 +110,12 @@ const {
   isTimerRunning,
 } = useAppState();
 
-const { navigateMedia, reapplyFilter, pauseSlideshowTimer, resumeSlideshowTimer } =
-  useSlideshow();
+const {
+  navigateMedia,
+  reapplyFilter,
+  pauseSlideshowTimer,
+  resumeSlideshowTimer,
+} = useSlideshow();
 
 /**
  * An array of available media filters.
