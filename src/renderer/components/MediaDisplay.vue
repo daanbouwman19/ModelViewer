@@ -279,18 +279,14 @@ const handleVideoEnded = () => {
 };
 
 const handleVideoPlay = () => {
-  if (isTimerRunning.value) {
-    if (playFullVideo.value || pauseTimerOnPlay.value) {
-      pauseSlideshowTimer();
-    }
+  if (isTimerRunning.value && (playFullVideo.value || pauseTimerOnPlay.value)) {
+    pauseSlideshowTimer();
   }
 };
 
 const handleVideoPause = () => {
-  if (!isTimerRunning.value) {
-    if (pauseTimerOnPlay.value && !playFullVideo.value) {
-      resumeSlideshowTimer();
-    }
+  if (!isTimerRunning.value && pauseTimerOnPlay.value && !playFullVideo.value) {
+    resumeSlideshowTimer();
   }
 };
 </script>

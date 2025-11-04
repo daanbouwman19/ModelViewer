@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useSlideshow } from '@/composables/useSlideshow.js';
 import { useAppState } from '@/composables/useAppState.js';
+import { collectSelectedTextures } from '@/composables/useSlideshow.js';
 
 // Mock the entire useAppState module
 vi.mock('@/composables/useAppState.js', () => ({
@@ -79,14 +80,28 @@ describe('useSlideshow', () => {
 
   describe('filterMedia', () => {
     const mediaFiles = [
-      { path: 'video.mp4' },
-      { path: 'image.png' },
-      { path: 'document.txt' },
-      { path: 'archive.zip' },
-      { path: 'photo.JPG' },
-      { path: 'clip.WEBM' },
+      {
+        path: 'video.mp4',
+      },
+      {
+        path: 'image.png',
+      },
+      {
+        path: 'document.txt',
+      },
+      {
+        path: 'archive.zip',
+      },
+      {
+        path: 'photo.JPG',
+      },
+      {
+        path: 'clip.WEBM',
+      },
       {}, // Invalid item
-      { path: null }, // Invalid item
+      {
+        path: null,
+      }, // Invalid item
     ];
 
     it('should return all media when filter is "All"', () => {
@@ -137,7 +152,14 @@ describe('useSlideshow', () => {
     it('should be case-insensitive to file extensions', () => {
       mockState.mediaFilter = 'Images';
       const { filterMedia } = useSlideshow();
-      const filesWithCaps = [{ path: 'image.PNG' }, { path: 'photo.JPEG' }];
+      const filesWithCaps = [
+        {
+          path: 'image.PNG',
+        },
+        {
+          path: 'photo.JPEG',
+        },
+      ];
       const filtered = filterMedia(filesWithCaps);
       expect(filtered.length).toBe(2);
     });
@@ -153,13 +175,26 @@ describe('useSlideshow', () => {
   describe('selectWeightedRandom', () => {
     it('should prioritize items with lower view counts', () => {
       const items = [
-        { path: 'a', viewCount: 100 }, // Low weight
-        { path: 'b', viewCount: 0 }, // High weight
-        { path: 'c', viewCount: 1 }, // Medium-high weight
+        {
+          path: 'a',
+          viewCount: 100,
+        }, // Low weight
+        {
+          path: 'b',
+          viewCount: 0,
+        }, // High weight
+        {
+          path: 'c',
+          viewCount: 1,
+        }, // Medium-high weight
       ];
 
       const { selectWeightedRandom } = useSlideshow();
-      const selections = { a: 0, b: 0, c: 0 };
+      const selections = {
+        a: 0,
+        b: 0,
+        c: 0,
+      };
 
       for (let i = 0; i < 100; i++) {
         const selected = selectWeightedRandom(items);
@@ -171,7 +206,17 @@ describe('useSlideshow', () => {
     });
 
     it('should exclude items from the excludePaths', () => {
-      const items = [{ path: 'a' }, { path: 'b' }, { path: 'c' }];
+      const items = [
+        {
+          path: 'a',
+        },
+        {
+          path: 'b',
+        },
+        {
+          path: 'c',
+        },
+      ];
       const excludePaths = ['a', 'c'];
       const { selectWeightedRandom } = useSlideshow();
       const selected = selectWeightedRandom(items, excludePaths);
@@ -179,7 +224,14 @@ describe('useSlideshow', () => {
     });
 
     it('should return an item from the original pool if all are excluded', () => {
-      const items = [{ path: 'a' }, { path: 'b' }];
+      const items = [
+        {
+          path: 'a',
+        },
+        {
+          path: 'b',
+        },
+      ];
       const excludePaths = ['a', 'b'];
       const { selectWeightedRandom } = useSlideshow();
       const selected = selectWeightedRandom(items, excludePaths);
@@ -193,7 +245,14 @@ describe('useSlideshow', () => {
     });
 
     it('should perform uniform random selection when items have no view counts', () => {
-      const items = [{ path: 'a' }, { path: 'b' }];
+      const items = [
+        {
+          path: 'a',
+        },
+        {
+          path: 'b',
+        },
+      ];
       const { selectWeightedRandom } = useSlideshow();
       const randomSpy = vi.spyOn(global.Math, 'random').mockReturnValue(0.6);
       const selected = selectWeightedRandom(items);
@@ -206,9 +265,15 @@ describe('useSlideshow', () => {
     beforeEach(() => {
       mockState.isSlideshowActive = true;
       mockState.displayedMediaFiles = [
-        { path: 'item1' },
-        { path: 'item2' },
-        { path: 'item3' },
+        {
+          path: 'item1',
+        },
+        {
+          path: 'item2',
+        },
+        {
+          path: 'item3',
+        },
       ];
       mockState.currentMediaIndex = 1; // Start in the middle
     });
@@ -236,7 +301,11 @@ describe('useSlideshow', () => {
 
     it('should pick a new item when navigating forward at the end of history', async () => {
       mockState.currentMediaIndex = 2; // At the end
-      mockState.globalMediaPoolForSelection = [{ path: 'newItem' }];
+      mockState.globalMediaPoolForSelection = [
+        {
+          path: 'newItem',
+        },
+      ];
       const { navigateMedia } = useSlideshow();
       await navigateMedia(1);
       expect(mockState.displayedMediaFiles.length).toBe(4);
@@ -247,7 +316,14 @@ describe('useSlideshow', () => {
 
   describe('pickAndDisplayNextMediaItem', () => {
     it('should pick a new item and add it to the history', async () => {
-      mockState.globalMediaPoolForSelection = [{ path: 'a' }, { path: 'b' }];
+      mockState.globalMediaPoolForSelection = [
+        {
+          path: 'a',
+        },
+        {
+          path: 'b',
+        },
+      ];
       const { pickAndDisplayNextMediaItem } = useSlideshow();
       await pickAndDisplayNextMediaItem();
       expect(mockState.displayedMediaFiles.length).toBe(1);
@@ -272,25 +348,63 @@ describe('useSlideshow', () => {
   describe('startSlideshow', () => {
     beforeEach(() => {
       mockState.allAlbums = [
-        { name: 'albumA', textures: [{ path: 'a1.png' }, { path: 'a2.png' }] },
-        { name: 'albumB', textures: [{ path: 'b1.png' }] },
-        { name: 'albumC', textures: [] }, // Empty album
+        {
+          name: 'albumA',
+          textures: [
+            {
+              path: 'a1.png',
+            },
+            {
+              path: 'a2.png',
+            },
+          ],
+          children: [
+            {
+              name: 'albumA_child',
+              textures: [
+                {
+                  path: 'a_child1.png',
+                },
+              ],
+            },
+          ],
+        },
+        {
+          name: 'albumB',
+          textures: [
+            {
+              path: 'b1.png',
+            },
+          ],
+          children: [],
+        },
+        {
+          name: 'albumC',
+          textures: [],
+        }, // Empty album
       ];
     });
 
-    it('should build a media pool from selected albums', async () => {
-      mockState.albumsSelectedForSlideshow = { albumA: true, albumC: true };
+    it('should build a media pool from selected albums including children', async () => {
+      mockState.albumsSelectedForSlideshow = {
+        albumA: true,
+        albumC: true,
+        albumA_child: true,
+      };
       const { startSlideshow } = useSlideshow();
       await startSlideshow();
-      expect(mockState.globalMediaPoolForSelection.length).toBe(2);
+      expect(mockState.globalMediaPoolForSelection.length).toBe(3);
       expect(mockState.globalMediaPoolForSelection.map((f) => f.path)).toEqual([
         'a1.png',
         'a2.png',
+        'a_child1.png',
       ]);
     });
 
     it('should activate slideshow mode and display the first item', async () => {
-      mockState.albumsSelectedForSlideshow = { albumB: true };
+      mockState.albumsSelectedForSlideshow = {
+        albumB: true,
+      };
       const { startSlideshow } = useSlideshow();
       await startSlideshow();
       expect(mockState.isSlideshowActive).toBe(true);
@@ -300,7 +414,9 @@ describe('useSlideshow', () => {
 
     it('should handle null allAlbums gracefully', async () => {
       mockState.allAlbums = null;
-      mockState.albumsSelectedForSlideshow = { albumA: true };
+      mockState.albumsSelectedForSlideshow = {
+        albumA: true,
+      };
       const { startSlideshow } = useSlideshow();
       await startSlideshow();
       expect(mockState.isSlideshowActive).toBe(false);
@@ -320,9 +436,21 @@ describe('useSlideshow', () => {
     beforeEach(() => {
       mockState.isSlideshowActive = true;
       mockState.allAlbums = [
-        { name: 'albumA', textures: [{ path: 'a.mp4' }, { path: 'a.png' }] },
+        {
+          name: 'albumA',
+          textures: [
+            {
+              path: 'a.mp4',
+            },
+            {
+              path: 'a.png',
+            },
+          ],
+        },
       ];
-      mockState.albumsSelectedForSlideshow = { albumA: true };
+      mockState.albumsSelectedForSlideshow = {
+        albumA: true,
+      };
     });
 
     it('should rebuild the pool and pick a new item based on the new filter', async () => {
@@ -400,7 +528,14 @@ describe('useSlideshow', () => {
     it('should start a slideshow with the media from a single album', async () => {
       const album = {
         name: 'singleAlbum',
-        textures: [{ path: 's1.png' }, { path: 's2.png' }],
+        textures: [
+          {
+            path: 's1.png',
+          },
+          {
+            path: 's2.png',
+          },
+        ],
       };
       const { startIndividualAlbumSlideshow } = useSlideshow();
 
@@ -413,7 +548,10 @@ describe('useSlideshow', () => {
     });
 
     it('should do nothing if the album has no textures', async () => {
-      const album = { name: 'emptyAlbum', textures: [] };
+      const album = {
+        name: 'emptyAlbum',
+        textures: [],
+      };
       const { startIndividualAlbumSlideshow } = useSlideshow();
       const consoleWarnSpy = vi
         .spyOn(console, 'warn')
@@ -434,7 +572,10 @@ describe('useSlideshow', () => {
         .spyOn(console, 'warn')
         .mockImplementation(() => {});
 
-      await startIndividualAlbumSlideshow({ name: 'badAlbum', textures: null });
+      await startIndividualAlbumSlideshow({
+        name: 'badAlbum',
+        textures: null,
+      });
 
       expect(mockState.isSlideshowActive).toBe(false);
       expect(consoleWarnSpy).toHaveBeenCalledWith(

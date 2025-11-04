@@ -12,11 +12,31 @@ import { useAppState } from './useAppState';
  */
 
 /**
+ * Recursively collects all textures from a list of albums and their children
+ * if their names are in the provided selection map.
+ * @param {Album[]} albums - The albums to traverse.
+ * @param {{ [key: string]: boolean }} selection - A map of selected album names.
+ * @returns {MediaFile[]} A flattened list of all textures from selected albums.
+ */
+function collectSelectedTextures(albums, selection) {
+  let textures = [];
+  for (const album of albums) {
+    if (selection[album.name]) {
+      textures.push(...album.textures);
+      if (album.children) {
+        textures.push(...collectSelectedTextures(album.children, selection));
+      }
+    }
+  }
+  return textures;
+}
+
+/**
  * A Vue composable that provides functions for controlling the media slideshow.
  * @returns {{
  *   navigateMedia: (direction: number) => Promise<void>,
  *   toggleSlideshowTimer: () => void,
- *   toggleAlbumSelection: (albumName: string) => void,
+ *   toggleAlbumSelection: (albumName: string, isSelected?: boolean) => void,
  *   startSlideshow: () => Promise<void>,
  *   startIndividualAlbumSlideshow: (album: Album) => Promise<void>,
  *   pickAndDisplayNextMediaItem: () => Promise<void>,
@@ -235,10 +255,15 @@ export function useSlideshow() {
   /**
    * Toggles the selection state of an album for the global slideshow.
    * @param {string} albumName - The name of the album to toggle.
+   * @param {boolean} [isSelected] - Explicitly set the selection state.
    */
-  const toggleAlbumSelection = (albumName) => {
-    state.albumsSelectedForSlideshow[albumName] =
-      !state.albumsSelectedForSlideshow[albumName];
+  const toggleAlbumSelection = (albumName, isSelected) => {
+    if (typeof isSelected === 'boolean') {
+      state.albumsSelectedForSlideshow[albumName] = isSelected;
+    } else {
+      state.albumsSelectedForSlideshow[albumName] =
+        !state.albumsSelectedForSlideshow[albumName];
+    }
   };
 
   /**
@@ -248,9 +273,11 @@ export function useSlideshow() {
     if (!state.allAlbums) {
       return;
     }
-    state.globalMediaPoolForSelection = state.allAlbums.flatMap((album) =>
-      state.albumsSelectedForSlideshow[album.name] ? album.textures : [],
+    state.globalMediaPoolForSelection = collectSelectedTextures(
+      state.allAlbums,
+      state.albumsSelectedForSlideshow,
     );
+
     if (state.globalMediaPoolForSelection.length === 0) {
       console.warn('No albums selected for slideshow.');
       return;
@@ -286,9 +313,9 @@ export function useSlideshow() {
    */
   const reapplyFilter = async () => {
     if (state.isSlideshowActive) {
-      state.globalMediaPoolForSelection = (state.allAlbums || []).flatMap(
-        (album) =>
-          state.albumsSelectedForSlideshow[album.name] ? album.textures : [],
+      state.globalMediaPoolForSelection = collectSelectedTextures(
+        state.allAlbums,
+        state.albumsSelectedForSlideshow,
       );
       state.displayedMediaFiles = [];
       state.currentMediaIndex = -1;

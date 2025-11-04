@@ -199,8 +199,8 @@ ipcMain.handle('get-albums-with-view-counts', async () => {
 
 /**
  * Handles the 'add-media-directory' IPC call. Opens a dialog to select a directory,
- * adds it to the database, and triggers a re-scan.
- * @returns {Promise<import('./media-scanner.js').Album[] | null>} The updated list of albums, or null if the dialog was canceled.
+ * adds it to the database, and returns the path.
+ * @returns {Promise<string | null>} The path of the new directory, or null if canceled.
  */
 ipcMain.handle('add-media-directory', async () => {
   if (!mainWindow) return null;
@@ -214,8 +214,9 @@ ipcMain.handle('add-media-directory', async () => {
     return null;
   }
 
-  await addMediaDirectory(filePaths[0]);
-  return getAlbumsWithViewCountsAfterScan();
+  const newPath = filePaths[0];
+  await addMediaDirectory(newPath);
+  return newPath;
 });
 
 /**

@@ -27,10 +27,12 @@ import { reactive, toRefs } from 'vue';
  * @property {boolean} isTimerRunning - A flag indicating if the slideshow timer is running.
  * @property {'All' | 'Images' | 'Videos'} mediaFilter - The current filter for media types.
  * @property {boolean} isSourcesModalVisible - A flag to control the visibility of the sources modal.
+ * @property {boolean} isScanning - A flag to indicate when the media scanner is running.
  * @property {{path: string, isActive: boolean}[]} mediaDirectories - The list of configured media directories.
  * @property {{images: string[], videos: string[], all: string[]}} supportedExtensions - The supported file extensions.
  */
 const state = reactive({
+  isScanning: false,
   allAlbums: [],
   albumsSelectedForSlideshow: {},
   globalMediaPoolForSelection: [],
