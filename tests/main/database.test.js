@@ -323,3 +323,72 @@ describe('Database', () => {
     });
   });
 });
+
+describe('database resilience', () => {
+  let MockWorker;
+  let lastWorkerInstance;
+  let terminateSpy;
+
+  beforeEach(() => {
+    vi.resetModules(); // This is key to re-evaluate mocks
+
+    // Define the mock behavior *before* importing the module that uses it
+    terminateSpy = vi.fn().mockResolvedValue(true);
+    lastWorkerInstance = null; // reset instance tracker
+
+    MockWorker = vi.fn().mockImplementation(function (...args) {
+      const instance = new (class WorkerMock {
+        constructor() {
+          lastWorkerInstance = this;
+          this.on = vi.fn((event, cb) => {
+            if (event === 'message') this.onMessage = cb;
+            if (event === 'exit') this.onExit = cb;
+          });
+          this.postMessage = vi.fn((msg) => {
+            if (this.onMessage) {
+              this.onMessage({
+                id: msg.id,
+                result: { success: true, data: 'mock success' },
+              });
+            }
+          });
+          this.terminate = terminateSpy;
+        }
+        _crash() {
+          if (this.onExit) this.onExit(1);
+        }
+      })(...args);
+      return instance;
+    });
+
+    vi.doMock('worker_threads', () => ({
+      Worker: MockWorker,
+      default: { Worker: MockWorker },
+    }));
+  });
+
+  it('should call terminate() during closeDatabase even if worker has already crashed', async () => {
+    // Dynamically import the module under test AFTER mocks are set up
+    const { initDatabase, closeDatabase, setOperationTimeout } = await import(
+      '../../src/main/database.js'
+    );
+    setOperationTimeout(100); // Short timeout for test speed
+
+    await initDatabase();
+
+    // Verify the worker was created
+    expect(MockWorker).toHaveBeenCalledTimes(1);
+    expect(lastWorkerInstance).toBeDefined();
+    expect(lastWorkerInstance).not.toBeNull();
+
+    // Simulate the worker crashing unexpectedly
+    lastWorkerInstance._crash();
+
+    // Now, try to close the database. The 'close' message will fail,
+    // but terminate() should still be called.
+    await closeDatabase();
+
+    // The core of the test: assert that terminate() was called.
+    expect(terminateSpy).toHaveBeenCalledTimes(1);
+  });
+});

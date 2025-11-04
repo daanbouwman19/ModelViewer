@@ -141,7 +141,9 @@ async function initDatabase() {
           `[database.js] Database worker exited unexpectedly with code ${code}`,
         );
       }
-      dbWorker = null;
+      // Do not set dbWorker to null here. The closeDatabase function is responsible
+      // for cleanup and nullification. This ensures that even if the worker crashes,
+      // closeDatabase can still attempt to call terminate() on the worker handle.
       for (const [id, pending] of pendingMessages.entries()) {
         clearTimeout(pending.timeoutId);
         pending.reject(new Error('Database worker exited unexpectedly'));
@@ -243,19 +245,24 @@ async function getCachedModels() {
  */
 async function closeDatabase() {
   if (dbWorker) {
+    isTerminating = true;
     try {
+      // Attempt to gracefully shut down the worker
       await sendMessageToWorker('close');
-      if (dbWorker) {
-        isTerminating = true;
-        await dbWorker.terminate();
-      }
-      if (process.env.NODE_ENV !== 'test') {
-        console.log('[database.js] Database worker terminated.');
-      }
     } catch (error) {
-      console.error('[database.js] Error closing database worker:', error);
+      // This is expected if the worker has already crashed, so we can ignore it.
     } finally {
-      dbWorker = null;
+      try {
+        if (dbWorker) {
+          await dbWorker.terminate();
+        }
+      } catch (error) {
+        // This handles cases where terminate() itself fails.
+        console.error('[database.js] Error closing database worker:', error);
+      } finally {
+        // Ensure the worker reference is cleared in all scenarios.
+        dbWorker = null;
+      }
     }
   }
 }
