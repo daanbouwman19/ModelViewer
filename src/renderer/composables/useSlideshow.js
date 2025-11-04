@@ -212,7 +212,7 @@ export function useSlideshow() {
   };
 
   /**
-   * Toggles the selection state of a album for the global slideshow.
+   * Toggles the selection state of an album for the global slideshow.
    * @param {string} albumName - The name of the album to toggle.
    */
   const toggleAlbumSelection = (albumName) => {
