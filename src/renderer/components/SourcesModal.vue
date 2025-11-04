@@ -65,6 +65,7 @@
  * Changes that affect the media library (add, remove, re-index) will reset the current slideshow.
  */
 import { useAppState } from '../composables/useAppState';
+import { selectAllAlbums } from '../utils/albumUtils';
 
 const { isSourcesModalVisible, mediaDirectories, state } = useAppState();
 
@@ -134,15 +135,6 @@ const handleAddDirectory = async () => {
   }
 };
 
-const selectAllAlbums = (albums) => {
-  for (const album of albums) {
-    state.albumsSelectedForSlideshow[album.name] = true;
-    if (album.children) {
-      selectAllAlbums(album.children);
-    }
-  }
-};
-
 /**
  * Triggers a full re-scan and re-index of the media library.
  */
@@ -152,7 +144,7 @@ const reindex = async () => {
     const updatedAlbums = await window.electronAPI.reindexMediaLibrary();
     state.allAlbums = updatedAlbums;
     state.mediaDirectories = await window.electronAPI.getMediaDirectories();
-    selectAllAlbums(updatedAlbums);
+    selectAllAlbums(updatedAlbums, state.albumsSelectedForSlideshow, true);
     resetSlideshowState();
   } catch (error) {
     console.error('Error re-indexing library:', error);

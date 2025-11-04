@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils';
 import { ref } from 'vue';
 import AlbumsList from '../../../src/renderer/components/AlbumsList.vue';
 import { useAppState } from '../../../src/renderer/composables/useAppState';
+import { collectTexturesRecursive } from '../../../src/renderer/utils/albumUtils';
 
 // --- New Mocking Strategy ---
 const mockToggleAlbumSelection = vi.fn();
@@ -91,12 +92,12 @@ describe('AlbumsList.vue', () => {
     await wrapper.vm.$nextTick();
 
     expect(mockStartIndividualAlbumSlideshow).toHaveBeenCalled();
-    const textures = [
-      ...mockAlbums[0].textures,
-      ...mockAlbums[0].children[0].textures,
-    ];
+    const expectedTextures = collectTexturesRecursive(mockAlbums[0]);
     expect(mockStartIndividualAlbumSlideshow).toHaveBeenCalledWith(
-      expect.objectContaining({ name: 'Album1', textures: textures }),
+      expect.objectContaining({
+        name: 'Album1',
+        textures: expectedTextures,
+      }),
     );
   });
 

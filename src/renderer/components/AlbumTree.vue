@@ -16,7 +16,6 @@
             :checked="selectionState === 'all'"
             :indeterminate="selectionState === 'some'"
             @change="handleToggleSelection(album)"
-            ref="checkbox"
           />
           <span
             class="checkmark"
@@ -48,7 +47,8 @@
  * Each node in the tree can be expanded or collapsed to show/hide its children.
  * It emits events for album selection and clicks, which are handled by the parent component.
  */
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed } from 'vue';
+import { countTextures, getAlbumAndChildrenNames } from '../utils/albumUtils';
 
 const props = defineProps({
   album: {
@@ -66,7 +66,6 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['toggleSelection', 'albumClick']);
-const checkbox = ref(null);
 const isOpen = ref(false);
 
 /**
@@ -85,35 +84,10 @@ const toggle = () => {
 };
 
 /**
- * Recursively counts the total number of textures in an album and all its children.
- * @param {import('../../main/media-scanner.js').Album} album - The album to count textures for.
- * @returns {number} The total number of textures.
- */
-const countTextures = (album) => {
-  let count = album.textures.length;
-  if (album.children) {
-    for (const child of album.children) {
-      count += countTextures(child);
-    }
-  }
-  return count;
-};
-
-/**
  * The total number of textures in the current album and its descendants.
  * @type {import('vue').ComputedRef<number>}
  */
 const totalTextureCount = computed(() => countTextures(props.album));
-
-const getAlbumAndChildrenNames = (album) => {
-  let names = [album.name];
-  if (album.children) {
-    for (const child of album.children) {
-      names = names.concat(getAlbumAndChildrenNames(child));
-    }
-  }
-  return names;
-};
 
 const selectionState = computed(() => {
   const allChildren = getAlbumAndChildrenNames(props.album);
@@ -143,18 +117,6 @@ const handleToggleSelection = (album) => {
 const handleClickAlbum = (album) => {
   emit('albumClick', album);
 };
-
-onMounted(() => {
-  watch(
-    selectionState,
-    (newState) => {
-      if (checkbox.value) {
-        checkbox.value.indeterminate = newState === 'some';
-      }
-    },
-    { immediate: true },
-  );
-});
 </script>
 
 <style scoped>

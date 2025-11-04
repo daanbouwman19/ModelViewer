@@ -53,6 +53,10 @@
 import { useAppState } from '../composables/useAppState';
 import { useSlideshow } from '../composables/useSlideshow';
 import AlbumTree from './AlbumTree.vue';
+import {
+  getAlbumAndChildrenNames,
+  collectTexturesRecursive,
+} from '../utils/albumUtils';
 
 const {
   allAlbums,
@@ -63,21 +67,6 @@ const {
 } = useAppState();
 
 const slideshow = useSlideshow();
-
-/**
- * Recursively gets all album names from a given album and its children.
- * @param {import('../../main/media-scanner.js').Album} album - The album to start from.
- * @returns {string[]} A list of album names.
- */
-const getAlbumAndChildrenNames = (album) => {
-  let names = [album.name];
-  if (album.children) {
-    for (const child of album.children) {
-      names = names.concat(getAlbumAndChildrenNames(child));
-    }
-  }
-  return names;
-};
 
 /**
  * Toggles the selection of an album and all its children. If any child is unselected,
@@ -95,21 +84,6 @@ const handleToggleSelection = (album) => {
   for (const name of names) {
     slideshow.toggleAlbumSelection(name, newSelectionState);
   }
-};
-
-/**
- * Recursively collects all textures from an album and its children.
- * @param {import('../../main/media-scanner.js').Album} album - The album to start from.
- * @returns {import('../../main/media-scanner.js').MediaFile[]} A list of media files.
- */
-const collectTexturesRecursive = (album) => {
-  let textures = [...album.textures];
-  if (album.children) {
-    for (const child of album.children) {
-      textures = textures.concat(collectTexturesRecursive(child));
-    }
-  }
-  return textures;
 };
 
 /**
