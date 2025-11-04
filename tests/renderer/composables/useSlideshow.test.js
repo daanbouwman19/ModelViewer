@@ -192,7 +192,7 @@ describe('useSlideshow', () => {
       expect(selectWeightedRandom(null)).toBeNull();
     });
 
-    it('should fall back to non-weighted random selection if total weight is zero', () => {
+    it('should perform uniform random selection when items have no view counts', () => {
       const items = [{ path: 'a' }, { path: 'b' }];
       const { selectWeightedRandom } = useSlideshow();
       const randomSpy = vi.spyOn(global.Math, 'random').mockReturnValue(0.6);
