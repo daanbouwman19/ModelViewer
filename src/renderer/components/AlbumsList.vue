@@ -25,7 +25,13 @@
       </div>
       <button @click="openModal" class="action-button">Manage Sources</button>
     </div>
-
+    <div
+      v-if="isTimerRunning"
+      class="progress-bar-container"
+      data-testid="slideshow-progress-bar"
+    >
+      <div class="progress-bar" :style="{ width: `${timerProgress}%` }"></div>
+    </div>
     <h2 class="albums-list-header">Albums</h2>
     <ul class="space-y-1 flex-grow pr-2 albums-list">
       <li v-if="allAlbums.length === 0" class="text-gray-400">
@@ -64,6 +70,7 @@ const {
   timerDuration,
   isTimerRunning,
   isSourcesModalVisible,
+  timerProgress,
 } = useAppState();
 
 const slideshow = useSlideshow();
@@ -188,5 +195,21 @@ const openModal = () => {
 .albums-list {
   list-style: none;
   padding: 0;
+}
+
+.progress-bar-container {
+  height: 6px;
+  background-color: var(--tertiary-bg);
+  border-radius: 3px;
+  margin-bottom: 1rem;
+  overflow: hidden;
+  width: 100%;
+}
+
+.progress-bar {
+  height: 100%;
+  background-color: var(--accent-color);
+  border-radius: 3px;
+  transition: width 0.05s linear;
 }
 </style>
