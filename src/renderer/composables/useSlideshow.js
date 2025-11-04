@@ -7,7 +7,7 @@
 import { useAppState } from './useAppState';
 
 /**
- * @typedef {import('../../main/media-scanner.js').Model} Model
+ * @typedef {import('../../main/media-scanner.js').Album} Album
  * @typedef {import('../../main/media-scanner.js').MediaFile} MediaFile
  */
 
@@ -16,9 +16,9 @@ import { useAppState } from './useAppState';
  * @returns {{
  *   navigateMedia: (direction: number) => Promise<void>,
  *   toggleSlideshowTimer: () => void,
- *   toggleModelSelection: (modelName: string) => void,
+ *   toggleAlbumSelection: (albumName: string) => void,
  *   startSlideshow: () => Promise<void>,
- *   startIndividualModelSlideshow: (model: Model) => Promise<void>,
+ *   startIndividualAlbumSlideshow: (album: Album) => Promise<void>,
  *   pickAndDisplayNextMediaItem: () => Promise<void>,
  *   reapplyFilter: () => Promise<void>,
  *   filterMedia: (mediaFiles: MediaFile[]) => MediaFile[],
@@ -212,26 +212,26 @@ export function useSlideshow() {
   };
 
   /**
-   * Toggles the selection state of a model for the global slideshow.
-   * @param {string} modelName - The name of the model to toggle.
+   * Toggles the selection state of a album for the global slideshow.
+   * @param {string} albumName - The name of the album to toggle.
    */
-  const toggleModelSelection = (modelName) => {
-    state.modelsSelectedForSlideshow[modelName] =
-      !state.modelsSelectedForSlideshow[modelName];
+  const toggleAlbumSelection = (albumName) => {
+    state.albumsSelectedForSlideshow[albumName] =
+      !state.albumsSelectedForSlideshow[albumName];
   };
 
   /**
-   * Starts a global slideshow using all selected models.
+   * Starts a global slideshow using all selected albums.
    */
   const startSlideshow = async () => {
-    if (!state.allModels) {
+    if (!state.allAlbums) {
       return;
     }
-    state.globalMediaPoolForSelection = state.allModels.flatMap((model) =>
-      state.modelsSelectedForSlideshow[model.name] ? model.textures : [],
+    state.globalMediaPoolForSelection = state.allAlbums.flatMap((album) =>
+      state.albumsSelectedForSlideshow[album.name] ? album.textures : [],
     );
     if (state.globalMediaPoolForSelection.length === 0) {
-      console.warn('No models selected for slideshow.');
+      console.warn('No albums selected for slideshow.');
       return;
     }
     state.isSlideshowActive = true;
@@ -241,19 +241,19 @@ export function useSlideshow() {
   };
 
   /**
-   * Starts a slideshow for an individual model.
-   * @param {Model} model - The model to start the slideshow for.
+   * Starts a slideshow for an individual album.
+   * @param {Album} album - The album to start the slideshow for.
    */
-  const startIndividualModelSlideshow = async (model) => {
-    if (!model || !Array.isArray(model.textures)) {
-      console.warn('Model has no valid textures array.');
+  const startIndividualAlbumSlideshow = async (album) => {
+    if (!album || !Array.isArray(album.textures)) {
+      console.warn('Album has no valid textures array.');
       return;
     }
-    if (model.textures.length === 0) {
-      console.warn('No media files in this model.');
+    if (album.textures.length === 0) {
+      console.warn('No media files in this album.');
       return;
     }
-    state.globalMediaPoolForSelection = [...model.textures];
+    state.globalMediaPoolForSelection = [...album.textures];
     state.isSlideshowActive = true;
     state.displayedMediaFiles = [];
     state.currentMediaIndex = -1;
@@ -265,9 +265,9 @@ export function useSlideshow() {
    */
   const reapplyFilter = async () => {
     if (state.isSlideshowActive) {
-      state.globalMediaPoolForSelection = (state.allModels || []).flatMap(
-        (model) =>
-          state.modelsSelectedForSlideshow[model.name] ? model.textures : [],
+      state.globalMediaPoolForSelection = (state.allAlbums || []).flatMap(
+        (album) =>
+          state.albumsSelectedForSlideshow[album.name] ? album.textures : [],
       );
       state.displayedMediaFiles = [];
       state.currentMediaIndex = -1;
@@ -278,9 +278,9 @@ export function useSlideshow() {
   return {
     navigateMedia,
     toggleSlideshowTimer,
-    toggleModelSelection,
+    toggleAlbumSelection,
     startSlideshow,
-    startIndividualModelSlideshow,
+    startIndividualAlbumSlideshow,
     pickAndDisplayNextMediaItem,
     reapplyFilter,
     filterMedia,

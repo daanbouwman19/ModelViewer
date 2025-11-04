@@ -22,7 +22,7 @@ describe('SourcesModal.vue', () => {
 
   beforeEach(() => {
     mockState = {
-      allModels: [],
+      allAlbums: [],
       isSlideshowActive: false,
       displayedMediaFiles: [],
       currentMediaIndex: -1,
@@ -37,8 +37,8 @@ describe('SourcesModal.vue', () => {
         { path: '/path/to/dir2', isActive: false },
       ]),
       state: mockState,
-      allModels: ref([]),
-      modelsSelectedForSlideshow: ref({}),
+      allAlbums: ref([]),
+      albumsSelectedForSlideshow: ref({}),
       mediaFilter: ref('All'),
       currentMediaItem: ref(null),
       displayedMediaFiles: ref([]),

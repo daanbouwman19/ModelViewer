@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { ref } from 'vue';
-import ModelsList from '@/components/ModelsList.vue';
+import AlbumsList from '@/components/AlbumsList.vue';
 import { useAppState } from '@/composables/useAppState.js';
 import { useSlideshow } from '@/composables/useSlideshow.js';
 
@@ -9,27 +9,27 @@ import { useSlideshow } from '@/composables/useSlideshow.js';
 vi.mock('@/composables/useAppState.js');
 vi.mock('@/composables/useSlideshow.js');
 
-describe('ModelsList.vue', () => {
+describe('AlbumsList.vue', () => {
   let mockRefs;
-  let toggleModelSelection;
+  let toggleAlbumSelection;
   let startSlideshow;
-  let startIndividualModelSlideshow;
+  let startIndividualAlbumSlideshow;
   let toggleSlideshowTimer;
 
   beforeEach(() => {
-    toggleModelSelection = vi.fn();
+    toggleAlbumSelection = vi.fn();
     startSlideshow = vi.fn();
-    startIndividualModelSlideshow = vi.fn();
+    startIndividualAlbumSlideshow = vi.fn();
     toggleSlideshowTimer = vi.fn();
 
     mockRefs = {
-      allModels: ref([
-        { name: 'Model1', textures: ['tex1.jpg', 'tex2.jpg'] },
-        { name: 'Model2', textures: ['tex3.jpg'] },
+      allAlbums: ref([
+        { name: 'Album1', textures: ['tex1.jpg', 'tex2.jpg'] },
+        { name: 'Album2', textures: ['tex3.jpg'] },
       ]),
-      modelsSelectedForSlideshow: ref({
-        Model1: true,
-        Model2: false,
+      albumsSelectedForSlideshow: ref({
+        Album1: true,
+        Album2: false,
       }),
       timerDuration: ref(30),
       isTimerRunning: ref(false),
@@ -57,9 +57,9 @@ describe('ModelsList.vue', () => {
     useAppState.mockReturnValue(mockRefs);
 
     useSlideshow.mockReturnValue({
-      toggleModelSelection,
+      toggleAlbumSelection,
       startSlideshow,
-      startIndividualModelSlideshow,
+      startIndividualAlbumSlideshow,
       toggleSlideshowTimer,
       setFilter: vi.fn(),
       prevMedia: vi.fn(),
@@ -72,46 +72,46 @@ describe('ModelsList.vue', () => {
     });
   });
 
-  it('should render models list', () => {
-    const wrapper = mount(ModelsList);
-    expect(wrapper.text()).toContain('Model1');
-    expect(wrapper.text()).toContain('Model2');
+  it('should render albums list', () => {
+    const wrapper = mount(AlbumsList);
+    expect(wrapper.text()).toContain('Album1');
+    expect(wrapper.text()).toContain('Album2');
   });
 
-  it('should display model texture counts', () => {
-    const wrapper = mount(ModelsList);
+  it('should display album texture counts', () => {
+    const wrapper = mount(AlbumsList);
     expect(wrapper.text()).toContain('(2)');
     expect(wrapper.text()).toContain('(1)');
   });
 
-  it('should show loading message when no models', () => {
-    mockRefs.allModels.value = [];
-    const wrapper = mount(ModelsList);
-    expect(wrapper.text()).toContain('Loading models');
+  it('should show loading message when no albums', () => {
+    mockRefs.allAlbums.value = [];
+    const wrapper = mount(AlbumsList);
+    expect(wrapper.text()).toContain('Loading albums');
   });
 
   it('should render start slideshow button', () => {
-    const wrapper = mount(ModelsList);
+    const wrapper = mount(AlbumsList);
     const button = wrapper.find('button');
     expect(button.text()).toBe('Start Slideshow');
   });
 
   it('should call startSlideshow when button clicked', async () => {
-    const wrapper = mount(ModelsList);
+    const wrapper = mount(AlbumsList);
     const button = wrapper.findAll('button')[0];
     await button.trigger('click');
     expect(startSlideshow).toHaveBeenCalled();
   });
 
   it('should display timer controls', () => {
-    const wrapper = mount(ModelsList);
+    const wrapper = mount(AlbumsList);
     const input = wrapper.find('input[type="number"]');
     expect(input.exists()).toBe(true);
     expect(input.element.value).toBe('30');
   });
 
   it('should call toggleSlideshowTimer when timer button clicked', async () => {
-    const wrapper = mount(ModelsList);
+    const wrapper = mount(AlbumsList);
     const timerButton = wrapper
       .findAll('button')
       .find((b) => b.text() === 'Play' || b.text() === 'Pause');
@@ -121,7 +121,7 @@ describe('ModelsList.vue', () => {
 
   it('should show Pause when timer is running', () => {
     mockRefs.isTimerRunning.value = true;
-    const wrapper = mount(ModelsList);
+    const wrapper = mount(AlbumsList);
     const timerButton = wrapper
       .findAll('button')
       .find((b) => b.text() === 'Play' || b.text() === 'Pause');
@@ -130,32 +130,32 @@ describe('ModelsList.vue', () => {
 
   it('should show Play when timer is not running', () => {
     mockRefs.isTimerRunning.value = false;
-    const wrapper = mount(ModelsList);
+    const wrapper = mount(AlbumsList);
     const timerButton = wrapper
       .findAll('button')
       .find((b) => b.text() === 'Play' || b.text() === 'Pause');
     expect(timerButton.text()).toBe('Play');
   });
 
-  it('should call toggleModelSelection when checkbox changed', async () => {
-    const wrapper = mount(ModelsList);
+  it('should call toggleAlbumSelection when checkbox changed', async () => {
+    const wrapper = mount(AlbumsList);
     const checkbox = wrapper.find('input[type="checkbox"]');
     await checkbox.trigger('change');
-    expect(toggleModelSelection).toHaveBeenCalledWith('Model1');
+    expect(toggleAlbumSelection).toHaveBeenCalledWith('Album1');
   });
 
-  it('should call startIndividualModelSlideshow when model clicked', async () => {
-    const wrapper = mount(ModelsList);
-    const modelItem = wrapper.findAll('.model-item')[0];
-    await modelItem.trigger('click');
-    expect(startIndividualModelSlideshow).toHaveBeenCalledWith({
-      name: 'Model1',
+  it('should call startIndividualAlbumSlideshow when album clicked', async () => {
+    const wrapper = mount(AlbumsList);
+    const albumItem = wrapper.findAll('.album-item')[0];
+    await albumItem.trigger('click');
+    expect(startIndividualAlbumSlideshow).toHaveBeenCalledWith({
+      name: 'Album1',
       textures: ['tex1.jpg', 'tex2.jpg'],
     });
   });
 
   it('should open sources modal when manage sources button clicked', async () => {
-    const wrapper = mount(ModelsList);
+    const wrapper = mount(AlbumsList);
     const manageButton = wrapper
       .findAll('button')
       .find((b) => b.text() === 'Manage Sources');
@@ -163,22 +163,22 @@ describe('ModelsList.vue', () => {
     expect(mockRefs.isSourcesModalVisible.value).toBe(true);
   });
 
-  it('should highlight selected models', () => {
-    const wrapper = mount(ModelsList);
-    const modelItems = wrapper.findAll('.model-item');
-    expect(modelItems[0].classes()).toContain('selected-for-slideshow');
-    expect(modelItems[1].classes()).not.toContain('selected-for-slideshow');
+  it('should highlight selected albums', () => {
+    const wrapper = mount(AlbumsList);
+    const albumItems = wrapper.findAll('.album-item');
+    expect(albumItems[0].classes()).toContain('selected-for-slideshow');
+    expect(albumItems[1].classes()).not.toContain('selected-for-slideshow');
   });
 
-  it('should check checkbox for selected models', () => {
-    const wrapper = mount(ModelsList);
+  it('should check checkbox for selected albums', () => {
+    const wrapper = mount(AlbumsList);
     const checkboxes = wrapper.findAll('input[type="checkbox"]');
     expect(checkboxes[0].element.checked).toBe(true);
     expect(checkboxes[1].element.checked).toBe(false);
   });
 
   it('should update timerDuration when input changes', async () => {
-    const wrapper = mount(ModelsList);
+    const wrapper = mount(AlbumsList);
     const input = wrapper.find('input[type="number"]');
     await input.setValue(60);
     expect(mockRefs.timerDuration.value).toBe(60);

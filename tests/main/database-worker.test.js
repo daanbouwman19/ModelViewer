@@ -122,32 +122,32 @@ describe('Database Worker', () => {
     });
   });
 
-  describe('Model Caching', () => {
+  describe('Album Caching', () => {
     beforeEach(async () => {
       await sendMessage('init', { dbPath });
     });
 
-    it('should cache models', async () => {
-      const models = [{ id: 1, name: 'test' }];
-      const result = await sendMessage('cacheModels', {
+    it('should cache albums', async () => {
+      const albums = [{ id: 1, name: 'test' }];
+      const result = await sendMessage('cacheAlbums', {
         cacheKey: 'test-key',
-        models,
+        albums,
       });
       expect(result.success).toBe(true);
     });
 
-    it('should get cached models', async () => {
-      const models = [{ id: 1, name: 'test' }];
-      await sendMessage('cacheModels', { cacheKey: 'test-key', models });
-      const result = await sendMessage('getCachedModels', {
+    it('should get cached albums', async () => {
+      const albums = [{ id: 1, name: 'test' }];
+      await sendMessage('cacheAlbums', { cacheKey: 'test-key', albums });
+      const result = await sendMessage('getCachedAlbums', {
         cacheKey: 'test-key',
       });
       expect(result.success).toBe(true);
-      expect(result.data).toEqual(models);
+      expect(result.data).toEqual(albums);
     });
 
     it('should return null for non-existent cache', async () => {
-      const result = await sendMessage('getCachedModels', {
+      const result = await sendMessage('getCachedAlbums', {
         cacheKey: 'non-existent',
       });
       expect(result.success).toBe(true);
@@ -155,21 +155,21 @@ describe('Database Worker', () => {
     });
 
     it('should overwrite existing cache', async () => {
-      const models1 = [{ name: 'model1' }];
-      const models2 = [{ name: 'model2' }];
-      await sendMessage('cacheModels', {
+      const albums1 = [{ name: 'album1' }];
+      const albums2 = [{ name: 'album2' }];
+      await sendMessage('cacheAlbums', {
         cacheKey: 'same_key',
-        models: models1,
+        albums: albums1,
       });
-      await sendMessage('cacheModels', {
+      await sendMessage('cacheAlbums', {
         cacheKey: 'same_key',
-        models: models2,
+        albums: albums2,
       });
-      const result = await sendMessage('getCachedModels', {
+      const result = await sendMessage('getCachedAlbums', {
         cacheKey: 'same_key',
       });
       expect(result.success).toBe(true);
-      expect(result.data[0].name).toBe('model2');
+      expect(result.data[0].name).toBe('album2');
     });
   });
 
@@ -258,8 +258,8 @@ describe('Database Worker', () => {
       const testCases = [
         { type: 'recordMediaView', payload: { filePath: '/test.png' } },
         { type: 'getMediaViewCounts', payload: { filePaths: [] } },
-        { type: 'cacheModels', payload: { cacheKey: 'key', models: [] } },
-        { type: 'getCachedModels', payload: { cacheKey: 'key' } },
+        { type: 'cacheAlbums', payload: { cacheKey: 'key', albums: [] } },
+        { type: 'getCachedAlbums', payload: { cacheKey: 'key' } },
         { type: 'addMediaDirectory', payload: { directoryPath: '/test' } },
         { type: 'getMediaDirectories', payload: {} },
         { type: 'removeMediaDirectory', payload: { directoryPath: '/test' } },

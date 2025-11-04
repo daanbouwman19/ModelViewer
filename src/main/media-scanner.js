@@ -1,7 +1,7 @@
 /**
  * @file Provides functionality to scan the filesystem for media files.
  * This module is responsible for finding all supported media files within a
- * given directory structure and organizing them into "models".
+ * given directory structure and organizing them into "albums".
  * @requires fs
  * @requires path
  * @requires ./constants.js
@@ -17,9 +17,9 @@ import { ALL_SUPPORTED_EXTENSIONS } from './constants.js';
  */
 
 /**
- * @typedef {Object} Model
- * @property {string} name - The name of the model, typically the subdirectory name.
- * @property {MediaFile[]} textures - An array of media files belonging to this model.
+ * @typedef {Object} Album
+ * @property {string} name - The name of the album, typically the subdirectory name.
+ * @property {MediaFile[]} textures - An array of media files belonging to this album.
  */
 
 /**
@@ -54,10 +54,10 @@ function findAllMediaFiles(directoryPath, mediaFilesList = []) {
 }
 
 /**
- * Performs a full scan across multiple base directories to find models and their associated media files.
- * Models with the same name from different directories will have their media files merged.
+ * Performs a full scan across multiple base directories to find albums and their associated media files.
+ * Albums with the same name from different directories will have their media files merged.
  * @param {string[]} baseMediaDirectories - An array of root directories to scan.
- * @returns {Promise<Model[]>} A promise that resolves to an array of model objects. Returns an empty array on failure.
+ * @returns {Promise<Album[]>} A promise that resolves to an array of album objects. Returns an empty array on failure.
  */
 async function performFullMediaScan(baseMediaDirectories) {
   if (process.env.NODE_ENV !== 'test') {
@@ -66,7 +66,7 @@ async function performFullMediaScan(baseMediaDirectories) {
       baseMediaDirectories,
     );
   }
-  const modelsMap = new Map();
+  const albumsMap = new Map();
   try {
     for (const baseDir of baseMediaDirectories) {
       try {
@@ -95,33 +95,33 @@ async function performFullMediaScan(baseMediaDirectories) {
           }));
 
         if (rootFiles.length > 0) {
-          if (modelsMap.has(rootDirName)) {
-            modelsMap.get(rootDirName).textures.push(...rootFiles);
+          if (albumsMap.has(rootDirName)) {
+            albumsMap.get(rootDirName).textures.push(...rootFiles);
           } else {
-            modelsMap.set(rootDirName, {
+            albumsMap.set(rootDirName, {
               name: rootDirName,
               textures: rootFiles,
             });
           }
         }
 
-        const modelFolders = fs
+        const albumFolders = fs
           .readdirSync(baseDir, { withFileTypes: true })
           .filter((dirent) => dirent.isDirectory())
           .map((dirent) => dirent.name);
 
-        for (const folderName of modelFolders) {
-          const modelPath = path.join(baseDir, folderName);
-          const filesInModelFolder = findAllMediaFiles(modelPath);
+        for (const folderName of albumFolders) {
+          const albumPath = path.join(baseDir, folderName);
+          const filesInAlbumFolder = findAllMediaFiles(albumPath);
 
-          if (filesInModelFolder.length > 0) {
-            if (modelsMap.has(folderName)) {
-              const existingModel = modelsMap.get(folderName);
-              existingModel.textures.push(...filesInModelFolder);
+          if (filesInAlbumFolder.length > 0) {
+            if (albumsMap.has(folderName)) {
+              const existingAlbum = albumsMap.get(folderName);
+              existingAlbum.textures.push(...filesInAlbumFolder);
             } else {
-              modelsMap.set(folderName, {
+              albumsMap.set(folderName, {
                 name: folderName,
-                textures: filesInModelFolder,
+                textures: filesInAlbumFolder,
               });
             }
           }
@@ -135,16 +135,16 @@ async function performFullMediaScan(baseMediaDirectories) {
         continue; // Continue to the next directory
       }
     }
-    const models = Array.from(modelsMap.values());
+    const albums = Array.from(albumsMap.values());
     if (process.env.NODE_ENV !== 'test') {
       console.log(
-        `[media-scanner.js] Found ${models.length} models during scan.`,
+        `[media-scanner.js] Found ${albums.length} albums during scan.`,
       );
     }
-    return models;
+    return albums;
   } catch (e) {
     if (process.env.NODE_ENV !== 'test') {
-      console.error(`[media-scanner.js] Error scanning disk for models:`, e);
+      console.error(`[media-scanner.js] Error scanning disk for albums:`, e);
     }
     return [];
   }

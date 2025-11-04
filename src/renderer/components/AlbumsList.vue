@@ -22,32 +22,32 @@
       <button @click="openModal" class="action-button">Manage Sources</button>
     </div>
 
-    <h2 class="models-list-header">Models</h2>
-    <ul class="space-y-1 flex-grow pr-2 models-list">
-      <li v-if="allModels.length === 0" class="text-gray-400">
-        Loading models...
+    <h2 class="albums-list-header">Albums</h2>
+    <ul class="space-y-1 flex-grow pr-2 albums-list">
+      <li v-if="allAlbums.length === 0" class="text-gray-400">
+        Loading albums...
       </li>
       <li
-        v-for="model in allModels"
-        :key="model.name"
-        class="model-item"
+        v-for="album in allAlbums"
+        :key="album.name"
+        class="album-item"
         :class="{
-          'selected-for-slideshow': modelsSelectedForSlideshow[model.name],
+          'selected-for-slideshow': albumsSelectedForSlideshow[album.name],
         }"
-        @click="handleClickModel(model)"
+        @click="handleClickAlbum(album)"
       >
-        <div class="model-controls" @click.stop>
+        <div class="album-controls" @click.stop>
           <label class="checkbox-container">
             <input
               type="checkbox"
-              :checked="!!modelsSelectedForSlideshow[model.name]"
-              @change="handleToggleSelection(model.name)"
+              :checked="!!albumsSelectedForSlideshow[album.name]"
+              @change="handleToggleSelection(album.name)"
             />
             <span class="checkmark"></span>
           </label>
         </div>
-        <span class="model-name-clickable">
-          {{ model.name }} ({{ model.textures.length }})
+        <span class="album-name-clickable">
+          {{ album.name }} ({{ album.textures.length }})
         </span>
       </li>
     </ul>
@@ -56,50 +56,50 @@
 
 <script setup>
 /**
- * @file This component displays the list of all available media models.
+ * @file This component displays the list of all available media albums.
  * It provides controls for starting a global slideshow, managing the timer,
- * opening the sources modal, and selecting/deselecting models for the slideshow.
- * Clicking on a model's name starts a slideshow for that specific model.
+ * opening the sources modal, and selecting/deselecting albums for the slideshow.
+ * Clicking on an album's name starts a slideshow for that specific album.
  */
 import { useAppState } from '../composables/useAppState';
 import { useSlideshow } from '../composables/useSlideshow';
 
 const {
-  allModels,
-  modelsSelectedForSlideshow,
+  allAlbums,
+  albumsSelectedForSlideshow,
   timerDuration,
   isTimerRunning,
   isSourcesModalVisible,
 } = useAppState();
 
 const {
-  toggleModelSelection,
+  toggleAlbumSelection,
   startSlideshow,
-  startIndividualModelSlideshow,
+  startIndividualAlbumSlideshow,
   toggleSlideshowTimer,
 } = useSlideshow();
 
 /**
- * Toggles the selection of a model for the global slideshow.
- * @param {string} modelName - The name of the model to toggle.
+ * Toggles the selection of an album for the global slideshow.
+ * @param {string} albumName - The name of the album to toggle.
  */
-const handleToggleSelection = (modelName) => {
-  toggleModelSelection(modelName);
+const handleToggleSelection = (albumName) => {
+  toggleAlbumSelection(albumName);
 };
 
 /**
- * Starts the global slideshow with all selected models.
+ * Starts the global slideshow with all selected albums.
  */
 const handleStartSlideshow = () => {
   startSlideshow();
 };
 
 /**
- * Starts a slideshow for a single, specific model.
- * @param {import('../../main/media-scanner.js').Model} model - The model to start the slideshow for.
+ * Starts a slideshow for a single, specific album.
+ * @param {import('../../main/media-scanner.js').Album} album - The album to start the slideshow for.
  */
-const handleClickModel = (model) => {
-  startIndividualModelSlideshow(model);
+const handleClickAlbum = (album) => {
+  startIndividualAlbumSlideshow(album);
 };
 
 /**
@@ -171,7 +171,7 @@ const openModal = () => {
   box-shadow: 0 0 0 2px var(--accent-color);
 }
 
-.models-list-header {
+.albums-list-header {
   font-family: var(--body-font);
   text-transform: uppercase;
   font-size: 1.1rem;
@@ -183,12 +183,12 @@ const openModal = () => {
   margin-bottom: 0.75rem;
 }
 
-.models-list {
+.albums-list {
   list-style: none;
   padding: 0;
 }
 
-.model-item {
+.album-item {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -200,19 +200,19 @@ const openModal = () => {
   cursor: pointer;
 }
 
-.model-item:hover {
+.album-item:hover {
   background-color: rgba(255, 182, 193, 0.1);
   border-color: #ffb6c1;
   transform: translateX(3px);
   box-shadow: 0 4px 12px rgba(255, 182, 193, 0.2);
 }
 
-.model-item.selected-for-slideshow {
+.album-item.selected-for-slideshow {
   background-color: rgba(255, 192, 203, 0.15);
   border-color: #ffb6c1;
 }
 
-.model-name-clickable {
+.album-name-clickable {
   flex-grow: 1;
   font-size: 0.95rem;
   font-weight: 500;
@@ -221,11 +221,11 @@ const openModal = () => {
   pointer-events: none; /* Let the parent handle clicks */
 }
 
-.model-item:hover .model-name-clickable {
+.album-item:hover .album-name-clickable {
   color: #ff69b4;
 }
 
-.model-controls {
+.album-controls {
   display: flex;
   align-items: center;
 }

@@ -19,8 +19,8 @@ import {
   initDatabase,
   recordMediaView,
   getMediaViewCounts,
-  cacheModels,
-  getCachedModels,
+  cacheAlbums,
+  getCachedAlbums,
   closeDatabase,
   getMediaDirectories,
   addMediaDirectory,
@@ -114,58 +114,58 @@ ipcMain.handle('get-media-view-counts', async (event, filePaths) => {
 });
 
 /**
- * Scans active media directories for models, caches the result in the database,
- * and returns the list of models found.
- * @returns {Promise<import('./media-scanner.js').Model[]>} The list of models found.
+ * Scans active media directories for albums, caches the result in the database,
+ * and returns the list of albums found.
+ * @returns {Promise<import('./media-scanner.js').Album[]>} The list of albums found.
  */
-async function scanDiskForModelsAndCache() {
+async function scanDiskForAlbumsAndCache() {
   const allDirectories = await getMediaDirectories();
   const activeDirectories = allDirectories
     .filter((dir) => dir.isActive)
     .map((dir) => dir.path);
 
   if (!activeDirectories || activeDirectories.length === 0) {
-    await cacheModels([]);
+    await cacheAlbums([]);
     return [];
   }
 
-  const models = await performFullMediaScan(activeDirectories);
-  await cacheModels(models || []);
-  return models || [];
+  const albums = await performFullMediaScan(activeDirectories);
+  await cacheAlbums(albums || []);
+  return albums || [];
 }
 
 /**
- * Retrieves models by first checking the cache, and if the cache is empty,
+ * Retrieves albums by first checking the cache, and if the cache is empty,
  * performs a disk scan.
- * @returns {Promise<import('./media-scanner.js').Model[]>} The list of models.
+ * @returns {Promise<import('./media-scanner.js').Album[]>} The list of albums.
  */
-async function getModelsFromCacheOrDisk() {
-  let models = await getCachedModels();
-  if (models && models.length > 0) {
-    return models;
+async function getAlbumsFromCacheOrDisk() {
+  let albums = await getCachedAlbums();
+  if (albums && albums.length > 0) {
+    return albums;
   }
-  return scanDiskForModelsAndCache();
+  return scanDiskForAlbumsAndCache();
 }
 
 /**
- * Performs a fresh disk scan and returns the models with their view counts.
+ * Performs a fresh disk scan and returns the albums with their view counts.
  * This is a utility function to combine scanning and view count retrieval.
- * @returns {Promise<import('./media-scanner.js').Model[]>} The list of models with view counts.
+ * @returns {Promise<import('./media-scanner.js').Album[]>} The list of albums with view counts.
  */
-async function getModelsWithViewCountsAfterScan() {
-  const models = await scanDiskForModelsAndCache();
-  if (!models || models.length === 0) {
+async function getAlbumsWithViewCountsAfterScan() {
+  const albums = await scanDiskForAlbumsAndCache();
+  if (!albums || albums.length === 0) {
     return [];
   }
 
-  const allFilePaths = models.flatMap((model) =>
-    model.textures.map((texture) => texture.path),
+  const allFilePaths = albums.flatMap((album) =>
+    album.textures.map((texture) => texture.path),
   );
   const viewCountsMap = await getMediaViewCounts(allFilePaths);
 
-  return models.map((model) => ({
-    ...model,
-    textures: model.textures.map((texture) => ({
+  return albums.map((album) => ({
+    ...album,
+    textures: album.textures.map((texture) => ({
       ...texture,
       viewCount: viewCountsMap[texture.path] || 0,
     })),
@@ -173,24 +173,24 @@ async function getModelsWithViewCountsAfterScan() {
 }
 
 /**
- * Handles the 'get-models-with-view-counts' IPC call.
- * Retrieves models (from cache or disk) and augments them with view counts.
- * @returns {Promise<import('./media-scanner.js').Model[]>} A promise that resolves to the list of models with view counts.
+ * Handles the 'get-albums-with-view-counts' IPC call.
+ * Retrieves albums (from cache or disk) and augments them with view counts.
+ * @returns {Promise<import('./media-scanner.js').Album[]>} A promise that resolves to the list of albums with view counts.
  */
-ipcMain.handle('get-models-with-view-counts', async () => {
-  const models = await getModelsFromCacheOrDisk();
-  if (!models || models.length === 0) {
+ipcMain.handle('get-albums-with-view-counts', async () => {
+  const albums = await getAlbumsFromCacheOrDisk();
+  if (!albums || albums.length === 0) {
     return [];
   }
 
-  const allFilePaths = models.flatMap((model) =>
-    model.textures.map((texture) => texture.path),
+  const allFilePaths = albums.flatMap((album) =>
+    album.textures.map((texture) => texture.path),
   );
   const viewCountsMap = await getMediaViewCounts(allFilePaths);
 
-  return models.map((model) => ({
-    ...model,
-    textures: model.textures.map((texture) => ({
+  return albums.map((album) => ({
+    ...album,
+    textures: album.textures.map((texture) => ({
       ...texture,
       viewCount: viewCountsMap[texture.path] || 0,
     })),
@@ -200,7 +200,7 @@ ipcMain.handle('get-models-with-view-counts', async () => {
 /**
  * Handles the 'add-media-directory' IPC call. Opens a dialog to select a directory,
  * adds it to the database, and triggers a re-scan.
- * @returns {Promise<import('./media-scanner.js').Model[] | null>} The updated list of models, or null if the dialog was canceled.
+ * @returns {Promise<import('./media-scanner.js').Album[] | null>} The updated list of albums, or null if the dialog was canceled.
  */
 ipcMain.handle('add-media-directory', async () => {
   if (!mainWindow) return null;
@@ -215,15 +215,15 @@ ipcMain.handle('add-media-directory', async () => {
   }
 
   await addMediaDirectory(filePaths[0]);
-  return getModelsWithViewCountsAfterScan();
+  return getAlbumsWithViewCountsAfterScan();
 });
 
 /**
  * Handles the 'reindex-media-library' IPC call.
- * @returns {Promise<import('./media-scanner.js').Model[]>} The updated list of models.
+ * @returns {Promise<import('./media-scanner.js').Album[]>} The updated list of albums.
  */
 ipcMain.handle('reindex-media-library', async () => {
-  return getModelsWithViewCountsAfterScan();
+  return getAlbumsWithViewCountsAfterScan();
 });
 
 /**

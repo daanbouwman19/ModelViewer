@@ -3,7 +3,7 @@
     class="w-full md:w-2/3 bg-gray-800 shadow-lg rounded-lg p-4 flex flex-col panel"
   >
     <div class="flex justify-center items-center mb-2">
-      <h2 class="text-xl font-semibold text-center model-title">
+      <h2 class="text-xl font-semibold text-center album-title">
         {{ displayTitle }}
       </h2>
       <div class="ml-4 filter-buttons">
@@ -137,7 +137,7 @@ const isImage = computed(() => {
 const displayTitle = computed(() => {
   return isSlideshowActive.value
     ? 'Slideshow'
-    : 'Select models and start slideshow';
+    : 'Select albums and start slideshow';
 });
 
 /**

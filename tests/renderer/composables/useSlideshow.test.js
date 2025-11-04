@@ -37,8 +37,8 @@ describe('useSlideshow', () => {
       slideshowTimerId: null,
       isTimerRunning: false,
       timerDuration: 30,
-      modelsSelectedForSlideshow: {},
-      allModels: [],
+      albumsSelectedForSlideshow: {},
+      allAlbums: [],
       totalMediaInPool: 0,
     };
 
@@ -271,15 +271,15 @@ describe('useSlideshow', () => {
 
   describe('startSlideshow', () => {
     beforeEach(() => {
-      mockState.allModels = [
-        { name: 'modelA', textures: [{ path: 'a1.png' }, { path: 'a2.png' }] },
-        { name: 'modelB', textures: [{ path: 'b1.png' }] },
-        { name: 'modelC', textures: [] }, // Empty model
+      mockState.allAlbums = [
+        { name: 'albumA', textures: [{ path: 'a1.png' }, { path: 'a2.png' }] },
+        { name: 'albumB', textures: [{ path: 'b1.png' }] },
+        { name: 'albumC', textures: [] }, // Empty album
       ];
     });
 
-    it('should build a media pool from selected models', async () => {
-      mockState.modelsSelectedForSlideshow = { modelA: true, modelC: true };
+    it('should build a media pool from selected albums', async () => {
+      mockState.albumsSelectedForSlideshow = { albumA: true, albumC: true };
       const { startSlideshow } = useSlideshow();
       await startSlideshow();
       expect(mockState.globalMediaPoolForSelection.length).toBe(2);
@@ -290,7 +290,7 @@ describe('useSlideshow', () => {
     });
 
     it('should activate slideshow mode and display the first item', async () => {
-      mockState.modelsSelectedForSlideshow = { modelB: true };
+      mockState.albumsSelectedForSlideshow = { albumB: true };
       const { startSlideshow } = useSlideshow();
       await startSlideshow();
       expect(mockState.isSlideshowActive).toBe(true);
@@ -298,17 +298,17 @@ describe('useSlideshow', () => {
       expect(mockState.currentMediaItem.path).toBe('b1.png');
     });
 
-    it('should handle null allModels gracefully', async () => {
-      mockState.allModels = null;
-      mockState.modelsSelectedForSlideshow = { modelA: true };
+    it('should handle null allAlbums gracefully', async () => {
+      mockState.allAlbums = null;
+      mockState.albumsSelectedForSlideshow = { albumA: true };
       const { startSlideshow } = useSlideshow();
       await startSlideshow();
       expect(mockState.isSlideshowActive).toBe(false);
       expect(mockState.globalMediaPoolForSelection.length).toBe(0);
     });
 
-    it('should handle when no models are selected', async () => {
-      mockState.modelsSelectedForSlideshow = {}; // No models selected
+    it('should handle when no albums are selected', async () => {
+      mockState.albumsSelectedForSlideshow = {}; // No albums selected
       const { startSlideshow } = useSlideshow();
       await startSlideshow();
       expect(mockState.isSlideshowActive).toBe(false);
@@ -319,10 +319,10 @@ describe('useSlideshow', () => {
   describe('reapplyFilter', () => {
     beforeEach(() => {
       mockState.isSlideshowActive = true;
-      mockState.allModels = [
-        { name: 'modelA', textures: [{ path: 'a.mp4' }, { path: 'a.png' }] },
+      mockState.allAlbums = [
+        { name: 'albumA', textures: [{ path: 'a.mp4' }, { path: 'a.png' }] },
       ];
-      mockState.modelsSelectedForSlideshow = { modelA: true };
+      mockState.albumsSelectedForSlideshow = { albumA: true };
     });
 
     it('should rebuild the pool and pick a new item based on the new filter', async () => {
@@ -358,33 +358,33 @@ describe('useSlideshow', () => {
     });
   });
 
-  describe('toggleModelSelection', () => {
-    it('should toggle the selection state of a model', () => {
-      const { toggleModelSelection } = useSlideshow();
+  describe('toggleAlbumSelection', () => {
+    it('should toggle the selection state of a album', () => {
+      const { toggleAlbumSelection } = useSlideshow();
 
       // Initially undefined, should become true
-      toggleModelSelection('modelA');
-      expect(mockState.modelsSelectedForSlideshow['modelA']).toBe(true);
+      toggleAlbumSelection('albumA');
+      expect(mockState.albumsSelectedForSlideshow['albumA']).toBe(true);
 
       // Toggle to false
-      toggleModelSelection('modelA');
-      expect(mockState.modelsSelectedForSlideshow['modelA']).toBe(false);
+      toggleAlbumSelection('albumA');
+      expect(mockState.albumsSelectedForSlideshow['albumA']).toBe(false);
 
       // Toggle back to true
-      toggleModelSelection('modelA');
-      expect(mockState.modelsSelectedForSlideshow['modelA']).toBe(true);
+      toggleAlbumSelection('albumA');
+      expect(mockState.albumsSelectedForSlideshow['albumA']).toBe(true);
     });
   });
 
-  describe('startIndividualModelSlideshow', () => {
-    it('should start a slideshow with the media from a single model', async () => {
-      const model = {
-        name: 'singleModel',
+  describe('startIndividualAlbumSlideshow', () => {
+    it('should start a slideshow with the media from a single album', async () => {
+      const album = {
+        name: 'singleAlbum',
         textures: [{ path: 's1.png' }, { path: 's2.png' }],
       };
-      const { startIndividualModelSlideshow } = useSlideshow();
+      const { startIndividualAlbumSlideshow } = useSlideshow();
 
-      await startIndividualModelSlideshow(model);
+      await startIndividualAlbumSlideshow(album);
 
       expect(mockState.isSlideshowActive).toBe(true);
       expect(mockState.globalMediaPoolForSelection.length).toBe(2);
@@ -392,33 +392,33 @@ describe('useSlideshow', () => {
       expect(['s1.png', 's2.png']).toContain(mockState.currentMediaItem.path);
     });
 
-    it('should do nothing if the model has no textures', async () => {
-      const model = { name: 'emptyModel', textures: [] };
-      const { startIndividualModelSlideshow } = useSlideshow();
+    it('should do nothing if the album has no textures', async () => {
+      const album = { name: 'emptyAlbum', textures: [] };
+      const { startIndividualAlbumSlideshow } = useSlideshow();
       const consoleWarnSpy = vi
         .spyOn(console, 'warn')
         .mockImplementation(() => {});
 
-      await startIndividualModelSlideshow(model);
+      await startIndividualAlbumSlideshow(album);
 
       expect(mockState.isSlideshowActive).toBe(false);
       expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'No media files in this model.',
+        'No media files in this album.',
       );
       consoleWarnSpy.mockRestore();
     });
 
-    it('should handle invalid model input gracefully', async () => {
-      const { startIndividualModelSlideshow } = useSlideshow();
+    it('should handle invalid album input gracefully', async () => {
+      const { startIndividualAlbumSlideshow } = useSlideshow();
       const consoleWarnSpy = vi
         .spyOn(console, 'warn')
         .mockImplementation(() => {});
 
-      await startIndividualModelSlideshow({ name: 'badModel', textures: null });
+      await startIndividualAlbumSlideshow({ name: 'badAlbum', textures: null });
 
       expect(mockState.isSlideshowActive).toBe(false);
       expect(consoleWarnSpy).toHaveBeenCalledWith(
-        'Model has no valid textures array.',
+        'Album has no valid textures array.',
       );
       consoleWarnSpy.mockRestore();
     });

@@ -205,34 +205,34 @@ async function getMediaViewCounts(filePaths) {
 }
 
 /**
- * Caches the list of models (file index) into the database.
- * @param {import('./media-scanner.js').Model[]} models - The array of model objects to cache.
- * @returns {Promise<void>} A promise that resolves when the models are cached. Errors are logged but not re-thrown.
+ * Caches the list of albums (file index) into the database.
+ * @param {import('./media-scanner.js').Album[]} albums - The array of album objects to cache.
+ * @returns {Promise<void>} A promise that resolves when the albums are cached. Errors are logged but not re-thrown.
  */
-async function cacheModels(models) {
+async function cacheAlbums(albums) {
   try {
-    await sendMessageToWorker('cacheModels', {
+    await sendMessageToWorker('cacheAlbums', {
       cacheKey: FILE_INDEX_CACHE_KEY,
-      models,
+      albums,
     });
   } catch (error) {
-    console.error('[database.js] Error caching models:', error);
+    console.error('[database.js] Error caching albums:', error);
   }
 }
 
 /**
- * Retrieves the cached list of models from the database.
- * @returns {Promise<import('./media-scanner.js').Model[] | null>} A promise that resolves to the cached models, or null if not found or an error occurs.
+ * Retrieves the cached list of albums from the database.
+ * @returns {Promise<import('./media-scanner.js').Album[] | null>} A promise that resolves to the cached albums, or null if not found or an error occurs.
  */
-async function getCachedModels() {
+async function getCachedAlbums() {
   try {
-    return await sendMessageToWorker('getCachedModels', {
+    return await sendMessageToWorker('getCachedAlbums', {
       cacheKey: FILE_INDEX_CACHE_KEY,
     });
   } catch (error) {
     if (process.env.NODE_ENV !== 'test') {
       console.warn(
-        `[database.js] Error getting cached models: ${error.message}`,
+        `[database.js] Error getting cached albums: ${error.message}`,
       );
     }
     return null;
@@ -351,8 +351,8 @@ export {
   initDatabase,
   recordMediaView,
   getMediaViewCounts,
-  cacheModels,
-  getCachedModels,
+  cacheAlbums,
+  getCachedAlbums,
   closeDatabase,
   setOperationTimeout,
   addMediaDirectory,

@@ -224,32 +224,32 @@ async function getMediaViewCounts(filePaths) {
 }
 
 /**
- * Caches model data in the database.
+ * Caches album data in the database.
  * @param {string} cacheKey - The key to use for caching.
- * @param {any} models - The model data to cache.
+ * @param {any} albums - The album data to cache.
  * @returns {Promise<{success: boolean, error?: string}>} The result of the operation.
  */
-async function cacheModels(cacheKey, models) {
+async function cacheAlbums(cacheKey, albums) {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
     await dbRun(
       db,
       `INSERT OR REPLACE INTO app_cache (cache_key, cache_value, last_updated) VALUES (?, ?, ?)`,
-      [cacheKey, JSON.stringify(models), new Date().toISOString()],
+      [cacheKey, JSON.stringify(albums), new Date().toISOString()],
     );
     return { success: true };
   } catch (error) {
-    console.error('[worker] Error caching models:', error);
+    console.error('[worker] Error caching albums:', error);
     return { success: false, error: error.message };
   }
 }
 
 /**
- * Retrieves cached models from the database.
+ * Retrieves cached albums from the database.
  * @param {string} cacheKey - The key of the cache to retrieve.
  * @returns {Promise<{success: boolean, data?: any, error?: string}>} The result including the cached data.
  */
-async function getCachedModels(cacheKey) {
+async function getCachedAlbums(cacheKey) {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
     const row = await dbGet(
@@ -260,7 +260,7 @@ async function getCachedModels(cacheKey) {
     const data = row && row.cache_value ? JSON.parse(row.cache_value) : null;
     return { success: true, data };
   } catch (error) {
-    console.error('[worker] Error reading cached models:', error);
+    console.error('[worker] Error reading cached albums:', error);
     return { success: false, error: error.message };
   }
 }
@@ -389,11 +389,11 @@ parentPort.on('message', async (message) => {
       case 'getMediaViewCounts':
         result = await getMediaViewCounts(payload.filePaths);
         break;
-      case 'cacheModels':
-        result = await cacheModels(payload.cacheKey, payload.models);
+      case 'cacheAlbums':
+        result = await cacheAlbums(payload.cacheKey, payload.albums);
         break;
-      case 'getCachedModels':
-        result = await getCachedModels(payload.cacheKey);
+      case 'getCachedAlbums':
+        result = await getCachedAlbums(payload.cacheKey);
         break;
       case 'close':
         result = await closeDatabase();

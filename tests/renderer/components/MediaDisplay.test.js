@@ -35,8 +35,8 @@ describe('MediaDisplay.vue', () => {
         images: ['.jpg', '.png', '.gif'],
         videos: ['.mp4', '.webm'],
       }),
-      allModels: ref([]),
-      modelsSelectedForSlideshow: ref({}),
+      allAlbums: ref([]),
+      albumsSelectedForSlideshow: ref({}),
       globalMediaPoolForSelection: ref([]),
       totalMediaInPool: ref(0),
       slideshowTimerId: ref(null),
@@ -58,9 +58,9 @@ describe('MediaDisplay.vue', () => {
       reapplyFilter: vi.fn(),
       navigateMedia: vi.fn(),
       toggleSlideshowTimer: vi.fn(),
-      toggleModelSelection: vi.fn(),
+      toggleAlbumSelection: vi.fn(),
       startSlideshow: vi.fn(),
-      startIndividualModelSlideshow: vi.fn(),
+      startIndividualAlbumSlideshow: vi.fn(),
       pickAndDisplayNextMediaItem: vi.fn(),
       filterMedia: vi.fn(),
       selectWeightedRandom: vi.fn(),
@@ -93,9 +93,9 @@ describe('MediaDisplay.vue', () => {
       reapplyFilter: mockReapplyFilter,
       navigateMedia: vi.fn(),
       toggleSlideshowTimer: vi.fn(),
-      toggleModelSelection: vi.fn(),
+      toggleAlbumSelection: vi.fn(),
       startSlideshow: vi.fn(),
-      startIndividualModelSlideshow: vi.fn(),
+      startIndividualAlbumSlideshow: vi.fn(),
       pickAndDisplayNextMediaItem: vi.fn(),
       filterMedia: vi.fn(),
       selectWeightedRandom: vi.fn(),
@@ -211,7 +211,7 @@ describe('MediaDisplay.vue', () => {
   it('should show default title when slideshow is not active', () => {
     mockRefs.isSlideshowActive.value = false;
     const wrapper = mount(MediaDisplay);
-    expect(wrapper.find('h2').text()).toBe('Select models and start slideshow');
+    expect(wrapper.find('h2').text()).toBe('Select albums and start slideshow');
   });
 
   it('should display count info when slideshow is active', () => {
@@ -287,9 +287,9 @@ describe('MediaDisplay.vue', () => {
       nextMedia: vi.fn(),
       toggleTimer: vi.fn(),
       toggleSlideshowTimer: vi.fn(),
-      toggleModelSelection: vi.fn(),
+      toggleAlbumSelection: vi.fn(),
       startSlideshow: vi.fn(),
-      startIndividualModelSlideshow: vi.fn(),
+      startIndividualAlbumSlideshow: vi.fn(),
       pickAndDisplayNextMediaItem: vi.fn(),
       filterMedia: vi.fn(),
       selectWeightedRandom: vi.fn(),
@@ -316,9 +316,9 @@ describe('MediaDisplay.vue', () => {
       nextMedia: vi.fn(),
       toggleTimer: vi.fn(),
       toggleSlideshowTimer: vi.fn(),
-      toggleModelSelection: vi.fn(),
+      toggleAlbumSelection: vi.fn(),
       startSlideshow: vi.fn(),
-      startIndividualModelSlideshow: vi.fn(),
+      startIndividualAlbumSlideshow: vi.fn(),
       pickAndDisplayNextMediaItem: vi.fn(),
       filterMedia: vi.fn(),
       selectWeightedRandom: vi.fn(),
