@@ -57,6 +57,17 @@
       </p>
     </div>
 
+    <div class="smart-timer-controls-media">
+      <label>
+        <input type="checkbox" v-model="playFullVideo" />
+        Play Full Video
+      </label>
+      <label>
+        <input type="checkbox" v-model="pauseTimerOnPlay" />
+        Pause Timer on Play
+      </label>
+    </div>
+
     <div
       class="flex justify-between items-center mt-auto pt-2 border-t border-gray-700"
     >
@@ -231,6 +242,18 @@ const setFilter = async (filter) => {
 };
 
 // Watch for changes to the currentMediaItem and trigger a load.
+watch(playFullVideo, (newValue) => {
+  if (newValue) {
+    pauseTimerOnPlay.value = false;
+  }
+});
+
+watch(pauseTimerOnPlay, (newValue) => {
+  if (newValue) {
+    playFullVideo.value = false;
+  }
+});
+
 watch(
   currentMediaItem,
   (newItem, oldItem) => {
@@ -318,5 +341,19 @@ const handleVideoPause = () => {
 
 .media-info p {
   margin: 0.25rem 0;
+}
+
+.smart-timer-controls-media {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.smart-timer-controls-media label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
 }
 </style>

@@ -363,6 +363,32 @@ describe('MediaDisplay.vue', () => {
     expect(wrapper.text()).toContain('1 / 1 (viewed 1)');
   });
 
+  describe('Smart Timer Controls', () => {
+    it('should render the smart timer controls', () => {
+      const wrapper = mount(MediaDisplay);
+      expect(wrapper.text()).toContain('Play Full Video');
+      expect(wrapper.text()).toContain('Pause Timer on Play');
+    });
+
+    it('should toggle playFullVideo and untoggle pauseTimerOnPlay', async () => {
+      const wrapper = mount(MediaDisplay);
+      mockRefs.pauseTimerOnPlay.value = true;
+      await wrapper.vm.$nextTick();
+      mockRefs.playFullVideo.value = true;
+      await wrapper.vm.$nextTick();
+      expect(mockRefs.pauseTimerOnPlay.value).toBe(false);
+    });
+
+    it('should toggle pauseTimerOnPlay and untoggle playFullVideo', async () => {
+      const wrapper = mount(MediaDisplay);
+      mockRefs.playFullVideo.value = true;
+      await wrapper.vm.$nextTick();
+      mockRefs.pauseTimerOnPlay.value = true;
+      await wrapper.vm.$nextTick();
+      expect(mockRefs.playFullVideo.value).toBe(false);
+    });
+  });
+
   describe('Smart Timer Video Events', () => {
     let pauseSlideshowTimer;
     let resumeSlideshowTimer;
