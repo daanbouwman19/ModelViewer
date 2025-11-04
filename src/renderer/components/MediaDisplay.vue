@@ -45,7 +45,18 @@
         @ended="handleVideoEnded"
         @play="handleVideoPlay"
         @pause="handleVideoPause"
+        @timeupdate="handleVideoTimeUpdate"
       />
+      <div
+        v-if="currentMediaItem && !isImage"
+        class="video-progress-bar-container"
+        data-testid="video-progress-bar"
+      >
+        <div
+          class="video-progress-bar"
+          :style="{ width: `${videoProgress}%` }"
+        ></div>
+      </div>
     </div>
 
     <div class="text-center mb-3 media-info">
@@ -140,6 +151,12 @@ const isLoading = ref(false);
  * @type {import('vue').Ref<string | null>}
  */
 const error = ref(null);
+
+/**
+ * The current progress of video playback (0-100).
+ * @type {import('vue').Ref<number>}
+ */
+const videoProgress = ref(0);
 
 /**
  * A computed property that determines if the current media item is an image.
@@ -293,6 +310,19 @@ const handleVideoPause = () => {
     resumeSlideshowTimer();
   }
 };
+
+/**
+ * Updates the video progress bar based on the video's current time and duration.
+ * @param {Event} event - The timeupdate event from the <video> element.
+ */
+const handleVideoTimeUpdate = (event) => {
+  const { currentTime, duration } = event.target;
+  if (duration > 0) {
+    videoProgress.value = (currentTime / duration) * 100;
+  } else {
+    videoProgress.value = 0;
+  }
+};
 </script>
 
 <style scoped>
@@ -427,5 +457,23 @@ const handleVideoPause = () => {
   100% {
     transform: rotate(45deg) scale(1);
   }
+}
+
+.video-progress-bar-container {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 8px;
+  background-color: rgba(0, 0, 0, 0.3);
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  overflow: hidden;
+}
+
+.video-progress-bar {
+  height: 100%;
+  background-color: var(--accent-color);
+  transition: width 0.1s linear;
 }
 </style>

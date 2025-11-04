@@ -213,6 +213,9 @@ export function useSlideshow() {
     if (!mediaItem) return;
     try {
       await window.electronAPI.recordMediaView(mediaItem.path);
+      if (state.isTimerRunning) {
+        resumeSlideshowTimer();
+      }
     } catch (error) {
       console.error('Error recording media view:', error);
     }
@@ -247,9 +250,23 @@ export function useSlideshow() {
     if (state.slideshowTimerId) {
       clearInterval(state.slideshowTimerId);
     }
-    const duration = state.timerDuration * 1000;
-    state.slideshowTimerId = setInterval(() => navigateMedia(1), duration);
     state.isTimerRunning = true;
+    state.timerProgress = 100;
+
+    const duration = state.timerDuration * 1000;
+    const interval = 50; // Update every 50ms
+    let elapsed = 0;
+
+    state.slideshowTimerId = setInterval(() => {
+      elapsed += interval;
+      const progress = Math.max(0, 100 - (elapsed / duration) * 100);
+      state.timerProgress = progress;
+
+      if (progress <= 0) {
+        clearInterval(state.slideshowTimerId);
+        navigateMedia(1);
+      }
+    }, interval);
   };
 
   /**

@@ -497,6 +497,54 @@ describe('useSlideshow', () => {
     });
   });
 
+  describe('resumeSlideshowTimer with progress', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('should set timerProgress to 100 and start the timer', () => {
+      const { resumeSlideshowTimer } = useSlideshow();
+      resumeSlideshowTimer();
+      expect(mockState.isTimerRunning).toBe(true);
+      expect(mockState.timerProgress).toBe(100);
+      expect(mockState.slideshowTimerId).not.toBeNull();
+    });
+
+    it('should decrease timerProgress over time', () => {
+      mockState.timerDuration = 1; // 1 second for easier testing
+      const { resumeSlideshowTimer } = useSlideshow();
+      resumeSlideshowTimer();
+
+      // Advance time by half the duration
+      vi.advanceTimersByTime(500);
+      expect(mockState.timerProgress).toBeLessThan(51);
+      expect(mockState.timerProgress).toBeGreaterThan(49);
+
+      // Advance time to the end
+      vi.advanceTimersByTime(500);
+      expect(mockState.timerProgress).toBe(0);
+    });
+
+    it('should call navigateMedia when the timer completes', () => {
+      mockState.timerDuration = 1;
+      mockState.isSlideshowActive = true;
+      mockState.globalMediaPoolForSelection = [{ path: 'next.jpg' }];
+      const { resumeSlideshowTimer } = useSlideshow();
+
+      resumeSlideshowTimer();
+      expect(mockState.currentMediaItem).toBeNull();
+
+      // Advance time just past the end
+      vi.advanceTimersByTime(1050);
+
+      expect(mockState.currentMediaItem.path).toBe('next.jpg');
+    });
+  });
+
   describe('resumeSlideshowTimer', () => {
     it('should start the timer and set isTimerRunning to true', () => {
       const { resumeSlideshowTimer } = useSlideshow();

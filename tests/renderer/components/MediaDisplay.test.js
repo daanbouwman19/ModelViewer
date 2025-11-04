@@ -442,7 +442,7 @@ describe('MediaDisplay.vue', () => {
       mockRefs.isTimerRunning.value = false;
       mockRefs.currentMediaItem.value = {
         name: 'test.jpg',
-        path: '/test.jpg',
+        path: '/test.jpg', // Ensure path is included
       };
       const wrapper = mount(MediaDisplay);
       await wrapper.vm.$nextTick();
