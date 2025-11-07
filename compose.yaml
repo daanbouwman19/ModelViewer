@@ -3,5 +3,16 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
-    ports:
-      - '5173:5173'
+    environment:
+      - DISPLAY
+      - XDG_RUNTIME_DIR
+      - ELECTRON_DISABLE_SANDBOX=1
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XDG_RUNTIME_DIR}:${XDG_RUNTIME_DIR}
+      - ./:/app
+      - /app/node_modules
+    devices:
+      - /dev/dri:/dev/dri
+    network_mode: host
+    ipc: host

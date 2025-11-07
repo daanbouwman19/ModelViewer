@@ -1,50 +1,31 @@
-# Use a Debian-based Node image (Alpine is incompatible with Electron prebuilt binaries)
+# Use Debian-based Node image for Electron compatibility
 FROM node:lts-bullseye
 
 # Install Electron runtime dependencies
 RUN apt-get update && apt-get install -y \
-    libnspr4 \
-    libnss3 \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libcups2 \
-    libdrm2 \
-    libdbus-1-3 \
-    libxkbcommon0 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxfixes3 \
-    libxrandr2 \
-    libgbm1 \
-    libasound2 \
-    libpango-1.0-0 \
-    libcairo2 \
     libgtk-3-0 \
-    xvfb \
+    libnotify4 \
+    libnss3 \
+    libxss1 \
+    libxtst6 \
+    xdg-utils \
+    libatspi2.0-0 \
+    libdrm2 \
+    libgbm1 \
+    libxcb-dri3-0 \
+    libgl1-mesa-glx \
+    libegl1-mesa \
+    libasound2 \
     && rm -rf /var/lib/apt/lists/*
-
-ENV NODE_ENV=development
 
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci
 
 COPY . .
-
 RUN chown -R node:node /app
 
 USER node
 
-EXPOSE 5173
-
-# Use Xvfb (virtual framebuffer) to run Electron headless in container
-ENV DISPLAY=:99
-
-# Disable Chrome sandbox (required for running Electron in Docker as non-root)
-ENV ELECTRON_DISABLE_SANDBOX=1
-
-# Don't run the dev server during image build. Start it when the container runs.
-CMD Xvfb :99 -screen 0 1200x800x24 > /dev/null 2>&1 & npm run dev
+CMD ["npm", "run", "dev"]
