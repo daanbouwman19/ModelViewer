@@ -6,6 +6,7 @@ services:
       dockerfile: Dockerfile.dev
     volumes:
       - ..:/app:cached
+      - /app/node_modules
       - /tmp/.X11-unix:/tmp/.X11-unix
     environment:
       - DISPLAY=${DISPLAY}
