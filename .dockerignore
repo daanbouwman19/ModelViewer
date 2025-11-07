@@ -1,0 +1,7 @@
+.git
+.github
+node_modules
+release
+out
+.DS_Store
+npm-debug.log

@@ -1,5 +1,6 @@
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite';
 import vue from '@vitejs/plugin-vue';
+import tailwindcss from '@tailwindcss/vite';
 import { resolve } from 'path';
 
 export default defineConfig({
@@ -29,8 +30,13 @@ export default defineConfig({
     },
   },
   renderer: {
-    plugins: [vue()],
+    plugins: [vue(), tailwindcss()],
     root: '.',
+    server: {
+      host: '0.0.0.0',
+      port: 5173,
+      strictPort: true,
+    },
     build: {
       rollupOptions: {
         input: {

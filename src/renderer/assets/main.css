@@ -1,9 +1,11 @@
-/* Import Google Fonts */
+/* Import Google Fonts - must come first before Tailwind */
 @import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Quicksand:wght@500;700&display=swap');
 
-/*
- * Custom Color Palette & Typography using CSS Variables.
- * This allows for easy theming and consistent styling.
+/* Import Tailwind CSS directives */
+@import 'tailwindcss';
+
+/* Custom Color Palette & Typography using CSS Variables.
+   * This allows for easy theming and consistent styling.
  */
 :root {
   --primary-bg: #111827; /* Dark Gray for main background */
