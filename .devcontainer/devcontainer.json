@@ -2,7 +2,7 @@
   "name": "Album Viewer Dev Container",
   "dockerComposeFile": "docker-compose.yml",
   "service": "app",
-  "workspaceFolder": "/workspace",
+  "workspaceFolder": "/app",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -11,6 +11,5 @@
         "Vue.volar"
       ]
     }
-  },
-  "postCreateCommand": "npm install"
+  }
 }
