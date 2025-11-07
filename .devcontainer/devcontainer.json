@@ -2,6 +2,8 @@
   "name": "Album Viewer Dev Container",
   "dockerComposeFile": "../compose.yaml",
   "service": "devcontainer",
+  "postAttachCommand": "npm run dev",
+  "shutdownAction": "none",
   "workspaceFolder": "/app",
   "customizations": {
     "vscode": {

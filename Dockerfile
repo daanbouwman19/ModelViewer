@@ -28,4 +28,4 @@ RUN chown -R node:node /app
 
 USER node
 
-CMD ["npm", "run", "dev"]
+CMD ["sleep", "infinity"]

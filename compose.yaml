@@ -2,7 +2,7 @@ services:
   devcontainer:
     build:
       context: .
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     environment:
       - DISPLAY
       - XDG_RUNTIME_DIR
