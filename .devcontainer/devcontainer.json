@@ -11,5 +11,12 @@
         "Vue.volar"
       ]
     }
+  },
+  "remoteUser": "node",
+  "mounts": [
+    "source=${localWorkspaceFolderBasename}-node_modules,target=${containerWorkspaceFolder}/node_modules,type=volume"
+  ],
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {}
   }
 }
