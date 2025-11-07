@@ -11,20 +11,17 @@ services:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - ${XDG_RUNTIME_DIR}:${XDG_RUNTIME_DIR}
       - ./:/app:cached
-      - try-node-node_modules:/app/node_modules
+      - node_modules:/app/node_modules
     devices:
       - /dev/dri:/dev/dri
     network_mode: host
     ipc: host
     develop:
       watch:
-        - action: sync
-          path: ./src
-          target: /app/src
         - action: rebuild
           path: package.json
         - action: rebuild
           path: package-lock.json
 
 volumes:
-  try-node-node_modules:
+  node_modules:
