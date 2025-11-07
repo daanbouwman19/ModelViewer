@@ -1,5 +1,5 @@
 services:
-  vue-dev:
+  devcontainer:
     build:
       context: .
       dockerfile: Dockerfile.dev
@@ -10,10 +10,18 @@ services:
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - ${XDG_RUNTIME_DIR}:${XDG_RUNTIME_DIR}
-      - ./:/app
-      - /app/node_modules
+      - ./:/app:cached
+      - node_modules:/app/node_modules
     devices:
       - /dev/dri:/dev/dri
-    ports:
-      - '5173:5173'
+    network_mode: host
     ipc: host
+    develop:
+      watch:
+        - action: rebuild
+          path: package.json
+        - action: rebuild
+          path: package-lock.json
+
+volumes:
+  node_modules:
