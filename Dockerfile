@@ -3,11 +3,12 @@ FROM ghcr.io/electron/devcontainer:latest
 USER root
 RUN sed -i '/cd \/workspaces\/gclient\/src\/electron/d' /home/builduser/.bashrc
 
+USER builduser
+
 WORKDIR /home/builduser/app 
 
 # Copy package files and install dependencies
 COPY --chown=builduser:builduser package*.json ./
-USER builduser
 RUN --mount=type=cache,target=/root/.npm npm install
 
 # Copy application source
