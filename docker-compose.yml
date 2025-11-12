@@ -4,10 +4,6 @@ services:
       context: .
       dockerfile: Dockerfile
 
-    # Use environment variables for user/group, with defaults for manual use.
-    # This will use your host user's ID and group ID.
-    user: '${UID:-1000}:${GID:-1000}'
-
     working_dir: /home/builduser/app
     ports:
       - '5901:5901' # VNC
