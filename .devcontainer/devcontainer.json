@@ -17,5 +17,6 @@
   },
   "features": {
     "ghcr.io/devcontainers/features/git:1": {}
-  }
+  },
+  "postStartCommand": "npm install && npm run dev"
 }
