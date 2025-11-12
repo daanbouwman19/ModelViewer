@@ -18,5 +18,9 @@
   "features": {
     "ghcr.io/devcontainers/features/git:1": {}
   },
-  "postStartCommand": "npm install && npm run dev"
+  "postStartCommand": {
+    "start-vnc": "/usr/local/share/desktop-init.sh",
+    "install-deps": "npm install",
+    "start-dev-server": "npm run dev"
+  }
 }
