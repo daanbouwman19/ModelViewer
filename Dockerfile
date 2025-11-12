@@ -1,6 +1,9 @@
 FROM ghcr.io/electron/devcontainer:latest
 
-WORKDIR /home/builduser/app
+USER root
+RUN sed -i '/cd \/workspaces\/gclient\/src\/electron/d' /home/builduser/.bashrc
+
+WORKDIR /home/builduser/app 
 
 # Copy package files and install dependencies
 COPY --chown=builduser:builduser package*.json ./
