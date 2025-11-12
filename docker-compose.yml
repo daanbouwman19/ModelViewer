@@ -3,19 +3,21 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    # The base image entrypoint handles VNC/desktop initialization
-    # No command override — the image's CMD runs the dev server
     working_dir: /home/builduser/app
     user: builduser
     ports:
-      - "5901:5901"  # VNC
-      - "6080:6080"  # noVNC web interface
-      - "5173:5173"  # Vite dev server
+      - "5901:5901" # VNC
+      - "6080:6080" # noVNC web interface
+      - "5173:5173" # Vite dev server
     environment:
       - DISPLAY=:1
       - HOME=/home/builduser
 
-    # --- ADD THIS 'volumes' SECTION ---
     volumes:
-      # Mounts your local project folder into the container's workspace
       - .:/home/builduser/app
+      - node_modules_data:/home/builduser/app/node_modules
+
+    command: sh -c "sudo chmod -R 777 /home/builduser/app/node_modules && npm run dev"
+
+volumes:
+  node_modules_data:
