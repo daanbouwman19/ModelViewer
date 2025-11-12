@@ -14,3 +14,8 @@ services:
     environment:
       - DISPLAY=:1
       - HOME=/home/builduser
+
+    # --- ADD THIS 'volumes' SECTION ---
+    volumes:
+      # Mounts your local project folder into the container's workspace
+      - .:/home/builduser/app
