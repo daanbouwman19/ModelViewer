@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
     # The base image entrypoint handles VNC/desktop initialization
-    command: npm run dev
+    # No command override — the image's CMD runs the dev server
     working_dir: /home/builduser/app
     user: builduser
     ports:

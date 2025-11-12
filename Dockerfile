@@ -9,3 +9,10 @@ RUN --mount=type=cache,target=/root/.npm npm install
 
 # Copy application source
 COPY --chown=builduser:builduser . .
+
+# Set Electron environment variables to disable sandbox/GPU in container
+ENV ELECTRON_DISABLE_SANDBOX=1 \
+    ELECTRON_DISABLE_GPU=1
+
+# Run the dev server by default. The base image entrypoint will start VNC/desktop first.
+CMD ["npm", "run", "dev"]
