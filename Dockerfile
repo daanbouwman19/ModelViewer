@@ -9,7 +9,7 @@ COPY --chown=builduser:builduser package*.json ./
 # Install dependencies as builduser
 USER builduser
 RUN --mount=type=cache,target=/home/builduser/.npm \
-    npm install
+    npm ci
 
 # Switch back to builduser for runtime
 USER builduser
