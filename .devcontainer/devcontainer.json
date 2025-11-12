@@ -5,6 +5,7 @@
   "workspaceFolder": "/home/builduser/app",
   "remoteUser": "builduser",
   "shutdownAction": "none",
+  "command": "sleep infinity",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -18,10 +19,5 @@
   "features": {
     "ghcr.io/devcontainers/features/git:1": {}
   },
-  "postStartCommand": {
-    "start-vnc": "/usr/local/share/desktop-init.sh",
-    "fix-permissions": "sudo chown -R builduser:builduser /home/builduser/app",
-    "install-deps": "npm install",
-    "start-dev-server": "npm run dev"
-  }
+  "postStartCommand": "/usr/local/share/desktop-init.sh && sudo chown -R builduser:builduser /home/builduser/app && npm install && npm run dev"
 }
