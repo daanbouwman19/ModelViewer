@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  app:
+    image: node:24-trixie
+    volumes:
+      - ..:/home/node/app:cached
+      - node_modules:/home/node/app/node_modules
+    command: sleep infinity
+    working_dir: /home/node/app
+    user: node
+
+volumes:
+  node_modules:

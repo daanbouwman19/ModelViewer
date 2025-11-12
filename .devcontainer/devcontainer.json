@@ -1,11 +1,10 @@
 {
   "name": "Node.js Dev Container",
-  "image": "mcr.microsoft.com/devcontainers/typescript-node:24",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/home/node/app",
   "remoteUser": "node",
   "postCreateCommand": "npm install",
-  "mounts": [
-    "source=album_viewer_node_modules,target=${containerWorkspaceFolder}/node_modules,type=volume"
-  ],
   "customizations": {
     "vscode": {
       "extensions": [
