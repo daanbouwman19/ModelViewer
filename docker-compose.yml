@@ -1,0 +1,27 @@
+services:
+  electron-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    # Use environment variables for user/group, with defaults for manual use.
+    # This will use your host user's ID and group ID.
+    user: '${UID:-1000}:${GID:-1000}'
+
+    working_dir: /home/builduser/app
+    ports:
+      - '5901:5901' # VNC
+      - '6080:6080' # noVNC web interface
+      - '5173:5173' # Vite dev server
+    environment:
+      - DISPLAY=:1
+      # Still use builduser's HOME for configs
+      - HOME=/home/builduser
+
+    volumes:
+      # Mount your local folder. The .git folder will now be visible.
+      - .:/home/builduser/app
+
+    # We must re-run npm install on startup because the mount
+    # above hides the node_modules built into the image.
+    command: sh -c "npm install && npm run dev"

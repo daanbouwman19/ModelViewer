@@ -1,18 +1,20 @@
 {
-  "name": "Album Viewer Dev Container",
-  "dockerComposeFile": "../compose.yaml",
-  "service": "devcontainer",
-  "workspaceFolder": "/app",
+  "name": "Electron Dev Container",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "electron-app",
+  "workspaceFolder": "/home/builduser/app",
+  "remoteUser": "builduser",
+  "shutdownAction": "none",
   "customizations": {
     "vscode": {
       "extensions": [
-        "dbaeumer.vscode-eslint",
+        "Vue.volar",
+        "vitest.explorer",
         "esbenp.prettier-vscode",
-        "Vue.volar"
+        "dbaeumer.vscode-eslint"
       ]
     }
   },
-  "remoteUser": "node",
   "features": {
     "ghcr.io/devcontainers/features/git:1": {}
   }
