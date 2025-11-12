@@ -2,13 +2,19 @@ version: '3.8'
 
 services:
   app:
-    image: node:24-trixie
+    image: ghcr.io/electron/devcontainer:latest
     volumes:
-      - ..:/home/node/app:cached
-      - node_modules:/home/node/app/node_modules
+      - ..:/home/builduser/app:cached
+      - node_modules:/home/builduser/app/node_modules
     command: sleep infinity
-    working_dir: /home/node/app
-    user: node
+    working_dir: /home/builduser/app
+    user: builduser
+    entrypoint: []
+    ports:
+      - "5901:5901"
+      - "6080:6080"
+    environment:
+      - HOME=/home/builduser
 
 volumes:
   node_modules:

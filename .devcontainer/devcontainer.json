@@ -1,10 +1,10 @@
 {
-  "name": "Node.js Dev Container",
+  "name": "Electron Dev Container",
   "dockerComposeFile": "docker-compose.yml",
   "service": "app",
-  "workspaceFolder": "/home/node/app",
-  "remoteUser": "node",
-  "postCreateCommand": "npm install",
+  "workspaceFolder": "/home/builduser/app",
+  "remoteUser": "builduser",
+  "postCreateCommand": "sudo chown -R builduser:builduser /home/builduser/app/node_modules && npm install",
   "customizations": {
     "vscode": {
       "extensions": [
