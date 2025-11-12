@@ -21,4 +21,4 @@ ENV ELECTRON_DISABLE_SANDBOX=1 \
     ELECTRON_DISABLE_GPU=1
 
 # Run the dev server by default. The base image entrypoint will start VNC/desktop first.
-CMD ["sh", "-c", "npm install && npm run dev"]
+CMD ["sh", "-c", "sudo chown -R builduser:builduser . && npm install && npm run dev"]
