@@ -5,7 +5,6 @@
   "workspaceFolder": "/home/builduser/app",
   "remoteUser": "builduser",
   "postCreateCommand": "npm install",
-  "updateRemoteUserUID": true,
   "customizations": {
     "vscode": {
       "extensions": [
