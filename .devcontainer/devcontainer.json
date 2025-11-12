@@ -1,11 +1,10 @@
 {
   "name": "Electron Dev Container",
-  "dockerComposeFile": "../docker-compose.yml",
+  "dockerComposeFile": "docker-compose.yml",
   "service": "electron-app",
   "workspaceFolder": "/home/builduser/app",
   "remoteUser": "builduser",
   "shutdownAction": "none",
-  "command": "sleep infinity",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -19,5 +18,5 @@
   "features": {
     "ghcr.io/devcontainers/features/git:1": {}
   },
-  "postStartCommand": "/usr/local/share/desktop-init.sh && sudo chown -R builduser:builduser /home/builduser/app && npm install && npm run dev"
+  "postStartCommand": "sudo chown -R builduser:builduser /home/builduser/app && npm install && npm run dev"
 }
