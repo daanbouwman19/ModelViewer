@@ -47,12 +47,6 @@ const isDev = !app.isPackaged;
  */
 let mainWindow = null;
 
-// Disable GPU and sandbox in container/development environment
-if (isDev || process.env.DISPLAY) {
-  app.commandLine.appendSwitch('no-sandbox');
-  app.commandLine.appendSwitch('disable-gpu');
-}
-
 // --- IPC Handlers ---
 
 /**

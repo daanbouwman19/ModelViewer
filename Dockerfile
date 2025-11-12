@@ -9,7 +9,7 @@ WORKDIR /home/builduser/app
 
 # Copy package files and install dependencies
 COPY --chown=builduser:builduser package*.json ./
-RUN --mount=type=cache,target=/root/.npm npm install
+RUN --mount=type=cache,target=/home/builduser/.npm npm install
 
 # Copy application source
 COPY --chown=builduser:builduser . .

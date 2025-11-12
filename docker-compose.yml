@@ -4,11 +4,11 @@ services:
       context: .
       dockerfile: Dockerfile
     working_dir: /home/builduser/app
-    user: builduser
+    user: '${UID}:${GID}'
     ports:
-      - "5901:5901" # VNC
-      - "6080:6080" # noVNC web interface
-      - "5173:5173" # Vite dev server
+      - '5901:5901' # VNC
+      - '6080:6080' # noVNC web interface
+      - '5173:5173' # Vite dev server
     environment:
       - DISPLAY=:1
       - HOME=/home/builduser
@@ -16,8 +16,6 @@ services:
     volumes:
       - .:/home/builduser/app
       - node_modules_data:/home/builduser/app/node_modules
-
-    command: sh -c "sudo chmod -R 777 /home/builduser/app/node_modules && npm run dev"
 
 volumes:
   node_modules_data:
