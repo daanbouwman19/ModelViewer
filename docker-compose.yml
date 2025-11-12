@@ -3,18 +3,14 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    volumes:
-      - .:/home/builduser/app
-      - node_modules:/home/builduser/app/node_modules
-    command: bash -c "sudo chown -R builduser:builduser /home/builduser/app && /usr/local/share/desktop-init.sh bash > /tmp/vnc.log 2>&1 & while ! pgrep -f 'Xtigervnc' > /dev/null; do sleep 1; done && npm run dev"
+    # The base image entrypoint handles VNC/desktop initialization
+    command: npm run dev
     working_dir: /home/builduser/app
     user: builduser
     ports:
-      - "5901:5901"
-      - "6080:6080"
-      - "5173:5173"
+      - "5901:5901"  # VNC
+      - "6080:6080"  # noVNC web interface
+      - "5173:5173"  # Vite dev server
     environment:
+      - DISPLAY=:1
       - HOME=/home/builduser
-
-volumes:
-  node_modules:

@@ -1,20 +1,11 @@
 FROM ghcr.io/electron/devcontainer:latest
 
-# Set working directory
 WORKDIR /home/builduser/app
 
-# Copy package files
+# Copy package files and install dependencies
 COPY --chown=builduser:builduser package*.json ./
-
-# Install dependencies as builduser
 USER builduser
-RUN --mount=type=cache,target=/home/builduser/.npm \
-    npm ci
+RUN npm ci
 
-# Switch back to builduser for runtime
-USER builduser
-
-# Set environment variables for Electron
-ENV DISPLAY=:0 \
-    ELECTRON_DISABLE_SANDBOX=1 \
-    DBUS_SESSION_BUS_ADDRESS=autolaunch:
+# Copy application source
+COPY --chown=builduser:builduser . .
