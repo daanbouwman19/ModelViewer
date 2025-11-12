@@ -4,7 +4,6 @@
   "service": "electron-app",
   "workspaceFolder": "/home/builduser/app",
   "remoteUser": "builduser",
-  "postCreateCommand": "npm install",
   "shutdownAction": "none",
   "customizations": {
     "vscode": {
