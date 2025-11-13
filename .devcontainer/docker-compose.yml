@@ -1,12 +1,8 @@
 services:
   electron-app:
     build:
-      context: .
-      dockerfile: Dockerfile
-
-    # Use environment variables for user/group, with defaults for manual use.
-    # This will use your host user's ID and group ID.
-    user: '${UID:-1000}:${GID:-1000}'
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
 
     working_dir: /home/builduser/app
     ports:
@@ -19,10 +15,9 @@ services:
       - HOME=/home/builduser
 
     volumes:
-      # Mount your local folder. The .git folder will now be visible.
-      - .:/home/builduser/app
-      # Add this line to persist node_modules
+      # Mount the parent directory (project root)
+      - ..:/home/builduser/app
+      # Use a named volume to persist node_modules
       - node_modules_cache:/home/builduser/app/node_modules
-
 volumes:
   node_modules_cache:
