@@ -17,5 +17,5 @@
   "features": {
     "ghcr.io/devcontainers/features/git:1": {}
   },
-  "postStartCommand": "/usr/local/share/desktop-init.sh && npm install && npm run dev"
+  "postStartCommand": "/usr/local/share/desktop-init.sh && npm ci && npm run dev"
 }
