@@ -7,16 +7,16 @@ USER builduser
 
 WORKDIR /home/builduser/app 
 
-# Copy package files and install dependencies
 COPY --chown=builduser:builduser package*.json ./
 
 RUN --mount=type=cache,target=/home/builduser/.npm \
     sh -c "sudo chown -R builduser:builduser /home/builduser/.npm && npm ci"
-
-# Copy application source
+    
 COPY --chown=builduser:builduser . .
 
 # Set Electron environment variables to disable sandbox/GPU in container
 ENV ELECTRON_DISABLE_SANDBOX=1 \
     ELECTRON_DISABLE_GPU=1
 
+ENTRYPOINT []
+CMD ["sleep", "infinity"]

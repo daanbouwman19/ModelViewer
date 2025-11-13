@@ -4,8 +4,6 @@ services:
       context: ..
       dockerfile: .devcontainer/Dockerfile
 
-    # 'user:' line must be absent to avoid sudo errors
-
     working_dir: /home/builduser/app
     ports:
       - '5901:5901' # VNC
