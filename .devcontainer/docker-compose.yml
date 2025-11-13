@@ -2,7 +2,7 @@ services:
   electron-app:
     build:
       context: ..
-      dockerfile: ./Dockerfile
+      dockerfile: .devcontainer/Dockerfile
 
     # 'user:' line must be absent to avoid sudo errors
 
