@@ -1,13 +1,9 @@
 {
   "name": "Electron Dev Container",
-  // "build": {
-  //   "dockerfile": "Dockerfile"
-  // },
   "dockerComposeFile": "docker-compose.yml",
   "service": "electron-app",
   "workspaceFolder": "/home/builduser/app",
   "remoteUser": "builduser",
-  "shutdownAction": "none",
   "customizations": {
     "vscode": {
       "extensions": [
