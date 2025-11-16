@@ -90,8 +90,8 @@ function mergeChildren(targetChildren, sourceChildren) {
 }
 
 /**
- * Performs a full scan across multiple base directories to find albums and their associated media files,
- * creating a hierarchical structure. Albums with the same name at the root level will be merged.
+ * Performs a full scan for each base directory and returns a distinct album structure for each.
+ * It no longer merges albums with the same root name from different sources.
  * @param {string[]} baseMediaDirectories - An array of root directories to scan.
  * @returns {Promise<Album[]>} A promise that resolves to an array of root album objects. Returns an empty array on failure.
  */
@@ -102,7 +102,6 @@ async function performFullMediaScan(baseMediaDirectories) {
       baseMediaDirectories,
     );
   }
-  const rootAlbumsMap = new Map();
 
   try {
     const scanPromises = baseMediaDirectories.map(async (baseDir) => {
@@ -119,19 +118,8 @@ async function performFullMediaScan(baseMediaDirectories) {
       }
     });
 
-    const albums = (await Promise.all(scanPromises)).filter(Boolean);
+    const result = (await Promise.all(scanPromises)).filter(Boolean);
 
-    for (const album of albums) {
-      if (rootAlbumsMap.has(album.name)) {
-        const existingAlbum = rootAlbumsMap.get(album.name);
-        existingAlbum.textures.push(...album.textures);
-        mergeChildren(existingAlbum.children, album.children);
-      } else {
-        rootAlbumsMap.set(album.name, album);
-      }
-    }
-
-    const result = Array.from(rootAlbumsMap.values());
     if (process.env.NODE_ENV !== 'test') {
       console.log(
         `[media-scanner.js] Found ${result.length} root albums during scan.`,
