@@ -112,12 +112,11 @@ describe('Media Scanner', () => {
       // Expect two distinct root albums, not one merged one.
       expect(result).toHaveLength(2);
 
-      const album1 = result.find(
-        (a) => a.textures.length === 1 && a.textures[0].name === 'image1.jpg',
-      );
-      const album2 = result.find(
-        (a) => a.textures.length === 1 && a.textures[0].name === 'image2.jpg',
-      );
+      const expectedPath1 = path.join(baseDir1, 'image1.jpg');
+      const expectedPath2 = path.join(baseDir2, 'image2.jpg');
+
+      const album1 = result.find((a) => a.textures[0]?.path === expectedPath1);
+      const album2 = result.find((a) => a.textures[0]?.path === expectedPath2);
 
       expect(album1).toBeDefined();
       expect(album2).toBeDefined();
