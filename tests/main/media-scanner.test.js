@@ -93,7 +93,7 @@ describe('Media Scanner', () => {
       expect(source1Album.children[0].name).toBe('albumA');
     });
 
-    it('should merge root albums with the same name from different sources', async () => {
+    it('should NOT merge root albums with the same name from different sources', async () => {
       const baseDir1 = path.join(testDir, 'base');
       const baseDir2 = path.join(testDir, 'another_parent', 'base');
       fs.mkdirSync(baseDir1, { recursive: true });
@@ -105,20 +105,29 @@ describe('Media Scanner', () => {
       });
       createDirStructure(baseDir2, {
         'image2.jpg': '',
-        nested: { 'image_nested2.jpg': '' },
       });
 
       const result = await performFullMediaScan([baseDir1, baseDir2]);
 
-      expect(result).toHaveLength(1);
-      const mergedAlbum = result[0];
-      expect(mergedAlbum.name).toBe('base');
-      expect(mergedAlbum.textures).toHaveLength(2);
-      expect(mergedAlbum.children).toHaveLength(1);
+      // Expect two distinct root albums, not one merged one.
+      expect(result).toHaveLength(2);
 
-      const nestedAlbum = mergedAlbum.children[0];
-      expect(nestedAlbum.name).toBe('nested');
-      expect(nestedAlbum.textures).toHaveLength(2);
+      const expectedPath1 = path.join(baseDir1, 'image1.jpg');
+      const expectedPath2 = path.join(baseDir2, 'image2.jpg');
+
+      const album1 = result.find((a) => a.textures[0]?.path === expectedPath1);
+      const album2 = result.find((a) => a.textures[0]?.path === expectedPath2);
+
+      expect(album1).toBeDefined();
+      expect(album2).toBeDefined();
+
+      // Check that both are named 'base' but are separate entities
+      expect(album1.name).toBe('base');
+      expect(album2.name).toBe('base');
+
+      // Check content to ensure they are the correct, un-merged albums
+      expect(album1.children).toHaveLength(1);
+      expect(album2.children).toHaveLength(0);
     });
 
     it('should ignore empty directories at any level', async () => {
