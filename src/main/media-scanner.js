@@ -69,27 +69,6 @@ async function scanDirectoryRecursive(directoryPath) {
 }
 
 /**
- * Merges the children of two albums.
- * @param {Album[]} targetChildren - The list to merge into.
- * @param {Album[]} sourceChildren - The list to merge from.
- */
-function mergeChildren(targetChildren, sourceChildren) {
-  const targetChildrenMap = new Map(
-    targetChildren.map((child) => [child.name, child]),
-  );
-
-  for (const sourceChild of sourceChildren) {
-    if (targetChildrenMap.has(sourceChild.name)) {
-      const targetChild = targetChildrenMap.get(sourceChild.name);
-      targetChild.textures.push(...sourceChild.textures);
-      mergeChildren(targetChild.children, sourceChild.children);
-    } else {
-      targetChildren.push(sourceChild);
-    }
-  }
-}
-
-/**
  * Performs a full scan for each base directory and returns a distinct album structure for each.
  * It no longer merges albums with the same root name from different sources.
  * @param {string[]} baseMediaDirectories - An array of root directories to scan.
