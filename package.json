@@ -59,6 +59,7 @@
     "vue": "^3.5.12"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.1.17",
     "@vitejs/plugin-vue": "^6.0.1",
     "@vitest/coverage-istanbul": "^4.0.6",
     "@vue/test-utils": "^2.4.6",
@@ -67,10 +68,8 @@
     "electron-vite": "^4.0.1",
     "happy-dom": "^20.0.10",
     "prettier": "^3.3.3",
+    "tailwindcss": "^4.1.17",
     "vite": "^7.1.12",
-    "vite-plugin-istanbul": "^7.2.1",
-    "vitest": "^4.0.6",
-    "@tailwindcss/vite": "^4.1.17",
-    "tailwindcss": "^4.1.17"
+    "vitest": "^4.0.6"
   }
 }
