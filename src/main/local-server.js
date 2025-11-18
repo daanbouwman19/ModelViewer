@@ -73,7 +73,9 @@ function isPathAllowed(filePath, allowedDirectories) {
 
     if (process.platform === 'win32') {
       return (
-        normalizedPath.toLowerCase().startsWith(normalizedDir.toLowerCase() + path.sep) ||
+        normalizedPath
+          .toLowerCase()
+          .startsWith(normalizedDir.toLowerCase() + path.sep) ||
         normalizedPath.toLowerCase() === normalizedDir.toLowerCase()
       );
     }
