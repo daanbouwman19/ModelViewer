@@ -70,6 +70,14 @@ function isPathAllowed(filePath, allowedDirectories) {
   const normalizedPath = path.resolve(filePath);
   return allowedDirectories.some((dir) => {
     const normalizedDir = path.resolve(dir.path);
+
+    if (process.platform === 'win32') {
+      return (
+        normalizedPath.toLowerCase().startsWith(normalizedDir.toLowerCase() + path.sep) ||
+        normalizedPath.toLowerCase() === normalizedDir.toLowerCase()
+      );
+    }
+
     return (
       normalizedPath.startsWith(normalizedDir + path.sep) ||
       normalizedPath === normalizedDir
