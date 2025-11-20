@@ -144,23 +144,12 @@ const visibleMediaFiles = computed(() => {
  * @returns {Function} Throttled function
  */
 const throttle = (func, delay) => {
-  let timeoutId;
-  let lastRan;
+  let inThrottle;
   return function (...args) {
-    if (!lastRan) {
+    if (!inThrottle) {
       func.apply(this, args);
-      lastRan = Date.now();
-    } else {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(
-        () => {
-          if (Date.now() - lastRan >= delay) {
-            func.apply(this, args);
-            lastRan = Date.now();
-          }
-        },
-        delay - (Date.now() - lastRan),
-      );
+      inThrottle = true;
+      setTimeout(() => (inThrottle = false), delay);
     }
   };
 };
@@ -278,8 +267,11 @@ onMounted(async () => {
 const getMediaUrl = (item) => {
   if (serverPort.value > 0) {
     let pathForUrl = item.path.replace(/\\/g, '/');
-    // Encode the path to handle spaces and special characters
-    pathForUrl = encodeURI(pathForUrl).replace(/#/g, '%23');
+    // Encode each path segment to handle all special characters
+    pathForUrl = pathForUrl
+      .split('/')
+      .map((segment) => encodeURIComponent(segment))
+      .join('/');
 
     let url = `http://localhost:${serverPort.value}/${pathForUrl}`;
 
@@ -325,34 +317,6 @@ const closeGrid = () => {
 </script>
 
 <style scoped>
-/* Custom scrollbar that auto-hides when not in use */
-.custom-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
-}
-
-.custom-scrollbar::-webkit-scrollbar {
-  width: 8px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-/* Hide scrollbar when not hovering over the container */
-.custom-scrollbar:not(:hover)::-webkit-scrollbar-thumb {
-  background: transparent;
-}
-
 /* Performance-critical optimizations for grid items */
 .grid-item {
   /* Use content-visibility for better rendering performance */

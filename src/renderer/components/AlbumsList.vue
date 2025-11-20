@@ -33,7 +33,7 @@
       <div class="progress-bar" :style="{ width: `${timerProgress}%` }"></div>
     </div>
     <h2 class="albums-list-header">Albums</h2>
-    <ul class="space-y-1 flex-grow pr-2 albums-list">
+    <ul class="space-y-1 grow pr-2 albums-list">
       <li v-if="allAlbums.length === 0" class="text-gray-400">
         Loading albums...
       </li>
@@ -211,33 +211,5 @@ const openModal = () => {
   background-color: var(--accent-color);
   border-radius: 3px;
   transition: width 0.05s linear;
-}
-
-/* Custom scrollbar that auto-hides when not in use */
-.custom-scrollbar {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
-}
-
-.custom-scrollbar::-webkit-scrollbar {
-  width: 8px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-/* Hide scrollbar when not hovering over the container */
-.custom-scrollbar:not(:hover)::-webkit-scrollbar-thumb {
-  background: transparent;
 }
 </style>
