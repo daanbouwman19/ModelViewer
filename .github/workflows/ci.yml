@@ -71,3 +71,13 @@ jobs:
           elif [ "$RUNNER_OS" == "Windows" ]; then
             ls -lh release/*.exe 2>/dev/null
           fi
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ runner.os }}-build
+          path: |
+            release/*.AppImage
+            release/*.deb
+            release/*.exe
+          if-no-files-found: warn
