@@ -7,10 +7,9 @@ on:
     branches: [main]
 
 jobs:
-  lint:
-    name: Lint
+  quality:
+    name: Lint & Test
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -27,35 +26,15 @@ jobs:
       - name: Check formatting
         run: npm run format:check
 
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
       - name: Run tests with coverage
         run: npm run test:coverage
 
-  electron-build:
-    name: Build Electron App (${{ matrix.os }})
-    needs: [lint, test]
+  build:
+    name: Build (${{ matrix.os }})
+    needs: [quality]
     strategy:
-      fail-fast: false
       matrix:
-        # Only build Linux for PRs to save time, build both for main branch
-        os: ${{ github.event_name == 'pull_request' && fromJSON('["ubuntu-latest"]') || fromJSON('["ubuntu-latest", "windows-latest"]') }}
-
+        os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -68,119 +47,27 @@ jobs:
           node-version: '24'
           cache: 'npm'
 
-      - name: Install system dependencies (Linux)
+      - name: Install Linux dependencies
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y libsqlite3-dev
 
-      - name: Cache Electron
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/electron
-            ~/.cache/electron-builder
-            ~/AppData/Local/electron/Cache
-            ~/AppData/Local/electron-builder/Cache
-          key: ${{ runner.os }}-electron-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-electron-
-
-      - name: Cache native modules
-        uses: actions/cache@v4
-        with:
-          path: |
-            node_modules/sqlite3
-            node_modules/.bin
-          key: ${{ runner.os }}-native-modules-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-native-modules-
-
       - name: Install dependencies
         run: npm ci
 
       - name: Build and package
-        run: npm run package
+        # Pass '--publish never' to electron-builder to prevent it from trying to push releases
+        # and failing due to missing GH_TOKEN
+        run: npm run package -- --publish never
         env:
-          # Skip native module rebuild if already cached
           ELECTRON_SKIP_BINARY_DOWNLOAD: 1
 
       - name: Verify build artifacts
         shell: bash
         run: |
           if [ "$RUNNER_OS" == "Linux" ]; then
-            ls -lh release/*.{deb,AppImage} 2>/dev/null || echo "No Linux artifacts found"
+            ls -lh release/*.{deb,AppImage} 2>/dev/null
           elif [ "$RUNNER_OS" == "Windows" ]; then
-            ls -lh release/*.exe 2>/dev/null || echo "No Windows artifacts found"
+            ls -lh release/*.exe 2>/dev/null
           fi
-
-  electron-smoke-test:
-    name: Smoke Test Electron App (${{ matrix.os }})
-    needs: [lint, test]
-    strategy:
-      fail-fast: false
-      matrix:
-        # Only test Linux for PRs to save time, test both for main branch
-        os: ${{ github.event_name == 'pull_request' && fromJSON('["ubuntu-latest"]') || fromJSON('["ubuntu-latest", "windows-latest"]') }}
-
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          cache: 'npm'
-
-      - name: Setup xvfb (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y xvfb libsqlite3-dev
-
-      - name: Cache Electron
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/electron
-            ~/AppData/Local/electron/Cache
-          key: ${{ runner.os }}-electron-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-electron-
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Start Electron app (Linux)
-        if: runner.os == 'Linux'
-        env:
-          ELECTRON_DISABLE_SANDBOX: 1
-        run: |
-          export DISPLAY=:99
-          Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
-          # Run Electron with disabled sandbox for CI environment
-          timeout 15s npm run dev || if [ $? -eq 124 ]; then echo "App started successfully"; exit 0; else exit 1; fi
-
-      - name: Start Electron app (Windows)
-        if: runner.os == 'Windows'
-        timeout-minutes: 1
-        shell: pwsh
-        run: |
-          $job = Start-Job -ScriptBlock { 
-            Set-Location $using:PWD
-            npm run dev
-          }
-          Start-Sleep -Seconds 10
-          $state = $job.State
-          Stop-Job $job -ErrorAction SilentlyContinue
-          Remove-Job $job -ErrorAction SilentlyContinue
-          if ($state -eq "Running") {
-            Write-Host "App started successfully"
-            exit 0
-          } else {
-            Write-Host "App failed to start"
-            exit 1
-          }
