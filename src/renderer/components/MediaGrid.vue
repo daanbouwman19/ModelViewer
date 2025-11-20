@@ -1,58 +1,70 @@
 <template>
-  <div class="media-grid-container p-4 h-full overflow-y-auto">
-    <div
-      v-if="gridMediaFiles.length === 0"
-      class="flex items-center justify-center h-full text-gray-500"
-    >
-      No media files found in this album.
-    </div>
-    <div
-      v-else
-      class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"
-    >
-      <div
-        v-for="(item, index) in gridMediaFiles"
-        :key="item.path + index"
-        class="relative group cursor-pointer aspect-square bg-gray-800 rounded-lg overflow-hidden border border-gray-700 hover:border-accent transition-all duration-200"
-        @click="handleItemClick(item)"
-        @mouseenter="handleMouseEnter(index)"
-        @mouseleave="handleMouseLeave(index)"
+  <div class="flex flex-col h-full w-full bg-gray-900 rounded-lg overflow-hidden shadow-lg border border-gray-700">
+    <div class="flex justify-between items-center p-3 bg-gray-800 border-b border-gray-700 shrink-0">
+      <h2 class="text-lg font-semibold text-gray-200">Grid View</h2>
+      <button
+        @click="closeGrid"
+        class="text-sm bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
+        title="Close Grid View"
       >
-        <!-- Image Thumbnail -->
-        <img
-          v-if="isImage(item)"
-          :src="getMediaUrl(item)"
-          loading="lazy"
-          class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-          alt="Media Item"
-        />
-
-        <!-- Video Preview -->
-        <div v-else-if="isVideo(item)" class="w-full h-full">
-          <video
-            :ref="(el) => setVideoRef(el, index)"
-            :src="getMediaUrl(item)"
-            class="w-full h-full object-cover"
-            muted
-            loop
-            playsinline
-            preload="metadata"
-            :poster="getPosterUrl(item)"
-          ></video>
-          <div
-            class="absolute top-2 right-2 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded flex items-center pointer-events-none"
-          >
-            VIDEO
-          </div>
-        </div>
-
-        <!-- Overlay Info (Optional) -->
+        Close
+      </button>
+    </div>
+    <div class="media-grid-container p-4 flex-grow overflow-y-auto custom-scrollbar">
+      <div
+        v-if="gridMediaFiles.length === 0"
+        class="flex items-center justify-center h-full text-gray-500"
+      >
+        No media files found in this album.
+      </div>
+      <div
+        v-else
+        class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"
+      >
         <div
-          class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+          v-for="(item, index) in gridMediaFiles"
+          :key="item.path + index"
+          class="relative group cursor-pointer aspect-square bg-gray-800 rounded-lg overflow-hidden border border-gray-700 hover:border-accent transition-all duration-200"
+          @click="handleItemClick(item)"
+          @mouseenter="handleMouseEnter(index)"
+          @mouseleave="handleMouseLeave(index)"
         >
-          <p class="text-white text-xs truncate">
-            {{ getFileName(item.path) }}
-          </p>
+          <!-- Image Thumbnail -->
+          <img
+            v-if="isImage(item)"
+            :src="getMediaUrl(item)"
+            loading="lazy"
+            class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            alt="Media Item"
+          />
+
+          <!-- Video Preview -->
+          <div v-else-if="isVideo(item)" class="w-full h-full">
+            <video
+              :ref="(el) => setVideoRef(el, index)"
+              :src="getMediaUrl(item)"
+              class="w-full h-full object-cover"
+              muted
+              loop
+              playsinline
+              preload="metadata"
+              :poster="getPosterUrl(item)"
+            ></video>
+            <div
+              class="absolute top-2 right-2 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded flex items-center pointer-events-none"
+            >
+              VIDEO
+            </div>
+          </div>
+
+          <!-- Overlay Info (Optional) -->
+          <div
+            class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+          >
+            <p class="text-white text-xs truncate">
+              {{ getFileName(item.path) }}
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -179,21 +191,25 @@ const handleItemClick = async (item) => {
   state.isSlideshowActive = true;
   state.isTimerRunning = false;
 };
+
+const closeGrid = () => {
+  state.viewMode = 'player';
+};
 </script>
 
 <style scoped>
 /* Custom scrollbar for the grid container if needed */
-.media-grid-container::-webkit-scrollbar {
+.custom-scrollbar::-webkit-scrollbar {
   width: 8px;
 }
-.media-grid-container::-webkit-scrollbar-track {
+.custom-scrollbar::-webkit-scrollbar-track {
   background: rgba(0, 0, 0, 0.1);
 }
-.media-grid-container::-webkit-scrollbar-thumb {
+.custom-scrollbar::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.2);
   border-radius: 4px;
 }
-.media-grid-container::-webkit-scrollbar-thumb:hover {
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
 }
 </style>

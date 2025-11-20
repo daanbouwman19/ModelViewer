@@ -1,6 +1,6 @@
 <template>
   <div
-    class="w-full md:w-1/3 bg-gray-800 shadow-lg rounded-lg p-4 flex flex-col overflow-y-auto panel"
+    class="w-full md:w-1/3 md:shrink-0 bg-gray-800 shadow-lg rounded-lg p-4 flex flex-col overflow-y-auto panel"
   >
     <div class="header-controls">
       <button

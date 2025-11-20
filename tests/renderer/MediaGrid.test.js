@@ -80,4 +80,13 @@ describe('MediaGrid.vue', () => {
     expect(video.exists()).toBe(true);
     expect(wrapper.text()).toContain('VIDEO');
   });
+
+  it('has a close button that switches viewMode', async () => {
+    const wrapper = mount(MediaGrid);
+    const closeButton = wrapper.find('button[title="Close Grid View"]');
+    expect(closeButton.exists()).toBe(true);
+
+    await closeButton.trigger('click');
+    expect(mockState.viewMode).toBe('player');
+  });
 });
