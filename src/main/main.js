@@ -307,8 +307,16 @@ ipcMain.handle('open-in-vlc', async (event, filePath) => {
         break;
       }
     }
+  } else if (platform === 'darwin') {
+    const macPath = '/Applications/VLC.app/Contents/MacOS/VLC';
+    if (fs.existsSync(macPath)) {
+      vlcPath = macPath;
+    } else {
+      // Fallback to trying 'vlc' in PATH if the standard app path fails
+      vlcPath = 'vlc';
+    }
   } else {
-    // On Linux/Mac, assume 'vlc' is in the PATH
+    // On Linux, assume 'vlc' is in the PATH
     vlcPath = 'vlc';
   }
 
@@ -325,6 +333,12 @@ ipcMain.handle('open-in-vlc', async (event, filePath) => {
       detached: true,
       stdio: 'ignore',
     });
+
+    // Listen for spawn errors (e.g. ENOENT if 'vlc' is not in PATH)
+    child.on('error', (err) => {
+      console.error('[main.js] Error launching VLC (async):', err);
+    });
+
     child.unref();
     return { success: true };
   } catch (error) {

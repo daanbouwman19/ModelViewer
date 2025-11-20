@@ -106,7 +106,7 @@ describe('Main Process IPC - open-in-vlc', () => {
     expect(mockChild.unref).toHaveBeenCalled();
   });
 
-  it('should attempt to spawn "vlc" on non-Windows platforms', async () => {
+  it('should attempt to spawn "vlc" on Linux', async () => {
     Object.defineProperty(process, 'platform', { value: 'linux' });
 
     const mockChild = { unref: vi.fn(), on: vi.fn() };
@@ -122,7 +122,55 @@ describe('Main Process IPC - open-in-vlc', () => {
     );
   });
 
-  it('should handle spawn errors', async () => {
+  it('should use standard path on macOS if it exists', async () => {
+    Object.defineProperty(process, 'platform', { value: 'darwin' });
+    fs.existsSync.mockImplementation(
+      (path) => path === '/Applications/VLC.app/Contents/MacOS/VLC',
+    );
+
+    const mockChild = { unref: vi.fn(), on: vi.fn() };
+    mockSpawn.mockReturnValue(mockChild);
+
+    const result = await openInVlcHandler({}, '/Users/video.mp4');
+
+    expect(result.success).toBe(true);
+    expect(mockSpawn).toHaveBeenCalledWith(
+      '/Applications/VLC.app/Contents/MacOS/VLC',
+      ['/Users/video.mp4'],
+      expect.anything(),
+    );
+  });
+
+  it('should fallback to "vlc" on macOS if standard path does not exist', async () => {
+    Object.defineProperty(process, 'platform', { value: 'darwin' });
+    fs.existsSync.mockReturnValue(false);
+
+    const mockChild = { unref: vi.fn(), on: vi.fn() };
+    mockSpawn.mockReturnValue(mockChild);
+
+    const result = await openInVlcHandler({}, '/Users/video.mp4');
+
+    expect(result.success).toBe(true);
+    expect(mockSpawn).toHaveBeenCalledWith(
+      'vlc',
+      ['/Users/video.mp4'],
+      expect.anything(),
+    );
+  });
+
+  it('should attach error listener to child process', async () => {
+    Object.defineProperty(process, 'platform', { value: 'linux' });
+
+    const mockOn = vi.fn();
+    const mockChild = { unref: vi.fn(), on: mockOn };
+    mockSpawn.mockReturnValue(mockChild);
+
+    await openInVlcHandler({}, '/home/user/video.mp4');
+
+    expect(mockOn).toHaveBeenCalledWith('error', expect.any(Function));
+  });
+
+  it('should handle synchronous spawn errors', async () => {
     Object.defineProperty(process, 'platform', { value: 'linux' });
     mockSpawn.mockImplementation(() => {
       throw new Error('Spawn failed');
