@@ -297,9 +297,11 @@ ipcMain.handle('open-in-vlc', async (event, filePath) => {
   let vlcPath = null;
 
   if (platform === 'win32') {
+    const programFiles = process.env.ProgramFiles || 'C:\\Program Files';
+    const programFilesX86 = process.env['ProgramFiles(x86)'] || 'C:\\Program Files (x86)';
     const commonPaths = [
-      'C:\\Program Files\\VideoLAN\\VLC\\vlc.exe',
-      'C:\\Program Files (x86)\\VideoLAN\\VLC\\vlc.exe',
+      path.join(programFiles, 'VideoLAN', 'VLC', 'vlc.exe'),
+      path.join(programFilesX86, 'VideoLAN', 'VLC', 'vlc.exe'),
     ];
     for (const p of commonPaths) {
       if (fs.existsSync(p)) {
