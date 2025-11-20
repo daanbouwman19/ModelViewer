@@ -119,6 +119,7 @@ const {
   playFullVideo,
   pauseTimerOnPlay,
   isTimerRunning,
+  viewMode,
 } = useAppState();
 
 const {

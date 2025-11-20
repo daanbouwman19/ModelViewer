@@ -5,6 +5,7 @@
  * @requires ./useAppState
  */
 import { useAppState } from './useAppState';
+import { collectTexturesRecursive } from '../utils/albumUtils';
 
 /**
  * @typedef {import('../../main/media-scanner.js').Album} Album
@@ -326,6 +327,18 @@ export function useSlideshow() {
   };
 
   /**
+   * Opens an album and its children in Grid View.
+   * @param {Album} album - The album to open.
+   */
+  const openAlbumInGrid = (album) => {
+    const allMedia = collectTexturesRecursive(album);
+    state.gridMediaFiles = filterMedia(allMedia);
+    state.viewMode = 'grid';
+    state.isSlideshowActive = false;
+    stopSlideshow();
+  };
+
+  /**
    * Re-applies the current media filter and picks a new item.
    */
   const reapplyFilter = async () => {
@@ -348,6 +361,7 @@ export function useSlideshow() {
     toggleAlbumSelection,
     startSlideshow,
     startIndividualAlbumSlideshow,
+    openAlbumInGrid,
     pickAndDisplayNextMediaItem,
     reapplyFilter,
     filterMedia,

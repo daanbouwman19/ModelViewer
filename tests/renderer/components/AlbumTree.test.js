@@ -2,6 +2,14 @@ import { describe, it, expect, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import AlbumTree from '../../../src/renderer/components/AlbumTree.vue';
 
+// Mock useSlideshow
+const mockOpenAlbumInGrid = vi.fn();
+vi.mock('../../../src/renderer/composables/useSlideshow', () => ({
+  useSlideshow: () => ({
+    openAlbumInGrid: mockOpenAlbumInGrid,
+  }),
+}));
+
 const testAlbum = {
   name: 'root',
   textures: [{ name: 'root.jpg', path: '/root.jpg' }],
@@ -90,6 +98,24 @@ describe('AlbumTree.vue', () => {
 
     expect(wrapper.emitted().albumClick).toBeTruthy();
     expect(wrapper.emitted().albumClick[0][0]).toEqual(testAlbum);
+  });
+
+  it('calls openAlbumInGrid when grid button is clicked', async () => {
+    const wrapper = mount(AlbumTree, {
+      props: {
+        album: testAlbum,
+        selection: {},
+      },
+    });
+
+    // Find the grid button. It has text "Grid".
+    const buttons = wrapper.findAll('button');
+    const gridButton = buttons.find((b) => b.text() === 'Grid');
+
+    expect(gridButton).toBeDefined();
+    await gridButton.trigger('click');
+
+    expect(mockOpenAlbumInGrid).toHaveBeenCalledWith(testAlbum);
   });
 
   describe('selectionState', () => {

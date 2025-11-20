@@ -55,16 +55,27 @@ let mainWindow = null;
  * for large video files.
  * @returns {Promise<{type: 'data-url' | 'http-url' | 'error', url?: string, message?: string}>} An object containing the result.
  */
-ipcMain.handle('load-file-as-data-url', (event, filePath) => {
+ipcMain.handle('load-file-as-data-url', (event, filePath, options = {}) => {
   try {
     if (!filePath || !fs.existsSync(filePath)) {
       return { type: 'error', message: `File does not exist: ${filePath}` };
     }
+
+    const currentServerPort = getServerPort();
+
+    // If preferHttp is true, always return an HTTP URL (if the server is running)
+    if (options.preferHttp && currentServerPort > 0) {
+      const pathForUrl = filePath.replace(/\\/g, '/');
+      return {
+        type: 'http-url',
+        url: `http://localhost:${currentServerPort}/${pathForUrl}`,
+      };
+    }
+
     const stats = fs.statSync(filePath);
     const isVideo = SUPPORTED_VIDEO_EXTENSIONS.includes(
       path.extname(filePath).toLowerCase(),
     );
-    const currentServerPort = getServerPort();
 
     if (isVideo && stats.size > MAX_DATA_URL_SIZE_MB * 1024 * 1024) {
       if (currentServerPort === 0) {

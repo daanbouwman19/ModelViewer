@@ -48,6 +48,8 @@ const state = reactive({
   playFullVideo: false,
   pauseTimerOnPlay: false,
   mediaFilter: 'All',
+  viewMode: 'player', // 'player' or 'grid'
+  gridMediaFiles: [],
   isSourcesModalVisible: false,
   mediaDirectories: [],
   supportedExtensions: {
