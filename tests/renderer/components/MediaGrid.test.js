@@ -117,7 +117,7 @@ describe('MediaGrid.vue', () => {
     await container.trigger('scroll');
 
     // Wait for throttle (150ms) + re-render
-    await new Promise(r => setTimeout(r, 200));
+    await new Promise((r) => setTimeout(r, 200));
     await wrapper.vm.$nextTick();
 
     // Should now show all 30 (24 + 6)
@@ -126,12 +126,17 @@ describe('MediaGrid.vue', () => {
 
   it('handles server port error gracefully', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    global.window.electronAPI.getServerPort.mockRejectedValue(new Error('Failed'));
+    global.window.electronAPI.getServerPort.mockRejectedValue(
+      new Error('Failed'),
+    );
 
     const wrapper = mount(MediaGrid);
     await flushPromises();
 
-    expect(consoleSpy).toHaveBeenCalledWith('Failed to determine server port', expect.any(Error));
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Failed to determine server port',
+      expect.any(Error),
+    );
     consoleSpy.mockRestore();
   });
 
