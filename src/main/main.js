@@ -7,6 +7,7 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import path from 'path';
 import fs from 'fs';
+import { spawn } from 'child_process';
 
 import {
   MAX_DATA_URL_SIZE_MB,
@@ -283,6 +284,53 @@ ipcMain.handle('get-supported-extensions', () => {
  */
 ipcMain.handle('get-server-port', () => {
   return getServerPort();
+});
+
+/**
+ * Handles the 'open-in-vlc' IPC call.
+ * Attempts to open the given file in VLC Media Player.
+ * @param {string} filePath - The path of the file to open.
+ * @returns {Promise<{success: boolean, message?: string}>} The result of the operation.
+ */
+ipcMain.handle('open-in-vlc', async (event, filePath) => {
+  const platform = process.platform;
+  let vlcPath = null;
+
+  if (platform === 'win32') {
+    const commonPaths = [
+      'C:\\Program Files\\VideoLAN\\VLC\\vlc.exe',
+      'C:\\Program Files (x86)\\VideoLAN\\VLC\\vlc.exe',
+    ];
+    for (const p of commonPaths) {
+      if (fs.existsSync(p)) {
+        vlcPath = p;
+        break;
+      }
+    }
+  } else {
+    // On Linux/Mac, assume 'vlc' is in the PATH
+    vlcPath = 'vlc';
+  }
+
+  if (!vlcPath) {
+    return {
+      success: false,
+      message:
+        'VLC Media Player not found. Please ensure it is installed in the default location.',
+    };
+  }
+
+  try {
+    const child = spawn(vlcPath, [filePath], {
+      detached: true,
+      stdio: 'ignore',
+    });
+    child.unref();
+    return { success: true };
+  } catch (error) {
+    console.error('[main.js] Error launching VLC:', error);
+    return { success: false, message: `Failed to launch VLC: ${error.message}` };
+  }
 });
 
 // --- Window Creation ---
