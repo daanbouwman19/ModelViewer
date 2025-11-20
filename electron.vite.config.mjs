@@ -7,6 +7,7 @@ export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin()],
     build: {
+      sourcemap: false,
       rollupOptions: {
         input: {
           index: resolve(__dirname, 'src/main/main.js'),
@@ -19,6 +20,7 @@ export default defineConfig({
   preload: {
     plugins: [externalizeDepsPlugin()],
     build: {
+      sourcemap: false,
       rollupOptions: {
         input: {
           preload: resolve(__dirname, 'src/preload/preload.js'),
@@ -38,6 +40,7 @@ export default defineConfig({
       strictPort: true,
     },
     build: {
+      sourcemap: false,
       rollupOptions: {
         input: {
           index: resolve(__dirname, 'index.html'),
