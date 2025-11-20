@@ -6,7 +6,8 @@
 
     <main class="flex-grow flex flex-col md:flex-row p-4 gap-4 overflow-hidden">
       <AlbumsList />
-      <MediaDisplay />
+      <MediaGrid v-if="viewMode === 'grid'" class="flex-grow" />
+      <MediaDisplay v-else class="flex-grow" />
     </main>
 
     <footer class="bg-gray-800 text-center p-3 text-sm text-gray-500">
