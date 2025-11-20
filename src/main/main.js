@@ -277,6 +277,14 @@ ipcMain.handle('get-supported-extensions', () => {
   };
 });
 
+/**
+ * Handles the 'get-server-port' IPC call.
+ * @returns {number} The port the local server is running on.
+ */
+ipcMain.handle('get-server-port', () => {
+  return getServerPort();
+});
+
 // --- Window Creation ---
 
 /**

@@ -38,6 +38,7 @@ describe('MediaGrid.vue', () => {
           type: 'http-url',
           url: 'http://localhost:3000/file.jpg',
         }),
+      getServerPort: vi.fn().mockResolvedValue(3000),
     };
   });
 

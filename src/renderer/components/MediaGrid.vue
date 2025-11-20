@@ -36,7 +36,7 @@
             muted
             loop
             playsinline
-            preload="none"
+            preload="metadata"
             :poster="getPosterUrl(item)"
           ></video>
           <div
@@ -97,25 +97,27 @@ const isVideo = (item) => {
 const serverPort = ref(0);
 
 onMounted(async () => {
-  if (gridMediaFiles.length > 0) {
-    try {
-      const res = await window.electronAPI.loadFile(gridMediaFiles[0].path, {
-        preferHttp: true,
-      });
-      if (res.type === 'http-url') {
-        const url = new URL(res.url);
-        serverPort.value = parseInt(url.port);
-      }
-    } catch (e) {
-      console.error('Failed to determine server port', e);
-    }
+  try {
+    serverPort.value = await window.electronAPI.getServerPort();
+  } catch (e) {
+    console.error('Failed to determine server port', e);
   }
 });
 
 const getMediaUrl = (item) => {
   if (serverPort.value > 0) {
-    const pathForUrl = item.path.replace(/\\/g, '/');
-    return `http://localhost:${serverPort.value}/${pathForUrl}`;
+    let pathForUrl = item.path.replace(/\\/g, '/');
+    // Encode the path to handle spaces and special characters
+    pathForUrl = encodeURI(pathForUrl).replace(/#/g, '%23');
+
+    let url = `http://localhost:${serverPort.value}/${pathForUrl}`;
+
+    // For videos, add a time fragment to force a thumbnail frame
+    if (isVideo(item)) {
+        url += '#t=0.001';
+    }
+
+    return url;
   }
   return ''; // Placeholder until port is loaded
 };
