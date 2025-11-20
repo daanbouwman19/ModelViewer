@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
-import { ref } from 'vue';
+import { ref, nextTick } from 'vue';
 import App from '@/App.vue';
 import { useAppState } from '@/composables/useAppState.js';
 import { useSlideshow } from '@/composables/useSlideshow.js';
@@ -16,8 +16,14 @@ vi.mock('@/components/AlbumsList.vue', () => ({
 vi.mock('@/components/MediaDisplay.vue', () => ({
   default: { template: '<div class="media-display-mock">MediaDisplay</div>' },
 }));
+vi.mock('@/components/MediaGrid.vue', () => ({
+  default: { template: '<div class="media-grid-mock">MediaGrid</div>' },
+}));
 vi.mock('@/components/SourcesModal.vue', () => ({
   default: { template: '<div class="sources-modal-mock">SourcesModal</div>' },
+}));
+vi.mock('@/components/LoadingMask.vue', () => ({
+  default: { template: '<div class="loading-mask-mock">LoadingMask</div>' },
 }));
 
 describe('App.vue', () => {
@@ -50,6 +56,8 @@ describe('App.vue', () => {
       slideshowTimerId: ref(null),
       isSourcesModalVisible: ref(false),
       mediaDirectories: ref([]),
+      isScanning: ref(false),
+      viewMode: ref('player'),
       state: {},
       initializeApp,
       resetState: vi.fn(),
@@ -84,14 +92,37 @@ describe('App.vue', () => {
     expect(wrapper.find('.albums-list-mock').exists()).toBe(true);
   });
 
-  it('should render MediaDisplay component', () => {
+  it('should render MediaDisplay component when viewMode is player', () => {
+    mockRefs.viewMode.value = 'player';
     const wrapper = mount(App);
     expect(wrapper.find('.media-display-mock').exists()).toBe(true);
+    expect(wrapper.find('.media-grid-mock').exists()).toBe(false);
+  });
+
+  it('should render MediaGrid component when viewMode is grid', () => {
+    mockRefs.viewMode.value = 'grid';
+    const wrapper = mount(App);
+    expect(wrapper.find('.media-grid-mock').exists()).toBe(true);
+    expect(wrapper.find('.media-display-mock').exists()).toBe(false);
   });
 
   it('should render SourcesModal component', () => {
     const wrapper = mount(App);
     expect(wrapper.find('.sources-modal-mock').exists()).toBe(true);
+  });
+
+  it('should render LoadingMask when isScanning is true', async () => {
+    mockRefs.isScanning.value = true;
+    const wrapper = mount(App);
+    await nextTick();
+    expect(wrapper.find('.loading-mask-mock').exists()).toBe(true);
+  });
+
+  it('should NOT render LoadingMask when isScanning is false', async () => {
+    mockRefs.isScanning.value = false;
+    const wrapper = mount(App);
+    await nextTick();
+    expect(wrapper.find('.loading-mask-mock').exists()).toBe(false);
   });
 
   it('should render footer with instructions', () => {

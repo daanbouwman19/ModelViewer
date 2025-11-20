@@ -5,7 +5,7 @@
   >
     <div class="text-center text-white">
       <div class="spinner mb-4"></div>
-      <p class="text-xl">Scanning for media...</p>
+      <p class="text-xl">{{ message }}</p>
     </div>
   </div>
 </template>
@@ -15,6 +15,12 @@
  * @file This component displays a loading overlay with a spinner.
  * It is used to indicate that a background process, such as media scanning, is in progress.
  */
+const props = defineProps({
+  message: {
+    type: String,
+    default: 'Scanning for media...',
+  },
+});
 </script>
 
 <style scoped>
