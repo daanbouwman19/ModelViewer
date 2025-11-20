@@ -24,20 +24,30 @@
   --body-font: 'Quicksand', sans-serif;
 }
 
-/* Custom Scrollbar Styling */
+/* Custom Scrollbar Styling - Auto-hide by default */
 ::-webkit-scrollbar {
   width: 10px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--secondary-bg);
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--accent-color);
+  background: transparent;
   border-radius: 10px;
-  border: 2px solid var(--secondary-bg);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--accent-hover);
+  background: var(--accent-color);
+}
+
+/* Show scrollbar on hover for body and html */
+body:hover::-webkit-scrollbar-thumb,
+html:hover::-webkit-scrollbar-thumb {
+  background: rgba(236, 72, 153, 0.3);
+}
+
+body:hover::-webkit-scrollbar-thumb:hover,
+html:hover::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-color);
 }
 
 /* General Body Styling */
@@ -47,6 +57,11 @@ body {
   color: var(--text-color);
   overscroll-behavior: none;
   font-weight: 500;
+  overflow: hidden; /* Prevent body scrollbar */
+}
+
+html {
+  overflow: hidden; /* Prevent html scrollbar */
 }
 
 /* Typography for Headings */

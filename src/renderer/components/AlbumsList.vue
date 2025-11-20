@@ -1,6 +1,6 @@
 <template>
   <div
-    class="w-full md:w-1/3 md:shrink-0 bg-gray-800 shadow-lg rounded-lg p-4 flex flex-col overflow-y-auto panel"
+    class="w-full md:w-1/3 md:shrink-0 bg-gray-800 shadow-lg rounded-lg p-4 flex flex-col overflow-y-auto panel custom-scrollbar"
   >
     <div class="header-controls">
       <button
@@ -211,5 +211,33 @@ const openModal = () => {
   background-color: var(--accent-color);
   border-radius: 3px;
   transition: width 0.05s linear;
+}
+
+/* Custom scrollbar that auto-hides when not in use */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* Hide scrollbar when not hovering over the container */
+.custom-scrollbar:not(:hover)::-webkit-scrollbar-thumb {
+  background: transparent;
 }
 </style>

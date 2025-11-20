@@ -32,12 +32,10 @@ describe('MediaGrid.vue', () => {
 
     // Mock window.electronAPI
     global.window.electronAPI = {
-      loadFile: vi
-        .fn()
-        .mockResolvedValue({
-          type: 'http-url',
-          url: 'http://localhost:3000/file.jpg',
-        }),
+      loadFile: vi.fn().mockResolvedValue({
+        type: 'http-url',
+        url: 'http://localhost:3000/file.jpg',
+      }),
       getServerPort: vi.fn().mockResolvedValue(3000),
     };
   });
