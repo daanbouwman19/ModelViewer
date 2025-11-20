@@ -15,7 +15,7 @@
       </button>
     </div>
     <div
-      class="media-grid-container p-4 flex-grow overflow-y-auto custom-scrollbar"
+      class="media-grid-container p-4 grow overflow-y-auto custom-scrollbar"
       @scroll="handleScroll"
     >
       <div
@@ -122,14 +122,17 @@ if (DEBUG_PERFORMANCE) {
 
 // -- Infinite Scroll Logic --
 const visibleCount = ref(24); // Initial number of items to render (balanced for scrolling + 60fps)
-const BATCH_SIZE = 24;        // Items to add per scroll event
+const BATCH_SIZE = 24; // Items to add per scroll event
 
 const visibleMediaFiles = computed(() => {
   const start = performance.now();
   const result = allMediaFiles.value.slice(0, visibleCount.value);
   const duration = performance.now() - start;
   if (duration > 5) {
-    logPerformance(`visibleMediaFiles computed (slow)`, { duration: `${duration.toFixed(2)}ms`, count: result.length });
+    logPerformance(`visibleMediaFiles computed (slow)`, {
+      duration: `${duration.toFixed(2)}ms`,
+      count: result.length,
+    });
   }
   return result;
 });
@@ -143,18 +146,21 @@ const visibleMediaFiles = computed(() => {
 const throttle = (func, delay) => {
   let timeoutId;
   let lastRan;
-  return function(...args) {
+  return function (...args) {
     if (!lastRan) {
       func.apply(this, args);
       lastRan = Date.now();
     } else {
       clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        if (Date.now() - lastRan >= delay) {
-          func.apply(this, args);
-          lastRan = Date.now();
-        }
-      }, delay - (Date.now() - lastRan));
+      timeoutId = setTimeout(
+        () => {
+          if (Date.now() - lastRan >= delay) {
+            func.apply(this, args);
+            lastRan = Date.now();
+          }
+        },
+        delay - (Date.now() - lastRan),
+      );
     }
   };
 };
@@ -165,20 +171,20 @@ const throttle = (func, delay) => {
 const handleScrollInternal = (e) => {
   const scrollStart = performance.now();
   const { scrollTop, scrollHeight, clientHeight } = e.target;
-  
+
   // Load more when the user scrolls within 300px of the bottom
   if (scrollTop + clientHeight >= scrollHeight - 300) {
     if (visibleCount.value < allMediaFiles.value.length) {
       const oldCount = visibleCount.value;
       visibleCount.value = Math.min(
         visibleCount.value + BATCH_SIZE,
-        allMediaFiles.value.length
+        allMediaFiles.value.length,
       );
       const scrollDuration = performance.now() - scrollStart;
-      logPerformance(`Loading more items`, { 
-        from: oldCount, 
-        to: visibleCount.value, 
-        scrollHandlerTime: `${scrollDuration.toFixed(2)}ms` 
+      logPerformance(`Loading more items`, {
+        from: oldCount,
+        to: visibleCount.value,
+        scrollHandlerTime: `${scrollDuration.toFixed(2)}ms`,
       });
     }
   }
@@ -190,30 +196,31 @@ const handleScroll = throttle(handleScrollInternal, 150);
 // Reset visible count when the underlying data changes (e.g. new album opened)
 watch(allMediaFiles, (newFiles, oldFiles) => {
   const watchStart = performance.now();
-  logPerformance(`Album changed`, { 
-    oldCount: oldFiles?.length || 0, 
-    newCount: newFiles?.length || 0 
+  logPerformance(`Album changed`, {
+    oldCount: oldFiles?.length || 0,
+    newCount: newFiles?.length || 0,
   });
-  
+
   visibleCount.value = BATCH_SIZE;
   // Scroll to top when album changes
   const container = document.querySelector('.media-grid-container');
   if (container) container.scrollTop = 0;
-  
+
   const watchDuration = performance.now() - watchStart;
-  logPerformance(`Album change completed`, { duration: `${watchDuration.toFixed(2)}ms` });
-  
+  logPerformance(`Album change completed`, {
+    duration: `${watchDuration.toFixed(2)}ms`,
+  });
+
   // Log initial render time
   nextTick(() => {
     const renderDuration = performance.now() - watchStart;
-    logPerformance(`Initial render completed`, { 
+    logPerformance(`Initial render completed`, {
       duration: `${renderDuration.toFixed(2)}ms`,
-      itemsRendered: visibleCount.value
+      itemsRendered: visibleCount.value,
     });
   });
 });
 // -- End Infinite Scroll Logic --
-
 
 /**
  * Checks if the file is an image based on extension.
@@ -243,28 +250,28 @@ const serverPort = ref(0);
 
 onMounted(async () => {
   const mountStart = performance.now();
-  logPerformance(`MediaGrid component mounted`, { 
+  logPerformance(`MediaGrid component mounted`, {
     totalFiles: allMediaFiles.value.length,
-    initialVisible: visibleCount.value 
+    initialVisible: visibleCount.value,
   });
-  
+
   try {
     serverPort.value = await window.electronAPI.getServerPort();
     const mountDuration = performance.now() - mountStart;
-    logPerformance(`Server port loaded`, { 
+    logPerformance(`Server port loaded`, {
       port: serverPort.value,
-      duration: `${mountDuration.toFixed(2)}ms` 
+      duration: `${mountDuration.toFixed(2)}ms`,
     });
   } catch (e) {
     console.error('Failed to determine server port', e);
   }
-  
+
   // Log performance summary
   logPerformance(`=== PERFORMANCE SUMMARY ===`, {
     totalMediaFiles: allMediaFiles.value.length,
     visibleItems: visibleCount.value,
     batchSize: BATCH_SIZE,
-    serverPort: serverPort.value
+    serverPort: serverPort.value,
   });
 });
 
@@ -351,11 +358,11 @@ const closeGrid = () => {
   /* Use content-visibility for better rendering performance */
   content-visibility: auto;
   contain-intrinsic-size: 200px;
-  
+
   /* Enable GPU acceleration */
   will-change: border-color;
   transform: translateZ(0);
-  
+
   /* Optimize rendering */
   backface-visibility: hidden;
   -webkit-font-smoothing: antialiased;
@@ -371,7 +378,7 @@ const closeGrid = () => {
 .grid-item video {
   /* Force GPU acceleration */
   transform: translateZ(0);
-  
+
   /* Optimize image rendering */
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
