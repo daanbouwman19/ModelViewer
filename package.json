@@ -27,8 +27,13 @@
   "build": {
     "appId": "com.daanbouwman.modelviewer",
     "productName": "ModelViewer",
+    "electronLanguages": [
+      "en-US"
+    ],
+    "compression": "maximum",
     "files": [
-      "out/**/*"
+      "out/**/*",
+      "!**/node_modules/*/{CHANGELOG.md,README.md,readme.md,license.txt,LICENSE.txt,test,tests,example,examples}"
     ],
     "directories": {
       "output": "release"
@@ -45,6 +50,10 @@
         "nsis"
       ]
     },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true
+    },
     "mac": {
       "target": [
         "dmg"
@@ -55,8 +64,7 @@
     ]
   },
   "dependencies": {
-    "sqlite3": "^5.1.7",
-    "vue": "^3.5.12"
+    "sqlite3": "^5.1.7"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.17",
@@ -70,6 +78,7 @@
     "prettier": "^3.3.3",
     "tailwindcss": "^4.1.17",
     "vite": "^7.1.12",
-    "vitest": "^4.0.6"
+    "vitest": "^4.0.6",
+    "vue": "^3.5.12"
   }
 }
