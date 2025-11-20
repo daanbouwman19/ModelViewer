@@ -37,6 +37,10 @@ describe('MediaGrid.vue', () => {
     global.window.electronAPI.getServerPort.mockResolvedValue(1234);
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('renders "No media files found" when gridMediaFiles is empty', () => {
     const wrapper = mount(MediaGrid);
     expect(wrapper.text()).toContain('No media files found in this album');
@@ -137,7 +141,6 @@ describe('MediaGrid.vue', () => {
       'Failed to determine server port',
       expect.any(Error),
     );
-    consoleSpy.mockRestore();
   });
 
   it('generates correct URLs for encoded paths', async () => {
