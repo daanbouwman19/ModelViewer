@@ -1,6 +1,6 @@
 <template>
   <div
-    class="w-full md:w-1/3 bg-gray-800 shadow-lg rounded-lg p-4 flex flex-col overflow-y-auto panel"
+    class="w-full md:w-1/3 md:shrink-0 bg-gray-800 shadow-lg rounded-lg p-4 flex flex-col overflow-y-auto panel custom-scrollbar"
   >
     <div class="header-controls">
       <button
@@ -33,7 +33,7 @@
       <div class="progress-bar" :style="{ width: `${timerProgress}%` }"></div>
     </div>
     <h2 class="albums-list-header">Albums</h2>
-    <ul class="space-y-1 flex-grow pr-2 albums-list">
+    <ul class="space-y-1 grow pr-2 albums-list">
       <li v-if="allAlbums.length === 0" class="text-gray-400">
         Loading albums...
       </li>

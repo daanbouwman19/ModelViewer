@@ -64,7 +64,8 @@
     ]
   },
   "dependencies": {
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "vue": "^3.5.12"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.17",
@@ -77,8 +78,7 @@
     "happy-dom": "^20.0.10",
     "prettier": "^3.3.3",
     "tailwindcss": "^4.1.17",
-    "vite": "^7.1.12",
-    "vitest": "^4.0.6",
-    "vue": "^3.5.12"
+    "vite": "^7.2.4",
+    "vitest": "^4.0.6"
   }
 }

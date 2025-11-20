@@ -112,4 +112,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
    * @returns {Promise<{images: string[], videos: string[], all: string[]}>} A promise that resolves to an object containing arrays of supported extensions.
    */
   getSupportedExtensions: () => ipcRenderer.invoke('get-supported-extensions'),
+
+  /**
+   * Retrieves the port the local server is running on.
+   * @returns {Promise<number>} A promise that resolves to the server port.
+   */
+  getServerPort: () => ipcRenderer.invoke('get-server-port'),
 });

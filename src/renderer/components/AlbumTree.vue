@@ -26,6 +26,13 @@
       <span class="album-name-clickable">
         {{ album.name }} ({{ totalTextureCount }})
       </span>
+      <button
+        @click.stop="handleOpenGrid(album)"
+        class="text-xs text-gray-400 hover:text-white ml-2 p-1 rounded border border-gray-600 hover:bg-gray-700"
+        title="Open in Grid"
+      >
+        Grid
+      </button>
     </div>
     <ul v-if="isFolder && isOpen" class="album-subtree">
       <AlbumTree
@@ -49,6 +56,7 @@
  */
 import { ref, computed } from 'vue';
 import { countTextures, getAlbumAndChildrenNames } from '../utils/albumUtils';
+import { useSlideshow } from '../composables/useSlideshow';
 
 const props = defineProps({
   album: {
@@ -67,6 +75,7 @@ const props = defineProps({
 
 const emit = defineEmits(['toggleSelection', 'albumClick']);
 const isOpen = ref(false);
+const slideshow = useSlideshow();
 
 /**
  * Checks if the album is a folder (i.e., has children).
@@ -116,6 +125,14 @@ const handleToggleSelection = (album) => {
  */
 const handleClickAlbum = (album) => {
   emit('albumClick', album);
+};
+
+/**
+ * Opens the album in Grid View.
+ * @param {import('../../main/media-scanner.js').Album} album - The album to open.
+ */
+const handleOpenGrid = (album) => {
+  slideshow.openAlbumInGrid(album);
 };
 </script>
 
