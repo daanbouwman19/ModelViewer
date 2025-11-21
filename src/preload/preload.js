@@ -118,4 +118,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
    * @returns {Promise<number>} A promise that resolves to the server port.
    */
   getServerPort: () => ipcRenderer.invoke('get-server-port'),
+
+  /**
+   * Opens the given file in VLC Media Player.
+   * @param {string} filePath - The absolute path to the file to open.
+   * @returns {Promise<{success: boolean, message?: string}>} A promise that resolves to the result object.
+   */
+  openInVlc: (filePath) => ipcRenderer.invoke('open-in-vlc', filePath),
 });
