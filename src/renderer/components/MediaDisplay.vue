@@ -38,6 +38,7 @@
       />
       <video
         v-if="currentMediaItem && mediaUrl && !isImage"
+        ref="videoElement"
         :src="mediaUrl"
         controls
         autoplay
@@ -79,6 +80,14 @@
         <span class="checkmark"></span>
         Pause Timer on Play
       </label>
+      <button
+        v-if="!isImage && currentMediaItem"
+        @click="openInVlc"
+        class="vlc-button"
+        title="Open with VLC"
+      >
+        <VlcIcon />
+      </button>
     </div>
 
     <div
@@ -107,6 +116,7 @@
 import { ref, computed, watch } from 'vue';
 import { useAppState } from '../composables/useAppState';
 import { useSlideshow } from '../composables/useSlideshow';
+import VlcIcon from './icons/VlcIcon.vue';
 
 const {
   currentMediaItem,
@@ -157,6 +167,12 @@ const error = ref(null);
  * @type {import('vue').Ref<number>}
  */
 const videoProgress = ref(0);
+
+/**
+ * Reference to the video element.
+ * @type {import('vue').Ref<HTMLVideoElement | null>}
+ */
+const videoElement = ref(null);
 
 /**
  * A computed property that determines if the current media item is an image.
@@ -323,6 +339,25 @@ const handleVideoTimeUpdate = (event) => {
     videoProgress.value = 0;
   }
 };
+
+/**
+ * Opens the current media file in VLC Media Player.
+ */
+const openInVlc = async () => {
+  if (!currentMediaItem.value) return;
+
+  // Pause the current video
+  if (videoElement.value) {
+    videoElement.value.pause();
+  }
+
+  const result = await window.electronAPI.openInVlc(
+    currentMediaItem.value.path,
+  );
+  if (!result.success) {
+    error.value = result.message || 'Failed to open in VLC.';
+  }
+};
 </script>
 
 <style scoped>
@@ -378,8 +413,27 @@ const handleVideoTimeUpdate = (event) => {
 .smart-timer-controls-media {
   display: flex;
   justify-content: center;
+  align-items: center;
   gap: 1rem;
   margin-bottom: 1rem;
+}
+
+.vlc-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-color);
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vlc-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #ff9800; /* VLC Orange */
 }
 
 .smart-timer-controls-media label {
