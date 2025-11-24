@@ -65,7 +65,7 @@
   },
   "dependencies": {
     "sqlite3": "^5.1.7",
-    "vue": "^3.5.12"
+    "vue": "^3.5.25"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.17",
