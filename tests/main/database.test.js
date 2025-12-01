@@ -369,9 +369,8 @@ describe('database resilience', () => {
 
   it('should call terminate() during closeDatabase even if worker has already crashed', async () => {
     // Dynamically import the module under test AFTER mocks are set up
-    const { initDatabase, closeDatabase, setOperationTimeout } = await import(
-      '../../src/main/database.js'
-    );
+    const { initDatabase, closeDatabase, setOperationTimeout } =
+      await import('../../src/main/database.js');
     setOperationTimeout(100); // Short timeout for test speed
 
     await initDatabase();

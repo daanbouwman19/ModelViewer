@@ -5,9 +5,11 @@
   "main": "out/main/index.js",
   "type": "module",
   "scripts": {
+    "predev": "rm -rf node_modules/better-sqlite3/build && npx electron-builder install-app-deps",
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
+    "pretest": "npm rebuild better-sqlite3",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
@@ -60,11 +62,11 @@
       ]
     },
     "asarUnpack": [
-      "node_modules/sqlite3/**/*"
+      "node_modules/better-sqlite3/**/*"
     ]
   },
   "dependencies": {
-    "sqlite3": "^5.1.7",
+    "better-sqlite3": "^12.5.0",
     "vue": "^3.5.12"
   },
   "devDependencies": {
@@ -72,8 +74,8 @@
     "@vitejs/plugin-vue": "^6.0.1",
     "@vitest/coverage-istanbul": "^4.0.6",
     "@vue/test-utils": "^2.4.6",
-    "electron": "^39.0.0",
-    "electron-builder": "^26.1.0",
+    "electron": "^39.2.4",
+    "electron-builder": "^26.0.12",
     "electron-vite": "^4.0.1",
     "happy-dom": "^20.0.10",
     "prettier": "^3.3.3",
