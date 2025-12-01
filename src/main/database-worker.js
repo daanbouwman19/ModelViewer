@@ -139,7 +139,7 @@ async function getMediaViewCounts(filePaths) {
       const placeholders = batch.map(() => '?').join(',');
       const fileIds = batch.map(generateFileId);
       const sql = `SELECT file_path_hash, view_count FROM media_views WHERE file_path_hash IN (${placeholders})`;
-      
+
       const rows = db.prepare(sql).all(fileIds);
 
       const countsByHash = {};
@@ -187,9 +187,9 @@ async function cacheAlbums(cacheKey, albums) {
 async function getCachedAlbums(cacheKey) {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
-    const row = db.prepare(
-      `SELECT cache_value FROM app_cache WHERE cache_key = ?`,
-    ).get(cacheKey);
+    const row = db
+      .prepare(`SELECT cache_value FROM app_cache WHERE cache_key = ?`)
+      .get(cacheKey);
     const data = row && row.cache_value ? JSON.parse(row.cache_value) : null;
     return { success: true, data };
   } catch (error) {
@@ -246,7 +246,9 @@ async function addMediaDirectory(directoryPath) {
 async function getMediaDirectories() {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
-    const rows = db.prepare('SELECT path, is_active FROM media_directories').all();
+    const rows = db
+      .prepare('SELECT path, is_active FROM media_directories')
+      .all();
     const directories = rows.map((row) => ({
       path: row.path,
       isActive: !!row.is_active,
@@ -266,7 +268,9 @@ async function getMediaDirectories() {
 async function removeMediaDirectory(directoryPath) {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
-    db.prepare('DELETE FROM media_directories WHERE path = ?').run(directoryPath);
+    db.prepare('DELETE FROM media_directories WHERE path = ?').run(
+      directoryPath,
+    );
     return { success: true };
   } catch (error) {
     console.error(
@@ -286,9 +290,10 @@ async function removeMediaDirectory(directoryPath) {
 async function setDirectoryActiveState(directoryPath, isActive) {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
-    db.prepare(
-      'UPDATE media_directories SET is_active = ? WHERE path = ?',
-    ).run(isActive ? 1 : 0, directoryPath);
+    db.prepare('UPDATE media_directories SET is_active = ? WHERE path = ?').run(
+      isActive ? 1 : 0,
+      directoryPath,
+    );
     return { success: true };
   } catch (error) {
     console.error(
