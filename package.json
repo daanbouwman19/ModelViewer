@@ -75,7 +75,7 @@
     "electron": "^39.0.0",
     "electron-builder": "^26.1.0",
     "electron-vite": "^4.0.1",
-    "happy-dom": "^20.0.10",
+    "happy-dom": "^20.0.11",
     "prettier": "^3.3.3",
     "tailwindcss": "^4.1.17",
     "vite": "^7.2.4",
