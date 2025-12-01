@@ -60,11 +60,11 @@
       ]
     },
     "asarUnpack": [
-      "node_modules/sqlite3/**/*"
+      "node_modules/better-sqlite3/**/*"
     ]
   },
   "dependencies": {
-    "sqlite3": "^5.1.7",
+    "better-sqlite3": "^12.5.0",
     "vue": "^3.5.12"
   },
   "devDependencies": {
