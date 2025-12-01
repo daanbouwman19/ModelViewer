@@ -5,9 +5,11 @@
   "main": "out/main/index.js",
   "type": "module",
   "scripts": {
+    "predev": "npx electron-builder install-app-deps --force",
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
+    "pretest": "npm rebuild better-sqlite3",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
