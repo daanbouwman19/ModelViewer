@@ -5,7 +5,7 @@
   "main": "out/main/index.js",
   "type": "module",
   "scripts": {
-    "predev": "rm -rf node_modules/better-sqlite3/build && npx electron-builder install-app-deps",
+    "predev": "rimraf node_modules/better-sqlite3/build && npx electron-builder install-app-deps",
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
