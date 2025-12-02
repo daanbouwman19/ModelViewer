@@ -9,6 +9,8 @@ import { useSlideshow } from '@/composables/useSlideshow';
 vi.mock('@/composables/useAppState');
 vi.mock('@/composables/useSlideshow');
 
+import type { ElectronAPI, LoadResult } from '@/preload/preload';
+
 describe('MediaDisplay.vue', () => {
   let mockSetFilter;
   let mockPrevMedia;
@@ -76,11 +78,11 @@ describe('MediaDisplay.vue', () => {
       electronAPI: {
         loadFileAsDataURL: vi
           .fn()
-          .mockResolvedValue({ type: 'data-url', url: '' }),
+          .mockResolvedValue({ type: 'data-url', url: '' } as LoadResult),
         getServerPort: vi.fn().mockResolvedValue(0),
         openInVlc: vi.fn().mockResolvedValue({ success: true }),
-      },
-    } as any;
+      } as unknown as ElectronAPI,
+    } as unknown as Window & typeof globalThis;
   });
 
   it('should render placeholder when no media', () => {
@@ -167,12 +169,15 @@ describe('MediaDisplay.vue', () => {
     global.window = {
       electronAPI: {
         loadFileAsDataURL: vi.fn(() =>
-          Promise.resolve({ type: 'error', message: 'File not found' }),
+          Promise.resolve({
+            type: 'error',
+            message: 'File not found',
+          } as LoadResult),
         ),
         getServerPort: vi.fn().mockResolvedValue(0),
         openInVlc: vi.fn().mockResolvedValue({ success: true }),
-      },
-    };
+      } as unknown as ElectronAPI,
+    } as unknown as Window & typeof globalThis;
 
     mockRefs.currentMediaItem.value = { name: 'test.jpg', path: '/test.jpg' };
     const wrapper = mount(MediaDisplay);
@@ -213,12 +218,12 @@ describe('MediaDisplay.vue', () => {
           Promise.resolve({
             type: 'http-url',
             url: 'http://localhost/test.mp4',
-          }),
+          } as LoadResult),
         ),
         getServerPort: vi.fn().mockResolvedValue(0),
         openInVlc: vi.fn().mockResolvedValue({ success: true }),
-      },
-    };
+      } as unknown as ElectronAPI,
+    } as unknown as Window & typeof globalThis;
 
     mockRefs.currentMediaItem.value = {
       name: 'test.mp4',
@@ -291,10 +296,10 @@ describe('MediaDisplay.vue', () => {
           Promise.resolve({
             type: 'data-url',
             url: 'data:image/png;base64,abc',
-          }),
+          } as LoadResult),
         ),
-      },
-    };
+      } as unknown as ElectronAPI,
+    } as unknown as Window & typeof globalThis;
 
     mockRefs.currentMediaItem.value = {
       name: 'test.jpg',
