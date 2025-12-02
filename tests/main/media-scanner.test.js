@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { performFullMediaScan } from '../../src/main/media-scanner.js';
 import fs from 'fs';
+import fsPromises from 'fs/promises';
 import path from 'path';
 import os from 'os';
 
@@ -15,6 +16,7 @@ describe('Media Scanner', () => {
     if (fs.existsSync(testDir)) {
       fs.rmSync(testDir, { recursive: true, force: true });
     }
+    vi.restoreAllMocks();
   });
 
   // Helper function to create a directory structure
@@ -178,6 +180,58 @@ describe('Media Scanner', () => {
 
       const result = await performFullMediaScan([testDir]);
       expect(result).toHaveLength(0);
+    });
+
+    it('should handle fs.access error (e.g., directory does not exist)', async () => {
+      const nonExistentDir = path.join(testDir, 'non-existent');
+      const validDir = path.join(testDir, 'valid');
+      fs.mkdirSync(validDir, { recursive: true });
+      createDirStructure(validDir, { 'img.jpg': '' });
+
+      const result = await performFullMediaScan([nonExistentDir, validDir]);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('valid');
+    });
+
+    it('should handle fs.readdir error in recursive scan', async () => {
+      // We use a mock root dir that "exists" on disk so fs.access passes,
+      // but fs.readdir behavior will be mocked.
+      const rootDir = path.join(testDir, 'root');
+      fs.mkdirSync(rootDir, { recursive: true });
+
+      const spy = vi.spyOn(fsPromises, 'readdir');
+      spy.mockImplementation(async (dirPath, options) => {
+        // Normalize paths for comparison (handle potential trailing slashes or different separators)
+        const p = path.resolve(dirPath);
+        const r = path.resolve(rootDir);
+
+        if (p === r) {
+          // Return list of files/dirs for root
+          return [
+            { name: 'good-dir', isDirectory: () => true, isFile: () => false },
+            { name: 'bad-dir', isDirectory: () => true, isFile: () => false },
+          ];
+        }
+        if (p.endsWith('good-dir')) {
+          return [
+            { name: 'image.jpg', isDirectory: () => false, isFile: () => true },
+          ];
+        }
+        if (p.endsWith('bad-dir')) {
+          throw new Error('EACCES: permission denied');
+        }
+        return [];
+      });
+
+      const result = await performFullMediaScan([rootDir]);
+
+      // rootDir should be scanned. 'good-dir' should be a child. 'bad-dir' should be skipped (logged error, returned null).
+      // So root has 1 child.
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('root');
+      expect(result[0].children).toHaveLength(1);
+      expect(result[0].children[0].name).toBe('good-dir');
     });
   });
 });

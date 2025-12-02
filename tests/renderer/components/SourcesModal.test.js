@@ -61,8 +61,19 @@ describe('SourcesModal.vue', () => {
 
     useAppState.mockReturnValue(mockRefs);
 
-    // Reset mocks
+    // Reset mocks and provide default success implementations
     vi.clearAllMocks();
+    window.electronAPI.addMediaDirectory
+      .mockReset()
+      .mockResolvedValue('/default/path');
+    window.electronAPI.removeMediaDirectory
+      .mockReset()
+      .mockResolvedValue(undefined);
+    window.electronAPI.setDirectoryActiveState
+      .mockReset()
+      .mockResolvedValue(undefined);
+    window.electronAPI.getMediaDirectories.mockReset().mockResolvedValue([]);
+    window.electronAPI.reindexMediaLibrary.mockReset().mockResolvedValue([]);
   });
 
   it('should render modal when visible', () => {
@@ -166,5 +177,121 @@ describe('SourcesModal.vue', () => {
       newAlbum2: true,
       subAlbum: true,
     });
+  });
+
+  it('should handle error when reindexing fails', async () => {
+    const error = new Error('Reindex failed');
+    window.electronAPI.reindexMediaLibrary.mockRejectedValue(error);
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const wrapper = mount(SourcesModal);
+    const buttons = wrapper.findAll('.modal-actions .action-button');
+    const reindexButton = buttons[1]; // Apply Changes & Re-index
+
+    await reindexButton.trigger('click');
+    await flushPromises();
+
+    expect(window.electronAPI.reindexMediaLibrary).toHaveBeenCalled();
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Error re-indexing library:',
+      error,
+    );
+    expect(mockRefs.state.isScanning).toBe(false);
+
+    consoleSpy.mockRestore();
+  });
+
+  it('should handle user cancelling directory selection', async () => {
+    // Return null to simulate cancellation
+    window.electronAPI.addMediaDirectory.mockResolvedValue(null);
+
+    const wrapper = mount(SourcesModal);
+    const buttons = wrapper.findAll('.modal-actions .action-button');
+    const addButton = buttons[0]; // Add Media Directory
+
+    await addButton.trigger('click');
+    await flushPromises();
+
+    expect(window.electronAPI.addMediaDirectory).toHaveBeenCalled();
+    // No new directory should be added
+    expect(mockRefs.mediaDirectories.value).toHaveLength(2);
+  });
+
+  it('should handle error when adding directory fails', async () => {
+    const error = new Error('Add failed');
+    window.electronAPI.addMediaDirectory.mockRejectedValue(error);
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const wrapper = mount(SourcesModal);
+    const buttons = wrapper.findAll('.modal-actions .action-button');
+    const addButton = buttons[0];
+
+    await addButton.trigger('click');
+    await flushPromises();
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Error adding media directory:',
+      error,
+    );
+
+    consoleSpy.mockRestore();
+  });
+
+  it('should handle error when toggling directory fails', async () => {
+    const error = new Error('Toggle failed');
+    window.electronAPI.setDirectoryActiveState.mockRejectedValue(error);
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const wrapper = mount(SourcesModal);
+    const checkbox = wrapper.findAll('.source-checkbox')[0];
+
+    await checkbox.setValue(false);
+    await flushPromises();
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Error toggling directory active state:',
+      error,
+    );
+
+    consoleSpy.mockRestore();
+  });
+
+  it('should handle directory not found during toggle', async () => {
+    // This simulates a race condition where the directory might have been removed
+    const wrapper = mount(SourcesModal);
+
+    // Manually call the handler with a path that doesn't exist in the list
+    await wrapper.vm.handleToggleActive('/non-existent/path', true);
+
+    // Expect no crash and no state change for existing directories
+    expect(mockRefs.mediaDirectories.value[0].isActive).toBe(true);
+    expect(mockRefs.mediaDirectories.value[1].isActive).toBe(false);
+  });
+
+  it('should handle error when removing directory fails', async () => {
+    const error = new Error('Remove failed');
+    window.electronAPI.removeMediaDirectory.mockRejectedValue(error);
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const wrapper = mount(SourcesModal);
+    const removeButton = wrapper.findAll('.remove-button')[0];
+
+    await removeButton.trigger('click');
+    await flushPromises();
+
+    expect(consoleSpy).toHaveBeenCalledWith('Error removing directory:', error);
+
+    consoleSpy.mockRestore();
+  });
+
+  it('should handle directory not found during remove', async () => {
+    // This simulates a race condition where the directory might have been removed already
+    const wrapper = mount(SourcesModal);
+
+    // Manually call the handler with a path that doesn't exist in the list
+    await wrapper.vm.handleRemove('/non-existent/path');
+
+    // Expect list to remain unchanged
+    expect(mockRefs.mediaDirectories.value).toHaveLength(2);
   });
 });
