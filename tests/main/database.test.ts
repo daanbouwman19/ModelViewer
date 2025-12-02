@@ -186,9 +186,7 @@ describe('Database', () => {
       const albums = [
         {
           name: 'test-album',
-          textures: [
-            { name: 'texture2.jpg', path: '/test/texture2.jpg' },
-          ],
+          textures: [{ name: 'texture2.jpg', path: '/test/texture2.jpg' }],
           children: [],
         },
       ];

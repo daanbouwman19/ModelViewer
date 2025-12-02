@@ -32,7 +32,9 @@ describe('Local Server', () => {
   beforeEach(() => {
     // Mock getMediaDirectories to return the process's current working directory
     // This allows tests to serve files from the test environment
-    (getMediaDirectories as unknown as Mock).mockResolvedValue([{ path: process.cwd() }]);
+    (getMediaDirectories as unknown as Mock).mockResolvedValue([
+      { path: process.cwd() },
+    ]);
   });
 
   afterEach(async () => {
@@ -299,7 +301,9 @@ describe('Local Server', () => {
     it('should return 403 for files outside allowed directories', async () => {
       // Mock getMediaDirectories to return a specific directory
       const allowedDir = path.join(process.cwd(), 'tests', 'temp');
-      (getMediaDirectories as unknown as Mock).mockResolvedValue([{ path: allowedDir }]);
+      (getMediaDirectories as unknown as Mock).mockResolvedValue([
+        { path: allowedDir },
+      ]);
 
       // Create a file outside the allowed directory
       const outsideDir = path.join(process.cwd(), 'tests', 'forbidden');
@@ -338,7 +342,9 @@ describe('Local Server', () => {
 
     it('should return 500 when database error occurs during path validation', async () => {
       // Mock getMediaDirectories to throw an error
-      (getMediaDirectories as unknown as Mock).mockRejectedValue(new Error('Database error'));
+      (getMediaDirectories as unknown as Mock).mockRejectedValue(
+        new Error('Database error'),
+      );
 
       const testDir = path.join(process.cwd(), 'tests', 'temp');
       if (!fs.existsSync(testDir)) {
@@ -367,7 +373,9 @@ describe('Local Server', () => {
       expect(response.data).toBe('Internal server error.');
 
       // Restore mock for subsequent tests
-      (getMediaDirectories as unknown as Mock).mockResolvedValue([{ path: process.cwd() }]);
+      (getMediaDirectories as unknown as Mock).mockResolvedValue([
+        { path: process.cwd() },
+      ]);
     });
   });
 
@@ -432,7 +440,9 @@ describe('Local Server', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const mockServer: any = new EventEmitter();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      mockServer.listen = vi.fn((_port: any, _host: any, cb: any) => cb && cb());
+      mockServer.listen = vi.fn(
+        (_port: any, _host: any, cb: any) => cb && cb(),
+      );
       mockServer.address = () => ({ port: 12345 });
       mockServer.unref = vi.fn();
       mockServer.close = vi.fn((cb) => cb && cb(closeError));

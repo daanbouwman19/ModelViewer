@@ -50,7 +50,9 @@ describe('Media Scanner Error Handling', () => {
     const baseDir = '/base/dir';
 
     (fs.access as unknown as Mock).mockResolvedValue(undefined);
-    (fs.readdir as unknown as Mock).mockRejectedValue(new Error('Read failure'));
+    (fs.readdir as unknown as Mock).mockRejectedValue(
+      new Error('Read failure'),
+    );
 
     const result = await performFullMediaScan([baseDir]);
 
@@ -69,9 +71,9 @@ describe('Media Scanner Error Handling', () => {
 
     // Let's verify the outer try/catch block in performFullMediaScan
     // We can mock Promise.all to throw
-    const promiseAllSpy = vi.spyOn(Promise, 'all').mockRejectedValue(
-      new Error('Catastrophic failure'),
-    );
+    const promiseAllSpy = vi
+      .spyOn(Promise, 'all')
+      .mockRejectedValue(new Error('Catastrophic failure'));
 
     const result = await performFullMediaScan(['/dir']);
 

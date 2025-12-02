@@ -96,7 +96,9 @@ describe('Main Process IPC - open-in-vlc', () => {
   it('should succeed if VLC is found on Windows', async () => {
     Object.defineProperty(process, 'platform', { value: 'win32' });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (fs.existsSync as unknown as Mock).mockImplementation((path: any) => path.includes('vlc.exe'));
+    (fs.existsSync as unknown as Mock).mockImplementation((path: any) =>
+      path.includes('vlc.exe'),
+    );
 
     const mockChild = { unref: vi.fn(), on: vi.fn() };
     mockSpawn.mockReturnValue(mockChild);
