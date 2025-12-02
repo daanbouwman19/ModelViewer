@@ -35,13 +35,8 @@ describe('Database Worker', () => {
       // Ignore errors during cleanup
     }
 
-    if (fs.existsSync(tempDir)) {
-      try {
-        fs.rmSync(tempDir, { recursive: true, force: true });
-      } catch {
-        // Ignore cleanup errors
-      }
-    }
+    // Clean up temp directory
+    fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
   const sendMessage = (type, payload) => {
