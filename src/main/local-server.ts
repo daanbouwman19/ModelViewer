@@ -130,7 +130,7 @@ function startLocalServer(onReadyCallback?: () => void): void {
         res.writeHead(400);
         return res.end('Missing file parameter');
       }
-      const decodedPath = decodeURIComponent(filePath);
+      // filePath is already decoded by URLSearchParams
 
       if (!ffmpegPath) {
         res.writeHead(500);
@@ -140,7 +140,7 @@ function startLocalServer(onReadyCallback?: () => void): void {
       // Security: Validate path
       try {
         const allowedDirectories = await getMediaDirectories();
-        if (!isPathAllowed(decodedPath, allowedDirectories)) {
+        if (!isPathAllowed(filePath, allowedDirectories)) {
           res.writeHead(403);
           return res.end('Access denied');
         }
@@ -151,7 +151,7 @@ function startLocalServer(onReadyCallback?: () => void): void {
       }
 
       // Use ffmpeg to get duration
-      const ffmpegProcess = spawn(ffmpegPath, ['-i', decodedPath]);
+      const ffmpegProcess = spawn(ffmpegPath, ['-i', filePath]);
 
       let stderrData = '';
       ffmpegProcess.stderr.on('data', (data: Buffer) => {
@@ -199,12 +199,12 @@ function startLocalServer(onReadyCallback?: () => void): void {
         res.writeHead(400);
         return res.end('Missing file parameter');
       }
-      const decodedPath = decodeURIComponent(filePath);
+      // filePath is already decoded by URLSearchParams
 
       // Validate path again for security
       try {
         const allowedDirectories = await getMediaDirectories();
-        if (!isPathAllowed(decodedPath, allowedDirectories)) {
+        if (!isPathAllowed(filePath, allowedDirectories)) {
           res.writeHead(403);
           return res.end('Access denied');
         }
@@ -227,7 +227,7 @@ function startLocalServer(onReadyCallback?: () => void): void {
       // Spawn ffmpeg directly
       const ffmpegArgs = [
         '-i',
-        decodedPath,
+        filePath,
         '-f',
         'mp4',
         '-vcodec',
@@ -282,11 +282,11 @@ function startLocalServer(onReadyCallback?: () => void): void {
         res.writeHead(400);
         return res.end('Missing file parameter');
       }
-      const decodedPath = decodeURIComponent(filePath);
+      // filePath is already decoded by URLSearchParams
 
       try {
         const allowedDirectories = await getMediaDirectories();
-        if (!isPathAllowed(decodedPath, allowedDirectories)) {
+        if (!isPathAllowed(filePath, allowedDirectories)) {
           res.writeHead(403);
           return res.end('Access denied');
         }
@@ -311,7 +311,7 @@ function startLocalServer(onReadyCallback?: () => void): void {
         '-ss',
         '1', // Seek to 1 second
         '-i',
-        decodedPath,
+        filePath,
         '-frames:v',
         '1',
         '-f',
