@@ -26,16 +26,16 @@
       <div class="color-controls">
         <label class="flex items-center gap-2 cursor-pointer">
           <input
-            type="checkbox"
             v-model="chameleonMode"
+            type="checkbox"
             class="checkbox-input"
           />
           <span class="text-sm font-bold text-gray-300">Chameleon Mode</span>
         </label>
         <input
           v-if="chameleonMode"
-          type="color"
           v-model="chameleonColor"
+          type="color"
           class="color-picker"
         />
       </div>

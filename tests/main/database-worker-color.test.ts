@@ -1,9 +1,8 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { Worker } from 'worker_threads';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
-import { parentPort } from 'worker_threads';
 
 describe('Database Worker - Color Features', () => {
   let worker: Worker;
@@ -44,6 +43,7 @@ describe('Database Worker - Color Features', () => {
 
     await new Promise<void>((resolve) => {
       // The worker sends 'ready' when it starts if parentPort is present.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const onMessage = (msg: any) => {
         if (msg.type === 'ready') {
           worker.off('message', onMessage);
@@ -62,16 +62,18 @@ describe('Database Worker - Color Features', () => {
     if (fs.existsSync(tmpDbPath)) {
       try {
         fs.unlinkSync(tmpDbPath);
-      } catch (e) {
+      } catch {
         // ignore
       }
     }
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sendMessage = (type: string, payload: any): Promise<any> => {
     const id = messageId++;
     return new Promise((resolve) => {
       worker.postMessage({ id, type, payload });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const handler = (msg: any) => {
         if (msg.id === id) {
           worker.off('message', handler);
@@ -98,7 +100,8 @@ describe('Database Worker - Color Features', () => {
       threshold: 10,
     });
     expect(getRes.success).toBe(true);
-    expect(getRes.data).toContain(filePath);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(getRes.data as any[]).toContain(filePath);
   });
 
   it('should filter by color threshold', async () => {
@@ -121,8 +124,10 @@ describe('Database Worker - Color Features', () => {
       b: 0,
       threshold: 50,
     });
-    expect(redRes.data).toContain(redFile);
-    expect(redRes.data).not.toContain(blueFile);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(redRes.data as any[]).toContain(redFile);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(redRes.data as any[]).not.toContain(blueFile);
   });
 
   it('should identify files missing color', async () => {
@@ -132,7 +137,8 @@ describe('Database Worker - Color Features', () => {
     await sendMessage('recordMediaView', { filePath: newFile });
 
     const missingRes = await sendMessage('getFilesMissingColor', {});
-    expect(missingRes.data).toContain(newFile);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(missingRes.data as any[]).toContain(newFile);
 
     // Now set color
     await sendMessage('setFileColor', {
@@ -141,6 +147,7 @@ describe('Database Worker - Color Features', () => {
     });
 
     const missingRes2 = await sendMessage('getFilesMissingColor', {});
-    expect(missingRes2.data).not.toContain(newFile);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(missingRes2.data as any[]).not.toContain(newFile);
   });
 });
