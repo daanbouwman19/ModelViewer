@@ -49,7 +49,7 @@ describe('Database Worker', () => {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         // Clean up listener on timeout
-        mockParentPort.off('workerMessage', messageHandler);
+        parentPort.off('workerMessage', messageHandler);
         reject(new Error(`Message ${id} (${type}) timed out`));
       }, 2000);
 
