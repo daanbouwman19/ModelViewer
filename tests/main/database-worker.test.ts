@@ -9,6 +9,20 @@ vi.mock('worker_threads');
 // Import the worker once. It will attach the listener to the mocked parentPort.
 import '../../src/main/database-worker.js';
 
+interface WorkerMessage {
+  id: number;
+  result?: {
+    success: boolean;
+    data?: unknown;
+    error?: string;
+  };
+}
+
+interface Directory {
+  path: string;
+  isActive: boolean;
+}
+
 describe('Database Worker', () => {
   let dbPath: string;
   let tempDir: string;
@@ -40,7 +54,7 @@ describe('Database Worker', () => {
   });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sendMessage = (type: string, payload: any): Promise<any> => {
+  const sendMessage = (type: string, payload: unknown): Promise<{ success: boolean; data?: any; error?: string }> => {
     const id = messageId++;
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -49,12 +63,12 @@ describe('Database Worker', () => {
         reject(new Error(`Message ${id} (${type}) timed out`));
       }, 2000);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const messageHandler = (message: any) => {
+      const messageHandler = (message: WorkerMessage) => {
         if (message.id === id) {
           parentPort!.off('workerMessage', messageHandler);
           clearTimeout(timeout);
-          resolve(message.result);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          resolve(message.result as { success: boolean; data?: any; error?: string });
         }
       };
 
@@ -204,8 +218,7 @@ describe('Database Worker', () => {
       await sendMessage('addMediaDirectory', { directoryPath: dirPath });
       await sendMessage('addMediaDirectory', { directoryPath: dirPath });
       const result = await sendMessage('getMediaDirectories', {});
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const dirs = result.data.filter((d: any) => d.path === dirPath);
+      const dirs = (result.data as Directory[]).filter((d) => d.path === dirPath);
       expect(dirs).toHaveLength(1);
     });
 
@@ -218,9 +231,8 @@ describe('Database Worker', () => {
       });
       await sendMessage('addMediaDirectory', { directoryPath: dirPath });
       const result = await sendMessage('getMediaDirectories', {});
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const dir = result.data.find((d: any) => d.path === dirPath);
-      expect(dir.isActive).toBe(true);
+      const dir = (result.data as Directory[]).find((d) => d.path === dirPath);
+      expect(dir?.isActive).toBe(true);
     });
 
     it('should remove a media directory', async () => {
@@ -276,8 +288,7 @@ describe('Database Worker', () => {
 
       it.each(testCases)(
         '$type should fail gracefully',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        async ({ type, payload }: any) => {
+        async ({ type, payload }: { type: string; payload: unknown }) => {
           const result = await sendMessage(type, payload);
           expect(result.success).toBe(false);
           expect(result.error).toBe('Database not initialized');
@@ -300,8 +311,7 @@ describe('Database Worker', () => {
 
       it.each(testCases)(
         '$type should fail gracefully',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        async ({ type, payload }: any) => {
+        async ({ type, payload }: { type: string; payload: unknown }) => {
           const result = await sendMessage(type, payload);
           expect(result.success).toBe(false);
           expect(result.error).toBe('Database not initialized');

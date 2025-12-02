@@ -16,36 +16,12 @@ describe('Database Worker - Color Features', () => {
       '../../src/main/database-worker.ts',
     );
 
-    // In Vitest, running TS directly is supported via configuration, but we might need
-    // to rely on `execArgv` if the worker is spawned in a new process that doesn't share
-    // the test runner's loader.
-    // However, looking at the project structure, `electron-vite` is used.
-    // Vitest uses `vite-node` or similar.
-    // Let's try standard spawning. If it fails with "unknown extension", we need a loader.
-    // The previous error was "Cannot find package 'tsx'".
-
-    // Let's assume for now we can test this by importing the worker code directly if we refactor,
-    // but refactoring is intrusive.
-
-    // Alternative: Use the JS file if it exists? No, it's not built yet.
-
-    // Let's try to pass the loader via execArgv if we can find where `tsx` or `ts-node` is.
-    // But we don't have `tsx` in dependencies. We have `typescript` and `electron-vite`.
-
-    // The previous test `database-worker.test.ts` uses:
-    // worker = new Worker(path.resolve(__dirname, '../../src/main/database-worker.ts'));
-    // Does it work? Let's assume it relies on Vitest's magic or the environment.
-    // Wait, the error `Cannot find package 'tsx'` suggests something is trying to use it.
-    // Did I add it? No.
-
-    // Let's try to just use the worker without execArgv first, like the original test.
     worker = new Worker(workerPath);
 
     await new Promise<void>((resolve) => {
-      // The worker sends 'ready' when it starts if parentPort is present.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const onMessage = (msg: any) => {
-        if (msg.type === 'ready') {
+      const onMessage = (msg: unknown) => {
+        const typedMsg = msg as { type: string };
+        if (typedMsg.type === 'ready') {
           worker.off('message', onMessage);
           resolve();
         }
@@ -68,16 +44,24 @@ describe('Database Worker - Color Features', () => {
     }
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sendMessage = (type: string, payload: any): Promise<any> => {
+  interface WorkerResponse {
+    id: number;
+    result: {
+      success: boolean;
+      data?: unknown;
+      error?: string;
+    };
+  }
+
+  const sendMessage = (type: string, payload: unknown): Promise<{ success: boolean; data?: unknown; error?: string }> => {
     const id = messageId++;
     return new Promise((resolve) => {
       worker.postMessage({ id, type, payload });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const handler = (msg: any) => {
-        if (msg.id === id) {
+      const handler = (msg: unknown) => {
+        const typedMsg = msg as WorkerResponse;
+        if (typedMsg.id === id) {
           worker.off('message', handler);
-          resolve(msg.result);
+          resolve(typedMsg.result);
         }
       };
       worker.on('message', handler);
@@ -100,8 +84,7 @@ describe('Database Worker - Color Features', () => {
       threshold: 10,
     });
     expect(getRes.success).toBe(true);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect(getRes.data as any[]).toContain(filePath);
+    expect(getRes.data as string[]).toContain(filePath);
   });
 
   it('should filter by color threshold', async () => {
@@ -124,10 +107,8 @@ describe('Database Worker - Color Features', () => {
       b: 0,
       threshold: 50,
     });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect(redRes.data as any[]).toContain(redFile);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect(redRes.data as any[]).not.toContain(blueFile);
+    expect(redRes.data as string[]).toContain(redFile);
+    expect(redRes.data as string[]).not.toContain(blueFile);
   });
 
   it('should identify files missing color', async () => {
@@ -137,8 +118,7 @@ describe('Database Worker - Color Features', () => {
     await sendMessage('recordMediaView', { filePath: newFile });
 
     const missingRes = await sendMessage('getFilesMissingColor', {});
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect(missingRes.data as any[]).toContain(newFile);
+    expect(missingRes.data as string[]).toContain(newFile);
 
     // Now set color
     await sendMessage('setFileColor', {
@@ -147,7 +127,6 @@ describe('Database Worker - Color Features', () => {
     });
 
     const missingRes2 = await sendMessage('getFilesMissingColor', {});
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect(missingRes2.data as any[]).not.toContain(newFile);
+    expect(missingRes2.data as string[]).not.toContain(newFile);
   });
 });
