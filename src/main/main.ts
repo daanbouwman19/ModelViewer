@@ -4,7 +4,7 @@
  * backend logic and communication with the renderer process via IPC.
  * This includes file system operations, database management, and running a local server.
  */
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, IpcMainInvokeEvent } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { spawn } from 'child_process';
@@ -14,7 +14,7 @@ import {
   SUPPORTED_VIDEO_EXTENSIONS,
   SUPPORTED_IMAGE_EXTENSIONS,
   ALL_SUPPORTED_EXTENSIONS,
-} from './constants.js';
+} from './constants';
 
 import {
   initDatabase,
@@ -27,26 +27,24 @@ import {
   addMediaDirectory,
   removeMediaDirectory,
   setDirectoryActiveState,
-} from './database.js';
-import { performFullMediaScan } from './media-scanner.js';
+} from './database';
+import { performFullMediaScan, Album } from './media-scanner';
 import {
   startLocalServer,
   stopLocalServer,
   getServerPort,
   getMimeType as resolveMimeType,
-} from './local-server.js';
+} from './local-server';
 
 /**
  * A flag indicating if the application is running in development mode.
- * @type {boolean}
  */
 const isDev = !app.isPackaged;
 
 /**
  * The main browser window instance.
- * @type {BrowserWindow | null}
  */
-let mainWindow = null;
+let mainWindow: BrowserWindow | null = null;
 
 // --- IPC Handlers ---
 
@@ -54,9 +52,9 @@ let mainWindow = null;
  * Handles the 'load-file-as-data-url' IPC call from the renderer process.
  * It loads a file and returns its content as a Data URL or an HTTP URL from the local server
  * for large video files.
- * @returns {Promise<{type: 'data-url' | 'http-url' | 'error', url?: string, message?: string}>} An object containing the result.
+ * @returns An object containing the result.
  */
-ipcMain.handle('load-file-as-data-url', (event, filePath, options = {}) => {
+ipcMain.handle('load-file-as-data-url', (_event: IpcMainInvokeEvent, filePath: string, options: { preferHttp?: boolean } = {}) => {
   try {
     if (!filePath || !fs.existsSync(filePath)) {
       return { type: 'error', message: `File does not exist: ${filePath}` };
@@ -96,7 +94,7 @@ ipcMain.handle('load-file-as-data-url', (event, filePath, options = {}) => {
     const fileBuffer = fs.readFileSync(filePath);
     const dataURL = `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
     return { type: 'data-url', url: dataURL };
-  } catch (error) {
+  } catch (error: any) {
     console.error(
       `[main.js] Error processing ${filePath} in load-file-as-data-url:`,
       error,
@@ -110,27 +108,27 @@ ipcMain.handle('load-file-as-data-url', (event, filePath, options = {}) => {
 
 /**
  * Handles the 'record-media-view' IPC call.
- * @param {string} filePath - The path of the media file to record a view for.
+ * @param filePath - The path of the media file to record a view for.
  */
-ipcMain.handle('record-media-view', async (event, filePath) => {
+ipcMain.handle('record-media-view', async (_event: IpcMainInvokeEvent, filePath: string) => {
   await recordMediaView(filePath);
 });
 
 /**
  * Handles the 'get-media-view-counts' IPC call.
- * @param {string[]} filePaths - An array of file paths.
- * @returns {Promise<{[filePath: string]: number}>} A map of file paths to their view counts.
+ * @param filePaths - An array of file paths.
+ * @returns A map of file paths to their view counts.
  */
-ipcMain.handle('get-media-view-counts', async (event, filePaths) => {
+ipcMain.handle('get-media-view-counts', async (_event: IpcMainInvokeEvent, filePaths: string[]) => {
   return getMediaViewCounts(filePaths);
 });
 
 /**
  * Scans active media directories for albums, caches the result in the database,
  * and returns the list of albums found.
- * @returns {Promise<import('./media-scanner.js').Album[]>} The list of albums found.
+ * @returns The list of albums found.
  */
-async function scanDiskForAlbumsAndCache() {
+async function scanDiskForAlbumsAndCache(): Promise<Album[]> {
   const allDirectories = await getMediaDirectories();
   const activeDirectories = allDirectories
     .filter((dir) => dir.isActive)
@@ -149,10 +147,10 @@ async function scanDiskForAlbumsAndCache() {
 /**
  * Retrieves albums by first checking the cache, and if the cache is empty,
  * performs a disk scan.
- * @returns {Promise<import('./media-scanner.js').Album[]>} The list of albums.
+ * @returns The list of albums.
  */
-async function getAlbumsFromCacheOrDisk() {
-  let albums = await getCachedAlbums();
+async function getAlbumsFromCacheOrDisk(): Promise<Album[]> {
+  const albums = await getCachedAlbums();
   if (albums && albums.length > 0) {
     return albums;
   }
@@ -162,9 +160,9 @@ async function getAlbumsFromCacheOrDisk() {
 /**
  * Performs a fresh disk scan and returns the albums with their view counts.
  * This is a utility function to combine scanning and view count retrieval.
- * @returns {Promise<import('./media-scanner.js').Album[]>} The list of albums with view counts.
+ * @returns The list of albums with view counts.
  */
-async function getAlbumsWithViewCountsAfterScan() {
+async function getAlbumsWithViewCountsAfterScan(): Promise<Album[]> {
   const albums = await scanDiskForAlbumsAndCache();
   if (!albums || albums.length === 0) {
     return [];
@@ -187,7 +185,7 @@ async function getAlbumsWithViewCountsAfterScan() {
 /**
  * Handles the 'get-albums-with-view-counts' IPC call.
  * Retrieves albums (from cache or disk) and augments them with view counts.
- * @returns {Promise<import('./media-scanner.js').Album[]>} A promise that resolves to the list of albums with view counts.
+ * @returns A promise that resolves to the list of albums with view counts.
  */
 ipcMain.handle('get-albums-with-view-counts', async () => {
   const albums = await getAlbumsFromCacheOrDisk();
@@ -212,7 +210,7 @@ ipcMain.handle('get-albums-with-view-counts', async () => {
 /**
  * Handles the 'add-media-directory' IPC call. Opens a dialog to select a directory,
  * adds it to the database, and returns the path.
- * @returns {Promise<string | null>} The path of the new directory, or null if canceled.
+ * @returns The path of the new directory, or null if canceled.
  */
 ipcMain.handle('add-media-directory', async () => {
   if (!mainWindow) return null;
@@ -233,7 +231,7 @@ ipcMain.handle('add-media-directory', async () => {
 
 /**
  * Handles the 'reindex-media-library' IPC call.
- * @returns {Promise<import('./media-scanner.js').Album[]>} The updated list of albums.
+ * @returns The updated list of albums.
  */
 ipcMain.handle('reindex-media-library', async () => {
   return getAlbumsWithViewCountsAfterScan();
@@ -241,26 +239,26 @@ ipcMain.handle('reindex-media-library', async () => {
 
 /**
  * Handles the 'remove-media-directory' IPC call.
- * @param {string} directoryPath - The path of the directory to remove.
+ * @param directoryPath - The path of the directory to remove.
  */
-ipcMain.handle('remove-media-directory', async (event, directoryPath) => {
+ipcMain.handle('remove-media-directory', async (_event: IpcMainInvokeEvent, directoryPath: string) => {
   await removeMediaDirectory(directoryPath);
 });
 
 /**
  * Handles the 'set-directory-active-state' IPC call.
- * @param {{directoryPath: string, isActive: boolean}} options - The directory path and its new active state.
+ * @param options - The directory path and its new active state.
  */
 ipcMain.handle(
   'set-directory-active-state',
-  async (event, { directoryPath, isActive }) => {
+  async (_event: IpcMainInvokeEvent, { directoryPath, isActive }: { directoryPath: string; isActive: boolean }) => {
     await setDirectoryActiveState(directoryPath, isActive);
   },
 );
 
 /**
  * Handles the 'get-media-directories' IPC call.
- * @returns {Promise<{path: string, isActive: boolean}[]>} The list of media directories.
+ * @returns The list of media directories.
  */
 ipcMain.handle('get-media-directories', async () => {
   return getMediaDirectories();
@@ -268,7 +266,7 @@ ipcMain.handle('get-media-directories', async () => {
 
 /**
  * Handles the 'get-supported-extensions' IPC call.
- * @returns {{images: string[], videos: string[], all: string[]}} The supported file extensions.
+ * @returns The supported file extensions.
  */
 ipcMain.handle('get-supported-extensions', () => {
   return {
@@ -280,7 +278,7 @@ ipcMain.handle('get-supported-extensions', () => {
 
 /**
  * Handles the 'get-server-port' IPC call.
- * @returns {number} The port the local server is running on.
+ * @returns The port the local server is running on.
  */
 ipcMain.handle('get-server-port', () => {
   return getServerPort();
@@ -289,12 +287,12 @@ ipcMain.handle('get-server-port', () => {
 /**
  * Handles the 'open-in-vlc' IPC call.
  * Attempts to open the given file in VLC Media Player.
- * @param {string} filePath - The path of the file to open.
- * @returns {Promise<{success: boolean, message?: string}>} The result of the operation.
+ * @param filePath - The path of the file to open.
+ * @returns The result of the operation.
  */
-ipcMain.handle('open-in-vlc', async (event, filePath) => {
+ipcMain.handle('open-in-vlc', async (_event: IpcMainInvokeEvent, filePath: string) => {
   const platform = process.platform;
-  let vlcPath = null;
+  let vlcPath: string | null = null;
 
   if (platform === 'win32') {
     const commonPaths = [
@@ -341,7 +339,7 @@ ipcMain.handle('open-in-vlc', async (event, filePath) => {
 
     child.unref();
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
     console.error('[main.js] Error launching VLC:', error);
     return {
       success: false,
@@ -356,7 +354,7 @@ ipcMain.handle('open-in-vlc', async (event, filePath) => {
  * Creates and configures the main application window.
  */
 function createWindow() {
-  const preloadPath = path.join(__dirname, '../preload/preload.cjs');
+  const preloadPath = path.join(__dirname, '../preload/preload.cjs'); // Changed to .js as it will be compiled
 
   mainWindow = new BrowserWindow({
     width: 1200,

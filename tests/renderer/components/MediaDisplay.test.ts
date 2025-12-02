@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { ref } from 'vue';
 import MediaDisplay from '@/components/MediaDisplay.vue';
-import { useAppState } from '@/composables/useAppState.js';
-import { useSlideshow } from '@/composables/useSlideshow.js';
+import { useAppState } from '@/composables/useAppState';
+import { useSlideshow } from '@/composables/useSlideshow';
 
 // Mock the composables
 vi.mock('@/composables/useAppState.js');
@@ -276,7 +276,6 @@ describe('MediaDisplay.vue', () => {
     const wrapper = mount(MediaDisplay);
 
     await new Promise((resolve) => setTimeout(resolve, 50));
-    wrapper.find('img');
     // Manually call the error handler
     wrapper.vm.handleMediaError();
     await wrapper.vm.$nextTick();
@@ -306,7 +305,6 @@ describe('MediaDisplay.vue', () => {
     ];
 
     const wrapper = mount(MediaDisplay);
-    wrapper.findAll('.nav-button')[0];
     // Call the handler directly
     wrapper.vm.handlePrevious();
     expect(mockNavigateMedia).toHaveBeenCalledWith(-1);
@@ -335,7 +333,6 @@ describe('MediaDisplay.vue', () => {
     ];
 
     const wrapper = mount(MediaDisplay);
-    wrapper.findAll('.nav-button')[1];
     // Call the handler directly
     wrapper.vm.handleNext();
     expect(mockNavigateMedia).toHaveBeenCalledWith(1);

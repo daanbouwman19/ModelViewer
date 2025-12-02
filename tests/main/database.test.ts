@@ -11,7 +11,7 @@ import {
   getMediaDirectories,
   removeMediaDirectory,
   setDirectoryActiveState,
-} from '../../src/main/database.js';
+} from '../../src/main/database';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -338,6 +338,7 @@ describe('database resilience', () => {
     MockWorker = vi.fn().mockImplementation(function (...args) {
       const instance = new (class WorkerMock {
         constructor() {
+          // eslint-disable-next-line @typescript-eslint/no-this-alias
           lastWorkerInstance = this;
           this.on = vi.fn((event, cb) => {
             if (event === 'message') this.onMessage = cb;

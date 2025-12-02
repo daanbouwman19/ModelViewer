@@ -10,16 +10,15 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 /**
  * @file This component displays a loading overlay with a spinner.
  * It is used to indicate that a background process, such as media scanning, is in progress.
  */
-defineProps({
-  message: {
-    type: String,
-    default: 'Scanning for media...',
-  },
+withDefaults(defineProps<{
+  message?: string;
+}>(), {
+  message: 'Scanning for media...',
 });
 </script>
 

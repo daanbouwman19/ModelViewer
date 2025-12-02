@@ -32,7 +32,7 @@
                 type="checkbox"
                 :checked="dir.isActive"
                 class="source-checkbox"
-                @change="handleToggleActive(dir.path, $event.target.checked)"
+                @change="handleToggleActive(dir.path, ($event.target as HTMLInputElement).checked)"
               />
               <span class="ml-2 flex-grow source-path">{{ dir.path }}</span>
               <button
@@ -58,7 +58,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 /**
  * @file This component provides a modal dialog for managing media source directories.
  * Users can add, remove, and toggle the active state of directories.
@@ -90,10 +90,10 @@ const resetSlideshowState = () => {
 
 /**
  * Toggles the active state of a media directory.
- * @param {string} path - The path of the directory.
- * @param {boolean} isActive - The new active state.
+ * @param path - The path of the directory.
+ * @param isActive - The new active state.
  */
-const handleToggleActive = async (path, isActive) => {
+const handleToggleActive = async (path: string, isActive: boolean) => {
   try {
     await window.electronAPI.setDirectoryActiveState(path, isActive);
     const dir = mediaDirectories.value.find((d) => d.path === path);
@@ -107,9 +107,9 @@ const handleToggleActive = async (path, isActive) => {
 
 /**
  * Removes a media directory from the application.
- * @param {string} path - The path of the directory to remove.
+ * @param path - The path of the directory to remove.
  */
-const handleRemove = async (path) => {
+const handleRemove = async (path: string) => {
   try {
     await window.electronAPI.removeMediaDirectory(path);
     const index = mediaDirectories.value.findIndex((d) => d.path === path);

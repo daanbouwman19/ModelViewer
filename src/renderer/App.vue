@@ -19,7 +19,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 /**
  * @file The main Vue component for the application.
  * It sets up the overall layout, initializes the application state,
@@ -39,11 +39,11 @@ const { navigateMedia, toggleSlideshowTimer } = useSlideshow();
 
 /**
  * Handles global keydown events for slideshow control.
- * @param {KeyboardEvent} event - The keyboard event object.
+ * @param event - The keyboard event object.
  */
-const handleKeydown = (event) => {
+const handleKeydown = (event: KeyboardEvent) => {
   // Ignore keyboard events if an input field is focused
-  if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+  if ((event.target as HTMLElement).tagName === 'INPUT' || (event.target as HTMLElement).tagName === 'TEXTAREA') {
     return;
   }
 

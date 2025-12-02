@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useSlideshow } from '@/composables/useSlideshow.js';
-import { useAppState } from '@/composables/useAppState.js';
+import { useSlideshow } from '@/composables/useSlideshow';
+import { useAppState } from '@/composables/useAppState';
 
 // Mock the entire useAppState module
 vi.mock('@/composables/useAppState.js', () => ({

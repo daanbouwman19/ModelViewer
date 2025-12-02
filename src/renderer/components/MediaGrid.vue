@@ -76,7 +76,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 /**
  * @file Displays a grid of media items (images and videos).
  * Supports hover-to-preview for videos and click-to-play functionality.
@@ -84,6 +84,7 @@
  */
 import { ref, onMounted, computed, watch } from 'vue';
 import { useAppState } from '../composables/useAppState';
+import type { MediaFile } from '../../main/media-scanner';
 
 const { state } = useAppState();
 
@@ -100,13 +101,13 @@ const visibleMediaFiles = computed(() => {
 
 /**
  * Throttle helper function to limit how often a function can be called
- * @param {Function} func - The function to throttle
- * @param {number} delay - Delay in milliseconds
- * @returns {Function} Throttled function
+ * @param func - The function to throttle
+ * @param delay - Delay in milliseconds
+ * @returns Throttled function
  */
-const throttle = (func, delay) => {
-  let inThrottle;
-  return function (...args) {
+const throttle = (func: Function, delay: number) => {
+  let inThrottle: boolean;
+  return function (this: any, ...args: any[]) {
     if (!inThrottle) {
       func.apply(this, args);
       inThrottle = true;
@@ -118,8 +119,9 @@ const throttle = (func, delay) => {
 /**
  * Handles scroll events to load more items incrementally
  */
-const handleScrollInternal = (e) => {
-  const { scrollTop, scrollHeight, clientHeight } = e.target;
+const handleScrollInternal = (e: Event) => {
+  const target = e.target as HTMLElement;
+  const { scrollTop, scrollHeight, clientHeight } = target;
 
   // Load more when the user scrolls within 300px of the bottom
   if (scrollTop + clientHeight >= scrollHeight - 300) {
@@ -146,22 +148,22 @@ watch(allMediaFiles, (_newFiles, _oldFiles) => {
 
 /**
  * Checks if the file is an image based on extension.
- * @param {object} item - The media item.
- * @returns {boolean}
+ * @param item - The media item.
+ * @returns True if it is an image.
  */
-const isImage = (item) => {
-  const ext = item.path.split('.').pop().toLowerCase();
-  return state.supportedExtensions.images.includes(`.${ext}`);
+const isImage = (item: MediaFile) => {
+  const ext = item.path.split('.').pop()?.toLowerCase();
+  return ext ? state.supportedExtensions.images.includes(`.${ext}`) : false;
 };
 
 /**
  * Checks if the file is a video based on extension.
- * @param {object} item - The media item.
- * @returns {boolean}
+ * @param item - The media item.
+ * @returns True if it is a video.
  */
-const isVideo = (item) => {
-  const ext = item.path.split('.').pop().toLowerCase();
-  return state.supportedExtensions.videos.includes(`.${ext}`);
+const isVideo = (item: MediaFile) => {
+  const ext = item.path.split('.').pop()?.toLowerCase();
+  return ext ? state.supportedExtensions.videos.includes(`.${ext}`) : false;
 };
 
 /**
@@ -178,7 +180,7 @@ onMounted(async () => {
   }
 });
 
-const getMediaUrl = (item) => {
+const getMediaUrl = (item: MediaFile) => {
   if (serverPort.value > 0) {
     let pathForUrl = item.path.replace(/\\/g, '/');
     // Encode each path segment to handle all special characters
@@ -199,20 +201,20 @@ const getMediaUrl = (item) => {
   return ''; // Placeholder until port is loaded
 };
 
-const getPosterUrl = (_item) => {
+const getPosterUrl = (_item: MediaFile) => {
   // For videos, we might not have a thumbnail.
   // Just return null/empty to show black or first frame (if preload metadata).
   return '';
 };
 
-const getFileName = (path) => {
+const getFileName = (path: string) => {
   return path.replace(/^.*[\\/]/, '');
 };
 
 /**
  * Handlers for interactions
  */
-const handleItemClick = async (item) => {
+const handleItemClick = async (item: MediaFile) => {
   // When clicking an item, we pass the FULL list to the player, not just visible ones
   state.displayedMediaFiles = [...allMediaFiles.value];
   const index = state.displayedMediaFiles.findIndex(

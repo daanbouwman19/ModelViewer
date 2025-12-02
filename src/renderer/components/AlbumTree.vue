@@ -48,7 +48,7 @@
   </li>
 </template>
 
-<script setup>
+<script setup lang="ts">
 /**
  * @file This is a recursive component used to render a tree of albums.
  * Each node in the tree can be expanded or collapsed to show/hide its children.
@@ -57,29 +57,27 @@
 import { ref, computed } from 'vue';
 import { countTextures, getAlbumAndChildrenNames } from '../utils/albumUtils';
 import { useSlideshow } from '../composables/useSlideshow';
+import type { Album } from '../../main/media-scanner';
 
-const props = defineProps({
-  album: {
-    type: Object,
-    required: true,
-  },
-  depth: {
-    type: Number,
-    default: 0,
-  },
-  selection: {
-    type: Object,
-    required: true,
-  },
+const props = withDefaults(defineProps<{
+  album: Album;
+  depth?: number;
+  selection: { [key: string]: boolean };
+}>(), {
+  depth: 0,
 });
 
-const emit = defineEmits(['toggleSelection', 'albumClick']);
+const emit = defineEmits<{
+  (e: 'toggleSelection', album: Album): void;
+  (e: 'albumClick', album: Album): void;
+}>();
+
 const isOpen = ref(false);
 const slideshow = useSlideshow();
 
 /**
  * Checks if the album is a folder (i.e., has children).
- * @returns {boolean} True if the album has children.
+ * @returns True if the album has children.
  */
 const isFolder = computed(() => {
   return props.album.children && props.album.children.length > 0;
@@ -94,7 +92,6 @@ const toggle = () => {
 
 /**
  * The total number of textures in the current album and its descendants.
- * @type {import('vue').ComputedRef<number>}
  */
 const totalTextureCount = computed(() => countTextures(props.album));
 
@@ -113,25 +110,25 @@ const selectionState = computed(() => {
 
 /**
  * Emits an event to toggle the selection of an album.
- * @param {import('../../main/media-scanner.js').Album} album - The album to toggle.
+ * @param album - The album to toggle.
  */
-const handleToggleSelection = (album) => {
+const handleToggleSelection = (album: Album) => {
   emit('toggleSelection', album);
 };
 
 /**
  * Emits an event to handle a click on an album.
- * @param {import('../../main/media-scanner.js').Album} album - The clicked album.
+ * @param album - The clicked album.
  */
-const handleClickAlbum = (album) => {
+const handleClickAlbum = (album: Album) => {
   emit('albumClick', album);
 };
 
 /**
  * Opens the album in Grid View.
- * @param {import('../../main/media-scanner.js').Album} album - The album to open.
+ * @param album - The album to open.
  */
-const handleOpenGrid = (album) => {
+const handleOpenGrid = (album: Album) => {
   slideshow.openAlbumInGrid(album);
 };
 </script>

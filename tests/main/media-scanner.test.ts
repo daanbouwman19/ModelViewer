@@ -1,12 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { performFullMediaScan } from '../../src/main/media-scanner.js';
+  import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'fs';
-import fsPromises from 'fs/promises';
 import path from 'path';
 import os from 'os';
+import fsPromises from 'fs/promises';
+import { performFullMediaScan } from '../../src/main/media-scanner';
 
-describe('Media Scanner', () => {
-  let testDir;
+let testDir;
 
   beforeEach(() => {
     testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'media-scanner-test-'));
@@ -234,4 +233,4 @@ describe('Media Scanner', () => {
       expect(result[0].children[0].name).toBe('good-dir');
     });
   });
-});
+

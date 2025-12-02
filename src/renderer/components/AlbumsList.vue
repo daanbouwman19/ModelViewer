@@ -49,7 +49,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 /**
  * @file This component displays the list of all available media albums in a tree structure.
  * It provides controls for starting a global slideshow, managing the timer,
@@ -63,6 +63,7 @@ import {
   getAlbumAndChildrenNames,
   collectTexturesRecursive,
 } from '../utils/albumUtils';
+import type { Album } from '../../main/media-scanner';
 
 const {
   allAlbums,
@@ -78,9 +79,9 @@ const slideshow = useSlideshow();
 /**
  * Toggles the selection of an album and all its children. If any child is unselected,
  * it selects all of them. If all are already selected, it deselects all of them.
- * @param {import('../../main/media-scanner.js').Album} album - The album to toggle.
+ * @param album - The album to toggle.
  */
-const handleToggleSelection = (album) => {
+const handleToggleSelection = (album: Album) => {
   const names = getAlbumAndChildrenNames(album);
   // Determine the new state: if any child is unselected, the new state is "selected" (true).
   // Otherwise, if all are selected, the new state is "unselected" (false).
@@ -95,9 +96,9 @@ const handleToggleSelection = (album) => {
 
 /**
  * Starts a slideshow for a single album and all its sub-albums.
- * @param {import('../../main/media-scanner.js').Album} album - The album to start the slideshow for.
+ * @param album - The album to start the slideshow for.
  */
-const handleClickAlbum = (album) => {
+const handleClickAlbum = (album: Album) => {
   const textures = collectTexturesRecursive(album);
   const albumWithAllTextures = { ...album, textures };
   slideshow.startIndividualAlbumSlideshow(albumWithAllTextures);

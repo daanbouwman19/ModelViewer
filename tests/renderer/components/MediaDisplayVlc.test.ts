@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { ref } from 'vue';
 import MediaDisplay from '@/components/MediaDisplay.vue';
-import { useAppState } from '@/composables/useAppState.js';
-import { useSlideshow } from '@/composables/useSlideshow.js';
+import { useAppState } from '@/composables/useAppState';
+import { useSlideshow } from '@/composables/useSlideshow';
 
 // Mock the composables
 vi.mock('@/composables/useAppState.js');

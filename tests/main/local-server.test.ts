@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach, vi, beforeEach } from 'vitest';
 import http from 'http';
+import { EventEmitter } from 'events';
 import fs from 'fs';
 import path from 'path';
 import {
@@ -7,14 +8,14 @@ import {
   stopLocalServer,
   getServerPort,
   getMimeType,
-} from '../../src/main/local-server.js';
+} from '../../src/main/local-server';
 
 // Mock the database module
 vi.mock('../../src/main/database.js', () => ({
   getMediaDirectories: vi.fn(),
 }));
 
-import { getMediaDirectories } from '../../src/main/database.js';
+import { getMediaDirectories } from '../../src/main/database';
 
 // Helper to promisify callback-based functions
 const startServer = () =>
@@ -367,7 +368,7 @@ describe('Local Server', () => {
         .spyOn(console, 'error')
         .mockImplementation(() => {});
 
-      const mockServer = new (require('events').EventEmitter)();
+      const mockServer = new EventEmitter();
       mockServer.listen = vi.fn((port, host, cb) => {
         // Defer error emission to ensure the '.on('error',...)' handler is attached.
         process.nextTick(() =>
@@ -417,7 +418,7 @@ describe('Local Server', () => {
         .mockImplementation(() => {});
       const closeError = new Error('Server close failed');
 
-      const mockServer = new (require('events').EventEmitter)();
+      const mockServer = new EventEmitter();
       mockServer.listen = vi.fn((port, host, cb) => cb && cb());
       mockServer.address = () => ({ port: 12345 });
       mockServer.unref = vi.fn();

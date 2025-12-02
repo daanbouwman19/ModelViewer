@@ -20,6 +20,7 @@ class MockWorker extends EventEmitter {
       }
     });
     // Capture the instance when it's created
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     mockWorkerInstance = this;
   }
 

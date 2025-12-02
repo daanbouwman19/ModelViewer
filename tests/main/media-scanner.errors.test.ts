@@ -11,7 +11,7 @@ vi.mock('fs/promises', () => {
 });
 
 import fs from 'fs/promises';
-import { performFullMediaScan } from '../../src/main/media-scanner.js';
+import { performFullMediaScan } from '../../src/main/media-scanner';
 
 describe('Media Scanner Error Handling', () => {
   beforeEach(() => {

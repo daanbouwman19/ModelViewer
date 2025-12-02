@@ -1,6 +1,7 @@
 import globals from 'globals';
 import pluginVue from 'eslint-plugin-vue';
 import eslintConfigPrettier from 'eslint-config-prettier';
+import tseslint from 'typescript-eslint';
 
 export default [
   {
@@ -19,16 +20,22 @@ export default [
       },
     },
   },
+  ...tseslint.configs.recommended,
   ...pluginVue.configs['flat/recommended'],
+  {
+    files: ['*.vue', '**/*.vue'],
+    languageOptions: {
+      parserOptions: {
+        parser: tseslint.parser,
+      },
+    },
+  },
   eslintConfigPrettier,
   {
     rules: {
       'vue/multi-word-component-names': 'off',
-      'no-unused-vars': [
-        'warn',
-        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
-      ],
       'no-console': 'off',
+      '@typescript-eslint/no-explicit-any': 'warn',
     },
   },
 ];

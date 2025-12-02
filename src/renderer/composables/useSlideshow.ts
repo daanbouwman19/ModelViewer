@@ -2,25 +2,20 @@
  * @file Provides composable functions for managing slideshow logic.
  * This includes starting/stopping slideshows, navigating media, filtering,
  * and selecting media items based on a weighted random algorithm.
- * @requires ./useAppState
  */
 import { useAppState } from './useAppState';
 import { collectTexturesRecursive } from '../utils/albumUtils';
-
-/**
- * @typedef {import('../../main/media-scanner.js').Album} Album
- * @typedef {import('../../main/media-scanner.js').MediaFile} MediaFile
- */
+import type { Album, MediaFile } from '../../main/media-scanner';
 
 /**
  * Recursively collects all textures from a list of albums and their children
  * if their names are in the provided selection map.
- * @param {Album[]} albums - The albums to traverse.
- * @param {{ [key: string]: boolean }} selection - A map of selected album names.
- * @returns {MediaFile[]} A flattened list of all textures from selected albums.
+ * @param albums - The albums to traverse.
+ * @param selection - A map of selected album names.
+ * @returns A flattened list of all textures from selected albums.
  */
-function collectSelectedTextures(albums, selection) {
-  let textures = [];
+function collectSelectedTextures(albums: Album[], selection: { [key: string]: boolean }): MediaFile[] {
+  const textures: MediaFile[] = [];
   for (const album of albums) {
     if (selection[album.name]) {
       textures.push(...album.textures);
@@ -34,29 +29,16 @@ function collectSelectedTextures(albums, selection) {
 
 /**
  * A Vue composable that provides functions for controlling the media slideshow.
- * @returns {{
- *   navigateMedia: (direction: number) => Promise<void>,
- *   toggleSlideshowTimer: () => void,
- *   toggleAlbumSelection: (albumName: string, isSelected?: boolean) => void,
- *   startSlideshow: () => Promise<void>,
- *   startIndividualAlbumSlideshow: (album: Album) => Promise<void>,
- *   pickAndDisplayNextMediaItem: () => Promise<void>,
- *   reapplyFilter: () => Promise<void>,
- *   filterMedia: (mediaFiles: MediaFile[]) => MediaFile[],
- *   selectWeightedRandom: (items: MediaFile[], excludePaths?: string[]) => MediaFile | null,
- *   shuffleArray: <T>(array: T[]) => T[]
- * }}
  */
 export function useSlideshow() {
   const { state, stopSlideshow } = useAppState();
 
   /**
    * Shuffles an array in place.
-   * @template T
-   * @param {T[]} array The array to shuffle.
-   * @returns {T[]} The shuffled array.
+   * @param array The array to shuffle.
+   * @returns The shuffled array.
    */
-  const shuffleArray = (array) => {
+  const shuffleArray = <T>(array: T[]): T[] => {
     const shuffled = [...array];
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -67,10 +49,10 @@ export function useSlideshow() {
 
   /**
    * Filters a list of media files based on the current filter setting in the global state.
-   * @param {MediaFile[]} mediaFiles - The array of media files to filter.
-   * @returns {MediaFile[]} The filtered array of media files.
+   * @param mediaFiles - The array of media files to filter.
+   * @returns The filtered array of media files.
    */
-  const filterMedia = (mediaFiles) => {
+  const filterMedia = (mediaFiles: MediaFile[]): MediaFile[] => {
     if (!mediaFiles || mediaFiles.length === 0) return [];
 
     const filter = state.mediaFilter;
@@ -99,11 +81,11 @@ export function useSlideshow() {
 
   /**
    * Selects a random item from a list, weighted by view count (less viewed items are more likely).
-   * @param {MediaFile[]} items - Array of media items, each with a 'path' and optional 'viewCount'.
-   * @param {string[]} [excludePaths=[]] - An array of paths to exclude from selection.
-   * @returns {MediaFile | null} The selected media item, or null if no item could be selected.
+   * @param items - Array of media items, each with a 'path' and optional 'viewCount'.
+   * @param excludePaths - An array of paths to exclude from selection.
+   * @returns The selected media item, or null if no item could be selected.
    */
-  const selectWeightedRandom = (items, excludePaths = []) => {
+  const selectWeightedRandom = (items: MediaFile[], excludePaths: string[] = []): MediaFile | null => {
     if (!items || items.length === 0) return null;
 
     let eligibleItems = items.filter(
@@ -142,31 +124,18 @@ export function useSlideshow() {
   };
 
   /**
-   * Navigates to the next or previous media item in the slideshow history.
-   * If at the end of history, a new random item is picked.
-   * @param {number} direction - The direction to navigate (-1 for previous, 1 for next).
+   * Records a view for the given media item.
+   * @param mediaItem - The media item to display.
    */
-  const navigateMedia = async (direction) => {
-    if (!state.isSlideshowActive) return;
-
-    if (direction > 0) {
-      // Next
-      if (state.currentMediaIndex < state.displayedMediaFiles.length - 1) {
-        state.currentMediaIndex++;
-        state.currentMediaItem =
-          state.displayedMediaFiles[state.currentMediaIndex];
-        await displayMedia(state.currentMediaItem);
-      } else {
-        await pickAndDisplayNextMediaItem();
+  const displayMedia = async (mediaItem: MediaFile | null) => {
+    if (!mediaItem) return;
+    try {
+      await window.electronAPI.recordMediaView(mediaItem.path);
+      if (state.isTimerRunning) {
+        resumeSlideshowTimer();
       }
-    } else {
-      // Previous
-      if (state.currentMediaIndex > 0) {
-        state.currentMediaIndex--;
-        state.currentMediaItem =
-          state.displayedMediaFiles[state.currentMediaIndex];
-        await displayMedia(state.currentMediaItem);
-      }
+    } catch (error) {
+      console.error('Error recording media view:', error);
     }
   };
 
@@ -207,41 +176,32 @@ export function useSlideshow() {
   };
 
   /**
-   * Records a view for the given media item.
-   * @param {MediaFile} mediaItem - The media item to display.
+   * Navigates to the next or previous media item in the slideshow history.
+   * If at the end of history, a new random item is picked.
+   * @param direction - The direction to navigate (-1 for previous, 1 for next).
    */
-  const displayMedia = async (mediaItem) => {
-    if (!mediaItem) return;
-    try {
-      await window.electronAPI.recordMediaView(mediaItem.path);
-      if (state.isTimerRunning) {
-        resumeSlideshowTimer();
+  const navigateMedia = async (direction: number) => {
+    if (!state.isSlideshowActive) return;
+
+    if (direction > 0) {
+      // Next
+      if (state.currentMediaIndex < state.displayedMediaFiles.length - 1) {
+        state.currentMediaIndex++;
+        state.currentMediaItem =
+          state.displayedMediaFiles[state.currentMediaIndex];
+        await displayMedia(state.currentMediaItem);
+      } else {
+        await pickAndDisplayNextMediaItem();
       }
-    } catch (error) {
-      console.error('Error recording media view:', error);
-    }
-  };
-
-  /**
-   * Toggles the slideshow timer on or off.
-   */
-  const toggleSlideshowTimer = () => {
-    if (state.isTimerRunning) {
-      pauseSlideshowTimer();
     } else {
-      resumeSlideshowTimer();
+      // Previous
+      if (state.currentMediaIndex > 0) {
+        state.currentMediaIndex--;
+        state.currentMediaItem =
+          state.displayedMediaFiles[state.currentMediaIndex];
+        await displayMedia(state.currentMediaItem);
+      }
     }
-  };
-
-  /**
-   * Pauses the slideshow timer.
-   */
-  const pauseSlideshowTimer = () => {
-    if (state.slideshowTimerId) {
-      clearInterval(state.slideshowTimerId);
-      state.slideshowTimerId = null;
-    }
-    state.isTimerRunning = false;
   };
 
   /**
@@ -264,18 +224,40 @@ export function useSlideshow() {
       state.timerProgress = progress;
 
       if (progress <= 0) {
-        clearInterval(state.slideshowTimerId);
+        if (state.slideshowTimerId) clearInterval(state.slideshowTimerId);
         navigateMedia(1);
       }
     }, interval);
   };
 
   /**
-   * Toggles the selection state of an album for the global slideshow.
-   * @param {string} albumName - The name of the album to toggle.
-   * @param {boolean} [isSelected] - Explicitly set the selection state.
+   * Pauses the slideshow timer.
    */
-  const toggleAlbumSelection = (albumName, isSelected) => {
+  const pauseSlideshowTimer = () => {
+    if (state.slideshowTimerId) {
+      clearInterval(state.slideshowTimerId);
+      state.slideshowTimerId = null;
+    }
+    state.isTimerRunning = false;
+  };
+
+  /**
+   * Toggles the slideshow timer on or off.
+   */
+  const toggleSlideshowTimer = () => {
+    if (state.isTimerRunning) {
+      pauseSlideshowTimer();
+    } else {
+      resumeSlideshowTimer();
+    }
+  };
+
+  /**
+   * Toggles the selection state of an album for the global slideshow.
+   * @param albumName - The name of the album to toggle.
+   * @param isSelected - Explicitly set the selection state.
+   */
+  const toggleAlbumSelection = (albumName: string, isSelected?: boolean) => {
     if (typeof isSelected === 'boolean') {
       state.albumsSelectedForSlideshow[albumName] = isSelected;
     } else {
@@ -308,9 +290,9 @@ export function useSlideshow() {
 
   /**
    * Starts a slideshow for an individual album.
-   * @param {Album} album - The album to start the slideshow for.
+   * @param album - The album to start the slideshow for.
    */
-  const startIndividualAlbumSlideshow = async (album) => {
+  const startIndividualAlbumSlideshow = async (album: Album) => {
     if (!album || !Array.isArray(album.textures)) {
       console.warn('Album has no valid textures array.');
       return;
@@ -328,9 +310,9 @@ export function useSlideshow() {
 
   /**
    * Opens an album and its children in Grid View.
-   * @param {Album} album - The album to open.
+   * @param album - The album to open.
    */
-  const openAlbumInGrid = (album) => {
+  const openAlbumInGrid = (album: Album) => {
     const allMedia = collectTexturesRecursive(album);
     state.gridMediaFiles = filterMedia(allMedia);
     state.viewMode = 'grid';

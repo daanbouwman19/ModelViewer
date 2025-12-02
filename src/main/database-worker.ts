@@ -3,8 +3,6 @@
  * This worker runs in a separate thread to avoid blocking the main process.
  * It receives messages from the main thread to perform database operations
  * and sends results back via the worker messaging API.
- * @requires worker_threads
- * @requires better-sqlite3
  */
 
 import { parentPort } from 'worker_threads';
@@ -14,24 +12,22 @@ import fs from 'fs';
 
 /**
  * The database instance for this worker thread.
- * @type {import('better-sqlite3').Database | null}
  */
-let db = null;
+let db: Database.Database | null = null;
 
 /**
  * Cache for prepared statements.
- * @type {Object.<string, import('better-sqlite3').Statement>}
  */
-const statements = {};
+const statements: { [key: string]: Database.Statement } = {};
 
 // Helper Functions
 
 /**
  * Generates a stable, unique identifier for a file.
- * @param {string} filePath - The path to the file.
- * @returns {string} A unique MD5 hash for the file.
+ * @param filePath - The path to the file.
+ * @returns A unique MD5 hash for the file.
  */
-function generateFileId(filePath) {
+function generateFileId(filePath: string): string {
   try {
     const stats = fs.statSync(filePath);
     const uniqueString = `${stats.size}-${stats.mtime.getTime()}`;
@@ -44,12 +40,18 @@ function generateFileId(filePath) {
 
 // Core Worker Functions
 
+interface WorkerResult {
+  success: boolean;
+  data?: any;
+  error?: string;
+}
+  
 /**
  * Initializes the database connection in the worker thread.
- * @param {string} dbPath - The path to the SQLite database file.
- * @returns {{success: boolean, error?: string}} The result of the initialization.
+ * @param dbPath - The path to the SQLite database file.
+ * @returns The result of the initialization.
  */
-function initDatabase(dbPath) {
+function initDatabase(dbPath: string): WorkerResult {
   try {
     if (db) {
       db.close();
@@ -117,7 +119,7 @@ function initDatabase(dbPath) {
 
     console.log('[worker] SQLite database initialized at:', dbPath);
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
     console.error('[worker] Failed to initialize database:', error);
     db = null; // Ensure db is null on failure
     return { success: false, error: error.message };
@@ -126,10 +128,10 @@ function initDatabase(dbPath) {
 
 /**
  * Records a view for a media file.
- * @param {string} filePath - The path of the file that was viewed.
- * @returns {{success: boolean, error?: string}} The result of the operation.
+ * @param filePath - The path of the file that was viewed.
+ * @returns The result of the operation.
  */
-function recordMediaView(filePath) {
+function recordMediaView(filePath: string): WorkerResult {
   if (!db) return { success: false, error: 'Database not initialized' };
 
   const fileId = generateFileId(filePath);
@@ -143,7 +145,7 @@ function recordMediaView(filePath) {
 
     transaction();
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
     console.error(`[worker] Error recording view for ${filePath}:`, error);
     return { success: false, error: error.message };
   }
@@ -151,30 +153,22 @@ function recordMediaView(filePath) {
 
 /**
  * Gets view counts for multiple file paths.
- * @param {string[]} filePaths - An array of file paths.
- * @returns {{success: boolean, data?: {[filePath: string]: number}, error?: string}} The result including the view count map.
+ * @param filePaths - An array of file paths.
+ * @returns The result including the view count map.
  */
-function getMediaViewCounts(filePaths) {
+function getMediaViewCounts(filePaths: string[]): WorkerResult {
   if (!db) return { success: false, error: 'Database not initialized' };
   if (!filePaths || filePaths.length === 0) {
     return { success: true, data: {} };
   }
 
   try {
-    const viewCountsMap = {};
+    const viewCountsMap: { [key: string]: number } = {};
 
-    // Since we are using better-sqlite3, we can just iterate and query individually
-    // for small batches, or use a transaction for larger ones.
-    // Given the prepared statement reuse, individual queries are quite fast.
-    // However, for consistency with previous batch logic, let's keep it simple.
-    // Actually, `WHERE IN` with prepared statements is tricky because the number of params varies.
-    // A simpler approach with cached statements is to loop and query by ID.
-    // Wrapped in a transaction, this is very performant.
-
-    const transaction = db.transaction((paths) => {
+    const transaction = db.transaction((paths: string[]) => {
       paths.forEach((filePath) => {
         const fileId = generateFileId(filePath);
-        const row = statements.getMediaView.get(fileId);
+        const row = statements.getMediaView.get(fileId) as { view_count: number } | undefined;
         viewCountsMap[filePath] = row ? row.view_count : 0;
       });
     });
@@ -182,7 +176,7 @@ function getMediaViewCounts(filePaths) {
     transaction(filePaths);
 
     return { success: true, data: viewCountsMap };
-  } catch (error) {
+  } catch (error: any) {
     console.error('[worker] Error fetching view counts:', error);
     return { success: false, error: error.message };
   }
@@ -190,11 +184,11 @@ function getMediaViewCounts(filePaths) {
 
 /**
  * Caches album data in the database.
- * @param {string} cacheKey - The key to use for caching.
- * @param {any} albums - The album data to cache.
- * @returns {{success: boolean, error?: string}} The result of the operation.
+ * @param cacheKey - The key to use for caching.
+ * @param albums - The album data to cache.
+ * @returns The result of the operation.
  */
-function cacheAlbums(cacheKey, albums) {
+function cacheAlbums(cacheKey: string, albums: any): WorkerResult {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
     statements.cacheAlbum.run(
@@ -203,7 +197,7 @@ function cacheAlbums(cacheKey, albums) {
       new Date().toISOString(),
     );
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
     console.error('[worker] Error caching albums:', error);
     return { success: false, error: error.message };
   }
@@ -211,16 +205,16 @@ function cacheAlbums(cacheKey, albums) {
 
 /**
  * Retrieves cached albums from the database.
- * @param {string} cacheKey - The key of the cache to retrieve.
- * @returns {{success: boolean, data?: any, error?: string}} The result including the cached data.
+ * @param cacheKey - The key of the cache to retrieve.
+ * @returns The result including the cached data.
  */
-function getCachedAlbums(cacheKey) {
+function getCachedAlbums(cacheKey: string): WorkerResult {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
-    const row = statements.getCachedAlbum.get(cacheKey);
+    const row = statements.getCachedAlbum.get(cacheKey) as { cache_value: string } | undefined;
     const data = row && row.cache_value ? JSON.parse(row.cache_value) : null;
     return { success: true, data };
-  } catch (error) {
+  } catch (error: any) {
     console.error('[worker] Error reading cached albums:', error);
     return { success: false, error: error.message };
   }
@@ -228,9 +222,9 @@ function getCachedAlbums(cacheKey) {
 
 /**
  * Closes the database connection.
- * @returns {{success: boolean, error?: string}} The result of the operation.
+ * @returns The result of the operation.
  */
-function closeDatabase() {
+function closeDatabase(): WorkerResult {
   if (!db) return { success: true };
   try {
     db.close();
@@ -241,7 +235,7 @@ function closeDatabase() {
     }
     console.log('[worker] Database connection closed.');
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
     console.error('[worker] Error closing database:', error);
     return { success: false, error: error.message };
   }
@@ -249,15 +243,15 @@ function closeDatabase() {
 
 /**
  * Adds a new media directory path to the database.
- * @param {string} directoryPath - The path of the directory to add.
- * @returns {{success: boolean, error?: string}} The result of the operation.
+ * @param directoryPath - The path of the directory to add.
+ * @returns The result of the operation.
  */
-function addMediaDirectory(directoryPath) {
+function addMediaDirectory(directoryPath: string): WorkerResult {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
     statements.addMediaDirectory.run(directoryPath);
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
     console.error(
       `[worker] Error adding media directory ${directoryPath}:`,
       error,
@@ -268,18 +262,18 @@ function addMediaDirectory(directoryPath) {
 
 /**
  * Retrieves all media directory paths from the database.
- * @returns {{success: boolean, data?: {path: string, isActive: boolean}[], error?: string}} The result including the list of directories.
+ * @returns The result including the list of directories.
  */
-function getMediaDirectories() {
+function getMediaDirectories(): WorkerResult {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
-    const rows = statements.getMediaDirectories.all();
+    const rows = statements.getMediaDirectories.all() as { path: string; is_active: number }[];
     const directories = rows.map((row) => ({
       path: row.path,
       isActive: !!row.is_active,
     }));
     return { success: true, data: directories };
-  } catch (error) {
+  } catch (error: any) {
     console.error('[worker] Error fetching media directories:', error);
     return { success: false, error: error.message };
   }
@@ -287,15 +281,15 @@ function getMediaDirectories() {
 
 /**
  * Removes a media directory path from the database.
- * @param {string} directoryPath - The path of the directory to remove.
- * @returns {{success: boolean, error?: string}} The result of the operation.
+ * @param directoryPath - The path of the directory to remove.
+ * @returns The result of the operation.
  */
-function removeMediaDirectory(directoryPath) {
+function removeMediaDirectory(directoryPath: string): WorkerResult {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
     statements.removeMediaDirectory.run(directoryPath);
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
     console.error(
       `[worker] Error removing media directory ${directoryPath}:`,
       error,
@@ -306,16 +300,16 @@ function removeMediaDirectory(directoryPath) {
 
 /**
  * Updates the active state of a media directory.
- * @param {string} directoryPath - The path of the directory to update.
- * @param {boolean} isActive - The new active state.
- * @returns {{success: boolean, error?: string}} The result of the operation.
+ * @param directoryPath - The path of the directory to update.
+ * @param isActive - The new active state.
+ * @returns The result of the operation.
  */
-function setDirectoryActiveState(directoryPath, isActive) {
+function setDirectoryActiveState(directoryPath: string, isActive: boolean): WorkerResult {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
     statements.setDirectoryActiveState.run(isActive ? 1 : 0, directoryPath);
     return { success: true };
-  } catch (error) {
+  } catch (error: any) {
     console.error(
       `[worker] Error updating active state for ${directoryPath}:`,
       error,
@@ -324,64 +318,66 @@ function setDirectoryActiveState(directoryPath, isActive) {
   }
 }
 
-// Message handler from the main thread
-parentPort.on('message', async (message) => {
-  const { id, type, payload } = message;
-  let result;
+if (parentPort) {
+  // Message handler from the main thread
+  parentPort.on('message', async (message) => {
+    const { id, type, payload } = message;
+    let result: WorkerResult;
 
-  try {
-    // Note: Internal functions are now synchronous, but we keep the async handler
-    // structure in case we need async operations in the future or for consistency.
-    // The await keyword is not strictly necessary for sync functions but harmless.
-    switch (type) {
-      case 'init':
-        result = initDatabase(payload.dbPath);
-        break;
-      case 'recordMediaView':
-        result = recordMediaView(payload.filePath);
-        break;
-      case 'getMediaViewCounts':
-        result = getMediaViewCounts(payload.filePaths);
-        break;
-      case 'cacheAlbums':
-        result = cacheAlbums(payload.cacheKey, payload.albums);
-        break;
-      case 'getCachedAlbums':
-        result = getCachedAlbums(payload.cacheKey);
-        break;
-      case 'close':
-        result = closeDatabase();
-        break;
-      case 'addMediaDirectory':
-        result = addMediaDirectory(payload.directoryPath);
-        break;
-      case 'getMediaDirectories':
-        result = getMediaDirectories();
-        break;
-      case 'removeMediaDirectory':
-        result = removeMediaDirectory(payload.directoryPath);
-        break;
-      case 'setDirectoryActiveState':
-        result = setDirectoryActiveState(
-          payload.directoryPath,
-          payload.isActive,
-        );
-        break;
-      default:
-        result = { success: false, error: `Unknown message type: ${type}` };
+    try {
+      // Note: Internal functions are now synchronous, but we keep the async handler
+      // structure in case we need async operations in the future or for consistency.
+      // The await keyword is not strictly necessary for sync functions but harmless.
+      switch (type) {
+        case 'init':
+          result = initDatabase(payload.dbPath);
+          break;
+        case 'recordMediaView':
+          result = recordMediaView(payload.filePath);
+          break;
+        case 'getMediaViewCounts':
+          result = getMediaViewCounts(payload.filePaths);
+          break;
+        case 'cacheAlbums':
+          result = cacheAlbums(payload.cacheKey, payload.albums);
+          break;
+        case 'getCachedAlbums':
+          result = getCachedAlbums(payload.cacheKey);
+          break;
+        case 'close':
+          result = closeDatabase();
+          break;
+        case 'addMediaDirectory':
+          result = addMediaDirectory(payload.directoryPath);
+          break;
+        case 'getMediaDirectories':
+          result = getMediaDirectories();
+          break;
+        case 'removeMediaDirectory':
+          result = removeMediaDirectory(payload.directoryPath);
+          break;
+        case 'setDirectoryActiveState':
+          result = setDirectoryActiveState(
+            payload.directoryPath,
+            payload.isActive,
+          );
+          break;
+        default:
+          result = { success: false, error: `Unknown message type: ${type}` };
+      }
+    } catch (error: any) {
+      console.error(
+        `[worker] Error processing message id=${id}, type=${type}:`,
+        error,
+      );
+      result = { success: false, error: error.message };
     }
-  } catch (error) {
-    console.error(
-      `[worker] Error processing message id=${id}, type=${type}:`,
-      error,
-    );
-    result = { success: false, error: error.message };
-  }
 
-  parentPort.postMessage({ id, result });
-});
+    parentPort!.postMessage({ id, result });
+  });
 
-console.log('[database-worker.js] Worker thread started and ready.');
+  console.log('[database-worker.js] Worker thread started and ready.');
 
-// Signal that the worker is ready, primarily for testing environments
-parentPort.postMessage({ type: 'ready' });
+  // Signal that the worker is ready, primarily for testing environments
+  parentPort.postMessage({ type: 'ready' });
+}
