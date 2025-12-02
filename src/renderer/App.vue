@@ -63,8 +63,6 @@ import { useSlideshow } from './composables/useSlideshow';
 const { initializeApp, isScanning, viewMode } = useAppState();
 const { navigateMedia, toggleSlideshowTimer } = useSlideshow();
 
-console.log(`[App.vue] Setup executed at ${new Date().toISOString()}`);
-
 const showSidebar = ref(true);
 
 /**
@@ -98,11 +96,7 @@ const handleKeydown = (event: KeyboardEvent) => {
 
 // On component mount, initialize the app and add the keyboard event listener
 onMounted(async () => {
-  console.log(`[App.vue] onMounted started at ${new Date().toISOString()}`);
   await initializeApp();
-  console.log(
-    `[App.vue] initializeApp completed at ${new Date().toISOString()}`,
-  );
   document.addEventListener('keydown', handleKeydown);
 });
 

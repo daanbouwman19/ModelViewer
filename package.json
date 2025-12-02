@@ -40,9 +40,7 @@
     "buildDependenciesFromSource": false,
     "files": [
       "out/**/*",
-      "!**/node_modules/*/{CHANGELOG.md,README.md,readme.md,license.txt,LICENSE.txt,test,tests,example,examples}",
-      "!node_modules/@img/sharp-*",
-      "node_modules/@img/sharp-${platform}-${arch}/**/*"
+      "!**/node_modules/*/{CHANGELOG.md,README.md,readme.md,license.txt,LICENSE.txt,test,tests,example,examples}"
     ],
     "directories": {
       "output": "release"
