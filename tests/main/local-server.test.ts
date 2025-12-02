@@ -1,8 +1,8 @@
 import { describe, it, expect, afterEach, vi, beforeEach, Mock } from 'vitest';
 import http from 'http';
-import { EventEmitter } from 'events';
 import fs from 'fs';
 import path from 'path';
+import EventEmitter from 'events';
 import {
   startLocalServer,
   stopLocalServer,
@@ -11,7 +11,7 @@ import {
 } from '../../src/main/local-server';
 
 // Mock the database module
-vi.mock('../../src/main/database.js', () => ({
+vi.mock('../../src/main/database', () => ({
   getMediaDirectories: vi.fn(),
 }));
 
@@ -42,7 +42,7 @@ describe('Local Server', () => {
     if (getServerPort() > 0) {
       await stopServer();
     }
-    vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe('getMimeType', () => {
@@ -387,6 +387,7 @@ describe('Local Server', () => {
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const mockServer: any = new EventEmitter();
+      mockServer.on('error', () => {}); // Prevent unhandled error crash
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockServer.listen = vi.fn((_port: any, _host: any, cb: any) => {
         // Defer error emission to ensure the '.on('error',...)' handler is attached.
@@ -441,8 +442,7 @@ describe('Local Server', () => {
       const mockServer: any = new EventEmitter();
 
       mockServer.listen = vi.fn(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (_port: any, _host: any, cb: any) => cb && cb(),
+        (_port: number, _host: string, cb: () => void) => cb && cb(),
       );
       mockServer.address = () => ({ port: 12345 });
       mockServer.unref = vi.fn();

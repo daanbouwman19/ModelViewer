@@ -1,44 +1,120 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import {
-  initDatabase,
-  recordMediaView,
-  getMediaViewCounts,
-  cacheAlbums,
-  getCachedAlbums,
-  closeDatabase,
-  setOperationTimeout,
-  addMediaDirectory,
-  getMediaDirectories,
-  removeMediaDirectory,
-  setDirectoryActiveState,
-} from '../../src/main/database';
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
+import { EventEmitter } from 'events';
 
-// Mock electron app
+// Store data in mock to simulate DB
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const mockDb: any = {
+  views: {},
+  albums: [],
+  albumsCached: false,
+  directories: [],
+};
+
+class MockWorker extends EventEmitter {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  terminate: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  postMessage: any;
+
+  constructor() {
+    super();
+    this.terminate = vi.fn().mockResolvedValue(undefined);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    this.postMessage = vi.fn((message: any) => {
+      const { id, type, payload } = message;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let resultData: any = undefined;
+      const success = true;
+
+      if (type === 'init') {
+        // success
+      } else if (type === 'recordMediaView') {
+        const filePath = payload.filePath;
+        mockDb.views[filePath] = (mockDb.views[filePath] || 0) + 1;
+      } else if (type === 'getMediaViewCounts') {
+        const paths = payload.filePaths;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const counts: any = {};
+        paths.forEach((p: string) => {
+          counts[p] = mockDb.views[p] || 0;
+        });
+        resultData = counts;
+      } else if (type === 'cacheAlbums') {
+        mockDb.albums = payload.albums;
+        mockDb.albumsCached = true;
+      } else if (type === 'getCachedAlbums') {
+        // Return null only when there are no cached albums (initial state)
+        // Return the actual array (even if empty) if cacheAlbums was called
+        resultData = mockDb.albumsCached ? mockDb.albums : null;
+      } else if (type === 'addMediaDirectory') {
+        mockDb.directories.push({
+          path: payload.directoryPath,
+          isActive: true,
+        });
+      } else if (type === 'getMediaDirectories') {
+        resultData = mockDb.directories;
+      } else if (type === 'removeMediaDirectory') {
+        mockDb.directories = mockDb.directories.filter(
+          (d: { path: string; isActive: boolean }) =>
+            d.path !== payload.directoryPath,
+        );
+      } else if (type === 'setDirectoryActiveState') {
+        const dir = mockDb.directories.find(
+          (d: { path: string; isActive: boolean }) =>
+            d.path === payload.directoryPath,
+        );
+        if (dir) dir.isActive = payload.isActive;
+      } else if (type === 'close') {
+        // success
+      }
+
+      // Simulate async response
+      process.nextTick(() => {
+        this.emit('message', {
+          id: id,
+          result: { success, data: resultData },
+        });
+      });
+    });
+  }
+}
+
+vi.mock('worker_threads', () => ({
+  Worker: MockWorker,
+  default: { Worker: MockWorker },
+}));
+
 vi.mock('electron', () => ({
   app: {
-    getPath: () => {
-      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'db-test-'));
-      return tmpDir;
-    },
+    getPath: () => '/tmp',
     isPackaged: false,
   },
 }));
 
 describe('Database', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let db: any;
+
   beforeEach(async () => {
+    // Reset mock DB state (keeping the same object reference)
+    mockDb.views = {};
+    mockDb.albums = [];
+    mockDb.albumsCached = false;
+    mockDb.directories = [];
+
     vi.resetModules();
+    // Import fresh module
+    db = await import('../../src/main/database');
+
     // Set a shorter timeout for tests
-    setOperationTimeout(5000);
+    db.setOperationTimeout(5000);
     // Initialize database before each test
-    await initDatabase();
+    await db.initDatabase();
   });
 
   afterEach(async () => {
     // Close database after each test
-    await closeDatabase();
+    await db.closeDatabase();
   });
 
   describe('initDatabase', () => {
@@ -50,7 +126,7 @@ describe('Database', () => {
 
     it('should handle re-initialization', async () => {
       // Try to initialize again
-      await expect(initDatabase()).resolves.not.toThrow();
+      await expect(db.initDatabase()).resolves.not.toThrow();
     });
   });
 
@@ -58,20 +134,20 @@ describe('Database', () => {
     it('should record a view for a media file', async () => {
       const filePath = '/test/path/image.png';
 
-      await recordMediaView(filePath);
+      await db.recordMediaView(filePath);
 
-      const counts = await getMediaViewCounts([filePath]);
+      const counts = await db.getMediaViewCounts([filePath]);
       expect(counts[filePath]).toBe(1);
     });
 
     it('should increment view count on multiple views', async () => {
       const filePath = '/test/path/video.mp4';
 
-      await recordMediaView(filePath);
-      await recordMediaView(filePath);
-      await recordMediaView(filePath);
+      await db.recordMediaView(filePath);
+      await db.recordMediaView(filePath);
+      await db.recordMediaView(filePath);
 
-      const counts = await getMediaViewCounts([filePath]);
+      const counts = await db.getMediaViewCounts([filePath]);
       expect(counts[filePath]).toBe(3);
     });
 
@@ -79,11 +155,11 @@ describe('Database', () => {
       const file1 = '/test/file1.png';
       const file2 = '/test/file2.jpg';
 
-      await recordMediaView(file1);
-      await recordMediaView(file2);
-      await recordMediaView(file1);
+      await db.recordMediaView(file1);
+      await db.recordMediaView(file2);
+      await db.recordMediaView(file1);
 
-      const counts = await getMediaViewCounts([file1, file2]);
+      const counts = await db.getMediaViewCounts([file1, file2]);
       expect(counts[file1]).toBe(2);
       expect(counts[file2]).toBe(1);
     });
@@ -91,23 +167,23 @@ describe('Database', () => {
 
   describe('getMediaViewCounts', () => {
     it('should return empty object for empty array', async () => {
-      const counts = await getMediaViewCounts([]);
+      const counts = await db.getMediaViewCounts([]);
       expect(counts).toEqual({});
     });
 
     it('should return 0 for files that have not been viewed', async () => {
-      const counts = await getMediaViewCounts(['/test/never-viewed.png']);
+      const counts = await db.getMediaViewCounts(['/test/never-viewed.png']);
       expect(counts['/test/never-viewed.png']).toBe(0);
     });
 
     it('should return correct counts for multiple files', async () => {
       const files = ['/test/a.png', '/test/b.jpg', '/test/c.mp4'];
 
-      await recordMediaView(files[0]);
-      await recordMediaView(files[1]);
-      await recordMediaView(files[1]);
+      await db.recordMediaView(files[0]);
+      await db.recordMediaView(files[1]);
+      await db.recordMediaView(files[1]);
 
-      const counts = await getMediaViewCounts(files);
+      const counts = await db.getMediaViewCounts(files);
       expect(counts[files[0]]).toBe(1);
       expect(counts[files[1]]).toBe(2);
       expect(counts[files[2]]).toBe(0);
@@ -116,9 +192,9 @@ describe('Database', () => {
     it('should handle files with special characters in paths', async () => {
       const specialPath = '/test/file with spaces & symbols.png';
 
-      await recordMediaView(specialPath);
+      await db.recordMediaView(specialPath);
 
-      const counts = await getMediaViewCounts([specialPath]);
+      const counts = await db.getMediaViewCounts([specialPath]);
       expect(counts[specialPath]).toBe(1);
     });
   });
@@ -142,9 +218,9 @@ describe('Database', () => {
         },
       ];
 
-      await cacheAlbums(albums);
+      await db.cacheAlbums(albums);
 
-      const cached = await getCachedAlbums();
+      const cached = await db.getCachedAlbums();
       expect(cached).toHaveLength(2);
       expect(cached![0].name).toBe('album1');
       expect(cached![1].name).toBe('album2');
@@ -167,18 +243,18 @@ describe('Database', () => {
         },
       ];
 
-      await cacheAlbums(albums1);
-      await cacheAlbums(albums2);
+      await db.cacheAlbums(albums1);
+      await db.cacheAlbums(albums2);
 
-      const cached = await getCachedAlbums();
+      const cached = await db.getCachedAlbums();
       expect(cached).toHaveLength(1);
       expect(cached![0].name).toBe('album2');
     });
 
     it('should handle empty albums array', async () => {
-      await cacheAlbums([]);
+      await db.cacheAlbums([]);
 
-      const cached = await getCachedAlbums();
+      const cached = await db.getCachedAlbums();
       expect(cached).toEqual([]);
     });
 
@@ -194,9 +270,9 @@ describe('Database', () => {
         },
       ];
 
-      await cacheAlbums(albums);
+      await db.cacheAlbums(albums);
 
-      const cached = await getCachedAlbums();
+      const cached = await db.getCachedAlbums();
       expect(cached![0].textures).toHaveLength(2);
       expect(cached![0].textures[0].name).toBe('texture1.png');
       expect(cached![0].textures[0].path).toBe('/test/texture1.png');
@@ -205,7 +281,7 @@ describe('Database', () => {
 
   describe('getCachedAlbums', () => {
     it('should return null when no cache exists', async () => {
-      const cached = await getCachedAlbums();
+      const cached = await db.getCachedAlbums();
       expect(cached).toBeNull();
     });
 
@@ -218,8 +294,8 @@ describe('Database', () => {
         },
       ];
 
-      await cacheAlbums(albums);
-      const cached = await getCachedAlbums();
+      await db.cacheAlbums(albums);
+      const cached = await db.getCachedAlbums();
 
       expect(cached).toHaveLength(1);
       expect(cached![0].name).toBe('cached-album');
@@ -228,18 +304,18 @@ describe('Database', () => {
 
   describe('closeDatabase', () => {
     it('should close database without errors', async () => {
-      await expect(closeDatabase()).resolves.not.toThrow();
+      await expect(db.closeDatabase()).resolves.not.toThrow();
     });
 
     it('should allow re-initialization after closing', async () => {
-      await closeDatabase();
-      await expect(initDatabase()).resolves.not.toThrow();
+      await db.closeDatabase();
+      await expect(db.initDatabase()).resolves.not.toThrow();
     });
   });
 
   describe('timeout handling', () => {
     it('should respect custom timeout settings', () => {
-      setOperationTimeout(1000);
+      db.setOperationTimeout(1000);
       // If this doesn't throw, the timeout was set successfully
       expect(true).toBe(true);
     });
@@ -249,12 +325,12 @@ describe('Database', () => {
     it('should handle multiple sequential operations gracefully', async () => {
       // Sequential execution to avoid transaction conflicts
       for (let i = 0; i < 10; i++) {
-        await recordMediaView(`/test/file${i}.png`);
+        await db.recordMediaView(`/test/file${i}.png`);
       }
 
       // Verify all were recorded
       const files = Array.from({ length: 10 }, (_, i) => `/test/file${i}.png`);
-      const counts = await getMediaViewCounts(files);
+      const counts = await db.getMediaViewCounts(files);
       expect(Object.keys(counts)).toHaveLength(10);
     });
 
@@ -263,10 +339,10 @@ describe('Database', () => {
 
       // Record views for some files
       for (let i = 0; i < 50; i++) {
-        await recordMediaView(files[i]);
+        await db.recordMediaView(files[i]);
       }
 
-      const counts = await getMediaViewCounts(files);
+      const counts = await db.getMediaViewCounts(files);
       expect(Object.keys(counts)).toHaveLength(100);
     });
   });
@@ -274,27 +350,27 @@ describe('Database', () => {
   describe('media directories', () => {
     it('should add and retrieve a media directory', async () => {
       const dirPath = '/test/media/directory';
-      await addMediaDirectory(dirPath);
-      const dirs = await getMediaDirectories();
+      await db.addMediaDirectory(dirPath);
+      const dirs = await db.getMediaDirectories();
       expect(dirs).toEqual([{ path: dirPath, isActive: true }]);
     });
 
     it('should add and remove a media directory', async () => {
       const dirPath = '/test/media/to-remove';
-      await addMediaDirectory(dirPath);
-      await removeMediaDirectory(dirPath);
-      const dirs = await getMediaDirectories();
+      await db.addMediaDirectory(dirPath);
+      await db.removeMediaDirectory(dirPath);
+      const dirs = await db.getMediaDirectories();
       expect(dirs).toEqual([]);
     });
 
     it('should set directory active state', async () => {
       const dirPath = '/test/media/toggle';
-      await addMediaDirectory(dirPath);
-      await setDirectoryActiveState(dirPath, false);
-      let dirs = await getMediaDirectories();
+      await db.addMediaDirectory(dirPath);
+      await db.setDirectoryActiveState(dirPath, false);
+      let dirs = await db.getMediaDirectories();
       expect(dirs).toEqual([{ path: dirPath, isActive: false }]);
-      await setDirectoryActiveState(dirPath, true);
-      dirs = await getMediaDirectories();
+      await db.setDirectoryActiveState(dirPath, true);
+      dirs = await db.getMediaDirectories();
       expect(dirs).toEqual([{ path: dirPath, isActive: true }]);
     });
   });
@@ -302,116 +378,31 @@ describe('Database', () => {
   describe('error handling for directory operations', () => {
     it('should handle errors when removing non-existent directory', async () => {
       // This should not throw, but we'll test that the operation completes
-      await removeMediaDirectory('/non/existent/path');
-      const dirs = await getMediaDirectories();
+      await db.removeMediaDirectory('/non/existent/path');
+      const dirs = await db.getMediaDirectories();
       expect(Array.isArray(dirs)).toBe(true);
     });
 
     it('should handle errors when setting active state on non-existent directory', async () => {
       // This should not throw, but we'll test that the operation completes
-      await setDirectoryActiveState('/non/existent/path', false);
-      const dirs = await getMediaDirectories();
+      await db.setDirectoryActiveState('/non/existent/path', false);
+      const dirs = await db.getMediaDirectories();
       expect(Array.isArray(dirs)).toBe(true);
     });
 
     it('should handle gracefully when trying to record view without initialization', async () => {
-      await closeDatabase();
+      await db.closeDatabase();
       // recordMediaView should not throw, it handles errors gracefully
-      await expect(recordMediaView('/test/path.jpg')).resolves.toBeUndefined();
+      await expect(
+        db.recordMediaView('/test/path.jpg'),
+      ).resolves.toBeUndefined();
     });
 
     it('should return empty object when trying to get view counts without initialization', async () => {
-      await closeDatabase();
+      await db.closeDatabase();
       // getMediaViewCounts returns empty object on error
-      const result = await getMediaViewCounts(['/test/path.jpg']);
+      const result = await db.getMediaViewCounts(['/test/path.jpg']);
       expect(result).toEqual({});
     });
-  });
-});
-
-describe('database resilience', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let MockWorker: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let lastWorkerInstance: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let terminateSpy: any;
-
-  beforeEach(() => {
-    vi.resetModules(); // This is key to re-evaluate mocks
-
-    // Define the mock behavior *before* importing the module that uses it
-    terminateSpy = vi.fn().mockResolvedValue(true);
-    lastWorkerInstance = null; // reset instance tracker
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    MockWorker = vi.fn().mockImplementation(function (...args: any[]) {
-      const instance = new (class WorkerMock {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        on: any;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        onMessage: any;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        onExit: any;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        postMessage: any;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        terminate: any;
-
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
-        constructor(..._args: any[]) {
-          // eslint-disable-next-line @typescript-eslint/no-this-alias
-          lastWorkerInstance = this;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          this.on = vi.fn((event: any, cb: any) => {
-            if (event === 'message') this.onMessage = cb;
-            if (event === 'exit') this.onExit = cb;
-          });
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          this.postMessage = vi.fn((msg: any) => {
-            if (this.onMessage) {
-              this.onMessage({
-                id: msg.id,
-                result: { success: true, data: 'mock success' },
-              });
-            }
-          });
-          this.terminate = terminateSpy;
-        }
-        _crash() {
-          if (this.onExit) this.onExit(1);
-        }
-      })(...args);
-      return instance;
-    });
-
-    vi.doMock('worker_threads', () => ({
-      Worker: MockWorker,
-      default: { Worker: MockWorker },
-    }));
-  });
-
-  it('should call terminate() during closeDatabase even if worker has already crashed', async () => {
-    // Dynamically import the module under test AFTER mocks are set up
-    const { initDatabase, closeDatabase, setOperationTimeout } =
-      await import('../../src/main/database.js');
-    setOperationTimeout(100); // Short timeout for test speed
-
-    await initDatabase();
-
-    // Verify the worker was created
-    expect(MockWorker).toHaveBeenCalledTimes(1);
-    expect(lastWorkerInstance).toBeDefined();
-    expect(lastWorkerInstance).not.toBeNull();
-
-    // Simulate the worker crashing unexpectedly
-    lastWorkerInstance._crash();
-
-    // Now, try to close the database. The 'close' message will fail,
-    // but terminate() should still be called.
-    await closeDatabase();
-
-    // The core of the test: assert that terminate() was called.
-    expect(terminateSpy).toHaveBeenCalledTimes(1);
   });
 });

@@ -382,7 +382,7 @@ ipcMain.handle(
  * Creates and configures the main application window.
  */
 function createWindow() {
-  const preloadPath = path.join(__dirname, '../preload/preload.cjs'); // Changed to .js as it will be compiled
+  const preloadPath = path.join(__dirname, '../preload/preload.cjs'); // Path to the compiled preload script
 
   mainWindow = new BrowserWindow({
     width: 1200,

@@ -106,42 +106,43 @@ async function initDatabase(): Promise<void> {
     const isTest =
       process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
 
-    if (isTest || !import.meta.url.startsWith('file://')) {
+    if (app.isPackaged) {
+      // In a packaged app, the worker is a JS file relative to the main script.
+      workerPath = path.join(__dirname, 'database-worker.js');
+    } else if (isTest) {
+      // In a test environment (Vitest), resolve the path to the TS source file.
       const pathModule = await import('path');
       workerPath = pathModule.resolve(
         process.cwd(),
         'src/main/database-worker.ts',
       );
     } else {
+      // In development, use the URL constructor relative to the current module.
+      // electron-vite handles the bundling of the worker file.
       workerPath = new URL('./database-worker.js', import.meta.url);
-    }
-
-    // In production/bundled app, the worker file might be .js
-    // We need to handle how the worker is loaded.
-    // For now, let's assume the build process handles the worker file correctly.
-    // If running with ts-node/vite-node, .ts is fine.
-    // If running in built app, it should be .js.
-    // Let's check if we are in dev or prod.
-    if (app.isPackaged) {
-      // In packaged app, it's likely .js in the same directory
-      workerPath = path.join(__dirname, 'database-worker.js');
     }
 
     dbWorker = new Worker(workerPath);
 
-    dbWorker.on('message', (message) => {
-      const { id, result } = message;
-      const pending = pendingMessages.get(id);
-      if (pending) {
-        clearTimeout(pending.timeoutId);
-        pendingMessages.delete(id);
-        if (result.success) {
-          pending.resolve(result.data);
-        } else {
-          pending.reject(new Error(result.error || 'Unknown database error'));
+    dbWorker.on(
+      'message',
+      (message: {
+        id: number;
+        result: { success: boolean; data?: unknown; error?: string };
+      }) => {
+        const { id, result } = message;
+        const pending = pendingMessages.get(id);
+        if (pending) {
+          clearTimeout(pending.timeoutId);
+          pendingMessages.delete(id);
+          if (result.success) {
+            pending.resolve(result.data);
+          } else {
+            pending.reject(new Error(result.error || 'Unknown database error'));
+          }
         }
-      }
-    });
+      },
+    );
 
     dbWorker.on('error', (error) => {
       console.error('[database.js] Database worker error:', error);
@@ -271,8 +272,12 @@ async function closeDatabase(): Promise<void> {
     try {
       // Attempt to gracefully shut down the worker
       await sendMessageToWorker<void>('close');
-    } catch {
-      // This is expected if the worker has already crashed, so we can ignore it.
+    } catch (error) {
+      // This is expected if the worker has already crashed or is not responding, so we can ignore it.
+      // But we should log it for debugging purposes if it's not just a "worker exited" error.
+      if (process.env.NODE_ENV !== 'test') {
+        console.warn('[database.js] Warning during worker shutdown:', error);
+      }
     } finally {
       try {
         if (dbWorker) {
@@ -284,6 +289,8 @@ async function closeDatabase(): Promise<void> {
       } finally {
         // Ensure the worker reference is cleared in all scenarios.
         dbWorker = null;
+        isTerminating = false;
+        console.log('[database.js] Database worker terminated.');
       }
     }
   }
