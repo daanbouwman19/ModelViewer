@@ -1,13 +1,15 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { Worker } from 'worker_threads';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import path from 'path';
 import fs from 'fs';
-import crypto from 'crypto';
+import { parentPort } from 'worker_threads';
 
-const workerPath = path.resolve(process.cwd(), 'src/main/database-worker.js');
+// Mock worker_threads using the __mocks__ file
+vi.mock('worker_threads');
+
+// Import the worker once. It will attach the listener to the mocked parentPort.
+import '../../src/main/database-worker.js';
 
 describe('Database Worker', () => {
-  let worker;
   let dbPath;
   let tempDir;
   let messageId = 0;
@@ -20,22 +22,25 @@ describe('Database Worker', () => {
     tempDir = fs.mkdtempSync(path.join(testDir, 'test-db-'));
     dbPath = path.join(tempDir, 'test.sqlite');
 
-    worker = new Worker(workerPath);
-    await new Promise((resolve) => {
-      worker.once('message', (message) => {
-        if (message.type === 'ready') {
-          resolve();
-        }
-      });
-    });
+    // We don't remove listeners because the worker's listener must remain.
+    // We only need to ensure we don't have stale 'workerMessage' listeners from previous tests.
+    parentPort.removeAllListeners('workerMessage');
   });
 
   afterEach(async () => {
-    if (worker) {
-      await worker.terminate();
+    // Send close message to ensure DB is closed and file can be cleaned up
+    try {
+      await sendMessage('close', {});
+    } catch (e) {
+      // Ignore errors during cleanup
     }
+
     if (fs.existsSync(tempDir)) {
-      fs.rmSync(tempDir, { recursive: true, force: true });
+      try {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      } catch (e) {
+        // Ignore cleanup errors
+      }
     }
   });
 
@@ -43,20 +48,21 @@ describe('Database Worker', () => {
     const id = messageId++;
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
+        // Clean up listener on timeout
+        parentPort.off('workerMessage', messageHandler);
         reject(new Error(`Message ${id} (${type}) timed out`));
       }, 2000);
 
-      const messageHandler = ({ id: responseId, result }) => {
-        if (responseId === id) {
-          worker.removeListener('message', messageHandler);
+      const messageHandler = (message) => {
+        if (message.id === id) {
+          parentPort.off('workerMessage', messageHandler);
           clearTimeout(timeout);
-          // For tests, we want to check the full result, not just success
-          resolve(result);
+          resolve(message.result);
         }
       };
 
-      worker.on('message', messageHandler);
-      worker.postMessage({ id, type, payload });
+      parentPort.on('workerMessage', messageHandler);
+      parentPort.emit('message', { id, type, payload });
     });
   };
 

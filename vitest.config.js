@@ -23,7 +23,6 @@ export default defineConfig({
         'src/main/main.js',
         'src/preload/**',
         'src/renderer/renderer.js',
-        'src/main/database-worker.js',
         '**/*.test.js',
         '**/*.spec.js',
       ],
