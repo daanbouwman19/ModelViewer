@@ -5,7 +5,7 @@ import './assets/main.css';
 const app = createApp(App);
 
 // Add global error handler
-app.config.errorHandler = (err, instance, info) => {
+app.config.errorHandler = (err, _instance, info) => {
   console.error('[Vue Error]', err, info);
 };
 

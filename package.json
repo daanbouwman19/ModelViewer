@@ -40,9 +40,7 @@
     "buildDependenciesFromSource": false,
     "files": [
       "out/**/*",
-      "!**/node_modules/*/{CHANGELOG.md,README.md,readme.md,license.txt,LICENSE.txt,test,tests,example,examples}",
-      "!node_modules/@img/sharp-*",
-      "node_modules/@img/sharp-${platform}-${arch}/**/*"
+      "!**/node_modules/*/{CHANGELOG.md,README.md,readme.md,license.txt,LICENSE.txt,test,tests,example,examples}"
     ],
     "directories": {
       "output": "release"
@@ -70,7 +68,6 @@
     },
     "asarUnpack": [
       "node_modules/better-sqlite3/**/*",
-      "node_modules/@img/**/*",
       "node_modules/ffmpeg-static/**/*"
     ]
   },
@@ -89,7 +86,7 @@
     "@vitest/coverage-istanbul": "^4.0.6",
     "@vue/test-utils": "^2.4.6",
     "electron": "^39.2.4",
-    "electron-builder": "^26.0.12",
+    "electron-builder": "^26.3.3",
     "electron-vite": "^4.0.1",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
