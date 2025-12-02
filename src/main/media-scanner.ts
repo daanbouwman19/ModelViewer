@@ -8,33 +8,34 @@
  */
 import fs from 'fs/promises';
 import path from 'path';
-import { ALL_SUPPORTED_EXTENSIONS } from './constants.js';
+import { ALL_SUPPORTED_EXTENSIONS } from './constants';
 
-/**
- * @typedef {Object} MediaFile
- * @property {string} name - The name of the media file (e.g., 'image.jpg').
- * @property {string} path - The absolute path to the media file.
- */
+export interface MediaFile {
+  name: string;
+  path: string;
+  viewCount?: number;
+}
 
-/**
- * @typedef {Object} Album
- * @property {string} name - The name of the album, typically the directory name.
- * @property {MediaFile[]} textures - An array of media files directly in this album.
- * @property {Album[]} children - An array of child albums (subdirectories).
- */
+export interface Album {
+  name: string;
+  textures: MediaFile[];
+  children: Album[];
+}
 
 /**
  * Asynchronously and recursively scans a directory to build a hierarchical album structure.
  * An album is created for any directory that contains media files or has subdirectories
  * that contain media files.
- * @param {string} directoryPath - The absolute path to the directory to scan.
- * @returns {Promise<Album|null>} A promise that resolves to an Album object if media is found, otherwise null.
+ * @param directoryPath - The absolute path to the directory to scan.
+ * @returns A promise that resolves to an Album object if media is found, otherwise null.
  */
-async function scanDirectoryRecursive(directoryPath) {
+async function scanDirectoryRecursive(
+  directoryPath: string,
+): Promise<Album | null> {
   try {
     const items = await fs.readdir(directoryPath, { withFileTypes: true });
-    const textures = [];
-    const childrenPromises = [];
+    const textures: MediaFile[] = [];
+    const childrenPromises: Promise<Album | null>[] = [];
 
     for (const item of items) {
       const fullPath = path.join(directoryPath, item.name);
@@ -48,7 +49,9 @@ async function scanDirectoryRecursive(directoryPath) {
       }
     }
 
-    const children = (await Promise.all(childrenPromises)).filter(Boolean);
+    const children = (await Promise.all(childrenPromises)).filter(
+      (child): child is Album => child !== null,
+    );
 
     if (textures.length > 0 || children.length > 0) {
       return {
@@ -57,11 +60,11 @@ async function scanDirectoryRecursive(directoryPath) {
         children,
       };
     }
-  } catch (err) {
+  } catch (err: unknown) {
     if (process.env.NODE_ENV !== 'test') {
       console.error(
         `[media-scanner.js] Error reading directory ${directoryPath}:`,
-        err.message,
+        (err as Error).message,
       );
     }
   }
@@ -71,10 +74,12 @@ async function scanDirectoryRecursive(directoryPath) {
 /**
  * Performs a full scan for each base directory and returns a distinct album structure for each.
  * It no longer merges albums with the same root name from different sources.
- * @param {string[]} baseMediaDirectories - An array of root directories to scan.
- * @returns {Promise<Album[]>} A promise that resolves to an array of root album objects. Returns an empty array on failure.
+ * @param baseMediaDirectories - An array of root directories to scan.
+ * @returns A promise that resolves to an array of root album objects. Returns an empty array on failure.
  */
-async function performFullMediaScan(baseMediaDirectories) {
+async function performFullMediaScan(
+  baseMediaDirectories: string[],
+): Promise<Album[]> {
   if (process.env.NODE_ENV !== 'test') {
     console.log(
       `[media-scanner.js] Starting disk scan in directories:`,
@@ -87,17 +92,19 @@ async function performFullMediaScan(baseMediaDirectories) {
       try {
         await fs.access(baseDir);
         return scanDirectoryRecursive(baseDir);
-      } catch (dirError) {
+      } catch (dirError: unknown) {
         if (process.env.NODE_ENV !== 'test') {
           console.error(
-            `[media-scanner.js] Error accessing or scanning directory ${baseDir}: ${dirError.message}`,
+            `[media-scanner.js] Error accessing or scanning directory ${baseDir}: ${(dirError as Error).message}`,
           );
         }
         return null;
       }
     });
 
-    const result = (await Promise.all(scanPromises)).filter(Boolean);
+    const result = (await Promise.all(scanPromises)).filter(
+      (album): album is Album => album !== null,
+    );
 
     if (process.env.NODE_ENV !== 'test') {
       console.log(

@@ -10,9 +10,9 @@ export default defineConfig({
       sourcemap: false,
       rollupOptions: {
         input: {
-          index: resolve(__dirname, 'src/main/main.js'),
+          index: resolve(__dirname, 'src/main/main.ts'),
           // database-worker must be a separate entry because Node.js Worker requires a file path
-          'database-worker': resolve(__dirname, 'src/main/database-worker.js'),
+          'database-worker': resolve(__dirname, 'src/main/database-worker.ts'),
         },
       },
     },
@@ -23,7 +23,7 @@ export default defineConfig({
       sourcemap: false,
       rollupOptions: {
         input: {
-          preload: resolve(__dirname, 'src/preload/preload.js'),
+          preload: resolve(__dirname, 'src/preload/preload.ts'),
         },
         output: {
           format: 'cjs',

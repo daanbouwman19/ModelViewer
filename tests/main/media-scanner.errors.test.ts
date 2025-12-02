@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 
 // Mock fs/promises
 vi.mock('fs/promises', () => {
@@ -11,7 +11,7 @@ vi.mock('fs/promises', () => {
 });
 
 import fs from 'fs/promises';
-import { performFullMediaScan } from '../../src/main/media-scanner.js';
+import { performFullMediaScan } from '../../src/main/media-scanner';
 
 describe('Media Scanner Error Handling', () => {
   beforeEach(() => {
@@ -26,7 +26,8 @@ describe('Media Scanner Error Handling', () => {
     const badDir = '/bad/dir';
     const goodDir = '/good/dir';
 
-    fs.access.mockImplementation(async (path) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (fs.access as unknown as Mock).mockImplementation(async (path: any) => {
       if (path === badDir) {
         throw new Error('Permission denied');
       }
@@ -34,7 +35,7 @@ describe('Media Scanner Error Handling', () => {
     });
 
     // Mock readdir for the good directory to return empty, so we don't need deeper mocking
-    fs.readdir.mockResolvedValue([]);
+    (fs.readdir as unknown as Mock).mockResolvedValue([]);
 
     const result = await performFullMediaScan([badDir, goodDir]);
 
@@ -48,8 +49,10 @@ describe('Media Scanner Error Handling', () => {
   it('should handle readdir errors gracefully inside scanDirectoryRecursive', async () => {
     const baseDir = '/base/dir';
 
-    fs.access.mockResolvedValue(undefined);
-    fs.readdir.mockRejectedValue(new Error('Read failure'));
+    (fs.access as unknown as Mock).mockResolvedValue(undefined);
+    (fs.readdir as unknown as Mock).mockRejectedValue(
+      new Error('Read failure'),
+    );
 
     const result = await performFullMediaScan([baseDir]);
 
@@ -68,14 +71,14 @@ describe('Media Scanner Error Handling', () => {
 
     // Let's verify the outer try/catch block in performFullMediaScan
     // We can mock Promise.all to throw
-    vi.spyOn(Promise, 'all').mockRejectedValue(
-      new Error('Catastrophic failure'),
-    );
+    const promiseAllSpy = vi
+      .spyOn(Promise, 'all')
+      .mockRejectedValue(new Error('Catastrophic failure'));
 
     const result = await performFullMediaScan(['/dir']);
 
     expect(result).toEqual([]);
 
-    Promise.all.mockRestore();
+    promiseAllSpy.mockRestore();
   });
 });

@@ -107,7 +107,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 /**
  * @file This component is responsible for displaying the current media item (image or video).
  * It handles loading the media from the main process, displaying loading/error states,
@@ -140,43 +140,36 @@ const {
 
 /**
  * An array of available media filters.
- * @type {string[]}
  */
-const filters = ['All', 'Images', 'Videos'];
+const filters: ('All' | 'Images' | 'Videos')[] = ['All', 'Images', 'Videos'];
 
 /**
  * The URL of the media to be displayed (can be a Data URL or an HTTP URL).
- * @type {import('vue').Ref<string | null>}
  */
-const mediaUrl = ref(null);
+const mediaUrl = ref<string | null>(null);
 
 /**
  * A flag indicating if the media is currently being loaded.
- * @type {import('vue').Ref<boolean>}
  */
 const isLoading = ref(false);
 
 /**
  * A string to hold any error message that occurs during media loading.
- * @type {import('vue').Ref<string | null>}
  */
-const error = ref(null);
+const error = ref<string | null>(null);
 
 /**
  * The current progress of video playback (0-100).
- * @type {import('vue').Ref<number>}
  */
 const videoProgress = ref(0);
 
 /**
  * Reference to the video element.
- * @type {import('vue').Ref<HTMLVideoElement | null>}
  */
-const videoElement = ref(null);
+const videoElement = ref<HTMLVideoElement | null>(null);
 
 /**
  * A computed property that determines if the current media item is an image.
- * @type {import('vue').ComputedRef<boolean>}
  */
 const isImage = computed(() => {
   if (!currentMediaItem.value) return false;
@@ -189,7 +182,6 @@ const isImage = computed(() => {
 
 /**
  * A computed property for the title displayed above the media.
- * @type {import('vue').ComputedRef<string>}
  */
 const displayTitle = computed(() => {
   return isSlideshowActive.value
@@ -199,7 +191,6 @@ const displayTitle = computed(() => {
 
 /**
  * A computed property that provides information about the current position in the slideshow.
- * @type {import('vue').ComputedRef<string>}
  */
 const countInfo = computed(() => {
   if (!isSlideshowActive.value || displayedMediaFiles.value.length === 0) {
@@ -213,7 +204,6 @@ const countInfo = computed(() => {
 
 /**
  * A computed property that determines if media navigation is possible.
- * @type {import('vue').ComputedRef<boolean>}
  */
 const canNavigate = computed(() => {
   return displayedMediaFiles.value.length > 0;
@@ -236,10 +226,10 @@ const loadMediaUrl = async () => {
       currentMediaItem.value.path,
     );
     if (result.type === 'error') {
-      error.value = result.message;
+      error.value = result.message || 'Unknown error';
       mediaUrl.value = null;
     } else {
-      mediaUrl.value = result.url;
+      mediaUrl.value = result.url || null;
     }
   } catch (err) {
     console.error('Error loading media:', err);
@@ -273,9 +263,9 @@ const handleNext = () => {
 
 /**
  * Sets the media filter and triggers a re-filter of the slideshow.
- * @param {'All' | 'Images' | 'Videos'} filter - The filter to apply.
+ * @param filter - The filter to apply.
  */
-const setFilter = async (filter) => {
+const setFilter = async (filter: 'All' | 'Images' | 'Videos') => {
   mediaFilter.value = filter;
   await reapplyFilter();
 };
@@ -295,7 +285,7 @@ watch(pauseTimerOnPlay, (newValue) => {
 
 watch(
   currentMediaItem,
-  (newItem, _oldItem) => {
+  (newItem) => {
     loadMediaUrl();
     if (
       newItem &&
@@ -329,10 +319,11 @@ const handleVideoPause = () => {
 
 /**
  * Updates the video progress bar based on the video's current time and duration.
- * @param {Event} event - The timeupdate event from the <video> element.
+ * @param event - The timeupdate event from the <video> element.
  */
-const handleVideoTimeUpdate = (event) => {
-  const { currentTime, duration } = event.target;
+const handleVideoTimeUpdate = (event: Event) => {
+  const target = event.target as HTMLVideoElement;
+  const { currentTime, duration } = target;
   if (duration > 0) {
     videoProgress.value = (currentTime / duration) * 100;
   } else {

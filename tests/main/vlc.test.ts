@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { ipcMain } from 'electron';
 import fs from 'fs';
 
@@ -52,7 +52,8 @@ vi.mock('../../src/main/database.js', () => ({
 }));
 
 describe('Main Process IPC - open-in-vlc', () => {
-  let openInVlcHandler;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let openInVlcHandler: (event: any, filePath: string) => Promise<any>;
   const originalPlatform = process.platform;
 
   beforeEach(async () => {
@@ -63,8 +64,9 @@ describe('Main Process IPC - open-in-vlc', () => {
     await import('../../src/main/main.js');
 
     // Find the handler
-    const handleCalls = ipcMain.handle.mock.calls;
-    const call = handleCalls.find((call) => call[0] === 'open-in-vlc');
+    const handleCalls = (ipcMain.handle as unknown as Mock).mock.calls;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const call = handleCalls.find((call: any[]) => call[0] === 'open-in-vlc');
     if (call) {
       openInVlcHandler = call[1];
     }
@@ -82,7 +84,7 @@ describe('Main Process IPC - open-in-vlc', () => {
 
   it('should fail if VLC is not found on Windows', async () => {
     Object.defineProperty(process, 'platform', { value: 'win32' });
-    fs.existsSync.mockReturnValue(false);
+    (fs.existsSync as unknown as Mock).mockReturnValue(false);
 
     const result = await openInVlcHandler({}, 'C:\\video.mp4');
 
@@ -93,7 +95,10 @@ describe('Main Process IPC - open-in-vlc', () => {
 
   it('should succeed if VLC is found on Windows', async () => {
     Object.defineProperty(process, 'platform', { value: 'win32' });
-    fs.existsSync.mockImplementation((path) => path.includes('vlc.exe'));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (fs.existsSync as unknown as Mock).mockImplementation((path: any) =>
+      path.includes('vlc.exe'),
+    );
 
     const mockChild = { unref: vi.fn(), on: vi.fn() };
     mockSpawn.mockReturnValue(mockChild);
@@ -123,8 +128,9 @@ describe('Main Process IPC - open-in-vlc', () => {
 
   it('should use standard path on macOS if it exists', async () => {
     Object.defineProperty(process, 'platform', { value: 'darwin' });
-    fs.existsSync.mockImplementation(
-      (path) => path === '/Applications/VLC.app/Contents/MacOS/VLC',
+    (fs.existsSync as unknown as Mock).mockImplementation(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (path: any) => path === '/Applications/VLC.app/Contents/MacOS/VLC',
     );
 
     const mockChild = { unref: vi.fn(), on: vi.fn() };
@@ -142,7 +148,7 @@ describe('Main Process IPC - open-in-vlc', () => {
 
   it('should fallback to "vlc" on macOS if standard path does not exist', async () => {
     Object.defineProperty(process, 'platform', { value: 'darwin' });
-    fs.existsSync.mockReturnValue(false);
+    (fs.existsSync as unknown as Mock).mockReturnValue(false);
 
     const mockChild = { unref: vi.fn(), on: vi.fn() };
     mockSpawn.mockReturnValue(mockChild);

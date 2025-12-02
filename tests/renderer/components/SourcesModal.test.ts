@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import { ref } from 'vue';
 import SourcesModal from '@/components/SourcesModal.vue';
-import { useAppState } from '@/composables/useAppState.js';
+import { useAppState } from '@/composables/useAppState';
 
 // Mock the composables
 vi.mock('@/composables/useAppState.js');

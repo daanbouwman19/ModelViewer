@@ -2,13 +2,20 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EventEmitter } from 'events';
 
 // Module-scoped variable to hold the latest mock worker instance
-let mockWorkerInstance = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let mockWorkerInstance: any = null;
 
 class MockWorker extends EventEmitter {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  terminate: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  postMessage: any;
+
   constructor() {
     super();
     this.terminate = vi.fn().mockResolvedValue(undefined);
-    this.postMessage = vi.fn((message) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    this.postMessage = vi.fn((message: any) => {
       // Default handler for init and close to make setup/teardown work
       if (message.type === 'init' || message.type === 'close') {
         process.nextTick(() => {
@@ -20,17 +27,20 @@ class MockWorker extends EventEmitter {
       }
     });
     // Capture the instance when it's created
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
     mockWorkerInstance = this;
   }
 
   // Helper methods
-  simulateMessage(message) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  simulateMessage(message: any) {
     this.emit('message', message);
   }
-  simulateError(error) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  simulateError(error: any) {
     this.emit('error', error);
   }
-  simulateExit(code) {
+  simulateExit(code: number) {
     this.emit('exit', code);
   }
 }
@@ -61,7 +71,8 @@ describe('database.js additional coverage - uninitialized', () => {
 });
 
 describe('database.js additional coverage', () => {
-  let db;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let db: any;
 
   beforeEach(async () => {
     vi.resetModules();
@@ -108,7 +119,8 @@ describe('database.js additional coverage', () => {
     // Simulate a failure in worker communication for the recordMediaView call
     const postMessageSpy = vi
       .spyOn(mockWorkerInstance, 'postMessage')
-      .mockImplementation((message) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .mockImplementation((message: any) => {
         if (message.type === 'recordMediaView') {
           throw new Error('Test worker error');
         }
@@ -170,11 +182,12 @@ describe('database.js additional coverage', () => {
       },
     ])(
       'should throw an error when $method fails',
-      async ({ method, args, errorMessage }) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      async ({ method, args, errorMessage }: any) => {
         const originalPostMessage = mockWorkerInstance.postMessage;
         const postMessageSpy = vi.spyOn(mockWorkerInstance, 'postMessage');
-
-        postMessageSpy.mockImplementation((message) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        postMessageSpy.mockImplementation((message: any) => {
           if (message.type === method) {
             mockWorkerInstance.simulateMessage({
               id: message.id,
@@ -220,8 +233,8 @@ describe('database.js additional coverage', () => {
   it('getMediaDirectories should return [] on falsy worker response', async () => {
     const originalPostMessage = mockWorkerInstance.postMessage;
     const postMessageSpy = vi.spyOn(mockWorkerInstance, 'postMessage');
-
-    postMessageSpy.mockImplementation((message) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    postMessageSpy.mockImplementation((message: any) => {
       if (message.type === 'getMediaDirectories') {
         mockWorkerInstance.simulateMessage({
           id: message.id,

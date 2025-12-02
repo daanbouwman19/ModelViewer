@@ -2,11 +2,6 @@
  * @file Manages a local HTTP server for streaming media files.
  * This is crucial for handling large video files that cannot be efficiently
  * loaded as Data URLs. The server handles range requests for video streaming.
- * @requires http
- * @requires fs
- * @requires path
- * @requires ./constants.js
- * @requires ./database.js
  */
 import http from 'http';
 import fs from 'fs';
@@ -14,27 +9,26 @@ import path from 'path';
 import {
   SUPPORTED_IMAGE_EXTENSIONS,
   SUPPORTED_VIDEO_EXTENSIONS,
-} from './constants.js';
-import { getMediaDirectories } from './database.js';
+} from './constants';
+import { getMediaDirectories, MediaDirectory } from './database';
+import { AddressInfo } from 'net';
 
 /**
  * Holds the singleton instance of the HTTP server.
- * @type {http.Server | null}
  */
-let serverInstance = null;
+let serverInstance: http.Server | null = null;
 
 /**
  * Stores the port the server is currently running on. Defaults to 0 if not running.
- * @type {number}
  */
 let serverPort = 0;
 
 /**
  * Determines the MIME type of a file based on its extension.
- * @param {string} filePath - The path to the file.
- * @returns {string} The corresponding MIME type string (e.g., 'image/jpeg', 'video/mp4').
+ * @param filePath - The path to the file.
+ * @returns The corresponding MIME type string (e.g., 'image/jpeg', 'video/mp4').
  */
-function getMimeType(filePath) {
+function getMimeType(filePath: string): string {
   const extension = path.extname(filePath).substring(1).toLowerCase();
   if (SUPPORTED_IMAGE_EXTENSIONS.includes(`.${extension}`)) {
     return `image/${extension === 'jpg' ? 'jpeg' : extension}`;
@@ -62,11 +56,14 @@ function getMimeType(filePath) {
 
 /**
  * Checks if a file path is within the allowed media directories.
- * @param {string} filePath - The file path to validate.
- * @param {Array<{path: string}>} allowedDirectories - Array of allowed directory objects.
- * @returns {boolean} True if the file is within an allowed directory, false otherwise.
+ * @param filePath - The file path to validate.
+ * @param allowedDirectories - Array of allowed directory objects.
+ * @returns True if the file is within an allowed directory, false otherwise.
  */
-function isPathAllowed(filePath, allowedDirectories) {
+function isPathAllowed(
+  filePath: string,
+  allowedDirectories: MediaDirectory[],
+): boolean {
   const normalizedPath = path.resolve(filePath);
   return allowedDirectories.some((dir) => {
     const normalizedDir = path.resolve(dir.path);
@@ -90,10 +87,9 @@ function isPathAllowed(filePath, allowedDirectories) {
 /**
  * Starts the local HTTP server if it is not already running.
  * The server listens on a random available port and handles range requests for video streaming.
- * @param {() => void} onReadyCallback - A callback function executed once the server has started.
- * @returns {void}
+ * @param onReadyCallback - A callback function executed once the server has started.
  */
-function startLocalServer(onReadyCallback) {
+function startLocalServer(onReadyCallback?: () => void): void {
   if (serverInstance) {
     console.warn('[local-server.js] Server already started. Ignoring request.');
     if (onReadyCallback && typeof onReadyCallback === 'function') {
@@ -103,6 +99,11 @@ function startLocalServer(onReadyCallback) {
   }
 
   const server = http.createServer(async (req, res) => {
+    if (!req.url) {
+      res.writeHead(400);
+      res.end();
+      return;
+    }
     const parsedUrl = new URL(
       req.url,
       `http://${req.headers.host || 'localhost'}`,
@@ -126,9 +127,9 @@ function startLocalServer(onReadyCallback) {
         res.writeHead(403, { 'Content-Type': 'text/plain' });
         return res.end('Access denied.');
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error(
-        `[local-server.js] Error validating path: ${error.message}`,
+        `[local-server.js] Error validating path: ${(error as Error).message}`,
       );
       res.writeHead(500, { 'Content-Type': 'text/plain' });
       return res.end('Internal server error.');
@@ -192,14 +193,14 @@ function startLocalServer(onReadyCallback) {
   serverInstance = server;
 
   serverInstance.listen(0, '127.0.0.1', () => {
-    const address = serverInstance.address();
+    const address = serverInstance?.address() as AddressInfo;
     serverPort = address ? address.port : 0;
     console.log(
       `[local-server.js] Local media server started on http://localhost:${serverPort}`,
     );
 
     if (process.env.NODE_ENV === 'test') {
-      serverInstance.unref();
+      serverInstance?.unref();
     }
 
     if (onReadyCallback && typeof onReadyCallback === 'function') {
@@ -216,10 +217,9 @@ function startLocalServer(onReadyCallback) {
 
 /**
  * Stops the local HTTP server if it is running.
- * @param {() => void} [callback] - An optional callback to execute after the server has closed.
- * @returns {void}
+ * @param callback - An optional callback to execute after the server has closed.
  */
-function stopLocalServer(callback) {
+function stopLocalServer(callback?: () => void): void {
   if (serverInstance) {
     serverInstance.close((err) => {
       if (err) {
@@ -240,9 +240,9 @@ function stopLocalServer(callback) {
 
 /**
  * Gets the port the local server is currently running on.
- * @returns {number} The server port, or 0 if the server is not running.
+ * @returns The server port, or 0 if the server is not running.
  */
-function getServerPort() {
+function getServerPort(): number {
   return serverPort;
 }
 
