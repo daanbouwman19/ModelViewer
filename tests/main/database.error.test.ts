@@ -31,18 +31,15 @@ describe('Database error handling (isolated)', () => {
     // Define the class inside the factory to avoid hoisting issues with vi.mock.
     vi.mock('worker_threads', () => {
       class MockWorker {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         listeners: any;
         constructor() {
           this.listeners = {};
         }
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         on(event: string, cb: any) {
           this.listeners[event] = cb;
         }
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         postMessage(msg: any) {
           // During initDatabase, the module sends an 'init' message — reply with success
           if (msg && msg.type === 'init') {

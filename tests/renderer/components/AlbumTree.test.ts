@@ -130,7 +130,7 @@ describe('AlbumTree.vue', () => {
           selection: {},
         },
       });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       expect((wrapper.vm as any).selectionState).toBe('none');
     });
 
@@ -146,7 +146,7 @@ describe('AlbumTree.vue', () => {
           },
         },
       });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       expect((wrapper.vm as any).selectionState).toBe('all');
     });
 
@@ -160,7 +160,7 @@ describe('AlbumTree.vue', () => {
           },
         },
       });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       expect((wrapper.vm as any).selectionState).toBe('some');
     });
 

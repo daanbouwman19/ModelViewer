@@ -21,7 +21,7 @@ describe('MediaDisplay.vue', () => {
   let mockPrevMedia: Mock;
   let mockNextMedia: Mock;
   let mockToggleTimer: Mock;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   let mockRefs: any;
 
   beforeEach(() => {

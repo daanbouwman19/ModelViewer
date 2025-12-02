@@ -6,7 +6,6 @@ import { useAppState } from '@/composables/useAppState';
 import { createMockElectronAPI } from '../mocks/electronAPI';
 
 describe('useAppState', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let appState: any;
 
   beforeEach(() => {
@@ -58,7 +57,6 @@ describe('useAppState', () => {
     });
 
     it('should handle error when electronAPI is not available', async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       global.window = {} as any;
       const consoleSpy = vi
         .spyOn(console, 'error')

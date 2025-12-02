@@ -113,7 +113,6 @@ describe('Local Server', () => {
   });
 
   describe('HTTP Request Handling', () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let testFilePath: any;
 
     afterEach(() => {
@@ -137,7 +136,7 @@ describe('Local Server', () => {
       const port = getServerPort();
 
       // Make HTTP request
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const response: any = await new Promise((resolve, reject) => {
         const req = http.get(
           `http://127.0.0.1:${port}/${encodeURIComponent(testFilePath)}`,
@@ -165,7 +164,6 @@ describe('Local Server', () => {
       await startServer();
       const port = getServerPort();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const response: any = await new Promise((resolve, reject) => {
         const req = http.get(
           `http://127.0.0.1:${port}/nonexistent-file.txt`,
@@ -196,7 +194,7 @@ describe('Local Server', () => {
       const port = getServerPort();
 
       // Make range request
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const response: any = await new Promise((resolve, reject) => {
         const options = {
           hostname: '127.0.0.1',
@@ -233,7 +231,7 @@ describe('Local Server', () => {
       const port = getServerPort();
 
       // Make invalid range request
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const response: any = await new Promise((resolve, reject) => {
         const options = {
           hostname: '127.0.0.1',
@@ -266,7 +264,6 @@ describe('Local Server', () => {
       await startServer();
       const port = getServerPort();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const response: any = await new Promise((resolve, reject) => {
         const req = http.get(
           `http://127.0.0.1:${port}/${encodeURIComponent(testFilePath)}`,
@@ -288,7 +285,6 @@ describe('Local Server', () => {
   });
 
   describe('Security - Path Validation', () => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let testFilePath: any;
 
     afterEach(() => {
@@ -316,7 +312,6 @@ describe('Local Server', () => {
       await startServer();
       const port = getServerPort();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const response: any = await new Promise((resolve, reject) => {
         const req = http.get(
           `http://127.0.0.1:${port}/${encodeURIComponent(testFilePath)}`,
@@ -356,7 +351,6 @@ describe('Local Server', () => {
       await startServer();
       const port = getServerPort();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const response: any = await new Promise((resolve, reject) => {
         const req = http.get(
           `http://127.0.0.1:${port}/${encodeURIComponent(testFilePath)}`,
@@ -385,10 +379,9 @@ describe('Local Server', () => {
         .spyOn(console, 'error')
         .mockImplementation(() => {});
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const mockServer: any = new EventEmitter();
       mockServer.on('error', () => {}); // Prevent unhandled error crash
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       mockServer.listen = vi.fn((_port: any, _host: any, cb: any) => {
         // Defer error emission to ensure the '.on('error',...)' handler is attached.
         process.nextTick(() =>
@@ -438,7 +431,6 @@ describe('Local Server', () => {
         .mockImplementation(() => {});
       const closeError = new Error('Server close failed');
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const mockServer: any = new EventEmitter();
 
       mockServer.listen = vi.fn(

@@ -46,4 +46,10 @@ export default [
       '@typescript-eslint/no-explicit-any': 'warn',
     },
   },
+  {
+    files: ['**/*.test.ts', '**/*.test.js', 'tests/**/*.ts', 'tests/**/*.js'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
+  },
 ];

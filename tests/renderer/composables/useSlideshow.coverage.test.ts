@@ -12,7 +12,6 @@ vi.mock('@/composables/useAppState.js', () => ({
 global.window.electronAPI = createMockElectronAPI();
 
 describe('useSlideshow additional coverage', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let mockState: any;
 
   beforeEach(() => {

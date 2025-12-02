@@ -54,7 +54,6 @@ vi.mock('../../src/main/database.js', () => ({
 }));
 
 describe('Main Process IPC - open-in-vlc', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let openInVlcHandler: (event: any, filePath: string) => Promise<any>;
   const originalPlatform = process.platform;
 
@@ -67,7 +66,7 @@ describe('Main Process IPC - open-in-vlc', () => {
 
     // Find the handler
     const handleCalls = (ipcMain.handle as unknown as Mock).mock.calls;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const call = handleCalls.find((call: any[]) => call[0] === 'open-in-vlc');
     if (call) {
       openInVlcHandler = call[1];
@@ -97,7 +96,7 @@ describe('Main Process IPC - open-in-vlc', () => {
 
   it('should succeed if VLC is found on Windows', async () => {
     Object.defineProperty(process, 'platform', { value: 'win32' });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     (fs.existsSync as unknown as Mock).mockImplementation((path: any) =>
       path.includes('vlc.exe'),
     );
@@ -131,7 +130,6 @@ describe('Main Process IPC - open-in-vlc', () => {
   it('should use standard path on macOS if it exists', async () => {
     Object.defineProperty(process, 'platform', { value: 'darwin' });
     (fs.existsSync as unknown as Mock).mockImplementation(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (path: any) => path === '/Applications/VLC.app/Contents/MacOS/VLC',
     );
 

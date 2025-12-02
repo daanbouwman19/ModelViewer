@@ -37,7 +37,6 @@ class MockWorker extends EventEmitter {
     this.terminate = vi.fn().mockResolvedValue(undefined);
 
     this.postMessage = vi.fn(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (message: { id: string; type: string; payload: any }) => {
         const { id, type, payload } = message;
         let resultData: unknown = undefined;

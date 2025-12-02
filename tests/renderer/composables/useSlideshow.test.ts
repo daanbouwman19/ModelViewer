@@ -20,7 +20,6 @@ vi.mock('@/composables/useAppState.js', () => ({
 global.window.electronAPI = createMockElectronAPI();
 
 describe('useSlideshow', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let mockState: any;
   let mockStopSlideshow: Mock;
 
@@ -157,9 +156,9 @@ describe('useSlideshow', () => {
     it('should handle empty or invalid input', () => {
       const { filterMedia } = useSlideshow();
       expect(filterMedia([])).toEqual([]);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       expect(filterMedia(null as any)).toEqual([]);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       expect(filterMedia(undefined as any)).toEqual([]);
     });
 
@@ -265,7 +264,7 @@ describe('useSlideshow', () => {
     it('should return null for empty or invalid input', () => {
       const { selectWeightedRandom } = useSlideshow();
       expect(selectWeightedRandom([])).toBeNull();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       expect(selectWeightedRandom(null as any)).toBeNull();
     });
 
@@ -630,7 +629,6 @@ describe('useSlideshow', () => {
       };
       const { startIndividualAlbumSlideshow } = useSlideshow();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await startIndividualAlbumSlideshow(album as any);
 
       expect(mockState.isSlideshowActive).toBe(true);
@@ -649,7 +647,6 @@ describe('useSlideshow', () => {
         .spyOn(console, 'warn')
         .mockImplementation(() => {});
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await startIndividualAlbumSlideshow(album as any);
 
       expect(mockState.isSlideshowActive).toBe(false);
@@ -667,9 +664,8 @@ describe('useSlideshow', () => {
 
       await startIndividualAlbumSlideshow({
         name: 'badAlbum',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         textures: null as any,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
 
       expect(mockState.isSlideshowActive).toBe(false);

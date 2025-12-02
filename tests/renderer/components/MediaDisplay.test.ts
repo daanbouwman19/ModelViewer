@@ -17,7 +17,7 @@ describe('MediaDisplay.vue', () => {
   let mockPrevMedia: Mock;
   let mockNextMedia: Mock;
   let mockToggleTimer: Mock;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   let mockRefs: any;
 
   beforeEach(() => {
@@ -271,7 +271,7 @@ describe('MediaDisplay.vue', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 50));
     // Manually call the error handler
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     (wrapper.vm as any).handleMediaError();
     await wrapper.vm.$nextTick();
     expect(wrapper.text()).toContain('Failed to display media file');
@@ -301,7 +301,7 @@ describe('MediaDisplay.vue', () => {
 
     const wrapper = mount(MediaDisplay);
     // Call the handler directly
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     (wrapper.vm as any).handlePrevious();
     expect(mockNavigateMedia).toHaveBeenCalledWith(-1);
   });
@@ -330,7 +330,7 @@ describe('MediaDisplay.vue', () => {
 
     const wrapper = mount(MediaDisplay);
     // Call the handler directly
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     (wrapper.vm as any).handleNext();
     expect(mockNavigateMedia).toHaveBeenCalledWith(1);
   });
@@ -415,7 +415,7 @@ describe('MediaDisplay.vue', () => {
       mockRefs.playFullVideo.value = true;
       mockRefs.isTimerRunning.value = true;
       const wrapper = mount(MediaDisplay);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       (wrapper.vm as any).handleVideoPlay();
       expect(pauseSlideshowTimer).toHaveBeenCalled();
     });
@@ -424,7 +424,7 @@ describe('MediaDisplay.vue', () => {
       mockRefs.pauseTimerOnPlay.value = true;
       mockRefs.isTimerRunning.value = true;
       const wrapper = mount(MediaDisplay);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       (wrapper.vm as any).handleVideoPlay();
       expect(pauseSlideshowTimer).toHaveBeenCalled();
     });
@@ -433,7 +433,7 @@ describe('MediaDisplay.vue', () => {
       mockRefs.pauseTimerOnPlay.value = true;
       mockRefs.isTimerRunning.value = false;
       const wrapper = mount(MediaDisplay);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       (wrapper.vm as any).handleVideoPause();
       expect(resumeSlideshowTimer).toHaveBeenCalled();
     });
@@ -441,7 +441,7 @@ describe('MediaDisplay.vue', () => {
     it('should navigate to the next media when a video ends and playFullVideo is true', async () => {
       mockRefs.playFullVideo.value = true;
       const wrapper = mount(MediaDisplay);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       (wrapper.vm as any).handleVideoEnded();
       expect(navigateMedia).toHaveBeenCalledWith(1);
     });

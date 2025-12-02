@@ -12,9 +12,8 @@ vi.mock('@/composables/useAppState.js');
 global.window.electronAPI = createMockElectronAPI();
 
 describe('SourcesModal.vue', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let mockRefs: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   let mockState: any;
 
   beforeEach(() => {
@@ -272,7 +271,7 @@ describe('SourcesModal.vue', () => {
     const wrapper = mount(SourcesModal);
 
     // Manually call the handler with a path that doesn't exist in the list
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     await (wrapper.vm as any).handleToggleActive('/non-existent/path', true);
 
     // Expect no crash and no state change for existing directories
@@ -301,7 +300,7 @@ describe('SourcesModal.vue', () => {
     const wrapper = mount(SourcesModal);
 
     // Manually call the handler with a path that doesn't exist in the list
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     await (wrapper.vm as any).handleRemove('/non-existent/path');
 
     // Expect list to remain unchanged

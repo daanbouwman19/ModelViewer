@@ -196,7 +196,7 @@ describe('database.js additional coverage', () => {
 
         // Use 'any' for the mock implementation signature to match spyOn requirements,
         // but cast internally if needed.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         postMessageSpy.mockImplementation((message: any) => {
           if (message.type === method) {
             mockWorkerInstance!.simulateMessage({
@@ -209,7 +209,7 @@ describe('database.js additional coverage', () => {
         });
 
         // We need to cast db to access methods dynamically by string name
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         await expect((db as any)[method](...args)).rejects.toThrow(
           errorMessage,
         );
@@ -248,7 +248,6 @@ describe('database.js additional coverage', () => {
     const originalPostMessage = mockWorkerInstance!.postMessage;
     const postMessageSpy = vi.spyOn(mockWorkerInstance!, 'postMessage');
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     postMessageSpy.mockImplementation((message: any) => {
       if (message.type === 'getMediaDirectories') {
         mockWorkerInstance!.simulateMessage({

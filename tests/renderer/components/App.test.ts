@@ -32,7 +32,6 @@ vi.mock('@/components/AmbientBackground.vue', () => ({
 }));
 
 describe('App.vue', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let mockRefs: any;
   let initializeApp: Mock;
   let navigateMedia: Mock;

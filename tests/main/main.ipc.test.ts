@@ -37,7 +37,6 @@ vi.mock('../../src/main/local-server.js', () => ({
 }));
 
 describe('main.js IPC Handlers', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let handler: (event: any, ...args: any[]) => any;
 
   beforeEach(async () => {
@@ -47,7 +46,6 @@ describe('main.js IPC Handlers', () => {
     // Find the handler for 'load-file-as-data-url'
     const handleMock = ipcMain.handle as unknown as Mock;
     const call = handleMock.mock.calls.find(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (c: any[]) => c[0] === 'load-file-as-data-url',
     );
     if (call) {
