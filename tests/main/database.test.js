@@ -241,7 +241,6 @@ describe('Database', () => {
 
   describe('error handling', () => {
     it('should handle multiple sequential operations gracefully', async () => {
-      const promises = [];
       // Sequential execution to avoid transaction conflicts
       for (let i = 0; i < 10; i++) {
         await recordMediaView(`/test/file${i}.png`);

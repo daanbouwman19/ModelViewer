@@ -31,17 +31,12 @@ describe('Database Worker', () => {
     // Send close message to ensure DB is closed and file can be cleaned up
     try {
       await sendMessage('close', {});
-    } catch (e) {
+    } catch {
       // Ignore errors during cleanup
     }
 
-    if (fs.existsSync(tempDir)) {
-      try {
-        fs.rmSync(tempDir, { recursive: true, force: true });
-      } catch (e) {
-        // Ignore cleanup errors
-      }
-    }
+    // Clean up temp directory
+    fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
   const sendMessage = (type, payload) => {

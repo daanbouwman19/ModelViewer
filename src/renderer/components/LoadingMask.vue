@@ -15,7 +15,7 @@
  * @file This component displays a loading overlay with a spinner.
  * It is used to indicate that a background process, such as media scanning, is in progress.
  */
-const props = defineProps({
+defineProps({
   message: {
     type: String,
     default: 'Scanning for media...',

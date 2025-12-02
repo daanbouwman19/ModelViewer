@@ -4,26 +4,26 @@
   >
     <div class="header-controls">
       <button
-        @click="handleStartSlideshow"
         class="action-button"
         data-testid="start-slideshow-button"
+        @click="handleStartSlideshow"
       >
         Start Slideshow
       </button>
       <div class="timer-controls">
         <label for="timer-duration">Timer (s):</label>
         <input
-          type="number"
           id="timer-duration"
           v-model.number="timerDuration"
+          type="number"
           min="1"
           class="timer-input"
         />
-        <button @click="handleToggleTimer" class="timer-button">
+        <button class="timer-button" @click="handleToggleTimer">
           {{ isTimerRunning ? 'Pause' : 'Play' }}
         </button>
       </div>
-      <button @click="openModal" class="action-button">Manage Sources</button>
+      <button class="action-button" @click="openModal">Manage Sources</button>
     </div>
     <div
       v-if="isTimerRunning"
@@ -42,8 +42,8 @@
         :key="album.name"
         :album="album"
         :selection="albumsSelectedForSlideshow"
-        @toggleSelection="handleToggleSelection"
-        @albumClick="handleClickAlbum"
+        @toggle-selection="handleToggleSelection"
+        @album-click="handleClickAlbum"
       />
     </ul>
   </div>

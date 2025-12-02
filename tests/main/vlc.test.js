@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ipcMain } from 'electron';
 import fs from 'fs';
-import path from 'path';
 
 // Hoist the mock function so it's accessible in the factory and the test
 const { mockSpawn } = vi.hoisted(() => ({

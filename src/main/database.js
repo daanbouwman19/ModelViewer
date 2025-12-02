@@ -249,7 +249,7 @@ async function closeDatabase() {
     try {
       // Attempt to gracefully shut down the worker
       await sendMessageToWorker('close');
-    } catch (error) {
+    } catch {
       // This is expected if the worker has already crashed, so we can ignore it.
     } finally {
       try {

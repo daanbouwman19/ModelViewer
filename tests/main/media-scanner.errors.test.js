@@ -68,7 +68,6 @@ describe('Media Scanner Error Handling', () => {
 
     // Let's verify the outer try/catch block in performFullMediaScan
     // We can mock Promise.all to throw
-    const originalAll = Promise.all;
     vi.spyOn(Promise, 'all').mockRejectedValue(
       new Error('Catastrophic failure'),
     );

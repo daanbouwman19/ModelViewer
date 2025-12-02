@@ -7,9 +7,9 @@
     >
       <h2 class="text-lg font-semibold text-gray-200">Grid View</h2>
       <button
-        @click="closeGrid"
         class="text-sm bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-opacity-50"
         title="Close Grid View"
+        @click="closeGrid"
       >
         Close
       </button>
@@ -29,7 +29,7 @@
         class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"
       >
         <div
-          v-for="(item, index) in visibleMediaFiles"
+          v-for="item in visibleMediaFiles"
           :key="item.path"
           class="relative group grid-item cursor-pointer"
           @click="handleItemClick(item)"
@@ -82,7 +82,7 @@
  * Supports hover-to-preview for videos and click-to-play functionality.
  * Uses incremental rendering (infinite scroll) for performance.
  */
-import { ref, onMounted, computed, watch, nextTick } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useAppState } from '../composables/useAppState';
 
 const { state } = useAppState();
@@ -136,7 +136,7 @@ const handleScrollInternal = (e) => {
 const handleScroll = throttle(handleScrollInternal, 150);
 
 // Reset visible count when the underlying data changes (e.g. new album opened)
-watch(allMediaFiles, (newFiles, oldFiles) => {
+watch(allMediaFiles, (_newFiles, _oldFiles) => {
   visibleCount.value = BATCH_SIZE;
   // Scroll to top when album changes
   const container = document.querySelector('.media-grid-container');
@@ -199,7 +199,7 @@ const getMediaUrl = (item) => {
   return ''; // Placeholder until port is loaded
 };
 
-const getPosterUrl = (item) => {
+const getPosterUrl = (_item) => {
   // For videos, we might not have a thumbnail.
   // Just return null/empty to show black or first frame (if preload metadata).
   return '';

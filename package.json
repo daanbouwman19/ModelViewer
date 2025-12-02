@@ -19,7 +19,9 @@
     "package:mac": "npm run build && electron-builder --mac",
     "package:linux": "npm run build && electron-builder --linux",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "author": {
     "name": "Daan Bouwman",
@@ -77,6 +79,10 @@
     "electron": "^39.2.4",
     "electron-builder": "^26.0.12",
     "electron-vite": "^4.0.1",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-vue": "^10.6.2",
+    "globals": "^16.5.0",
     "happy-dom": "^20.0.10",
     "prettier": "^3.3.3",
     "tailwindcss": "^4.1.17",

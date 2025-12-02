@@ -2,11 +2,11 @@
   <li
     class="album-item"
     :class="{ 'selected-for-slideshow': selectionState !== 'none' }"
-    @click="handleClickAlbum(album)"
     :style="{ marginLeft: `${depth * 20}px` }"
+    @click="handleClickAlbum(album)"
   >
     <div class="album-content">
-      <button @click.stop="toggle" v-if="isFolder" class="toggle-button">
+      <button v-if="isFolder" class="toggle-button" @click.stop="toggle">
         {{ isOpen ? '[-]' : '[+]' }}
       </button>
       <div class="album-controls" @click.stop>
@@ -27,9 +27,9 @@
         {{ album.name }} ({{ totalTextureCount }})
       </span>
       <button
-        @click.stop="handleOpenGrid(album)"
         class="text-xs text-gray-400 hover:text-white ml-2 p-1 rounded border border-gray-600 hover:bg-gray-700"
         title="Open in Grid"
+        @click.stop="handleOpenGrid(album)"
       >
         Grid
       </button>
@@ -41,8 +41,8 @@
         :album="child"
         :depth="depth + 1"
         :selection="selection"
-        @toggleSelection="$emit('toggleSelection', $event)"
-        @albumClick="$emit('albumClick', $event)"
+        @toggle-selection="$emit('toggleSelection', $event)"
+        @album-click="$emit('albumClick', $event)"
       />
     </ul>
   </li>
