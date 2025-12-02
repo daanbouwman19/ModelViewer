@@ -1,4 +1,12 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+  type Mock,
+} from 'vitest';
 import { EventEmitter } from 'events';
 
 interface WorkerMessage {
@@ -11,8 +19,8 @@ interface WorkerMessage {
 let mockWorkerInstance: MockWorker | null = null;
 
 class MockWorker extends EventEmitter {
-  terminate: ReturnType<typeof vi.fn>;
-  postMessage: ReturnType<typeof vi.fn>;
+  terminate: Mock;
+  postMessage: Mock;
 
   constructor() {
     super();
@@ -52,11 +60,9 @@ vi.mock('worker_threads', () => ({
   default: { Worker: MockWorker },
 }));
 
-vi.mock('electron', () => ({
-  app: {
-    getPath: () => '/tmp',
-  },
-}));
+import { createMockElectron } from './mocks/electron';
+
+vi.mock('electron', () => createMockElectron());
 
 describe('database.js additional coverage - uninitialized', () => {
   beforeEach(() => {
@@ -121,12 +127,12 @@ describe('database.js additional coverage', () => {
     // Simulate a failure in worker communication for the recordMediaView call
     const postMessageSpy = vi
       .spyOn(mockWorkerInstance!, 'postMessage')
-      .mockImplementation((message: any) => {
+      .mockImplementation((message: WorkerMessage) => {
         if (message.type === 'recordMediaView') {
           throw new Error('Test worker error');
         }
         // Let other messages (like init) pass through the original implementation
-        originalPostMessage.call(mockWorkerInstance, message);
+        originalPostMessage(message);
       });
 
     await db.recordMediaView('/some/file.jpg');
@@ -198,13 +204,15 @@ describe('database.js additional coverage', () => {
               result: { success: false, error: errorMessage },
             });
           } else {
-            originalPostMessage.call(mockWorkerInstance, message);
+            originalPostMessage(message);
           }
         });
 
         // We need to cast db to access methods dynamically by string name
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await expect((db as any)[method](...args)).rejects.toThrow(errorMessage);
+        await expect((db as any)[method](...args)).rejects.toThrow(
+          errorMessage,
+        );
         postMessageSpy.mockRestore();
       },
     );
@@ -248,7 +256,7 @@ describe('database.js additional coverage', () => {
           result: { success: true, data: null }, // Simulate null response
         });
       } else {
-        originalPostMessage.call(mockWorkerInstance, message);
+        originalPostMessage(message);
       }
     });
 

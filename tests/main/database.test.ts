@@ -35,61 +35,62 @@ class MockWorker extends EventEmitter {
   constructor() {
     super();
     this.terminate = vi.fn().mockResolvedValue(undefined);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.postMessage = vi.fn((message: { id: string; type: string; payload: any }) => {
-      const { id, type, payload } = message;
-      let resultData: unknown = undefined;
-      const success = true;
 
-      if (type === 'init') {
-        // success
-      } else if (type === 'recordMediaView') {
-        const filePath = payload.filePath;
-        mockDb.views[filePath] = (mockDb.views[filePath] || 0) + 1;
-      } else if (type === 'getMediaViewCounts') {
-        const paths = payload.filePaths;
-        const counts: Record<string, number> = {};
-        paths.forEach((p: string) => {
-          counts[p] = mockDb.views[p] || 0;
-        });
-        resultData = counts;
-      } else if (type === 'cacheAlbums') {
-        mockDb.albums = payload.albums;
-        mockDb.albumsCached = true;
-      } else if (type === 'getCachedAlbums') {
-        // Return null only when there are no cached albums (initial state)
-        // Return the actual array (even if empty) if cacheAlbums was called
-        resultData = mockDb.albumsCached ? mockDb.albums : null;
-      } else if (type === 'addMediaDirectory') {
-        mockDb.directories.push({
-          path: payload.directoryPath,
-          isActive: true,
-        });
-      } else if (type === 'getMediaDirectories') {
-        resultData = mockDb.directories;
-      } else if (type === 'removeMediaDirectory') {
-        mockDb.directories = mockDb.directories.filter(
-          (d: MockDirectory) =>
-            d.path !== payload.directoryPath,
-        );
-      } else if (type === 'setDirectoryActiveState') {
-        const dir = mockDb.directories.find(
-          (d: MockDirectory) =>
-            d.path === payload.directoryPath,
-        );
-        if (dir) dir.isActive = payload.isActive;
-      } else if (type === 'close') {
-        // success
-      }
+    this.postMessage = vi.fn(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (message: { id: string; type: string; payload: any }) => {
+        const { id, type, payload } = message;
+        let resultData: unknown = undefined;
+        const success = true;
 
-      // Simulate async response
-      process.nextTick(() => {
-        this.emit('message', {
-          id: id,
-          result: { success, data: resultData },
+        if (type === 'init') {
+          // success
+        } else if (type === 'recordMediaView') {
+          const filePath = payload.filePath;
+          mockDb.views[filePath] = (mockDb.views[filePath] || 0) + 1;
+        } else if (type === 'getMediaViewCounts') {
+          const paths = payload.filePaths;
+          const counts: Record<string, number> = {};
+          paths.forEach((p: string) => {
+            counts[p] = mockDb.views[p] || 0;
+          });
+          resultData = counts;
+        } else if (type === 'cacheAlbums') {
+          mockDb.albums = payload.albums;
+          mockDb.albumsCached = true;
+        } else if (type === 'getCachedAlbums') {
+          // Return null only when there are no cached albums (initial state)
+          // Return the actual array (even if empty) if cacheAlbums was called
+          resultData = mockDb.albumsCached ? mockDb.albums : null;
+        } else if (type === 'addMediaDirectory') {
+          mockDb.directories.push({
+            path: payload.directoryPath,
+            isActive: true,
+          });
+        } else if (type === 'getMediaDirectories') {
+          resultData = mockDb.directories;
+        } else if (type === 'removeMediaDirectory') {
+          mockDb.directories = mockDb.directories.filter(
+            (d: MockDirectory) => d.path !== payload.directoryPath,
+          );
+        } else if (type === 'setDirectoryActiveState') {
+          const dir = mockDb.directories.find(
+            (d: MockDirectory) => d.path === payload.directoryPath,
+          );
+          if (dir) dir.isActive = payload.isActive;
+        } else if (type === 'close') {
+          // success
+        }
+
+        // Simulate async response
+        process.nextTick(() => {
+          this.emit('message', {
+            id: id,
+            result: { success, data: resultData },
+          });
         });
-      });
-    });
+      },
+    );
   }
 }
 
@@ -98,12 +99,9 @@ vi.mock('worker_threads', () => ({
   default: { Worker: MockWorker },
 }));
 
-vi.mock('electron', () => ({
-  app: {
-    getPath: () => '/tmp',
-    isPackaged: false,
-  },
-}));
+import { createMockElectron } from './mocks/electron';
+
+vi.mock('electron', () => createMockElectron());
 
 describe('Database', () => {
   // Use a type that matches the exported module structure

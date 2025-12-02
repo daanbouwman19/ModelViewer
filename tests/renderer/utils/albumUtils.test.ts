@@ -66,7 +66,8 @@ describe('albumUtils', () => {
 
     it('should handle albums with undefined children property', () => {
       const album = { name: 'leaf', textures: [{ name: 'img.jpg' }] };
-      expect(countTextures(album)).toBe(1);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect(countTextures(album as any)).toBe(1);
     });
   });
 
@@ -93,7 +94,8 @@ describe('albumUtils', () => {
 
     it('should handle albums with undefined children property', () => {
       const album = { name: 'leaf', textures: [{ name: 'img.jpg' }] };
-      const textures = collectTexturesRecursive(album);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const textures = collectTexturesRecursive(album as any);
       expect(textures).toHaveLength(1);
       expect(textures[0].name).toBe('img.jpg');
     });
@@ -113,7 +115,8 @@ describe('albumUtils', () => {
 
     it('should handle undefined children property', () => {
       const simpleAlbum = { name: 'simple', textures: [] };
-      const names = getAlbumAndChildrenNames(simpleAlbum);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const names = getAlbumAndChildrenNames(simpleAlbum as any);
       expect(names).toEqual(['simple']);
     });
   });
@@ -161,7 +164,8 @@ describe('albumUtils', () => {
     it('should handle undefined children property', () => {
       const album = { name: 'leaf', textures: [] };
       const selection = {};
-      selectAllAlbums([album], selection, true);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      selectAllAlbums([album as any], selection, true);
       expect(selection).toEqual({ leaf: true });
     });
   });

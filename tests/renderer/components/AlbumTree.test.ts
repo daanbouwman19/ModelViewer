@@ -83,7 +83,9 @@ describe('AlbumTree.vue', () => {
     await wrapper.find('input[type="checkbox"]').trigger('change');
 
     expect(wrapper.emitted().toggleSelection).toBeTruthy();
-    expect(wrapper.emitted().toggleSelection[0][0]).toEqual(testAlbum);
+    expect((wrapper.emitted().toggleSelection as unknown[][])[0][0]).toEqual(
+      testAlbum,
+    );
   });
 
   it('emits albumClick event when album item is clicked', async () => {
@@ -97,7 +99,9 @@ describe('AlbumTree.vue', () => {
     await wrapper.find('.album-item').trigger('click');
 
     expect(wrapper.emitted().albumClick).toBeTruthy();
-    expect(wrapper.emitted().albumClick[0][0]).toEqual(testAlbum);
+    expect((wrapper.emitted().albumClick as unknown[][])[0][0]).toEqual(
+      testAlbum,
+    );
   });
 
   it('calls openAlbumInGrid when grid button is clicked', async () => {
@@ -113,7 +117,7 @@ describe('AlbumTree.vue', () => {
     const gridButton = buttons.find((b) => b.text() === 'Grid');
 
     expect(gridButton).toBeDefined();
-    await gridButton.trigger('click');
+    await gridButton!.trigger('click');
 
     expect(mockOpenAlbumInGrid).toHaveBeenCalledWith(testAlbum);
   });
@@ -126,7 +130,8 @@ describe('AlbumTree.vue', () => {
           selection: {},
         },
       });
-      expect(wrapper.vm.selectionState).toBe('none');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect((wrapper.vm as any).selectionState).toBe('none');
     });
 
     it('is "all" when all children are selected', () => {
@@ -141,7 +146,8 @@ describe('AlbumTree.vue', () => {
           },
         },
       });
-      expect(wrapper.vm.selectionState).toBe('all');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect((wrapper.vm as any).selectionState).toBe('all');
     });
 
     it('is "some" when some children are selected', () => {
@@ -154,7 +160,8 @@ describe('AlbumTree.vue', () => {
           },
         },
       });
-      expect(wrapper.vm.selectionState).toBe('some');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect((wrapper.vm as any).selectionState).toBe('some');
     });
 
     it('sets checkbox to indeterminate when selectionState is "some"', async () => {
@@ -167,9 +174,10 @@ describe('AlbumTree.vue', () => {
         },
       });
 
-      expect(wrapper.find('input[type="checkbox"]').element.indeterminate).toBe(
-        true,
-      );
+      expect(
+        (wrapper.find('input[type="checkbox"]').element as HTMLInputElement)
+          .indeterminate,
+      ).toBe(true);
     });
   });
 });

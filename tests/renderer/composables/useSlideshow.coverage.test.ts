@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { useSlideshow } from '@/composables/useSlideshow';
 import { useAppState } from '@/composables/useAppState';
+import { createMockElectronAPI } from '../mocks/electronAPI';
 
 // Mock the entire useAppState module
 vi.mock('@/composables/useAppState.js', () => ({
@@ -8,14 +9,11 @@ vi.mock('@/composables/useAppState.js', () => ({
 }));
 
 // Mock the global window.electronAPI
-global.window = {
-  electronAPI: {
-    recordMediaView: vi.fn().mockResolvedValue(),
-  },
-};
+global.window.electronAPI = createMockElectronAPI();
 
 describe('useSlideshow additional coverage', () => {
-  let mockState;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockState: any;
 
   beforeEach(() => {
     // Reset mocks before each test
@@ -42,7 +40,7 @@ describe('useSlideshow additional coverage', () => {
     };
 
     // Setup the mock implementation for useAppState
-    useAppState.mockReturnValue({
+    (useAppState as Mock).mockReturnValue({
       state: mockState,
       stopSlideshow: vi.fn(),
     });
@@ -51,8 +49,8 @@ describe('useSlideshow additional coverage', () => {
   describe('selectWeightedRandom', () => {
     it('should use uniform random selection if total weight is near zero', () => {
       const items = [
-        { path: 'a', viewCount: 1e9 }, // Very high view count, near-zero weight
-        { path: 'b', viewCount: 1e9 },
+        { path: 'a', name: 'a', viewCount: 1e9 }, // Very high view count, near-zero weight
+        { path: 'b', name: 'b', viewCount: 1e9 },
       ];
       const { selectWeightedRandom } = useSlideshow();
 
@@ -61,13 +59,13 @@ describe('useSlideshow additional coverage', () => {
         .mockReturnValue(0.6);
 
       const selected = selectWeightedRandom(items);
-      expect(selected.path).toBe('b');
+      expect(selected!.path).toBe('b');
 
       mathRandomSpy.mockRestore();
     });
 
     it('should not return null if no eligible items and total weight is near zero', () => {
-      const items = [{ path: 'a', viewCount: 1e9 }];
+      const items = [{ path: 'a', name: 'a', viewCount: 1e9 }];
       const { selectWeightedRandom } = useSlideshow();
       const selected = selectWeightedRandom(items, ['a']);
       expect(selected).not.toBeNull();

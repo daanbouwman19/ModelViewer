@@ -53,8 +53,10 @@ describe('Database Worker', () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sendMessage = (type: string, payload: unknown): Promise<{ success: boolean; data?: any; error?: string }> => {
+  const sendMessage = (
+    type: string,
+    payload: unknown,
+  ): Promise<{ success: boolean; data?: unknown; error?: string }> => {
     const id = messageId++;
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -67,8 +69,13 @@ describe('Database Worker', () => {
         if (message.id === id) {
           parentPort!.off('workerMessage', messageHandler);
           clearTimeout(timeout);
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          resolve(message.result as { success: boolean; data?: any; error?: string });
+          resolve(
+            message.result as {
+              success: boolean;
+              data?: unknown;
+              error?: string;
+            },
+          );
         }
       };
 
@@ -118,7 +125,7 @@ describe('Database Worker', () => {
         filePaths: [filePath],
       });
       expect(result.success).toBe(true);
-      expect(result.data[filePath]).toBe(2);
+      expect((result.data as Record<string, number>)[filePath]).toBe(2);
     });
 
     it('should return zero for files with no views', async () => {
@@ -128,7 +135,7 @@ describe('Database Worker', () => {
         filePaths: [filePath],
       });
       expect(result.success).toBe(true);
-      expect(result.data[filePath]).toBe(0);
+      expect((result.data as Record<string, number>)[filePath]).toBe(0);
     });
 
     it('should handle special characters in file paths', async () => {
@@ -186,7 +193,7 @@ describe('Database Worker', () => {
         cacheKey: 'same_key',
       });
       expect(result.success).toBe(true);
-      expect(result.data[0].name).toBe('album2');
+      expect((result.data as { name: string }[])[0].name).toBe('album2');
     });
   });
 
@@ -218,7 +225,9 @@ describe('Database Worker', () => {
       await sendMessage('addMediaDirectory', { directoryPath: dirPath });
       await sendMessage('addMediaDirectory', { directoryPath: dirPath });
       const result = await sendMessage('getMediaDirectories', {});
-      const dirs = (result.data as Directory[]).filter((d) => d.path === dirPath);
+      const dirs = (result.data as Directory[]).filter(
+        (d) => d.path === dirPath,
+      );
       expect(dirs).toHaveLength(1);
     });
 

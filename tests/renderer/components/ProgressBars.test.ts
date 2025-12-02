@@ -1,9 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { nextTick, ref } from 'vue';
 import AlbumsList from '@/components/AlbumsList.vue';
 import MediaDisplay from '@/components/MediaDisplay.vue';
 import { useAppState } from '@/composables/useAppState';
+import { createMockElectronAPI } from '../mocks/electronAPI';
+import type { LoadResult } from '../../../src/preload/preload';
 
 // Mock the composables
 vi.mock('@/composables/useAppState', () => ({
@@ -22,26 +24,22 @@ vi.mock('@/composables/useSlideshow', () => ({
 }));
 
 // Mock window.electronAPI
-global.window.electronAPI = {
-  loadFileAsDataURL: vi.fn(),
-  getServerPort: vi.fn().mockResolvedValue(0),
-  openInVlc: vi.fn().mockResolvedValue({ success: true }),
-};
+global.window.electronAPI = createMockElectronAPI();
 
 describe('Progress Bars', () => {
   beforeEach(() => {
     // Reset any previous mock implementations from other tests
     vi.clearAllMocks();
-    window.electronAPI.loadFileAsDataURL.mockResolvedValue({
-      type: 'success',
+    (window.electronAPI.loadFileAsDataURL as Mock).mockResolvedValue({
+      type: 'data-url',
       url: '',
-    });
+    } as LoadResult);
   });
 
   it('should display the slideshow progress bar in AlbumsList when the timer is running', async () => {
     // Arrange
     const isTimerRunning = ref(false);
-    useAppState.mockReturnValue({
+    (useAppState as Mock).mockReturnValue({
       allAlbums: ref([]),
       albumsSelectedForSlideshow: ref({}),
       timerDuration: ref(5),
@@ -65,12 +63,12 @@ describe('Progress Bars', () => {
 
   it('should display and update the video progress bar in MediaDisplay', async () => {
     // Arrange
-    window.electronAPI.loadFileAsDataURL.mockResolvedValue({
-      type: 'success',
+    (window.electronAPI.loadFileAsDataURL as Mock).mockResolvedValue({
+      type: 'http-url',
       url: 'fake-video-url.mp4',
-    });
+    } as LoadResult);
 
-    useAppState.mockReturnValue({
+    (useAppState as Mock).mockReturnValue({
       currentMediaItem: ref({ path: 'video.mp4', name: 'video.mp4' }),
       displayedMediaFiles: ref([]),
       currentMediaIndex: ref(-1),
@@ -80,7 +78,7 @@ describe('Progress Bars', () => {
       supportedExtensions: ref({ images: ['.jpg'], videos: ['.mp4'] }),
       playFullVideo: ref(false),
       pauseTimerOnPlay: ref(false),
-      pauseTimerOnPlay: ref(false),
+
       isTimerRunning: ref(false),
       mainVideoElement: ref(null),
     });

@@ -11,21 +11,25 @@ vi.mock('fs', () => ({
   },
 }));
 
-vi.mock('electron', () => {
-  const ipcMain = {
+vi.mock('electron', () => ({
+  ipcMain: {
     handle: vi.fn(),
-  };
-  return {
-    ipcMain,
-    app: {
-      isPackaged: true,
-      on: vi.fn(),
-      commandLine: {
-        appendSwitch: vi.fn(),
-      },
+    on: vi.fn(),
+  },
+  app: {
+    getPath: vi.fn().mockReturnValue('/tmp'),
+    isPackaged: false,
+    on: vi.fn(),
+    quit: vi.fn(),
+    commandLine: {
+      appendSwitch: vi.fn(),
     },
-  };
-});
+  },
+  BrowserWindow: vi.fn(),
+  dialog: {
+    showOpenDialog: vi.fn(),
+  },
+}));
 
 vi.mock('../../src/main/local-server.js', () => ({
   getServerPort: vi.fn(),

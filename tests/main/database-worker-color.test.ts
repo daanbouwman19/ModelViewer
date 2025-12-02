@@ -53,7 +53,10 @@ describe('Database Worker - Color Features', () => {
     };
   }
 
-  const sendMessage = (type: string, payload: unknown): Promise<{ success: boolean; data?: unknown; error?: string }> => {
+  const sendMessage = (
+    type: string,
+    payload: unknown,
+  ): Promise<{ success: boolean; data?: unknown; error?: string }> => {
     const id = messageId++;
     return new Promise((resolve) => {
       worker.postMessage({ id, type, payload });

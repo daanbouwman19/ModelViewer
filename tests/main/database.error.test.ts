@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { createMockElectron } from './mocks/electron';
 
 // We'll dynamically import the module after setting up mocks so the module uses our mocked Worker
 
@@ -70,11 +71,7 @@ describe('Database error handling (isolated)', () => {
     });
 
     // Also mock electron.app.getPath to a temp dir so initDatabase can compute dbPath
-    vi.mock('electron', () => ({
-      app: {
-        getPath: () => '/tmp',
-      },
-    }));
+    vi.mock('electron', () => createMockElectron());
 
     const db = await import('../../src/main/database.js');
 

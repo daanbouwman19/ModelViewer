@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import { ref } from 'vue';
 import MediaDisplay from '@/components/MediaDisplay.vue';
@@ -9,14 +9,16 @@ import { useSlideshow } from '@/composables/useSlideshow';
 vi.mock('@/composables/useAppState');
 vi.mock('@/composables/useSlideshow');
 
-import type { ElectronAPI, LoadResult } from '@/preload/preload';
+import type { LoadResult } from '../../../src/preload/preload';
+import { createMockElectronAPI } from '../mocks/electronAPI';
 
 describe('MediaDisplay.vue', () => {
-  let mockSetFilter;
-  let mockPrevMedia;
-  let mockNextMedia;
-  let mockToggleTimer;
-  let mockRefs;
+  let mockSetFilter: Mock;
+  let mockPrevMedia: Mock;
+  let mockNextMedia: Mock;
+  let mockToggleTimer: Mock;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockRefs: any;
 
   beforeEach(() => {
     mockSetFilter = vi.fn();
@@ -53,9 +55,9 @@ describe('MediaDisplay.vue', () => {
       stopSlideshow: vi.fn(),
     };
 
-    useAppState.mockReturnValue(mockRefs);
+    (useAppState as Mock).mockReturnValue(mockRefs);
 
-    useSlideshow.mockReturnValue({
+    (useSlideshow as Mock).mockReturnValue({
       setFilter: mockSetFilter,
       prevMedia: mockPrevMedia,
       nextMedia: mockNextMedia,
@@ -74,15 +76,7 @@ describe('MediaDisplay.vue', () => {
     });
 
     // Mock window.electronAPI
-    global.window = {
-      electronAPI: {
-        loadFileAsDataURL: vi
-          .fn()
-          .mockResolvedValue({ type: 'data-url', url: '' } as LoadResult),
-        getServerPort: vi.fn().mockResolvedValue(0),
-        openInVlc: vi.fn().mockResolvedValue({ success: true }),
-      } as unknown as ElectronAPI,
-    } as unknown as Window & typeof globalThis;
+    global.window.electronAPI = createMockElectronAPI();
   });
 
   it('should render placeholder when no media', () => {
@@ -103,7 +97,7 @@ describe('MediaDisplay.vue', () => {
 
   it('should call reapplyFilter when filter button clicked', async () => {
     const mockReapplyFilter = vi.fn();
-    useSlideshow.mockReturnValue({
+    (useSlideshow as Mock).mockReturnValue({
       setFilter: mockSetFilter,
       prevMedia: mockPrevMedia,
       nextMedia: mockNextMedia,
@@ -150,13 +144,10 @@ describe('MediaDisplay.vue', () => {
 
   it('should display loading state', async () => {
     // Mock electronAPI to delay response
-    global.window = {
-      electronAPI: {
-        loadFileAsDataURL: vi.fn(() => new Promise(() => {})), // Never resolves
-        getServerPort: vi.fn().mockResolvedValue(0),
-        openInVlc: vi.fn().mockResolvedValue({ success: true }),
-      },
-    };
+    global.window.electronAPI = createMockElectronAPI();
+    vi.mocked(global.window.electronAPI.loadFileAsDataURL).mockImplementation(
+      () => new Promise(() => {}),
+    ); // Never resolves
 
     mockRefs.currentMediaItem.value = { name: 'test.jpg', path: '/test.jpg' };
     const wrapper = mount(MediaDisplay);
@@ -166,18 +157,11 @@ describe('MediaDisplay.vue', () => {
   });
 
   it('should display error state', async () => {
-    global.window = {
-      electronAPI: {
-        loadFileAsDataURL: vi.fn(() =>
-          Promise.resolve({
-            type: 'error',
-            message: 'File not found',
-          } as LoadResult),
-        ),
-        getServerPort: vi.fn().mockResolvedValue(0),
-        openInVlc: vi.fn().mockResolvedValue({ success: true }),
-      } as unknown as ElectronAPI,
-    } as unknown as Window & typeof globalThis;
+    global.window.electronAPI = createMockElectronAPI();
+    vi.mocked(global.window.electronAPI.loadFileAsDataURL).mockResolvedValue({
+      type: 'error',
+      message: 'File not found',
+    } as LoadResult);
 
     mockRefs.currentMediaItem.value = { name: 'test.jpg', path: '/test.jpg' };
     const wrapper = mount(MediaDisplay);
@@ -188,16 +172,11 @@ describe('MediaDisplay.vue', () => {
   });
 
   it('should display image when media is an image', async () => {
-    global.window = {
-      electronAPI: {
-        loadFileAsDataURL: vi.fn(() =>
-          Promise.resolve({
-            type: 'data-url',
-            url: 'data:image/png;base64,abc',
-          }),
-        ),
-      },
-    };
+    global.window.electronAPI = createMockElectronAPI();
+    vi.mocked(global.window.electronAPI.loadFileAsDataURL).mockResolvedValue({
+      type: 'data-url',
+      url: 'data:image/png;base64,abc',
+    } as LoadResult);
 
     mockRefs.currentMediaItem.value = {
       name: 'test.jpg',
@@ -212,18 +191,11 @@ describe('MediaDisplay.vue', () => {
   });
 
   it('should display video when media is a video', async () => {
-    global.window = {
-      electronAPI: {
-        loadFileAsDataURL: vi.fn(() =>
-          Promise.resolve({
-            type: 'http-url',
-            url: 'http://localhost/test.mp4',
-          } as LoadResult),
-        ),
-        getServerPort: vi.fn().mockResolvedValue(0),
-        openInVlc: vi.fn().mockResolvedValue({ success: true }),
-      } as unknown as ElectronAPI,
-    } as unknown as Window & typeof globalThis;
+    global.window.electronAPI = createMockElectronAPI();
+    vi.mocked(global.window.electronAPI.loadFileAsDataURL).mockResolvedValue({
+      type: 'http-url',
+      url: 'http://localhost/test.mp4',
+    } as LoadResult);
 
     mockRefs.currentMediaItem.value = {
       name: 'test.mp4',
@@ -271,15 +243,10 @@ describe('MediaDisplay.vue', () => {
   });
 
   it('should handle catch block error', async () => {
-    global.window = {
-      electronAPI: {
-        loadFileAsDataURL: vi.fn(() =>
-          Promise.reject(new Error('Network error')),
-        ),
-        getServerPort: vi.fn().mockResolvedValue(0),
-        openInVlc: vi.fn().mockResolvedValue({ success: true }),
-      },
-    };
+    global.window.electronAPI = createMockElectronAPI();
+    vi.mocked(global.window.electronAPI.loadFileAsDataURL).mockRejectedValue(
+      new Error('Network error'),
+    );
 
     mockRefs.currentMediaItem.value = { name: 'test.jpg', path: '/test.jpg' };
     const wrapper = mount(MediaDisplay);
@@ -290,16 +257,11 @@ describe('MediaDisplay.vue', () => {
   });
 
   it('should handle media error on img element', async () => {
-    global.window = {
-      electronAPI: {
-        loadFileAsDataURL: vi.fn(() =>
-          Promise.resolve({
-            type: 'data-url',
-            url: 'data:image/png;base64,abc',
-          } as LoadResult),
-        ),
-      } as unknown as ElectronAPI,
-    } as unknown as Window & typeof globalThis;
+    global.window.electronAPI = createMockElectronAPI();
+    vi.mocked(global.window.electronAPI.loadFileAsDataURL).mockResolvedValue({
+      type: 'data-url',
+      url: 'data:image/png;base64,abc',
+    } as LoadResult);
 
     mockRefs.currentMediaItem.value = {
       name: 'test.jpg',
@@ -309,14 +271,15 @@ describe('MediaDisplay.vue', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 50));
     // Manually call the error handler
-    wrapper.vm.handleMediaError();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (wrapper.vm as any).handleMediaError();
     await wrapper.vm.$nextTick();
     expect(wrapper.text()).toContain('Failed to display media file');
   });
 
   it('should call navigateMedia when previous button clicked', async () => {
     const mockNavigateMedia = vi.fn();
-    useSlideshow.mockReturnValue({
+    (useSlideshow as Mock).mockReturnValue({
       navigateMedia: mockNavigateMedia,
       reapplyFilter: vi.fn(),
       setFilter: vi.fn(),
@@ -338,13 +301,14 @@ describe('MediaDisplay.vue', () => {
 
     const wrapper = mount(MediaDisplay);
     // Call the handler directly
-    wrapper.vm.handlePrevious();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (wrapper.vm as any).handlePrevious();
     expect(mockNavigateMedia).toHaveBeenCalledWith(-1);
   });
 
   it('should call navigateMedia when next button clicked', async () => {
     const mockNavigateMedia = vi.fn();
-    useSlideshow.mockReturnValue({
+    (useSlideshow as Mock).mockReturnValue({
       navigateMedia: mockNavigateMedia,
       reapplyFilter: vi.fn(),
       setFilter: vi.fn(),
@@ -366,7 +330,8 @@ describe('MediaDisplay.vue', () => {
 
     const wrapper = mount(MediaDisplay);
     // Call the handler directly
-    wrapper.vm.handleNext();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (wrapper.vm as any).handleNext();
     expect(mockNavigateMedia).toHaveBeenCalledWith(1);
   });
 
@@ -419,19 +384,30 @@ describe('MediaDisplay.vue', () => {
   });
 
   describe('Smart Timer Video Events', () => {
-    let pauseSlideshowTimer;
-    let resumeSlideshowTimer;
-    let navigateMedia;
+    let pauseSlideshowTimer: Mock;
+    let resumeSlideshowTimer: Mock;
+    let navigateMedia: Mock;
 
     beforeEach(() => {
       pauseSlideshowTimer = vi.fn();
       resumeSlideshowTimer = vi.fn();
       navigateMedia = vi.fn();
-      useSlideshow.mockReturnValue({
-        ...useSlideshow(),
+      (useSlideshow as Mock).mockReturnValue({
+        setFilter: mockSetFilter,
+        prevMedia: mockPrevMedia,
+        nextMedia: mockNextMedia,
+        toggleTimer: mockToggleTimer,
+        reapplyFilter: vi.fn(),
+        navigateMedia,
+        toggleSlideshowTimer: vi.fn(),
         pauseSlideshowTimer,
         resumeSlideshowTimer,
-        navigateMedia,
+        toggleAlbumSelection: vi.fn(),
+        startSlideshow: vi.fn(),
+        startIndividualAlbumSlideshow: vi.fn(),
+        pickAndDisplayNextMediaItem: vi.fn(),
+        filterMedia: vi.fn(),
+        selectWeightedRandom: vi.fn(),
       });
     });
 
@@ -439,7 +415,8 @@ describe('MediaDisplay.vue', () => {
       mockRefs.playFullVideo.value = true;
       mockRefs.isTimerRunning.value = true;
       const wrapper = mount(MediaDisplay);
-      wrapper.vm.handleVideoPlay();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (wrapper.vm as any).handleVideoPlay();
       expect(pauseSlideshowTimer).toHaveBeenCalled();
     });
 
@@ -447,7 +424,8 @@ describe('MediaDisplay.vue', () => {
       mockRefs.pauseTimerOnPlay.value = true;
       mockRefs.isTimerRunning.value = true;
       const wrapper = mount(MediaDisplay);
-      wrapper.vm.handleVideoPlay();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (wrapper.vm as any).handleVideoPlay();
       expect(pauseSlideshowTimer).toHaveBeenCalled();
     });
 
@@ -455,14 +433,16 @@ describe('MediaDisplay.vue', () => {
       mockRefs.pauseTimerOnPlay.value = true;
       mockRefs.isTimerRunning.value = false;
       const wrapper = mount(MediaDisplay);
-      wrapper.vm.handleVideoPause();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (wrapper.vm as any).handleVideoPause();
       expect(resumeSlideshowTimer).toHaveBeenCalled();
     });
 
     it('should navigate to the next media when a video ends and playFullVideo is true', async () => {
       mockRefs.playFullVideo.value = true;
       const wrapper = mount(MediaDisplay);
-      wrapper.vm.handleVideoEnded();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (wrapper.vm as any).handleVideoEnded();
       expect(navigateMedia).toHaveBeenCalledWith(1);
     });
 

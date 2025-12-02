@@ -1,6 +1,15 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+  type Mock,
+} from 'vitest';
 import { useSlideshow } from '@/composables/useSlideshow';
 import { useAppState } from '@/composables/useAppState';
+import { createMockElectronAPI } from '../mocks/electronAPI';
 
 // Mock the entire useAppState module
 vi.mock('@/composables/useAppState.js', () => ({
@@ -8,15 +17,12 @@ vi.mock('@/composables/useAppState.js', () => ({
 }));
 
 // Mock the global window.electronAPI
-global.window = {
-  electronAPI: {
-    recordMediaView: vi.fn().mockResolvedValue(),
-  },
-};
+global.window.electronAPI = createMockElectronAPI();
 
 describe('useSlideshow', () => {
-  let mockState;
-  let mockStopSlideshow;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mockState: any;
+  let mockStopSlideshow: Mock;
 
   beforeEach(() => {
     // Reset mocks before each test
@@ -45,7 +51,7 @@ describe('useSlideshow', () => {
     mockStopSlideshow = vi.fn();
 
     // Setup the mock implementation for useAppState
-    useAppState.mockReturnValue({
+    (useAppState as Mock).mockReturnValue({
       state: mockState,
       stopSlideshow: mockStopSlideshow,
     });
@@ -81,25 +87,32 @@ describe('useSlideshow', () => {
     const mediaFiles = [
       {
         path: 'video.mp4',
+        name: 'video.mp4',
       },
       {
         path: 'image.png',
+        name: 'image.png',
       },
       {
         path: 'document.txt',
+        name: 'document.txt',
       },
       {
         path: 'archive.zip',
+        name: 'archive.zip',
       },
       {
         path: 'photo.JPG',
+        name: 'photo.JPG',
       },
       {
         path: 'clip.WEBM',
+        name: 'clip.WEBM',
       },
-      {}, // Invalid item
+      { name: 'invalid', path: '' }, // Invalid item
       {
-        path: null,
+        path: '',
+        name: 'invalid',
       }, // Invalid item
     ];
 
@@ -144,8 +157,10 @@ describe('useSlideshow', () => {
     it('should handle empty or invalid input', () => {
       const { filterMedia } = useSlideshow();
       expect(filterMedia([])).toEqual([]);
-      expect(filterMedia(null)).toEqual([]);
-      expect(filterMedia(undefined)).toEqual([]);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect(filterMedia(null as any)).toEqual([]);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect(filterMedia(undefined as any)).toEqual([]);
     });
 
     it('should be case-insensitive to file extensions', () => {
@@ -154,9 +169,11 @@ describe('useSlideshow', () => {
       const filesWithCaps = [
         {
           path: 'image.PNG',
+          name: 'image.PNG',
         },
         {
           path: 'photo.JPEG',
+          name: 'photo.JPEG',
         },
       ];
       const filtered = filterMedia(filesWithCaps);
@@ -176,20 +193,23 @@ describe('useSlideshow', () => {
       const items = [
         {
           path: 'a',
+          name: 'a',
           viewCount: 100,
         }, // Low weight
         {
           path: 'b',
+          name: 'b',
           viewCount: 0,
         }, // High weight
         {
           path: 'c',
+          name: 'c',
           viewCount: 1,
         }, // Medium-high weight
       ];
 
       const { selectWeightedRandom } = useSlideshow();
-      const selections = {
+      const selections: Record<string, number> = {
         a: 0,
         b: 0,
         c: 0,
@@ -197,7 +217,7 @@ describe('useSlideshow', () => {
 
       for (let i = 0; i < 100; i++) {
         const selected = selectWeightedRandom(items);
-        selections[selected.path] = (selections[selected.path] || 0) + 1;
+        selections[selected!.path] = (selections[selected!.path] || 0) + 1;
       }
 
       expect(selections['b']).toBeGreaterThan(selections['c']);
@@ -208,54 +228,62 @@ describe('useSlideshow', () => {
       const items = [
         {
           path: 'a',
+          name: 'a',
         },
         {
           path: 'b',
+          name: 'b',
         },
         {
           path: 'c',
+          name: 'c',
         },
       ];
       const excludePaths = ['a', 'c'];
       const { selectWeightedRandom } = useSlideshow();
       const selected = selectWeightedRandom(items, excludePaths);
-      expect(selected.path).toBe('b');
+      expect(selected!.path).toBe('b');
     });
 
     it('should return an item from the original pool if all are excluded', () => {
       const items = [
         {
           path: 'a',
+          name: 'a',
         },
         {
           path: 'b',
+          name: 'b',
         },
       ];
       const excludePaths = ['a', 'b'];
       const { selectWeightedRandom } = useSlideshow();
       const selected = selectWeightedRandom(items, excludePaths);
-      expect(items.map((i) => i.path)).toContain(selected.path);
+      expect(items.map((i) => i.path)).toContain(selected!.path);
     });
 
     it('should return null for empty or invalid input', () => {
       const { selectWeightedRandom } = useSlideshow();
       expect(selectWeightedRandom([])).toBeNull();
-      expect(selectWeightedRandom(null)).toBeNull();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect(selectWeightedRandom(null as any)).toBeNull();
     });
 
     it('should perform uniform random selection when items have no view counts', () => {
       const items = [
         {
           path: 'a',
+          name: 'a',
         },
         {
           path: 'b',
+          name: 'b',
         },
       ];
       const { selectWeightedRandom } = useSlideshow();
       const randomSpy = vi.spyOn(global.Math, 'random').mockReturnValue(0.6);
       const selected = selectWeightedRandom(items);
-      expect(selected.path).toBe('b');
+      expect(selected!.path).toBe('b');
       randomSpy.mockRestore();
     });
   });
@@ -266,12 +294,15 @@ describe('useSlideshow', () => {
       mockState.displayedMediaFiles = [
         {
           path: 'item1',
+          name: 'item1',
         },
         {
           path: 'item2',
+          name: 'item2',
         },
         {
           path: 'item3',
+          name: 'item3',
         },
       ];
       mockState.currentMediaIndex = 1; // Start in the middle
@@ -303,6 +334,7 @@ describe('useSlideshow', () => {
       mockState.globalMediaPoolForSelection = [
         {
           path: 'newItem',
+          name: 'newItem',
         },
       ];
       const { navigateMedia } = useSlideshow();
@@ -318,9 +350,11 @@ describe('useSlideshow', () => {
       mockState.globalMediaPoolForSelection = [
         {
           path: 'a',
+          name: 'a',
         },
         {
           path: 'b',
+          name: 'b',
         },
       ];
       const { pickAndDisplayNextMediaItem } = useSlideshow();
@@ -352,9 +386,11 @@ describe('useSlideshow', () => {
           textures: [
             {
               path: 'a1.png',
+              name: 'a1.png',
             },
             {
               path: 'a2.png',
+              name: 'a2.png',
             },
           ],
           children: [
@@ -363,6 +399,7 @@ describe('useSlideshow', () => {
               textures: [
                 {
                   path: 'a_child1.png',
+                  name: 'a_child1.png',
                 },
               ],
             },
@@ -373,6 +410,7 @@ describe('useSlideshow', () => {
           textures: [
             {
               path: 'b1.png',
+              name: 'b1.png',
             },
           ],
           children: [],
@@ -393,11 +431,11 @@ describe('useSlideshow', () => {
       const { startSlideshow } = useSlideshow();
       await startSlideshow();
       expect(mockState.globalMediaPoolForSelection.length).toBe(3);
-      expect(mockState.globalMediaPoolForSelection.map((f) => f.path)).toEqual([
-        'a1.png',
-        'a2.png',
-        'a_child1.png',
-      ]);
+      expect(
+        mockState.globalMediaPoolForSelection.map(
+          (f: { path: string }) => f.path,
+        ),
+      ).toEqual(['a1.png', 'a2.png', 'a_child1.png']);
     });
 
     it('should activate slideshow mode and display the first item', async () => {
@@ -440,9 +478,11 @@ describe('useSlideshow', () => {
           textures: [
             {
               path: 'a.mp4',
+              name: 'a.mp4',
             },
             {
               path: 'a.png',
+              name: 'a.png',
             },
           ],
         },
@@ -531,7 +571,9 @@ describe('useSlideshow', () => {
     it('should call navigateMedia when the timer completes', () => {
       mockState.timerDuration = 1;
       mockState.isSlideshowActive = true;
-      mockState.globalMediaPoolForSelection = [{ path: 'next.jpg' }];
+      mockState.globalMediaPoolForSelection = [
+        { path: 'next.jpg', name: 'next.jpg' },
+      ];
       const { resumeSlideshowTimer } = useSlideshow();
 
       resumeSlideshowTimer();
@@ -578,15 +620,18 @@ describe('useSlideshow', () => {
         textures: [
           {
             path: 's1.png',
+            name: 's1.png',
           },
           {
             path: 's2.png',
+            name: 's2.png',
           },
         ],
       };
       const { startIndividualAlbumSlideshow } = useSlideshow();
 
-      await startIndividualAlbumSlideshow(album);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await startIndividualAlbumSlideshow(album as any);
 
       expect(mockState.isSlideshowActive).toBe(true);
       expect(mockState.globalMediaPoolForSelection.length).toBe(2);
@@ -604,7 +649,8 @@ describe('useSlideshow', () => {
         .spyOn(console, 'warn')
         .mockImplementation(() => {});
 
-      await startIndividualAlbumSlideshow(album);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await startIndividualAlbumSlideshow(album as any);
 
       expect(mockState.isSlideshowActive).toBe(false);
       expect(consoleWarnSpy).toHaveBeenCalledWith(
@@ -621,8 +667,10 @@ describe('useSlideshow', () => {
 
       await startIndividualAlbumSlideshow({
         name: 'badAlbum',
-        textures: null,
-      });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        textures: null as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
 
       expect(mockState.isSlideshowActive).toBe(false);
       expect(consoleWarnSpy).toHaveBeenCalledWith(
