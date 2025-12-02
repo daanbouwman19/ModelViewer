@@ -134,7 +134,7 @@ describe('MediaGrid.vue', () => {
       new Error('Failed'),
     );
 
-    const wrapper = mount(MediaGrid);
+    mount(MediaGrid);
     await flushPromises();
 
     expect(consoleSpy).toHaveBeenCalledWith(

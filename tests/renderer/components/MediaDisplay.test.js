@@ -276,7 +276,7 @@ describe('MediaDisplay.vue', () => {
     const wrapper = mount(MediaDisplay);
 
     await new Promise((resolve) => setTimeout(resolve, 50));
-    const img = wrapper.find('img');
+    wrapper.find('img');
     // Manually call the error handler
     wrapper.vm.handleMediaError();
     await wrapper.vm.$nextTick();
@@ -306,7 +306,7 @@ describe('MediaDisplay.vue', () => {
     ];
 
     const wrapper = mount(MediaDisplay);
-    const prevButton = wrapper.findAll('.nav-button')[0];
+    wrapper.findAll('.nav-button')[0];
     // Call the handler directly
     wrapper.vm.handlePrevious();
     expect(mockNavigateMedia).toHaveBeenCalledWith(-1);
@@ -335,7 +335,7 @@ describe('MediaDisplay.vue', () => {
     ];
 
     const wrapper = mount(MediaDisplay);
-    const nextButton = wrapper.findAll('.nav-button')[1];
+    wrapper.findAll('.nav-button')[1];
     // Call the handler directly
     wrapper.vm.handleNext();
     expect(mockNavigateMedia).toHaveBeenCalledWith(1);

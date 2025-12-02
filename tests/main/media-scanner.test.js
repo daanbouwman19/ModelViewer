@@ -201,7 +201,7 @@ describe('Media Scanner', () => {
       fs.mkdirSync(rootDir, { recursive: true });
 
       const spy = vi.spyOn(fsPromises, 'readdir');
-      spy.mockImplementation(async (dirPath, options) => {
+      spy.mockImplementation(async (dirPath, _options) => {
         // Normalize paths for comparison (handle potential trailing slashes or different separators)
         const p = path.resolve(dirPath);
         const r = path.resolve(rootDir);

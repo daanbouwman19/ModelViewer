@@ -71,20 +71,20 @@
 
     <div class="smart-timer-controls-media">
       <label class="checkbox-container">
-        <input type="checkbox" v-model="playFullVideo" />
+        <input v-model="playFullVideo" type="checkbox" />
         <span class="checkmark"></span>
         Play Full Video
       </label>
       <label class="checkbox-container">
-        <input type="checkbox" v-model="pauseTimerOnPlay" />
+        <input v-model="pauseTimerOnPlay" type="checkbox" />
         <span class="checkmark"></span>
         Pause Timer on Play
       </label>
       <button
         v-if="!isImage && currentMediaItem"
-        @click="openInVlc"
         class="vlc-button"
         title="Open with VLC"
+        @click="openInVlc"
       >
         <VlcIcon />
       </button>
@@ -94,13 +94,13 @@
       class="flex justify-between items-center mt-auto pt-2 border-t border-gray-700"
     >
       <button
-        @click="handlePrevious"
         :disabled="!canNavigate"
         class="nav-button"
+        @click="handlePrevious"
       >
         Previous (←)
       </button>
-      <button @click="handleNext" :disabled="!canNavigate" class="nav-button">
+      <button :disabled="!canNavigate" class="nav-button" @click="handleNext">
         Next (→)
       </button>
     </div>
@@ -295,7 +295,7 @@ watch(pauseTimerOnPlay, (newValue) => {
 
 watch(
   currentMediaItem,
-  (newItem, oldItem) => {
+  (newItem, _oldItem) => {
     loadMediaUrl();
     if (
       newItem &&

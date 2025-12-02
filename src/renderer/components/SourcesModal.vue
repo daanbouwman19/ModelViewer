@@ -10,8 +10,8 @@
       <div class="flex justify-between items-center mb-4">
         <h2 class="text-2xl font-semibold">Manage Media Sources</h2>
         <button
-          @click="closeModal"
           class="text-gray-400 hover:text-white text-3xl close-button"
+          @click="closeModal"
         >
           &times;
         </button>
@@ -31,13 +31,13 @@
               <input
                 type="checkbox"
                 :checked="dir.isActive"
-                @change="handleToggleActive(dir.path, $event.target.checked)"
                 class="source-checkbox"
+                @change="handleToggleActive(dir.path, $event.target.checked)"
               />
               <span class="ml-2 flex-grow source-path">{{ dir.path }}</span>
               <button
-                @click="handleRemove(dir.path)"
                 class="ml-2 action-button remove-button"
+                @click="handleRemove(dir.path)"
               >
                 Remove
               </button>
@@ -46,10 +46,10 @@
         </div>
 
         <div class="flex gap-4 mt-4 modal-actions">
-          <button @click="handleAddDirectory" class="action-button">
+          <button class="action-button" @click="handleAddDirectory">
             Add Media Directory
           </button>
-          <button @click="closeModalAndReindex" class="action-button">
+          <button class="action-button" @click="closeModalAndReindex">
             Apply Changes & Re-index
           </button>
         </div>
