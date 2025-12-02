@@ -4,7 +4,7 @@
 
     <!-- Main Content Layer -->
     <main
-      class="relative z-10 grow flex flex-col md:flex-row p-6 gap-6 overflow-hidden h-screen"
+      class="relative z-10 grow flex flex-col md:flex-row p-6 gap-6 overflow-hidden h-screen transition-all duration-300 ease-in-out"
     >
       <!-- Sidebar (Collapsible/Floating) -->
       <transition name="slide-fade">

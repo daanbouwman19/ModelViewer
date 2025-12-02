@@ -136,6 +136,13 @@ function initDatabase(dbPath: string): WorkerResult {
        WHERE file_path_hash NOT IN (SELECT file_path_hash FROM media_attributes)
        LIMIT 50`,
     );
+    statements.getMediaByColor = db.prepare(`
+      SELECT file_path,
+        ((r - ?) * (r - ?) + (g - ?) * (g - ?) + (b - ?) * (b - ?)) as distance_sq
+      FROM media_attributes
+      WHERE distance_sq <= ?
+      ORDER BY distance_sq ASC
+    `);
 
     console.log('[worker] SQLite database initialized at:', dbPath);
     return { success: true };
@@ -358,15 +365,16 @@ function getMediaByColor(
   try {
     // Euclidean distance in RGB space: sqrt((r1-r2)^2 + (g1-g2)^2 + (b1-b2)^2)
     // We can order by distance squared to avoid sqrt for sorting.
-    const query = `
-      SELECT file_path,
-        ((r - ?) * (r - ?) + (g - ?) * (g - ?) + (b - ?) * (b - ?)) as distance_sq
-      FROM media_attributes
-      WHERE distance_sq <= ?
-      ORDER BY distance_sq ASC
-    `;
     const thresholdSq = threshold * threshold;
-    const rows = db.prepare(query).all(r, r, g, g, b, b, thresholdSq) as {
+    const rows = statements.getMediaByColor.all(
+      r,
+      r,
+      g,
+      g,
+      b,
+      b,
+      thresholdSq,
+    ) as {
       file_path: string;
     }[];
     return { success: true, data: rows.map((row) => row.file_path) };

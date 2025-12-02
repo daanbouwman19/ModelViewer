@@ -127,6 +127,19 @@ function startLocalServer(onReadyCallback?: () => void): void {
         return res.end('FFmpeg binary not found');
       }
 
+      // Security: Validate path
+      try {
+        const allowedDirectories = await getMediaDirectories();
+        if (!isPathAllowed(decodedPath, allowedDirectories)) {
+          res.writeHead(403);
+          return res.end('Access denied');
+        }
+      } catch (e) {
+        console.error('[Metadata] Path validation error:', e);
+        res.writeHead(500);
+        return res.end('Internal Error');
+      }
+
       // Use ffmpeg to get duration
       const ffmpegProcess = spawn(ffmpegPath, ['-i', decodedPath]);
 

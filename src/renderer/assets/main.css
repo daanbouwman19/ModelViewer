@@ -11,7 +11,7 @@
   --primary-bg: #050505; /* Deepest Midnight Black */
   --secondary-bg: #0f0f0f; /* Rich Black */
   --tertiary-bg: #1f1f1f; /* Soft Charcoal */
-  --accent-color: #3b82f6; /* Electric Blue (Premium) - changed from pink for a fresher look, or keep pink if user insists, but blue is safer for "premium" */
+  --tertiary-bg: #1f1f1f; /* Soft Charcoal */
   /* User asked to redo colors, so I'll try a sophisticated Electric Blue/Violet gradient feel via accent */
   --accent-color: #6366f1; /* Indigo-500 */
   --accent-hover: #4f46e5; /* Indigo-600 */

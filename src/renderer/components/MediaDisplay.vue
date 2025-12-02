@@ -46,6 +46,7 @@
         ref="videoElement"
         :src="mediaUrl"
         autoplay
+        muted
         @error="handleMediaError"
         @ended="handleVideoEnded"
         @play="handleVideoPlay"
