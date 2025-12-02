@@ -63,6 +63,11 @@ describe('albumUtils', () => {
       };
       expect(countTextures(album)).toBe(1);
     });
+
+    it('should handle albums with undefined children property', () => {
+      const album = { name: 'leaf', textures: [{ name: 'img.jpg' }] };
+      expect(countTextures(album)).toBe(1);
+    });
   });
 
   describe('collectTexturesRecursive', () => {
@@ -85,6 +90,13 @@ describe('albumUtils', () => {
       const textures = collectTexturesRecursive(emptyAlbum);
       expect(textures).toHaveLength(0);
     });
+
+    it('should handle albums with undefined children property', () => {
+      const album = { name: 'leaf', textures: [{ name: 'img.jpg' }] };
+      const textures = collectTexturesRecursive(album);
+      expect(textures).toHaveLength(1);
+      expect(textures[0].name).toBe('img.jpg');
+    });
   });
 
   describe('getAlbumAndChildrenNames', () => {
@@ -95,6 +107,12 @@ describe('albumUtils', () => {
 
     it('should return just the album name if there are no children', () => {
       const simpleAlbum = { name: 'simple', textures: [], children: [] };
+      const names = getAlbumAndChildrenNames(simpleAlbum);
+      expect(names).toEqual(['simple']);
+    });
+
+    it('should handle undefined children property', () => {
+      const simpleAlbum = { name: 'simple', textures: [] };
       const names = getAlbumAndChildrenNames(simpleAlbum);
       expect(names).toEqual(['simple']);
     });
@@ -138,6 +156,13 @@ describe('albumUtils', () => {
         grandchild: true,
         child2: true,
       });
+    });
+
+    it('should handle undefined children property', () => {
+      const album = { name: 'leaf', textures: [] };
+      const selection = {};
+      selectAllAlbums([album], selection, true);
+      expect(selection).toEqual({ leaf: true });
     });
   });
 });
