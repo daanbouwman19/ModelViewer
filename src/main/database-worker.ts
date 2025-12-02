@@ -16,7 +16,8 @@ import fs from 'fs';
 let db: Database.Database | null = null;
 
 /**
- * Cache for prepared statements.
+ * Cache for prepared statements to improve performance of repeated queries.
+ * Keys are the statement names (e.g., 'insertMediaView'), and values are the prepared SQLite statements.
  */
 const statements: { [key: string]: Database.Statement } = {};
 
@@ -40,9 +41,15 @@ function generateFileId(filePath: string): string {
 
 // Core Worker Functions
 
+/**
+ * Represents the result of a worker operation.
+ */
 interface WorkerResult {
+  /** Indicates whether the operation was successful. */
   success: boolean;
+  /** The data returned by the operation, if any. */
   data?: unknown;
+  /** An error message, if the operation failed. */
   error?: string;
 }
 
@@ -420,7 +427,14 @@ function setFileColor(
 }
 
 if (parentPort) {
-  // Message handler from the main thread
+  /**
+   * Listen for messages from the main thread.
+   * This is the entry point for all database operations requested by the main process.
+   * It dispatches the request to the appropriate function based on the message type
+   * and sends the result back to the main thread.
+   *
+   * @param message - The message object containing the operation ID, type, and payload.
+   */
   parentPort.on('message', async (message) => {
     const { id, type, payload } = message;
     let result: WorkerResult;

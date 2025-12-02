@@ -405,18 +405,30 @@ watch(videoElement, (el) => {
   mainVideoElement.value = el;
 });
 
+/**
+ * Handles the end of video playback.
+ * If 'Play Full Video' is enabled, it automatically navigates to the next item.
+ */
 const handleVideoEnded = () => {
   if (playFullVideo.value) {
     navigateMedia(1);
   }
 };
 
+/**
+ * Handles the video play event.
+ * Pauses the slideshow timer if needed.
+ */
 const handleVideoPlay = () => {
   if (isTimerRunning.value && (playFullVideo.value || pauseTimerOnPlay.value)) {
     pauseSlideshowTimer();
   }
 };
 
+/**
+ * Handles the video pause event.
+ * Resumes the slideshow timer if 'Pause Timer on Play' is active.
+ */
 const handleVideoPause = () => {
   if (!isTimerRunning.value && pauseTimerOnPlay.value && !playFullVideo.value) {
     resumeSlideshowTimer();
@@ -448,6 +460,11 @@ const handleVideoTimeUpdate = (event: Event) => {
   }
 };
 
+/**
+ * Formats a time in seconds to HH:MM:SS or MM:SS string.
+ * @param seconds - The time in seconds.
+ * @returns The formatted time string.
+ */
 const formatTime = (seconds: number) => {
   if (!seconds || isNaN(seconds)) return '00:00';
   const h = Math.floor(seconds / 3600);
@@ -465,6 +482,10 @@ const formattedDuration = computed(() =>
   formatTime(currentVideoDuration.value),
 );
 
+/**
+ * Handles clicks on the video progress bar to seek.
+ * @param event - The mouse event.
+ */
 const handleProgressBarClick = (event: MouseEvent) => {
   if (!currentMediaItem.value) return;
 
@@ -483,6 +504,11 @@ const handleProgressBarClick = (event: MouseEvent) => {
   }
 };
 
+/**
+ * Handles the loadedmetadata event for the video element.
+ * Checks for unsupported formats (like HEVC audio-only playback) and triggers transcoding if needed.
+ * @param event - The event object.
+ */
 const handleVideoLoadedMetadata = (event: Event) => {
   const video = event.target as HTMLVideoElement;
   // Check if video has valid dimensions. If 0, it's likely an unsupported codec (HEVC) playing audio only.
@@ -496,10 +522,17 @@ const handleVideoLoadedMetadata = (event: Event) => {
   }
 };
 
+/**
+ * Handles the playing event to clear the loading state.
+ */
 const handleVideoPlaying = () => {
   isTranscodingLoading.value = false;
 };
 
+/**
+ * Attempts to transcode the current video file starting from a specific time.
+ * @param startTime - The time to start transcoding from (in seconds).
+ */
 const tryTranscoding = async (startTime = 0) => {
   if (!currentMediaItem.value) return;
   isTranscodingMode.value = true;
@@ -566,6 +599,9 @@ const openInVlc = async () => {
   }
 };
 
+/**
+ * Shows controls on mouse move and hides them after a timeout.
+ */
 const handleMouseMove = () => {
   isControlsVisible.value = true;
   if (controlsTimeout) clearTimeout(controlsTimeout);
@@ -576,6 +612,9 @@ const handleMouseMove = () => {
   }, 3000);
 };
 
+/**
+ * Hides controls immediately when the mouse leaves the container.
+ */
 const handleMouseLeave = () => {
   if (!videoElement.value?.paused) {
     isControlsVisible.value = false;

@@ -88,8 +88,10 @@ function isPathAllowed(
 
 /**
  * Starts the local HTTP server if it is not already running.
- * The server listens on a random available port and handles range requests for video streaming.
- * @param onReadyCallback - A callback function executed once the server has started.
+ * The server listens on a random available port (0) and handles range requests for video streaming,
+ * thumbnail generation, and metadata retrieval.
+ *
+ * @param onReadyCallback - A callback function executed once the server has started and the port is assigned.
  */
 function startLocalServer(onReadyCallback?: () => void): void {
   if (serverInstance) {
@@ -100,6 +102,14 @@ function startLocalServer(onReadyCallback?: () => void): void {
     return;
   }
 
+  /**
+   * The HTTP server request handler.
+   * It handles routes for:
+   * - `/video/metadata`: Retrieves duration for a video file using ffmpeg.
+   * - `/video/stream`: Transcodes video to MP4/H.264 for streaming.
+   * - `/video/thumbnail`: Generates a thumbnail image for a video.
+   * - Static file serving: Serves media files directly with support for range requests.
+   */
   const server = http.createServer(async (req, res) => {
     if (!req.url) {
       res.writeHead(400);

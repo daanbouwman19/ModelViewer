@@ -134,6 +134,12 @@ const api: ElectronAPI = {
    */
   openInVlc: (filePath: string) => ipcRenderer.invoke('open-in-vlc', filePath),
 
+  /**
+   * Retrieves media files that match a specific dominant color.
+   * @param color - The target color (RGB).
+   * @param threshold - The maximum distance (tolerance) for the color match.
+   * @returns A promise that resolves to an array of matching file paths.
+   */
   getMediaByColor: (
     color: { r: number; g: number; b: number },
     threshold: number,

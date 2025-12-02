@@ -105,9 +105,34 @@ The packaged application will be located in the `out/` directory.
 ## Project Structure
 
 - `src/main/`: Source code for the Electron **main process**.
-- `src/preload/`: The Electron **preload script**.
+  - `main.ts`: Application entry point and lifecycle management.
+  - `database.ts` & `database-worker.ts`: SQLite database operations via a worker thread.
+  - `local-server.ts`: HTTP server for streaming large video files.
+  - `media-scanner.ts`: Logic for scanning the file system for media.
+- `src/preload/`: The Electron **preload script** (`preload.ts`) that exposes the safe API to the renderer.
 - `src/renderer/`: Source code for the **renderer process** (the Vue 3 application).
+  - `components/`: Vue components (e.g., `MediaDisplay`, `AlbumTree`).
+  - `composables/`: Reusable state logic (`useAppState`, `useSlideshow`).
 - `tests/`: Vitest test files, mirroring the `src` directory structure.
 - `electron.vite.config.mjs`: Configuration for the electron-vite build process.
 - `vitest.config.js`: Configuration for the Vitest testing framework.
 - `package.json`: Project metadata, dependencies, and scripts.
+
+## Database Schema
+
+The application uses a local SQLite database (`media_slideshow_stats.sqlite` in the user data directory) to store:
+
+- **media_directories**: Configured root paths for media scanning.
+- **media_views**: View counts and timestamps for each media file (keyed by file hash).
+- **media_attributes**: Dominant color information for files to enable color-based search.
+- **app_cache**: Caches the album structure to speed up startup times.
+
+## Contributing
+
+1.  Fork the repository.
+2.  Create a feature branch (`git checkout -b feature/amazing-feature`).
+3.  Commit your changes (`git commit -m 'Add some amazing feature'`).
+4.  Push to the branch (`git push origin feature/amazing-feature`).
+5.  Open a Pull Request.
+
+Please ensure all tests pass and that you have formatted your code using `npm run format`.

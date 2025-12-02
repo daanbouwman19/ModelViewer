@@ -1,3 +1,7 @@
+<!--
+  @file Simple SVG icon component representing the VLC media player logo.
+  Used in buttons that open media in the external VLC application.
+-->
 <template>
   <svg
     xmlns="http://www.w3.org/2000/svg"

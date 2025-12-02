@@ -58,7 +58,10 @@ let mainWindow: BrowserWindow | null = null;
  * Handles the 'load-file-as-data-url' IPC call from the renderer process.
  * It loads a file and returns its content as a Data URL or an HTTP URL from the local server
  * for large video files.
- * @returns An object containing the result.
+ * @param _event - The IPC invocation event (unused).
+ * @param filePath - The path of the file to load.
+ * @param options - Additional options, such as `preferHttp`.
+ * @returns An object containing the result (data-url, http-url, or error).
  */
 ipcMain.handle(
   'load-file-as-data-url',

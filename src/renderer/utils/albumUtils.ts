@@ -6,7 +6,7 @@ import type { Album, MediaFile } from '../../main/media-scanner';
 /**
  * Recursively counts the total number of textures in an album and all its children.
  * @param album - The album to count textures for.
- * @returns The total number of textures.
+ * @returns The total number of textures found in the album tree.
  */
 export const countTextures = (album: Album): number => {
   let count = album.textures.length;
@@ -21,7 +21,7 @@ export const countTextures = (album: Album): number => {
 /**
  * Recursively collects all textures from an album and its children.
  * @param album - The album to start from.
- * @returns A list of media files.
+ * @returns A flattened list of all media files in the album tree.
  */
 export const collectTexturesRecursive = (album: Album): MediaFile[] => {
   let textures = [...album.textures];
@@ -35,8 +35,9 @@ export const collectTexturesRecursive = (album: Album): MediaFile[] => {
 
 /**
  * Recursively gets all album names from a given album and its children.
+ * This is useful for building a list of IDs or keys for tree traversal.
  * @param album - The album to start from.
- * @returns A list of album names.
+ * @returns A flat list of album names.
  */
 export const getAlbumAndChildrenNames = (album: Album): string[] => {
   return [
