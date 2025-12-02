@@ -13,31 +13,59 @@ declare global {
   }
 }
 
+/**
+ * Defines the shape of the global application state.
+ */
 export interface AppState {
+  /** Indicates if a media scan is currently in progress. */
   isScanning: boolean;
+  /** The full list of albums loaded from the database. */
   allAlbums: Album[];
+  /** Map of album names to their selection state for the global slideshow. */
   albumsSelectedForSlideshow: { [albumName: string]: boolean };
+  /** Flattened list of all media files from selected albums, available for the slideshow. */
   globalMediaPoolForSelection: MediaFile[];
+  /** Count of media files in the current pool. */
   totalMediaInPool: number;
+  /** History of media files displayed in the current session. */
   displayedMediaFiles: MediaFile[];
+  /** The currently displayed media item. */
   currentMediaItem: MediaFile | null;
+  /** Index of the current item in the displayedMediaFiles history array. */
   currentMediaIndex: number;
+  /** Indicates if the slideshow mode is active. */
   isSlideshowActive: boolean;
+  /** The ID of the current slideshow timer interval. */
   slideshowTimerId: NodeJS.Timeout | null;
+  /** Duration in seconds for each slide. */
   timerDuration: number;
+  /** Indicates if the slideshow timer is currently ticking. */
   isTimerRunning: boolean;
+  /** Progress percentage of the current slide timer (0-100). */
   timerProgress: number;
+  /** If true, videos play to completion regardless of timer. */
   playFullVideo: boolean;
+  /** If true, the timer pauses when a video starts playing. */
   pauseTimerOnPlay: boolean;
+  /** Filter criteria for media types ('All', 'Images', 'Videos'). */
   mediaFilter: 'All' | 'Images' | 'Videos';
+  /** Current main view mode: 'player' for slideshow, 'grid' for thumbnails. */
   viewMode: 'player' | 'grid';
+  /** List of media files to display in the grid view. */
   gridMediaFiles: MediaFile[];
+  /** Controls visibility of the "Manage Sources" modal. */
   isSourcesModalVisible: boolean;
+  /** List of configured media source directories. */
   mediaDirectories: { path: string; isActive: boolean }[];
+  /** Supported file extensions grouped by type. */
   supportedExtensions: { images: string[]; videos: string[]; all: string[] };
+  /** Reference to the main video DOM element for control purposes. */
   mainVideoElement: HTMLVideoElement | null;
 }
 
+/**
+ * The reactive global state instance.
+ */
 const state = reactive<AppState>({
   isScanning: false,
   allAlbums: [],

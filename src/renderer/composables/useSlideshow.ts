@@ -8,11 +8,12 @@ import { collectTexturesRecursive } from '../utils/albumUtils';
 import type { Album, MediaFile } from '../../main/media-scanner';
 
 /**
- * Recursively collects all textures from a list of albums and their children
- * if their names are in the provided selection map.
- * @param albums - The albums to traverse.
- * @param selection - A map of selected album names.
- * @returns A flattened list of all textures from selected albums.
+ * Recursively collects all textures (media files) from a list of albums and their children
+ * if their names are marked as true in the provided selection map.
+ * This is used to build the global media pool for the slideshow.
+ * @param albums - The list of root albums to traverse.
+ * @param selection - A map where keys are album names and values are booleans indicating selection.
+ * @returns A flattened list of all media files from the selected albums.
  */
 function collectSelectedTextures(
   albums: Album[],

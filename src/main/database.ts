@@ -386,6 +386,14 @@ async function setDirectoryActiveState(
   }
 }
 
+/**
+ * Retrieves media files that match a specific dominant color within a given threshold.
+ * @param r - The red component (0-255).
+ * @param g - The green component (0-255).
+ * @param b - The blue component (0-255).
+ * @param threshold - The maximum Euclidean distance in RGB space to consider a match. Defaults to 50.
+ * @returns A promise that resolves to a list of file paths that match the color criteria.
+ */
 async function getMediaByColor(
   r: number,
   g: number,
@@ -405,6 +413,11 @@ async function getMediaByColor(
   }
 }
 
+/**
+ * Retrieves a list of files that do not yet have dominant color information stored.
+ * This is used to prioritize background analysis tasks.
+ * @returns A promise that resolves to a list of file paths needing analysis.
+ */
 async function getFilesMissingColor(): Promise<string[]> {
   try {
     return await sendMessageToWorker<string[]>('getFilesMissingColor');
@@ -414,6 +427,12 @@ async function getFilesMissingColor(): Promise<string[]> {
   }
 }
 
+/**
+ * Updates the dominant color information for a specific file in the database.
+ * @param filePath - The path of the file to update.
+ * @param color - The color object containing hex string and RGB values.
+ * @returns A promise that resolves when the operation is complete.
+ */
 async function setFileColor(
   filePath: string,
   color: { hex: string; r: number; g: number; b: number },
