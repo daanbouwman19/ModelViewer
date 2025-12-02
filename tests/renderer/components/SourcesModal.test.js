@@ -63,9 +63,15 @@ describe('SourcesModal.vue', () => {
 
     // Reset mocks and provide default success implementations
     vi.clearAllMocks();
-    window.electronAPI.addMediaDirectory.mockReset().mockResolvedValue('/default/path');
-    window.electronAPI.removeMediaDirectory.mockReset().mockResolvedValue(undefined);
-    window.electronAPI.setDirectoryActiveState.mockReset().mockResolvedValue(undefined);
+    window.electronAPI.addMediaDirectory
+      .mockReset()
+      .mockResolvedValue('/default/path');
+    window.electronAPI.removeMediaDirectory
+      .mockReset()
+      .mockResolvedValue(undefined);
+    window.electronAPI.setDirectoryActiveState
+      .mockReset()
+      .mockResolvedValue(undefined);
     window.electronAPI.getMediaDirectories.mockReset().mockResolvedValue([]);
     window.electronAPI.reindexMediaLibrary.mockReset().mockResolvedValue([]);
   });
@@ -186,7 +192,10 @@ describe('SourcesModal.vue', () => {
     await flushPromises();
 
     expect(window.electronAPI.reindexMediaLibrary).toHaveBeenCalled();
-    expect(consoleSpy).toHaveBeenCalledWith('Error re-indexing library:', error);
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Error re-indexing library:',
+      error,
+    );
     expect(mockRefs.state.isScanning).toBe(false);
 
     consoleSpy.mockRestore();
@@ -220,7 +229,10 @@ describe('SourcesModal.vue', () => {
     await addButton.trigger('click');
     await flushPromises();
 
-    expect(consoleSpy).toHaveBeenCalledWith('Error adding media directory:', error);
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Error adding media directory:',
+      error,
+    );
 
     consoleSpy.mockRestore();
   });
@@ -236,7 +248,10 @@ describe('SourcesModal.vue', () => {
     await checkbox.setValue(false);
     await flushPromises();
 
-    expect(consoleSpy).toHaveBeenCalledWith('Error toggling directory active state:', error);
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Error toggling directory active state:',
+      error,
+    );
 
     consoleSpy.mockRestore();
   });
