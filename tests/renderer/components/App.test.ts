@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { ref, nextTick } from 'vue';
 import App from '@/App.vue';
@@ -32,10 +32,10 @@ vi.mock('@/components/AmbientBackground.vue', () => ({
 }));
 
 describe('App.vue', () => {
-  let mockRefs;
-  let initializeApp;
-  let navigateMedia;
-  let toggleSlideshowTimer;
+  let mockRefs: any;
+  let initializeApp: Mock;
+  let navigateMedia: Mock;
+  let toggleSlideshowTimer: Mock;
 
   beforeEach(() => {
     initializeApp = vi.fn().mockResolvedValue(undefined);
@@ -69,9 +69,9 @@ describe('App.vue', () => {
       stopSlideshow: vi.fn(),
     };
 
-    useAppState.mockReturnValue(mockRefs);
+    (useAppState as Mock).mockReturnValue(mockRefs);
 
-    useSlideshow.mockReturnValue({
+    (useSlideshow as Mock).mockReturnValue({
       navigateMedia,
       toggleSlideshowTimer,
       toggleAlbumSelection: vi.fn(),

@@ -3,9 +3,10 @@
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useAppState } from '@/composables/useAppState';
+import { createMockElectronAPI } from '../mocks/electronAPI';
 
 describe('useAppState', () => {
-  let appState;
+  let appState: any;
 
   beforeEach(() => {
     // Reset the state before each test
@@ -23,8 +24,8 @@ describe('useAppState', () => {
     it('should initialize app state with data from electronAPI', async () => {
       // Mock window.electronAPI
       const mockAlbums = [
-        { name: 'Album1', files: [], totalViews: 0 },
-        { name: 'Album2', files: [], totalViews: 5 },
+        { name: 'Album1', textures: [], totalViews: 0, children: [] },
+        { name: 'Album2', textures: [], totalViews: 5, children: [] },
       ];
       const mockDirectories = [{ path: '/test/dir', isActive: true }];
       const mockExtensions = {
@@ -33,13 +34,16 @@ describe('useAppState', () => {
         all: ['.jpg', '.png', '.mp4'],
       };
 
-      global.window = {
-        electronAPI: {
-          getAlbumsWithViewCounts: vi.fn().mockResolvedValue(mockAlbums),
-          getMediaDirectories: vi.fn().mockResolvedValue(mockDirectories),
-          getSupportedExtensions: vi.fn().mockResolvedValue(mockExtensions),
-        },
-      };
+      global.window.electronAPI = createMockElectronAPI();
+      vi.mocked(
+        global.window.electronAPI.getAlbumsWithViewCounts,
+      ).mockResolvedValue(mockAlbums);
+      vi.mocked(
+        global.window.electronAPI.getMediaDirectories,
+      ).mockResolvedValue(mockDirectories);
+      vi.mocked(
+        global.window.electronAPI.getSupportedExtensions,
+      ).mockResolvedValue(mockExtensions);
 
       await appState.initializeApp();
 
@@ -53,7 +57,7 @@ describe('useAppState', () => {
     });
 
     it('should handle error when electronAPI is not available', async () => {
-      global.window = {};
+      global.window = {} as any;
       const consoleSpy = vi
         .spyOn(console, 'error')
         .mockImplementation(() => {});
@@ -69,15 +73,10 @@ describe('useAppState', () => {
     });
 
     it('should handle error when API calls fail', async () => {
-      global.window = {
-        electronAPI: {
-          getAlbumsWithViewCounts: vi
-            .fn()
-            .mockRejectedValue(new Error('API Error')),
-          getMediaDirectories: vi.fn(),
-          getSupportedExtensions: vi.fn(),
-        },
-      };
+      global.window.electronAPI = createMockElectronAPI();
+      vi.mocked(
+        global.window.electronAPI.getAlbumsWithViewCounts,
+      ).mockRejectedValue(new Error('API Error'));
       const consoleSpy = vi
         .spyOn(console, 'error')
         .mockImplementation(() => {});

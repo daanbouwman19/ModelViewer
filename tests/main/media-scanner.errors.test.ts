@@ -26,7 +26,6 @@ describe('Media Scanner Error Handling', () => {
     const badDir = '/bad/dir';
     const goodDir = '/good/dir';
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (fs.access as unknown as Mock).mockImplementation(async (path: any) => {
       if (path === badDir) {
         throw new Error('Permission denied');

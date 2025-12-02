@@ -1,9 +1,27 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { EventEmitter } from 'events';
 
+// Define types for mock data
+interface MockAlbum {
+  name: string;
+  textures: { name: string; path: string }[];
+  children: MockAlbum[];
+}
+
+interface MockDirectory {
+  path: string;
+  isActive: boolean;
+}
+
+interface MockDB {
+  views: Record<string, number>;
+  albums: MockAlbum[];
+  albumsCached: boolean;
+  directories: MockDirectory[];
+}
+
 // Store data in mock to simulate DB
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mockDb: any = {
+const mockDb: MockDB = {
   views: {},
   albums: [],
   albumsCached: false,
@@ -11,71 +29,67 @@ const mockDb: any = {
 };
 
 class MockWorker extends EventEmitter {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  terminate: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  postMessage: any;
+  terminate: ReturnType<typeof vi.fn>;
+  postMessage: ReturnType<typeof vi.fn>;
 
   constructor() {
     super();
     this.terminate = vi.fn().mockResolvedValue(undefined);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.postMessage = vi.fn((message: any) => {
-      const { id, type, payload } = message;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let resultData: any = undefined;
-      const success = true;
 
-      if (type === 'init') {
-        // success
-      } else if (type === 'recordMediaView') {
-        const filePath = payload.filePath;
-        mockDb.views[filePath] = (mockDb.views[filePath] || 0) + 1;
-      } else if (type === 'getMediaViewCounts') {
-        const paths = payload.filePaths;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const counts: any = {};
-        paths.forEach((p: string) => {
-          counts[p] = mockDb.views[p] || 0;
-        });
-        resultData = counts;
-      } else if (type === 'cacheAlbums') {
-        mockDb.albums = payload.albums;
-        mockDb.albumsCached = true;
-      } else if (type === 'getCachedAlbums') {
-        // Return null only when there are no cached albums (initial state)
-        // Return the actual array (even if empty) if cacheAlbums was called
-        resultData = mockDb.albumsCached ? mockDb.albums : null;
-      } else if (type === 'addMediaDirectory') {
-        mockDb.directories.push({
-          path: payload.directoryPath,
-          isActive: true,
-        });
-      } else if (type === 'getMediaDirectories') {
-        resultData = mockDb.directories;
-      } else if (type === 'removeMediaDirectory') {
-        mockDb.directories = mockDb.directories.filter(
-          (d: { path: string; isActive: boolean }) =>
-            d.path !== payload.directoryPath,
-        );
-      } else if (type === 'setDirectoryActiveState') {
-        const dir = mockDb.directories.find(
-          (d: { path: string; isActive: boolean }) =>
-            d.path === payload.directoryPath,
-        );
-        if (dir) dir.isActive = payload.isActive;
-      } else if (type === 'close') {
-        // success
-      }
+    this.postMessage = vi.fn(
+      (message: { id: string; type: string; payload: any }) => {
+        const { id, type, payload } = message;
+        let resultData: unknown = undefined;
+        const success = true;
 
-      // Simulate async response
-      process.nextTick(() => {
-        this.emit('message', {
-          id: id,
-          result: { success, data: resultData },
+        if (type === 'init') {
+          // success
+        } else if (type === 'recordMediaView') {
+          const filePath = payload.filePath;
+          mockDb.views[filePath] = (mockDb.views[filePath] || 0) + 1;
+        } else if (type === 'getMediaViewCounts') {
+          const paths = payload.filePaths;
+          const counts: Record<string, number> = {};
+          paths.forEach((p: string) => {
+            counts[p] = mockDb.views[p] || 0;
+          });
+          resultData = counts;
+        } else if (type === 'cacheAlbums') {
+          mockDb.albums = payload.albums;
+          mockDb.albumsCached = true;
+        } else if (type === 'getCachedAlbums') {
+          // Return null only when there are no cached albums (initial state)
+          // Return the actual array (even if empty) if cacheAlbums was called
+          resultData = mockDb.albumsCached ? mockDb.albums : null;
+        } else if (type === 'addMediaDirectory') {
+          mockDb.directories.push({
+            path: payload.directoryPath,
+            isActive: true,
+          });
+        } else if (type === 'getMediaDirectories') {
+          resultData = mockDb.directories;
+        } else if (type === 'removeMediaDirectory') {
+          mockDb.directories = mockDb.directories.filter(
+            (d: MockDirectory) => d.path !== payload.directoryPath,
+          );
+        } else if (type === 'setDirectoryActiveState') {
+          const dir = mockDb.directories.find(
+            (d: MockDirectory) => d.path === payload.directoryPath,
+          );
+          if (dir) dir.isActive = payload.isActive;
+        } else if (type === 'close') {
+          // success
+        }
+
+        // Simulate async response
+        process.nextTick(() => {
+          this.emit('message', {
+            id: id,
+            result: { success, data: resultData },
+          });
         });
-      });
-    });
+      },
+    );
   }
 }
 
@@ -84,16 +98,18 @@ vi.mock('worker_threads', () => ({
   default: { Worker: MockWorker },
 }));
 
-vi.mock('electron', () => ({
-  app: {
-    getPath: () => '/tmp',
-    isPackaged: false,
-  },
-}));
+import { createMockElectron } from './mocks/electron';
+
+vi.mock('electron', () => createMockElectron());
 
 describe('Database', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let db: any;
+  // Use a type that matches the exported module structure
+  // Since we are dynamically importing, we can use `typeof import(...)` or `any` if necessary,
+  // but let's try to be specific or use `unknown` if we just need to access methods known to exist.
+  // Ideally, we import the type. But for now, let's use a loosely typed object or just `any` IS the problem.
+  // We can use a mapped type of the module.
+
+  let db: typeof import('../../src/main/database');
 
   beforeEach(async () => {
     // Reset mock DB state (keeping the same object reference)

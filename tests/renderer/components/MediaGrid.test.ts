@@ -1,10 +1,19 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+  type Mock,
+} from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import MediaGrid from '../../../src/renderer/components/MediaGrid.vue';
+import { createMockElectronAPI } from '../mocks/electronAPI';
 
 // Mock useAppState
 const mockState = {
-  gridMediaFiles: [],
+  gridMediaFiles: [] as { path: string; name: string }[],
   supportedExtensions: {
     images: ['.jpg', '.png'],
     videos: ['.mp4', '.webm'],
@@ -24,9 +33,7 @@ vi.mock('../../../src/renderer/composables/useAppState', () => ({
 }));
 
 // Mock electronAPI
-global.window.electronAPI = {
-  getServerPort: vi.fn(),
-};
+global.window.electronAPI = createMockElectronAPI();
 
 describe('MediaGrid.vue', () => {
   beforeEach(() => {
@@ -34,7 +41,7 @@ describe('MediaGrid.vue', () => {
     mockState.viewMode = 'grid';
     vi.clearAllMocks();
     // Reset default success implementation
-    global.window.electronAPI.getServerPort.mockResolvedValue(1234);
+    (global.window.electronAPI.getServerPort as Mock).mockResolvedValue(1234);
   });
 
   afterEach(() => {
@@ -130,7 +137,7 @@ describe('MediaGrid.vue', () => {
 
   it('handles server port error gracefully', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    global.window.electronAPI.getServerPort.mockRejectedValue(
+    (global.window.electronAPI.getServerPort as Mock).mockRejectedValue(
       new Error('Failed'),
     );
 

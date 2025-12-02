@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { mount } from '@vue/test-utils';
-import { ref } from 'vue';
+import { ref, type Ref } from 'vue';
 import AlbumsList from '../../../src/renderer/components/AlbumsList.vue';
 import { useAppState } from '../../../src/renderer/composables/useAppState';
 import { collectTexturesRecursive } from '../../../src/renderer/utils/albumUtils';
@@ -43,7 +43,15 @@ const mockAlbums = [
 ];
 
 describe('AlbumsList.vue', () => {
-  let mockAppState;
+  let mockAppState: {
+    allAlbums: Ref<typeof mockAlbums>;
+    albumsSelectedForSlideshow: Ref<Record<string, boolean>>;
+    timerDuration: Ref<number>;
+    isTimerRunning: Ref<boolean>;
+    isSourcesModalVisible: Ref<boolean>;
+    playFullVideo: Ref<boolean>;
+    pauseTimerOnPlay: Ref<boolean>;
+  };
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -58,7 +66,7 @@ describe('AlbumsList.vue', () => {
       pauseTimerOnPlay: ref(false),
     };
 
-    useAppState.mockReturnValue(mockAppState);
+    (useAppState as Mock).mockReturnValue(mockAppState);
   });
 
   it('renders AlbumTree components for each root album', () => {
@@ -82,7 +90,7 @@ describe('AlbumsList.vue', () => {
     const manageButton = wrapper
       .findAll('button')
       .find((b) => b.text().includes('Manage Sources'));
-    await manageButton.trigger('click');
+    await manageButton!.trigger('click');
     expect(mockAppState.isSourcesModalVisible.value).toBe(true);
   });
 

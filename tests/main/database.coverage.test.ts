@@ -1,21 +1,31 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+  type Mock,
+} from 'vitest';
 import { EventEmitter } from 'events';
 
+interface WorkerMessage {
+  id: string;
+  type: string;
+  payload: unknown;
+}
+
 // Module-scoped variable to hold the latest mock worker instance
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let mockWorkerInstance: any = null;
+let mockWorkerInstance: MockWorker | null = null;
 
 class MockWorker extends EventEmitter {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  terminate: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  postMessage: any;
+  terminate: Mock;
+  postMessage: Mock;
 
   constructor() {
     super();
     this.terminate = vi.fn().mockResolvedValue(undefined);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.postMessage = vi.fn((message: any) => {
+    this.postMessage = vi.fn((message: WorkerMessage) => {
       // Default handler for init and close to make setup/teardown work
       if (message.type === 'init' || message.type === 'close') {
         process.nextTick(() => {
@@ -32,14 +42,14 @@ class MockWorker extends EventEmitter {
   }
 
   // Helper methods
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  simulateMessage(message: any) {
+  simulateMessage(message: unknown) {
     this.emit('message', message);
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  simulateError(error: any) {
+
+  simulateError(error: unknown) {
     this.emit('error', error);
   }
+
   simulateExit(code: number) {
     this.emit('exit', code);
   }
@@ -50,11 +60,9 @@ vi.mock('worker_threads', () => ({
   default: { Worker: MockWorker },
 }));
 
-vi.mock('electron', () => ({
-  app: {
-    getPath: () => '/tmp',
-  },
-}));
+import { createMockElectron } from './mocks/electron';
+
+vi.mock('electron', () => createMockElectron());
 
 describe('database.js additional coverage - uninitialized', () => {
   beforeEach(() => {
@@ -71,8 +79,8 @@ describe('database.js additional coverage - uninitialized', () => {
 });
 
 describe('database.js additional coverage', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let db: any;
+  // Use typeof import(...) for the dynamically imported module
+  let db: typeof import('../../src/main/database.js');
 
   beforeEach(async () => {
     vi.resetModules();
@@ -95,7 +103,7 @@ describe('database.js additional coverage', () => {
     expect(mockWorkerInstance).not.toBeNull();
 
     // Simulate an unexpected exit with a non-zero code
-    mockWorkerInstance.emit('exit', 1);
+    mockWorkerInstance!.emit('exit', 1);
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       '[database.js] Database worker exited unexpectedly with code 1',
@@ -115,17 +123,16 @@ describe('database.js additional coverage', () => {
     expect(mockWorkerInstance).toBeDefined();
     expect(mockWorkerInstance).not.toBeNull();
 
-    const originalPostMessage = mockWorkerInstance.postMessage;
+    const originalPostMessage = mockWorkerInstance!.postMessage;
     // Simulate a failure in worker communication for the recordMediaView call
     const postMessageSpy = vi
-      .spyOn(mockWorkerInstance, 'postMessage')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .mockImplementation((message: any) => {
+      .spyOn(mockWorkerInstance!, 'postMessage')
+      .mockImplementation((message: WorkerMessage) => {
         if (message.type === 'recordMediaView') {
           throw new Error('Test worker error');
         }
         // Let other messages (like init) pass through the original implementation
-        originalPostMessage.call(mockWorkerInstance, message);
+        originalPostMessage(message);
       });
 
     await db.recordMediaView('/some/file.jpg');
@@ -143,13 +150,13 @@ describe('database.js additional coverage', () => {
   describe('functions that handle errors gracefully', () => {
     it('getMediaViewCounts should return {} on worker error', async () => {
       const promise = db.getMediaViewCounts(['/path/to/file.png']);
-      mockWorkerInstance.simulateError(new Error('Worker crashed'));
+      mockWorkerInstance!.simulateError(new Error('Worker crashed'));
       await expect(promise).resolves.toEqual({});
     });
 
     it('getMediaViewCounts should return {} on worker exit', async () => {
       const promise = db.getMediaViewCounts(['/path/to/file.png']);
-      mockWorkerInstance.simulateExit(1);
+      mockWorkerInstance!.simulateExit(1);
       await expect(promise).resolves.toEqual({});
     });
 
@@ -182,23 +189,30 @@ describe('database.js additional coverage', () => {
       },
     ])(
       'should throw an error when $method fails',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      async ({ method, args, errorMessage }: any) => {
-        const originalPostMessage = mockWorkerInstance.postMessage;
-        const postMessageSpy = vi.spyOn(mockWorkerInstance, 'postMessage');
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      async ({ method, args, errorMessage }) => {
+        // We know mockWorkerInstance is not null in beforeEach
+        const originalPostMessage = mockWorkerInstance!.postMessage;
+        const postMessageSpy = vi.spyOn(mockWorkerInstance!, 'postMessage');
+
+        // Use 'any' for the mock implementation signature to match spyOn requirements,
+        // but cast internally if needed.
+
         postMessageSpy.mockImplementation((message: any) => {
           if (message.type === method) {
-            mockWorkerInstance.simulateMessage({
+            mockWorkerInstance!.simulateMessage({
               id: message.id,
               result: { success: false, error: errorMessage },
             });
           } else {
-            originalPostMessage.call(mockWorkerInstance, message);
+            originalPostMessage(message);
           }
         });
 
-        await expect(db[method](...args)).rejects.toThrow(errorMessage);
+        // We need to cast db to access methods dynamically by string name
+
+        await expect((db as any)[method](...args)).rejects.toThrow(
+          errorMessage,
+        );
         postMessageSpy.mockRestore();
       },
     );
@@ -216,7 +230,7 @@ describe('database.js additional coverage', () => {
 
     // Simulate a catastrophic worker error
     const testError = new Error('Test worker crash');
-    mockWorkerInstance.simulateError(testError);
+    mockWorkerInstance!.simulateError(testError);
 
     // Assertions
     await expect(addDirPromise).rejects.toThrow(testError);
@@ -231,17 +245,17 @@ describe('database.js additional coverage', () => {
   });
 
   it('getMediaDirectories should return [] on falsy worker response', async () => {
-    const originalPostMessage = mockWorkerInstance.postMessage;
-    const postMessageSpy = vi.spyOn(mockWorkerInstance, 'postMessage');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const originalPostMessage = mockWorkerInstance!.postMessage;
+    const postMessageSpy = vi.spyOn(mockWorkerInstance!, 'postMessage');
+
     postMessageSpy.mockImplementation((message: any) => {
       if (message.type === 'getMediaDirectories') {
-        mockWorkerInstance.simulateMessage({
+        mockWorkerInstance!.simulateMessage({
           id: message.id,
           result: { success: true, data: null }, // Simulate null response
         });
       } else {
-        originalPostMessage.call(mockWorkerInstance, message);
+        originalPostMessage(message);
       }
     });
 
@@ -255,7 +269,7 @@ describe('database.js additional coverage', () => {
       .spyOn(console, 'error')
       .mockImplementation(() => {});
     const terminateError = new Error('Failed to terminate');
-    mockWorkerInstance.terminate.mockRejectedValue(terminateError);
+    mockWorkerInstance!.terminate.mockRejectedValue(terminateError);
 
     await db.closeDatabase();
 

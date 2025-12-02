@@ -215,19 +215,17 @@ describe('performFullMediaScan', () => {
         return [
           { name: 'good-dir', isDirectory: () => true, isFile: () => false },
           { name: 'bad-dir', isDirectory: () => true, isFile: () => false },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ] as any;
       }
       if (p.endsWith('good-dir')) {
         return [
           { name: 'image.jpg', isDirectory: () => false, isFile: () => true },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ] as any;
       }
       if (p.endsWith('bad-dir')) {
         throw new Error('EACCES: permission denied');
       }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       return [] as any;
     });
 

@@ -11,21 +11,25 @@ vi.mock('fs', () => ({
   },
 }));
 
-vi.mock('electron', () => {
-  const ipcMain = {
+vi.mock('electron', () => ({
+  ipcMain: {
     handle: vi.fn(),
-  };
-  return {
-    ipcMain,
-    app: {
-      isPackaged: true,
-      on: vi.fn(),
-      commandLine: {
-        appendSwitch: vi.fn(),
-      },
+    on: vi.fn(),
+  },
+  app: {
+    getPath: vi.fn().mockReturnValue('/tmp'),
+    isPackaged: false,
+    on: vi.fn(),
+    quit: vi.fn(),
+    commandLine: {
+      appendSwitch: vi.fn(),
     },
-  };
-});
+  },
+  BrowserWindow: vi.fn(),
+  dialog: {
+    showOpenDialog: vi.fn(),
+  },
+}));
 
 vi.mock('../../src/main/local-server.js', () => ({
   getServerPort: vi.fn(),
@@ -33,7 +37,6 @@ vi.mock('../../src/main/local-server.js', () => ({
 }));
 
 describe('main.js IPC Handlers', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let handler: (event: any, ...args: any[]) => any;
 
   beforeEach(async () => {
@@ -43,7 +46,6 @@ describe('main.js IPC Handlers', () => {
     // Find the handler for 'load-file-as-data-url'
     const handleMock = ipcMain.handle as unknown as Mock;
     const call = handleMock.mock.calls.find(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (c: any[]) => c[0] === 'load-file-as-data-url',
     );
     if (call) {

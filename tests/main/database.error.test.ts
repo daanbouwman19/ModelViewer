@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { createMockElectron } from './mocks/electron';
 
 // We'll dynamically import the module after setting up mocks so the module uses our mocked Worker
 
@@ -30,18 +31,15 @@ describe('Database error handling (isolated)', () => {
     // Define the class inside the factory to avoid hoisting issues with vi.mock.
     vi.mock('worker_threads', () => {
       class MockWorker {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         listeners: any;
         constructor() {
           this.listeners = {};
         }
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         on(event: string, cb: any) {
           this.listeners[event] = cb;
         }
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         postMessage(msg: any) {
           // During initDatabase, the module sends an 'init' message — reply with success
           if (msg && msg.type === 'init') {
@@ -70,11 +68,7 @@ describe('Database error handling (isolated)', () => {
     });
 
     // Also mock electron.app.getPath to a temp dir so initDatabase can compute dbPath
-    vi.mock('electron', () => ({
-      app: {
-        getPath: () => '/tmp',
-      },
-    }));
+    vi.mock('electron', () => createMockElectron());
 
     const db = await import('../../src/main/database.js');
 

@@ -1,9 +1,11 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { ref } from 'vue';
 import MediaDisplay from '@/components/MediaDisplay.vue';
 import { useAppState } from '@/composables/useAppState';
 import { useSlideshow } from '@/composables/useSlideshow';
+import { createMockElectronAPI } from '../mocks/electronAPI';
+import type { LoadResult } from '../../../src/preload/preload';
 
 // Mock the composables
 vi.mock('@/composables/useAppState');
@@ -15,11 +17,12 @@ vi.mock('@/components/icons/VlcIcon.vue', () => ({
 }));
 
 describe('MediaDisplay.vue', () => {
-  let mockSetFilter;
-  let mockPrevMedia;
-  let mockNextMedia;
-  let mockToggleTimer;
-  let mockRefs;
+  let mockSetFilter: Mock;
+  let mockPrevMedia: Mock;
+  let mockNextMedia: Mock;
+  let mockToggleTimer: Mock;
+
+  let mockRefs: any;
 
   beforeEach(() => {
     mockSetFilter = vi.fn();
@@ -56,9 +59,9 @@ describe('MediaDisplay.vue', () => {
       stopSlideshow: vi.fn(),
     };
 
-    useAppState.mockReturnValue(mockRefs);
+    (useAppState as Mock).mockReturnValue(mockRefs);
 
-    useSlideshow.mockReturnValue({
+    (useSlideshow as Mock).mockReturnValue({
       setFilter: mockSetFilter,
       prevMedia: mockPrevMedia,
       nextMedia: mockNextMedia,
@@ -87,13 +90,7 @@ describe('MediaDisplay.vue', () => {
   describe('VLC Integration', () => {
     beforeEach(() => {
       // Mock window.electronAPI
-      global.window.electronAPI = {
-        loadFileAsDataURL: vi.fn(() =>
-          Promise.resolve({ type: 'data-url', url: 'data:...' }),
-        ),
-        getServerPort: vi.fn().mockResolvedValue(0),
-        openInVlc: vi.fn(() => Promise.resolve({ success: true })),
-      };
+      global.window.electronAPI = createMockElectronAPI();
     });
 
     it('should not show VLC button for images', async () => {
@@ -107,10 +104,10 @@ describe('MediaDisplay.vue', () => {
 
     it('should show VLC button for videos', async () => {
       mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
-      global.window.electronAPI.loadFileAsDataURL.mockResolvedValue({
+      (global.window.electronAPI.loadFileAsDataURL as Mock).mockResolvedValue({
         type: 'http-url',
         url: 'http://...',
-      });
+      } as LoadResult);
 
       const wrapper = mount(MediaDisplay);
       await wrapper.vm.$nextTick();
@@ -122,10 +119,10 @@ describe('MediaDisplay.vue', () => {
 
     it('should pause video and call openInVlc when button clicked', async () => {
       mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
-      global.window.electronAPI.loadFileAsDataURL.mockResolvedValue({
+      (global.window.electronAPI.loadFileAsDataURL as Mock).mockResolvedValue({
         type: 'http-url',
         url: 'http://...',
-      });
+      } as LoadResult);
 
       const wrapper = mount(MediaDisplay, {
         attachTo: document.body, // Needed for some DOM interactions
@@ -150,7 +147,12 @@ describe('MediaDisplay.vue', () => {
 
     it('should display error if openInVlc fails', async () => {
       mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
-      global.window.electronAPI.openInVlc.mockResolvedValue({
+      global.window.electronAPI = createMockElectronAPI();
+      vi.mocked(global.window.electronAPI.loadFileAsDataURL).mockResolvedValue({
+        type: 'http-url',
+        url: 'http://localhost/test.mp4',
+      } as LoadResult);
+      vi.mocked(global.window.electronAPI.openInVlc).mockResolvedValue({
         success: false,
         message: 'VLC error',
       });
@@ -159,8 +161,12 @@ describe('MediaDisplay.vue', () => {
       await wrapper.vm.$nextTick();
       await wrapper.vm.$nextTick();
 
+      // Wait for video to load
+      const video = wrapper.find('video');
+      expect(video.exists()).toBe(true);
+
       // Mock pause to avoid errors
-      const videoEl = wrapper.find('video').element;
+      const videoEl = video.element;
       videoEl.pause = vi.fn();
 
       const vlcButton = wrapper.find('.vlc-button');
