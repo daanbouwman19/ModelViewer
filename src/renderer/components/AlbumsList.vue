@@ -23,6 +23,22 @@
           {{ isTimerRunning ? 'Pause' : 'Play' }}
         </button>
       </div>
+      <div class="color-controls">
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            v-model="chameleonMode"
+            class="checkbox-input"
+          />
+          <span class="text-sm font-bold text-gray-300">Chameleon Mode</span>
+        </label>
+        <input
+          v-if="chameleonMode"
+          type="color"
+          v-model="chameleonColor"
+          class="color-picker"
+        />
+      </div>
       <button class="action-button" @click="openModal">Manage Sources</button>
     </div>
     <div
@@ -72,6 +88,8 @@ const {
   isTimerRunning,
   isSourcesModalVisible,
   timerProgress,
+  chameleonMode,
+  chameleonColor,
 } = useAppState();
 
 const slideshow = useSlideshow();
@@ -155,6 +173,12 @@ const openModal = () => {
   gap: 10px;
 }
 
+.color-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .timer-controls label {
   color: var(--text-muted);
   font-weight: 700;
@@ -179,6 +203,21 @@ const openModal = () => {
   outline: none;
   border-color: var(--accent-color);
   box-shadow: 0 0 0 2px var(--accent-color);
+}
+
+.checkbox-input {
+  accent-color: var(--accent-color);
+  width: 16px;
+  height: 16px;
+}
+
+.color-picker {
+  width: 40px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
 }
 
 .albums-list-header {

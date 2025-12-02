@@ -6,6 +6,7 @@
 import { useAppState } from './useAppState';
 import { collectTexturesRecursive } from '../utils/albumUtils';
 import type { Album, MediaFile } from '../../main/media-scanner';
+import tinycolor from 'tinycolor2';
 
 /**
  * Recursively collects all textures from a list of albums and their children
@@ -149,25 +150,89 @@ export function useSlideshow() {
    * Selects the next media item using a weighted random algorithm and displays it.
    */
   const pickAndDisplayNextMediaItem = async () => {
-    if (state.globalMediaPoolForSelection.length === 0) {
-      console.warn('No media files available in the pool.');
-      return;
-    }
-    const filteredPool = filterMedia(state.globalMediaPoolForSelection);
-    state.totalMediaInPool = filteredPool.length;
+    let selectedMedia: MediaFile | null = null;
 
-    if (filteredPool.length === 0) {
-      console.warn('Media pool is empty or no media matches the filter.');
-      return;
+    // Chameleon Mode Logic
+    if (state.chameleonMode) {
+      const color = tinycolor(state.chameleonColor).toRgb();
+      const matchingPaths = await window.electronAPI.getMediaByColor(
+        color,
+        50, // Threshold - make this adjustable later if needed
+      );
+
+      // Filter matching paths by the current global media pool
+      // This respects the album selection and media type filter implicitly if we use the pool
+      // But wait, the pool has ALL files. getMediaByColor returns paths.
+      // We should intersect them.
+
+      const poolPaths = new Set(
+        state.globalMediaPoolForSelection.map((f) => f.path),
+      );
+      const validMatches = matchingPaths.filter((path) => poolPaths.has(path));
+
+      // If we have matches, pick one.
+      // Since `matchingPaths` is sorted by distance (closest first),
+      // strictly picking the first one (0) will always show the same image until view count changes?
+      // Actually `getMediaByColor` sorts by color match.
+      // If we want variety, we should probably pick randomly from the top X matches.
+
+      // Filter out recently shown
+      const historySize = Math.min(5, state.displayedMediaFiles.length);
+      const historyPaths = state.displayedMediaFiles
+        .slice(-historySize)
+        .map((item) => item.path);
+
+      let eligibleMatches = validMatches.filter(
+        (path) => !historyPaths.includes(path),
+      );
+      if (eligibleMatches.length === 0 && validMatches.length > 0) {
+        eligibleMatches = validMatches; // Reset if all consumed
+      }
+
+      if (eligibleMatches.length > 0) {
+        // Pick from top 10 best matches to give some variety but keep it accurate
+        // Or just pick randomly from all matches? User said "shift to showing content with predominantly red hues"
+        // Let's pick randomly from the eligible matches to ensure variety.
+        // Since `getMediaByColor` returns all within threshold, random selection is fair.
+        const randomPath =
+          eligibleMatches[Math.floor(Math.random() * eligibleMatches.length)];
+        selectedMedia =
+          state.globalMediaPoolForSelection.find(
+            (f) => f.path === randomPath,
+          ) || null;
+      } else {
+        // Fallback to normal behavior if no color matches found?
+        // Or just show nothing/warning?
+        // User said "prioritize them".
+        console.log(
+          'No color matches found, falling back to standard selection.',
+        );
+      }
     }
 
-    const historySize = Math.min(5, state.displayedMediaFiles.length);
-    const historyPaths = state.displayedMediaFiles
-      .slice(-historySize)
-      .map((item) => item.path);
-    const selectedMedia =
-      selectWeightedRandom(filteredPool, historyPaths) ||
-      filteredPool[Math.floor(Math.random() * filteredPool.length)];
+    // Standard Logic (fallback or default)
+    if (!selectedMedia) {
+      if (state.globalMediaPoolForSelection.length === 0) {
+        console.warn('No media files available in the pool.');
+        return;
+      }
+      const filteredPool = filterMedia(state.globalMediaPoolForSelection);
+      state.totalMediaInPool = filteredPool.length;
+
+      if (filteredPool.length === 0) {
+        console.warn('Media pool is empty or no media matches the filter.');
+        return;
+      }
+
+      const historySize = Math.min(5, state.displayedMediaFiles.length);
+      const historyPaths = state.displayedMediaFiles
+        .slice(-historySize)
+        .map((item) => item.path);
+
+      selectedMedia =
+        selectWeightedRandom(filteredPool, historyPaths) ||
+        filteredPool[Math.floor(Math.random() * filteredPool.length)];
+    }
 
     if (selectedMedia) {
       state.displayedMediaFiles.push(selectedMedia);

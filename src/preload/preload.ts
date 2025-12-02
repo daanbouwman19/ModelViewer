@@ -38,6 +38,10 @@ export interface ElectronAPI {
   openInVlc: (
     filePath: string,
   ) => Promise<{ success: boolean; message?: string }>;
+  getMediaByColor: (
+    color: { r: number; g: number; b: number },
+    threshold: number,
+  ) => Promise<string[]>;
 }
 
 // Expose a controlled API to the renderer process via `window.electronAPI`.
@@ -129,6 +133,11 @@ const api: ElectronAPI = {
    * @returns A promise that resolves to the result object.
    */
   openInVlc: (filePath: string) => ipcRenderer.invoke('open-in-vlc', filePath),
+
+  getMediaByColor: (
+    color: { r: number; g: number; b: number },
+    threshold: number,
+  ) => ipcRenderer.invoke('get-media-by-color', color, threshold),
 };
 
 contextBridge.exposeInMainWorld('electronAPI', api);

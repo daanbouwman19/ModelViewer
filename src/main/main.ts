@@ -14,6 +14,7 @@ import {
 import path from 'path';
 import fs from 'fs';
 import { spawn } from 'child_process';
+import { Worker } from 'worker_threads';
 
 import {
   MAX_DATA_URL_SIZE_MB,
@@ -33,6 +34,9 @@ import {
   addMediaDirectory,
   removeMediaDirectory,
   setDirectoryActiveState,
+  getMediaByColor,
+  getFilesMissingColor,
+  setFileColor,
 } from './database';
 import { performFullMediaScan, Album } from './media-scanner';
 import {
@@ -51,6 +55,8 @@ const isDev = !app.isPackaged;
  * The main browser window instance.
  */
 let mainWindow: BrowserWindow | null = null;
+let analysisWorker: Worker | null = null;
+let isAnalysisRunning = false;
 
 // --- IPC Handlers ---
 
@@ -309,6 +315,17 @@ ipcMain.handle('get-server-port', () => {
   return getServerPort();
 });
 
+ipcMain.handle(
+  'get-media-by-color',
+  async (
+    _event: IpcMainInvokeEvent,
+    color: { r: number; g: number; b: number },
+    threshold: number,
+  ) => {
+    return getMediaByColor(color.r, color.g, color.b, threshold);
+  },
+);
+
 /**
  * Handles the 'open-in-vlc' IPC call.
  * Attempts to open the given file in VLC Media Player.
@@ -376,6 +393,99 @@ ipcMain.handle(
   },
 );
 
+// --- Analysis Worker Integration ---
+
+async function initAnalysisWorker() {
+  let workerPath: string | URL;
+  const isTest =
+    process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+
+  if (app.isPackaged) {
+    workerPath = path.join(__dirname, 'analysis-worker.js');
+  } else if (isTest) {
+    const pathModule = await import('path');
+    workerPath = pathModule.resolve(
+      process.cwd(),
+      'src/main/analysis-worker.ts',
+    );
+  } else {
+    workerPath = new URL('./analysis-worker.js', import.meta.url);
+  }
+
+  analysisWorker = new Worker(workerPath);
+
+  analysisWorker.on('message', async (message) => {
+    const { id, result } = message;
+
+    if (result.success) {
+      await setFileColor(id, result.data);
+    } else {
+      console.warn(`[main.js] Analysis failed for ${id}: ${result.error}`);
+      // Mark as processed with dummy color to prevent infinite loop
+      // We use black/zero with a special "failed" marker if we had one, but strict RGB is fine for now.
+      await setFileColor(id, { hex: '#000000', r: 0, g: 0, b: 0 });
+    }
+
+    // Continue processing
+    processNextFile();
+  });
+
+  console.log('[main.js] Analysis worker initialized.');
+  // Start the loop
+  processNextFile();
+}
+
+async function processNextFile() {
+  if (isAnalysisRunning) return;
+  isAnalysisRunning = true;
+
+  try {
+    const filesToProcess = await getFilesMissingColor();
+    if (filesToProcess.length > 0) {
+      // We only process one at a time for now to keep it simple and light
+      const filePath = filesToProcess[0];
+
+      // Check if file exists before trying to analyze
+      if (fs.existsSync(filePath)) {
+        // Pass filePath as ID for tracking
+        analysisWorker?.postMessage({
+          id: filePath,
+          type: 'analyze',
+          payload: { filePath },
+        });
+        // isAnalysisRunning stays true until we get a message back or if we implement proper concurrency
+        // But wait, the worker message handler calls processNextFile.
+        // So we should actually set isAnalysisRunning = false after posting?
+        // No, that would cause recursion depth issues if synchronous.
+        // Let's rely on the worker callback.
+        // But we need to handle the case where we just fired the message.
+        isAnalysisRunning = false;
+      } else {
+        // If file doesn't exist, maybe mark it as skipped in DB?
+        // For now, let's just ignore it and move to next, but we need to prevent infinite loop.
+        // To prevent infinite loop on missing file, we might need to delete it from media_views or mark as 'error'
+        // For this simple implementation, let's just skip setting isAnalysisRunning = false for a brief moment?
+        // Actually, we should probably treat it as a "failed" analysis so we don't retry immediately.
+        console.warn(
+          `[main.js] File missing during analysis scan: ${filePath}`,
+        );
+        // Dummy update to prevent re-fetch loop
+        await setFileColor(filePath, { hex: '#000000', r: 0, g: 0, b: 0 });
+        isAnalysisRunning = false;
+        setTimeout(processNextFile, 100);
+      }
+    } else {
+      // No files to process. Sleep for a bit.
+      isAnalysisRunning = false;
+      setTimeout(processNextFile, 10000); // Check every 10 seconds
+    }
+  } catch (e) {
+    console.error('[main.js] Error in analysis loop:', e);
+    isAnalysisRunning = false;
+    setTimeout(processNextFile, 5000);
+  }
+}
+
 // --- Window Creation ---
 
 /**
@@ -420,6 +530,7 @@ function createWindow() {
 app.on('ready', async () => {
   try {
     await initDatabase();
+    await initAnalysisWorker();
     startLocalServer(createWindow);
   } catch (error) {
     console.error(
@@ -451,4 +562,5 @@ app.on('will-quit', () => {
     console.log('[main.js] Local server stopped during will-quit.');
   });
   closeDatabase();
+  analysisWorker?.terminate();
 });
