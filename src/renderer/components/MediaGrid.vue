@@ -47,7 +47,7 @@
               :src="getMediaUrl(item)"
               muted
               preload="metadata"
-              :poster="getPosterUrl()"
+              :poster="getPosterUrl(item)"
               class="h-full w-full object-cover rounded"
             ></video>
             <div
@@ -204,9 +204,15 @@ const getMediaUrl = (item: MediaFile) => {
   return ''; // Placeholder until port is loaded
 };
 
-const getPosterUrl = () => {
-  // For videos, we might not have a thumbnail.
-  // Just return null/empty to show black or first frame (if preload metadata).
+const getPosterUrl = (item: MediaFile) => {
+  if (serverPort.value > 0) {
+    let pathForUrl = item.path.replace(/\\/g, '/');
+    pathForUrl = pathForUrl
+      .split('/')
+      .map((segment) => encodeURIComponent(segment))
+      .join('/');
+    return `http://localhost:${serverPort.value}/video/thumbnail?file=${pathForUrl}`;
+  }
   return '';
 };
 

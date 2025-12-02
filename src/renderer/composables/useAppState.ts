@@ -35,8 +35,7 @@ export interface AppState {
   isSourcesModalVisible: boolean;
   mediaDirectories: { path: string; isActive: boolean }[];
   supportedExtensions: { images: string[]; videos: string[]; all: string[] };
-  chameleonMode: boolean;
-  chameleonColor: string; // Hex color string
+  mainVideoElement: HTMLVideoElement | null;
 }
 
 const state = reactive<AppState>({
@@ -65,8 +64,7 @@ const state = reactive<AppState>({
     videos: [],
     all: [],
   },
-  chameleonMode: false,
-  chameleonColor: '#000000',
+  mainVideoElement: null,
 });
 
 /**

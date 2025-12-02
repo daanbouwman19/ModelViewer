@@ -1,6 +1,6 @@
 <template>
   <div
-    class="w-full md:w-1/3 md:shrink-0 bg-gray-800 shadow-lg rounded-lg p-4 flex flex-col overflow-y-auto panel custom-scrollbar"
+    class="glass-panel rounded-xl p-4 flex flex-col overflow-y-auto custom-scrollbar"
   >
     <div class="header-controls">
       <button
@@ -23,22 +23,7 @@
           {{ isTimerRunning ? 'Pause' : 'Play' }}
         </button>
       </div>
-      <div class="color-controls">
-        <label class="flex items-center gap-2 cursor-pointer">
-          <input
-            v-model="chameleonMode"
-            type="checkbox"
-            class="checkbox-input"
-          />
-          <span class="text-sm font-bold text-gray-300">Chameleon Mode</span>
-        </label>
-        <input
-          v-if="chameleonMode"
-          v-model="chameleonColor"
-          type="color"
-          class="color-picker"
-        />
-      </div>
+
       <button class="action-button" @click="openModal">Manage Sources</button>
     </div>
     <div
@@ -88,8 +73,6 @@ const {
   isTimerRunning,
   isSourcesModalVisible,
   timerProgress,
-  chameleonMode,
-  chameleonColor,
 } = useAppState();
 
 const slideshow = useSlideshow();
@@ -146,12 +129,7 @@ const openModal = () => {
 
 <style scoped>
 /* Scoped styles from the original AlbumsList.vue */
-.panel {
-  background-color: var(--secondary-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
-}
+/* .panel removed in favor of utility class */
 
 .header-controls {
   display: flex;
@@ -168,12 +146,6 @@ const openModal = () => {
 }
 
 .timer-controls {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.color-controls {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -209,15 +181,6 @@ const openModal = () => {
   accent-color: var(--accent-color);
   width: 16px;
   height: 16px;
-}
-
-.color-picker {
-  width: 40px;
-  height: 30px;
-  padding: 0;
-  border: none;
-  background: none;
-  cursor: pointer;
 }
 
 .albums-list-header {

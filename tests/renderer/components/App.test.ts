@@ -25,6 +25,11 @@ vi.mock('@/components/SourcesModal.vue', () => ({
 vi.mock('@/components/LoadingMask.vue', () => ({
   default: { template: '<div class="loading-mask-mock">LoadingMask</div>' },
 }));
+vi.mock('@/components/AmbientBackground.vue', () => ({
+  default: {
+    template: '<div class="ambient-background-mock">AmbientBackground</div>',
+  },
+}));
 
 describe('App.vue', () => {
   let mockRefs;
@@ -84,7 +89,7 @@ describe('App.vue', () => {
 
   it('should render the app title', () => {
     const wrapper = mount(App);
-    expect(wrapper.find('h1').text()).toBe('Media Slideshow Viewer');
+    expect(wrapper.find('h1').text()).toBe('Media Slideshow');
   });
 
   it('should render AlbumsList component', () => {
@@ -123,11 +128,6 @@ describe('App.vue', () => {
     const wrapper = mount(App);
     await nextTick();
     expect(wrapper.find('.loading-mask-mock').exists()).toBe(false);
-  });
-
-  it('should render footer with instructions', () => {
-    const wrapper = mount(App);
-    expect(wrapper.find('footer').text()).toContain('Use ← → for navigation');
   });
 
   it('should call initializeApp on mount', async () => {

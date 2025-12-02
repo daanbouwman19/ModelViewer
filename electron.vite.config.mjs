@@ -13,7 +13,6 @@ export default defineConfig({
           index: resolve(__dirname, 'src/main/main.ts'),
           // database-worker must be a separate entry because Node.js Worker requires a file path
           'database-worker': resolve(__dirname, 'src/main/database-worker.ts'),
-          'analysis-worker': resolve(__dirname, 'src/main/analysis-worker.ts'),
         },
       },
     },

@@ -6,8 +6,8 @@ import { useAppState } from '@/composables/useAppState';
 import { useSlideshow } from '@/composables/useSlideshow';
 
 // Mock the composables
-vi.mock('@/composables/useAppState.js');
-vi.mock('@/composables/useSlideshow.js');
+vi.mock('@/composables/useAppState');
+vi.mock('@/composables/useSlideshow');
 
 // Mock VlcIcon component
 vi.mock('@/components/icons/VlcIcon.vue', () => ({
@@ -49,6 +49,7 @@ describe('MediaDisplay.vue', () => {
       mediaDirectories: ref([]),
       playFullVideo: ref(false),
       pauseTimerOnPlay: ref(false),
+      mainVideoElement: ref(null),
       state: {}, // Also include state for compatibility
       initializeApp: vi.fn(),
       resetState: vi.fn(),
@@ -90,6 +91,7 @@ describe('MediaDisplay.vue', () => {
         loadFileAsDataURL: vi.fn(() =>
           Promise.resolve({ type: 'data-url', url: 'data:...' }),
         ),
+        getServerPort: vi.fn().mockResolvedValue(0),
         openInVlc: vi.fn(() => Promise.resolve({ success: true })),
       };
     });

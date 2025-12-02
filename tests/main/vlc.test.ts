@@ -31,6 +31,9 @@ vi.mock('electron', () => {
       isPackaged: true,
       on: vi.fn(),
       quit: vi.fn(),
+      commandLine: {
+        appendSwitch: vi.fn(),
+      },
     },
     BrowserWindow: vi.fn(),
     dialog: {

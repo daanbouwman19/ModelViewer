@@ -15,7 +15,16 @@ vi.mock('electron', () => {
   const ipcMain = {
     handle: vi.fn(),
   };
-  return { ipcMain, app: { isPackaged: true, on: vi.fn() } };
+  return {
+    ipcMain,
+    app: {
+      isPackaged: true,
+      on: vi.fn(),
+      commandLine: {
+        appendSwitch: vi.fn(),
+      },
+    },
+  };
 });
 
 vi.mock('../../src/main/local-server.js', () => ({

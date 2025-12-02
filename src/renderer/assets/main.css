@@ -8,20 +8,45 @@
    * This allows for easy theming and consistent styling.
  */
 :root {
-  --primary-bg: #111827; /* Dark Gray for main background */
-  --secondary-bg: #1f2937; /* Lighter Gray for panels */
-  --tertiary-bg: #374151; /* Accent Gray for borders, disabled states */
-  --accent-color: #ec4899; /* Vibrant Pink for interactive elements */
-  --accent-hover: #db2777; /* Darker Pink for hover states */
-  --text-color: #f3f4f6; /* Light Gray for primary text */
-  --text-muted: #9ca3af; /* Muted Gray for secondary text, placeholders */
-  --border-color: #4b5563; /* Mid Gray for borders */
-  --selection-color: #374151; /* Accent Gray for list item hover */
-  --button-text-color: #ffffff; /* White text for buttons */
+  --primary-bg: #050505; /* Deepest Midnight Black */
+  --secondary-bg: #0f0f0f; /* Rich Black */
+  --tertiary-bg: #1f1f1f; /* Soft Charcoal */
+  --accent-color: #3b82f6; /* Electric Blue (Premium) - changed from pink for a fresher look, or keep pink if user insists, but blue is safer for "premium" */
+  /* User asked to redo colors, so I'll try a sophisticated Electric Blue/Violet gradient feel via accent */
+  --accent-color: #6366f1; /* Indigo-500 */
+  --accent-hover: #4f46e5; /* Indigo-600 */
+  --text-color: #ffffff;
+  --text-muted: #9ca3af;
+  --border-color: #27272a;
+  --selection-color: #3f3f46;
+  --button-text-color: #ffffff;
 
   /* Fonts imported via Google Fonts */
-  --header-font: 'Dancing Script', cursive;
-  --body-font: 'Quicksand', sans-serif;
+  --header-font: 'Outfit', sans-serif;
+  --body-font: 'Inter', sans-serif;
+
+  /* Glassmorphism Variables */
+  --glass-bg: rgba(10, 10, 10, 0.6); /* Darker, more neutral glass */
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6);
+  --glass-blur: blur(24px); /* Premium smooth blur */
+}
+
+/* Glassmorphism Utilities */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+.floating-bar {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  border-radius: 9999px;
+  padding: 0.5rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* Custom Scrollbar Styling - Auto-hide by default */
