@@ -4,15 +4,19 @@
     @mousemove="handleMouseMove"
     @mouseleave="handleMouseLeave"
   >
-    <div class="flex justify-center items-center mb-2 mt-4 flex-shrink-0 z-10">
-      <h2 class="text-xl font-semibold text-center album-title">
+    <div
+      class="flex flex-wrap justify-center items-center mb-2 mt-4 flex-shrink-0 z-10 gap-4"
+    >
+      <h2
+        class="text-xl font-semibold text-center album-title whitespace-nowrap"
+      >
         {{ displayTitle }}
       </h2>
-      <div class="ml-4 filter-buttons">
+      <div class="filter-buttons flex flex-wrap justify-center gap-2">
         <button
           v-for="filter in filters"
           :key="filter"
-          class="filter-button"
+          class="filter-button whitespace-nowrap"
           :class="{ active: mediaFilter === filter }"
           @click="setFilter(filter)"
         >
@@ -581,7 +585,8 @@ const handleMouseLeave = () => {
   background-color: transparent;
   /* overflow: hidden; Removed to prevent clipping of sliding controls */
   width: 100%;
-  height: 100%;
+  /* height: 100%; Removed to prevent overflow with header */
+  min-height: 0; /* Allow shrinking */
   display: flex;
   align-items: center;
   justify-content: center;
