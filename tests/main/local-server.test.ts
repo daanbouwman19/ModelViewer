@@ -439,8 +439,9 @@ describe('Local Server', () => {
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const mockServer: any = new EventEmitter();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       mockServer.listen = vi.fn(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (_port: any, _host: any, cb: any) => cb && cb(),
       );
       mockServer.address = () => ({ port: 12345 });
