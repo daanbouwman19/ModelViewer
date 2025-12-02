@@ -35,7 +35,12 @@
       >
         Media will appear here.
       </p>
-      <p v-if="isLoading" class="text-gray-400 placeholder">Loading media...</p>
+      <p
+        v-if="isLoading"
+        class="absolute inset-0 flex items-center justify-center text-gray-400 placeholder z-20 bg-black/50"
+      >
+        Loading media...
+      </p>
       <p v-if="error" class="text-red-400 placeholder">
         {{ error }}
       </p>
