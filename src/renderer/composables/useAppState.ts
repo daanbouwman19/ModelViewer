@@ -35,6 +35,7 @@ export interface AppState {
   isSourcesModalVisible: boolean;
   mediaDirectories: { path: string; isActive: boolean }[];
   supportedExtensions: { images: string[]; videos: string[]; all: string[] };
+  mainVideoElement: HTMLVideoElement | null;
 }
 
 const state = reactive<AppState>({
@@ -63,6 +64,7 @@ const state = reactive<AppState>({
     videos: [],
     all: [],
   },
+  mainVideoElement: null,
 });
 
 /**

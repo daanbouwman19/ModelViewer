@@ -1,6 +1,6 @@
 <template>
   <div
-    class="w-full md:w-1/3 md:shrink-0 bg-gray-800 shadow-lg rounded-lg p-4 flex flex-col overflow-y-auto panel custom-scrollbar"
+    class="glass-panel rounded-xl p-4 flex flex-col overflow-y-auto custom-scrollbar"
   >
     <div class="header-controls">
       <button
@@ -23,6 +23,7 @@
           {{ isTimerRunning ? 'Pause' : 'Play' }}
         </button>
       </div>
+
       <button class="action-button" @click="openModal">Manage Sources</button>
     </div>
     <div
@@ -128,12 +129,7 @@ const openModal = () => {
 
 <style scoped>
 /* Scoped styles from the original AlbumsList.vue */
-.panel {
-  background-color: var(--secondary-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
-}
+/* .panel removed in favor of utility class */
 
 .header-controls {
   display: flex;
@@ -179,6 +175,12 @@ const openModal = () => {
   outline: none;
   border-color: var(--accent-color);
   box-shadow: 0 0 0 2px var(--accent-color);
+}
+
+.checkbox-input {
+  accent-color: var(--accent-color);
+  width: 16px;
+  height: 16px;
 }
 
 .albums-list-header {

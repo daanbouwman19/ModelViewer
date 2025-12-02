@@ -12,6 +12,8 @@ import {
 } from './constants';
 import { getMediaDirectories, MediaDirectory } from './database';
 import { AddressInfo } from 'net';
+import { spawn } from 'child_process';
+import ffmpegPath from 'ffmpeg-static';
 
 /**
  * Holds the singleton instance of the HTTP server.
@@ -110,6 +112,221 @@ function startLocalServer(onReadyCallback?: () => void): void {
     );
     const requestedPath = decodeURIComponent(parsedUrl.pathname.substring(1));
     const normalizedFilePath = path.normalize(requestedPath);
+
+    // Metadata Route
+    if (parsedUrl.pathname === '/video/metadata') {
+      const filePath = parsedUrl.searchParams.get('file');
+      if (!filePath) {
+        res.writeHead(400);
+        return res.end('Missing file parameter');
+      }
+      const decodedPath = decodeURIComponent(filePath);
+
+      if (!ffmpegPath) {
+        res.writeHead(500);
+        return res.end('FFmpeg binary not found');
+      }
+
+      // Security: Validate path
+      try {
+        const allowedDirectories = await getMediaDirectories();
+        if (!isPathAllowed(decodedPath, allowedDirectories)) {
+          res.writeHead(403);
+          return res.end('Access denied');
+        }
+      } catch (e) {
+        console.error('[Metadata] Path validation error:', e);
+        res.writeHead(500);
+        return res.end('Internal Error');
+      }
+
+      // Use ffmpeg to get duration
+      const ffmpegProcess = spawn(ffmpegPath, ['-i', decodedPath]);
+
+      let stderrData = '';
+      ffmpegProcess.stderr.on('data', (data: Buffer) => {
+        stderrData += data.toString();
+      });
+
+      ffmpegProcess.on('close', (code) => {
+        console.log('[Metadata] ffmpeg exited with code:', code);
+        console.log('[Metadata] stderr output:', stderrData);
+
+        // Parse Duration: 00:00:00.00
+        // Regex to match Duration: HH:MM:SS.mm
+        const match = stderrData.match(
+          /Duration:\s+(\d+):(\d+):(\d+(?:\.\d+)?)/,
+        );
+        if (match) {
+          const hours = parseFloat(match[1]);
+          const minutes = parseFloat(match[2]);
+          const seconds = parseFloat(match[3]);
+          const duration = hours * 3600 + minutes * 60 + seconds;
+
+          res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*',
+          });
+          res.end(JSON.stringify({ duration }));
+        } else {
+          console.error(
+            '[Metadata] Failed to parse duration from:',
+            stderrData,
+          );
+          res.writeHead(500, { 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ error: 'Could not determine duration' }));
+        }
+      });
+
+      return;
+    }
+
+    // Transcoding Route
+    if (parsedUrl.pathname === '/video/stream') {
+      const filePath = parsedUrl.searchParams.get('file');
+      const startTime = parsedUrl.searchParams.get('startTime'); // Get start time
+      if (!filePath) {
+        res.writeHead(400);
+        return res.end('Missing file parameter');
+      }
+      const decodedPath = decodeURIComponent(filePath);
+
+      // Validate path again for security
+      try {
+        const allowedDirectories = await getMediaDirectories();
+        if (!isPathAllowed(decodedPath, allowedDirectories)) {
+          res.writeHead(403);
+          return res.end('Access denied');
+        }
+      } catch (e) {
+        console.error('[Transcode] Path validation error:', e);
+        res.writeHead(500);
+        return res.end('Internal Error');
+      }
+
+      if (!ffmpegPath) {
+        res.writeHead(500);
+        return res.end('FFmpeg binary not found');
+      }
+
+      res.writeHead(200, {
+        'Content-Type': 'video/mp4',
+        'Access-Control-Allow-Origin': '*',
+      });
+
+      // Spawn ffmpeg directly
+      const ffmpegArgs = [
+        '-i',
+        decodedPath,
+        '-f',
+        'mp4',
+        '-vcodec',
+        'libx264',
+        '-acodec',
+        'aac',
+        '-movflags',
+        'frag_keyframe+empty_moov',
+        '-preset',
+        'ultrafast',
+        '-crf',
+        '23',
+        '-pix_fmt',
+        'yuv420p',
+      ];
+
+      // Add seeking if requested
+      if (startTime) {
+        ffmpegArgs.unshift('-ss', startTime);
+      }
+
+      ffmpegArgs.push('pipe:1'); // Output to stdout
+
+      const ffmpegProcess = spawn(ffmpegPath, ffmpegArgs);
+
+      ffmpegProcess.stdout.pipe(res);
+
+      ffmpegProcess.stderr.on('data', () => {
+        // Optional: Log stderr for debugging
+      });
+
+      ffmpegProcess.on('error', (err: Error) => {
+        console.error('[Transcode] Spawn Error:', err);
+        if (!res.headersSent) {
+          res.writeHead(500);
+          res.end('Transcoding failed');
+        }
+      });
+
+      // Kill ffmpeg if request is aborted
+      req.on('close', () => {
+        ffmpegProcess.kill('SIGKILL');
+      });
+
+      return;
+    }
+
+    // Thumbnail Route
+    if (parsedUrl.pathname === '/video/thumbnail') {
+      const filePath = parsedUrl.searchParams.get('file');
+      if (!filePath) {
+        res.writeHead(400);
+        return res.end('Missing file parameter');
+      }
+      const decodedPath = decodeURIComponent(filePath);
+
+      try {
+        const allowedDirectories = await getMediaDirectories();
+        if (!isPathAllowed(decodedPath, allowedDirectories)) {
+          res.writeHead(403);
+          return res.end('Access denied');
+        }
+      } catch {
+        res.writeHead(500);
+        return res.end('Internal Error');
+      }
+
+      if (!ffmpegPath) {
+        res.writeHead(500);
+        return res.end('FFmpeg binary not found');
+      }
+
+      res.writeHead(200, {
+        'Content-Type': 'image/jpeg',
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'public, max-age=31536000',
+      });
+
+      // Extract a single frame at 10% or 1 second
+      const ffmpegArgs = [
+        '-ss',
+        '1', // Seek to 1 second
+        '-i',
+        decodedPath,
+        '-frames:v',
+        '1',
+        '-f',
+        'image2',
+        '-q:v',
+        '5', // Quality
+        'pipe:1',
+      ];
+
+      const ffmpegProcess = spawn(ffmpegPath, ffmpegArgs);
+
+      ffmpegProcess.stdout.pipe(res);
+
+      ffmpegProcess.stderr.on('data', () => {}); // Ignore stderr
+
+      ffmpegProcess.on('error', (err: Error) => {
+        console.error('[Thumbnail] Spawn Error:', err);
+        if (!res.headersSent) {
+          res.writeHead(500);
+          res.end('Thumbnail generation failed');
+        }
+      });
+
+      return;
+    }
 
     if (!fs.existsSync(normalizedFilePath)) {
       console.error(`[local-server.js] File not found: ${normalizedFilePath}`);

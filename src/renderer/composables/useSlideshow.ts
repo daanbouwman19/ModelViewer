@@ -149,25 +149,31 @@ export function useSlideshow() {
    * Selects the next media item using a weighted random algorithm and displays it.
    */
   const pickAndDisplayNextMediaItem = async () => {
-    if (state.globalMediaPoolForSelection.length === 0) {
-      console.warn('No media files available in the pool.');
-      return;
-    }
-    const filteredPool = filterMedia(state.globalMediaPoolForSelection);
-    state.totalMediaInPool = filteredPool.length;
+    let selectedMedia: MediaFile | null = null;
 
-    if (filteredPool.length === 0) {
-      console.warn('Media pool is empty or no media matches the filter.');
-      return;
-    }
+    // Standard Logic (fallback or default)
+    if (!selectedMedia) {
+      if (state.globalMediaPoolForSelection.length === 0) {
+        console.warn('No media files available in the pool.');
+        return;
+      }
+      const filteredPool = filterMedia(state.globalMediaPoolForSelection);
+      state.totalMediaInPool = filteredPool.length;
 
-    const historySize = Math.min(5, state.displayedMediaFiles.length);
-    const historyPaths = state.displayedMediaFiles
-      .slice(-historySize)
-      .map((item) => item.path);
-    const selectedMedia =
-      selectWeightedRandom(filteredPool, historyPaths) ||
-      filteredPool[Math.floor(Math.random() * filteredPool.length)];
+      if (filteredPool.length === 0) {
+        console.warn('Media pool is empty or no media matches the filter.');
+        return;
+      }
+
+      const historySize = Math.min(5, state.displayedMediaFiles.length);
+      const historyPaths = state.displayedMediaFiles
+        .slice(-historySize)
+        .map((item) => item.path);
+
+      selectedMedia =
+        selectWeightedRandom(filteredPool, historyPaths) ||
+        filteredPool[Math.floor(Math.random() * filteredPool.length)];
+    }
 
     if (selectedMedia) {
       state.displayedMediaFiles.push(selectedMedia);

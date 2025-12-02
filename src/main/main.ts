@@ -417,6 +417,13 @@ function createWindow() {
 
 // --- App Lifecycle ---
 
+// Enable experimental HEVC support (Windows/Mac)
+app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport');
+// Specific flag for Windows 10/11 HEVC support
+app.commandLine.appendSwitch(
+  'platform-media-player-enable-hevc-support-for-win10',
+);
+
 app.on('ready', async () => {
   try {
     await initDatabase();

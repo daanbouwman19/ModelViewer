@@ -222,25 +222,27 @@ const handleOpenGrid = (album: Album) => {
   display: inline-block;
   width: 20px;
   height: 20px;
-  background: linear-gradient(135deg, #ffeef8 0%, #ffe0f0 100%);
-  border: 2px solid #ffb6c1;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.2);
   border-radius: 6px;
-  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  transition: all 0.3s ease;
 }
 
 .checkbox-container:hover .checkmark {
-  border-color: #ff69b4;
+  border-color: var(--accent-color);
   transform: scale(1.1);
+  box-shadow: 0 0 8px rgba(99, 102, 241, 0.4);
 }
 
 .checkbox-container input[type='checkbox']:checked ~ .checkmark {
-  background: linear-gradient(135deg, #ff69b4 0%, #ff1493 100%);
-  border-color: #ff1493;
+  background: var(--accent-color);
+  border-color: var(--accent-color);
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.5);
 }
 
 .checkmark.indeterminate {
-  background: linear-gradient(135deg, #ff69b4 0%, #ff1493 100%);
-  border-color: #ff1493;
+  background: var(--accent-color);
+  border-color: var(--accent-color);
 }
 
 .checkmark::after {

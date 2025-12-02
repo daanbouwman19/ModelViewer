@@ -1,13 +1,15 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { mount } from '@vue/test-utils';
+import { mount, flushPromises } from '@vue/test-utils';
 import { ref } from 'vue';
 import MediaDisplay from '@/components/MediaDisplay.vue';
 import { useAppState } from '@/composables/useAppState';
 import { useSlideshow } from '@/composables/useSlideshow';
 
 // Mock the composables
-vi.mock('@/composables/useAppState.js');
-vi.mock('@/composables/useSlideshow.js');
+vi.mock('@/composables/useAppState');
+vi.mock('@/composables/useSlideshow');
+
+import type { ElectronAPI, LoadResult } from '@/preload/preload';
 
 describe('MediaDisplay.vue', () => {
   let mockSetFilter;
@@ -44,6 +46,7 @@ describe('MediaDisplay.vue', () => {
       mediaDirectories: ref([]),
       playFullVideo: ref(false),
       pauseTimerOnPlay: ref(false),
+      mainVideoElement: ref(null),
       state: {}, // Also include state for compatibility
       initializeApp: vi.fn(),
       resetState: vi.fn(),
@@ -69,6 +72,17 @@ describe('MediaDisplay.vue', () => {
       filterMedia: vi.fn(),
       selectWeightedRandom: vi.fn(),
     });
+
+    // Mock window.electronAPI
+    global.window = {
+      electronAPI: {
+        loadFileAsDataURL: vi
+          .fn()
+          .mockResolvedValue({ type: 'data-url', url: '' } as LoadResult),
+        getServerPort: vi.fn().mockResolvedValue(0),
+        openInVlc: vi.fn().mockResolvedValue({ success: true }),
+      } as unknown as ElectronAPI,
+    } as unknown as Window & typeof globalThis;
   });
 
   it('should render placeholder when no media', () => {
@@ -97,6 +111,8 @@ describe('MediaDisplay.vue', () => {
       reapplyFilter: mockReapplyFilter,
       navigateMedia: vi.fn(),
       toggleSlideshowTimer: vi.fn(),
+      pauseSlideshowTimer: vi.fn(),
+      resumeSlideshowTimer: vi.fn(),
       toggleAlbumSelection: vi.fn(),
       startSlideshow: vi.fn(),
       startIndividualAlbumSlideshow: vi.fn(),
@@ -106,8 +122,13 @@ describe('MediaDisplay.vue', () => {
     });
 
     const wrapper = mount(MediaDisplay);
-    const button = wrapper.find('.filter-button');
-    await button.trigger('click');
+    const buttons = wrapper.findAll('.filter-button');
+    if (buttons.length > 1) {
+      // Click the second button ('Images')
+      // Use native click as trigger('click') was failing
+      (buttons[1].element as HTMLElement).click();
+    }
+    await flushPromises();
     expect(mockReapplyFilter).toHaveBeenCalled();
   });
 
@@ -132,6 +153,8 @@ describe('MediaDisplay.vue', () => {
     global.window = {
       electronAPI: {
         loadFileAsDataURL: vi.fn(() => new Promise(() => {})), // Never resolves
+        getServerPort: vi.fn().mockResolvedValue(0),
+        openInVlc: vi.fn().mockResolvedValue({ success: true }),
       },
     };
 
@@ -146,10 +169,15 @@ describe('MediaDisplay.vue', () => {
     global.window = {
       electronAPI: {
         loadFileAsDataURL: vi.fn(() =>
-          Promise.resolve({ type: 'error', message: 'File not found' }),
+          Promise.resolve({
+            type: 'error',
+            message: 'File not found',
+          } as LoadResult),
         ),
-      },
-    };
+        getServerPort: vi.fn().mockResolvedValue(0),
+        openInVlc: vi.fn().mockResolvedValue({ success: true }),
+      } as unknown as ElectronAPI,
+    } as unknown as Window & typeof globalThis;
 
     mockRefs.currentMediaItem.value = { name: 'test.jpg', path: '/test.jpg' };
     const wrapper = mount(MediaDisplay);
@@ -190,10 +218,12 @@ describe('MediaDisplay.vue', () => {
           Promise.resolve({
             type: 'http-url',
             url: 'http://localhost/test.mp4',
-          }),
+          } as LoadResult),
         ),
-      },
-    };
+        getServerPort: vi.fn().mockResolvedValue(0),
+        openInVlc: vi.fn().mockResolvedValue({ success: true }),
+      } as unknown as ElectronAPI,
+    } as unknown as Window & typeof globalThis;
 
     mockRefs.currentMediaItem.value = {
       name: 'test.mp4',
@@ -246,6 +276,8 @@ describe('MediaDisplay.vue', () => {
         loadFileAsDataURL: vi.fn(() =>
           Promise.reject(new Error('Network error')),
         ),
+        getServerPort: vi.fn().mockResolvedValue(0),
+        openInVlc: vi.fn().mockResolvedValue({ success: true }),
       },
     };
 
@@ -264,10 +296,10 @@ describe('MediaDisplay.vue', () => {
           Promise.resolve({
             type: 'data-url',
             url: 'data:image/png;base64,abc',
-          }),
+          } as LoadResult),
         ),
-      },
-    };
+      } as unknown as ElectronAPI,
+    } as unknown as Window & typeof globalThis;
 
     mockRefs.currentMediaItem.value = {
       name: 'test.jpg',

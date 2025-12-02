@@ -386,6 +386,45 @@ async function setDirectoryActiveState(
   }
 }
 
+async function getMediaByColor(
+  r: number,
+  g: number,
+  b: number,
+  threshold: number = 50,
+): Promise<string[]> {
+  try {
+    return await sendMessageToWorker<string[]>('getMediaByColor', {
+      r,
+      g,
+      b,
+      threshold,
+    });
+  } catch (error) {
+    console.error('[database.js] Error getting media by color:', error);
+    return [];
+  }
+}
+
+async function getFilesMissingColor(): Promise<string[]> {
+  try {
+    return await sendMessageToWorker<string[]>('getFilesMissingColor');
+  } catch (error) {
+    console.error('[database.js] Error getting files missing color:', error);
+    return [];
+  }
+}
+
+async function setFileColor(
+  filePath: string,
+  color: { hex: string; r: number; g: number; b: number },
+): Promise<void> {
+  try {
+    await sendMessageToWorker<void>('setFileColor', { filePath, color });
+  } catch (error) {
+    console.error('[database.js] Error setting file color:', error);
+  }
+}
+
 export {
   initDatabase,
   recordMediaView,
@@ -398,4 +437,7 @@ export {
   getMediaDirectories,
   removeMediaDirectory,
   setDirectoryActiveState,
+  getMediaByColor,
+  getFilesMissingColor,
+  setFileColor,
 };

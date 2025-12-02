@@ -24,6 +24,8 @@ vi.mock('@/composables/useSlideshow', () => ({
 // Mock window.electronAPI
 global.window.electronAPI = {
   loadFileAsDataURL: vi.fn(),
+  getServerPort: vi.fn().mockResolvedValue(0),
+  openInVlc: vi.fn().mockResolvedValue({ success: true }),
 };
 
 describe('Progress Bars', () => {
@@ -78,7 +80,9 @@ describe('Progress Bars', () => {
       supportedExtensions: ref({ images: ['.jpg'], videos: ['.mp4'] }),
       playFullVideo: ref(false),
       pauseTimerOnPlay: ref(false),
+      pauseTimerOnPlay: ref(false),
       isTimerRunning: ref(false),
+      mainVideoElement: ref(null),
     });
 
     const wrapper = mount(MediaDisplay);

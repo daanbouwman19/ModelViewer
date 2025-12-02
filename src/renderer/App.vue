@@ -1,18 +1,43 @@
 <template>
-  <div class="bg-gray-900 text-white min-h-screen flex flex-col">
-    <header class="bg-gray-800 shadow-md p-4">
-      <h1 class="text-2xl font-semibold text-center">Media Slideshow Viewer</h1>
-    </header>
+  <div class="app-container text-white min-h-screen flex flex-col relative">
+    <AmbientBackground />
 
-    <main class="grow flex flex-col md:flex-row p-4 gap-4 overflow-hidden">
-      <AlbumsList />
-      <MediaGrid v-if="viewMode === 'grid'" class="grow" />
-      <MediaDisplay v-else class="grow" />
+    <!-- Main Content Layer -->
+    <main
+      class="relative z-10 grow flex flex-col md:flex-row p-6 gap-6 overflow-hidden h-screen transition-all duration-300 ease-in-out"
+    >
+      <!-- Sidebar (Collapsible/Floating) -->
+      <transition name="slide-fade">
+        <AlbumsList v-if="showSidebar" class="shrink-0 w-full md:w-80 h-full" />
+      </transition>
+
+      <!-- Main Media Area -->
+      <div class="grow flex flex-col h-full relative">
+        <!-- Top Bar (Toggle Sidebar & Title) -->
+        <div
+          class="flex justify-between items-center mb-4 glass-panel rounded-lg p-3"
+        >
+          <button class="icon-button" @click="showSidebar = !showSidebar">
+            <span v-if="showSidebar">← Hide Albums</span>
+            <span v-else>→ Show Albums</span>
+          </button>
+          <h1
+            class="text-xl font-bold tracking-wider text-accent drop-shadow-md font-header"
+          >
+            Media Slideshow
+          </h1>
+          <div class="w-20"></div>
+          <!-- Spacer for balance -->
+        </div>
+
+        <!-- Media Display -->
+        <MediaGrid
+          v-if="viewMode === 'grid'"
+          class="grow glass-panel rounded-xl overflow-hidden"
+        />
+        <MediaDisplay v-else class="grow rounded-xl overflow-hidden" />
+      </div>
     </main>
-
-    <footer class="bg-gray-800 text-center p-3 text-sm text-gray-500">
-      Album Slideshow App | Use ← → for navigation, Space to Play/Pause timer.
-    </footer>
 
     <SourcesModal />
     <LoadingMask v-if="isScanning" />
@@ -25,7 +50,8 @@
  * It sets up the overall layout, initializes the application state,
  * and handles global keyboard shortcuts for media navigation.
  */
-import { onMounted, onBeforeUnmount } from 'vue';
+import { onMounted, onBeforeUnmount, ref } from 'vue';
+import AmbientBackground from './components/AmbientBackground.vue';
 import AlbumsList from './components/AlbumsList.vue';
 import MediaDisplay from './components/MediaDisplay.vue';
 import MediaGrid from './components/MediaGrid.vue';
@@ -36,6 +62,8 @@ import { useSlideshow } from './composables/useSlideshow';
 
 const { initializeApp, isScanning, viewMode } = useAppState();
 const { navigateMedia, toggleSlideshowTimer } = useSlideshow();
+
+const showSidebar = ref(true);
 
 /**
  * Handles global keydown events for slideshow control.
@@ -78,4 +106,42 @@ onBeforeUnmount(() => {
 });
 </script>
 
-<style></style>
+<style scoped>
+.app-container {
+  /* Background handled by AmbientBackground */
+  background-color: transparent;
+}
+
+.text-accent {
+  color: var(--accent-color);
+}
+
+.font-header {
+  font-family: var(--header-font);
+}
+
+.icon-button {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+
+.icon-button:hover {
+  color: var(--accent-color);
+}
+
+/* Transitions */
+.slide-fade-enter-active,
+.slide-fade-leave-active {
+  transition: all 0.3s ease-out;
+}
+
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  transform: translateX(-20px);
+  opacity: 0;
+}
+</style>
