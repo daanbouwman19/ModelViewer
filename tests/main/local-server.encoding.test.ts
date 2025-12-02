@@ -1,6 +1,10 @@
 import { describe, it, expect, afterEach, beforeEach, vi, Mock } from 'vitest';
 import http from 'http';
-import { startLocalServer, stopLocalServer, getServerPort } from '../../src/main/local-server';
+import {
+  startLocalServer,
+  stopLocalServer,
+  getServerPort,
+} from '../../src/main/local-server';
 import { getMediaDirectories } from '../../src/main/database';
 import EventEmitter from 'events';
 
@@ -64,12 +68,15 @@ describe('Local Server Encoding Bug', () => {
     const encodedFileName = encodeURIComponent(badFileName);
 
     await new Promise<void>((resolve, reject) => {
-      const req = http.get(`http://localhost:${port}/video/metadata?file=${encodedFileName}`, (res) => {
-        // If we receive a response, the server didn't crash.
-        // We expect a valid status code.
-        expect(res.statusCode).toBeDefined();
-        resolve();
-      });
+      const req = http.get(
+        `http://localhost:${port}/video/metadata?file=${encodedFileName}`,
+        (res) => {
+          // If we receive a response, the server didn't crash.
+          // We expect a valid status code.
+          expect(res.statusCode).toBeDefined();
+          resolve();
+        },
+      );
 
       req.on('error', (err) => {
         // If the server crashes, the client request usually errors with ECONNRESET or similar.
