@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { ipcMain } from 'electron';
 import fs from 'fs';
 
@@ -24,16 +24,18 @@ vi.mock('../../src/main/local-server.js', () => ({
 }));
 
 describe('main.js IPC Handlers', () => {
-  let handler;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let handler: (event: any, ...args: any[]) => any;
 
   beforeEach(async () => {
     vi.clearAllMocks();
     // Import main.js to register the handlers
     await import('../../src/main/main.js');
     // Find the handler for 'load-file-as-data-url'
-    const handleMock = ipcMain.handle;
+    const handleMock = ipcMain.handle as unknown as Mock;
     const call = handleMock.mock.calls.find(
-      (c) => c[0] === 'load-file-as-data-url',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (c: any[]) => c[0] === 'load-file-as-data-url',
     );
     if (call) {
       handler = call[1];
@@ -42,7 +44,7 @@ describe('main.js IPC Handlers', () => {
 
   it('should return a descriptive error for a non-existent file', () => {
     const nonExistentPath = '/path/to/nothing.txt';
-    fs.existsSync.mockReturnValue(false);
+    (fs.existsSync as unknown as Mock).mockReturnValue(false);
 
     const result = handler(null, nonExistentPath);
 

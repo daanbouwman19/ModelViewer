@@ -131,12 +131,14 @@ describe('Database', () => {
           textures: [
             { name: 'texture1.png', path: '/test/album1/texture1.png' },
           ],
+          children: [],
         },
         {
           name: 'album2',
           textures: [
             { name: 'texture2.jpg', path: '/test/album2/texture2.jpg' },
           ],
+          children: [],
         },
       ];
 
@@ -144,8 +146,8 @@ describe('Database', () => {
 
       const cached = await getCachedAlbums();
       expect(cached).toHaveLength(2);
-      expect(cached[0].name).toBe('album1');
-      expect(cached[1].name).toBe('album2');
+      expect(cached![0].name).toBe('album1');
+      expect(cached![1].name).toBe('album2');
     });
 
     it('should overwrite existing cache', async () => {
@@ -153,6 +155,7 @@ describe('Database', () => {
         {
           name: 'album1',
           textures: [{ name: 'tex1.png', path: '/test/tex1.png' }],
+          children: [],
         },
       ];
 
@@ -160,6 +163,7 @@ describe('Database', () => {
         {
           name: 'album2',
           textures: [{ name: 'tex2.png', path: '/test/tex2.png' }],
+          children: [],
         },
       ];
 
@@ -168,7 +172,7 @@ describe('Database', () => {
 
       const cached = await getCachedAlbums();
       expect(cached).toHaveLength(1);
-      expect(cached[0].name).toBe('album2');
+      expect(cached![0].name).toBe('album2');
     });
 
     it('should handle empty albums array', async () => {
@@ -183,18 +187,18 @@ describe('Database', () => {
         {
           name: 'test-album',
           textures: [
-            { name: 'texture1.png', path: '/test/texture1.png' },
             { name: 'texture2.jpg', path: '/test/texture2.jpg' },
           ],
+          children: [],
         },
       ];
 
       await cacheAlbums(albums);
 
       const cached = await getCachedAlbums();
-      expect(cached[0].textures).toHaveLength(2);
-      expect(cached[0].textures[0].name).toBe('texture1.png');
-      expect(cached[0].textures[0].path).toBe('/test/texture1.png');
+      expect(cached![0].textures).toHaveLength(2);
+      expect(cached![0].textures[0].name).toBe('texture1.png');
+      expect(cached![0].textures[0].path).toBe('/test/texture1.png');
     });
   });
 
@@ -209,6 +213,7 @@ describe('Database', () => {
         {
           name: 'cached-album',
           textures: [{ name: 'tex.png', path: '/test/tex.png' }],
+          children: [],
         },
       ];
 
@@ -216,7 +221,7 @@ describe('Database', () => {
       const cached = await getCachedAlbums();
 
       expect(cached).toHaveLength(1);
-      expect(cached[0].name).toBe('cached-album');
+      expect(cached![0].name).toBe('cached-album');
     });
   });
 
@@ -324,9 +329,12 @@ describe('Database', () => {
 });
 
 describe('database resilience', () => {
-  let MockWorker;
-  let lastWorkerInstance;
-  let terminateSpy;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let MockWorker: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let lastWorkerInstance: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let terminateSpy: any;
 
   beforeEach(() => {
     vi.resetModules(); // This is key to re-evaluate mocks
@@ -335,16 +343,31 @@ describe('database resilience', () => {
     terminateSpy = vi.fn().mockResolvedValue(true);
     lastWorkerInstance = null; // reset instance tracker
 
-    MockWorker = vi.fn().mockImplementation(function (...args) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    MockWorker = vi.fn().mockImplementation(function (...args: any[]) {
       const instance = new (class WorkerMock {
-        constructor() {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        on: any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onMessage: any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onExit: any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        postMessage: any;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        terminate: any;
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
+        constructor(..._args: any[]) {
           // eslint-disable-next-line @typescript-eslint/no-this-alias
           lastWorkerInstance = this;
-          this.on = vi.fn((event, cb) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          this.on = vi.fn((event: any, cb: any) => {
             if (event === 'message') this.onMessage = cb;
             if (event === 'exit') this.onExit = cb;
           });
-          this.postMessage = vi.fn((msg) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          this.postMessage = vi.fn((msg: any) => {
             if (this.onMessage) {
               this.onMessage({
                 id: msg.id,

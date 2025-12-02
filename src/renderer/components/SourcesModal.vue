@@ -32,7 +32,12 @@
                 type="checkbox"
                 :checked="dir.isActive"
                 class="source-checkbox"
-                @change="handleToggleActive(dir.path, ($event.target as HTMLInputElement).checked)"
+                @change="
+                  handleToggleActive(
+                    dir.path,
+                    ($event.target as HTMLInputElement).checked,
+                  )
+                "
               />
               <span class="ml-2 flex-grow source-path">{{ dir.path }}</span>
               <button

@@ -17,16 +17,27 @@ export interface LoadResult {
 export interface ElectronAPI {
   loadFileAsDataURL: (filePath: string) => Promise<LoadResult>;
   recordMediaView: (filePath: string) => Promise<void>;
-  getMediaViewCounts: (filePaths: string[]) => Promise<{ [filePath: string]: number }>;
+  getMediaViewCounts: (
+    filePaths: string[],
+  ) => Promise<{ [filePath: string]: number }>;
   getAlbumsWithViewCounts: () => Promise<Album[]>;
   reindexMediaLibrary: () => Promise<Album[]>;
   addMediaDirectory: () => Promise<string | null>;
   removeMediaDirectory: (directoryPath: string) => Promise<void>;
-  setDirectoryActiveState: (directoryPath: string, isActive: boolean) => Promise<void>;
+  setDirectoryActiveState: (
+    directoryPath: string,
+    isActive: boolean,
+  ) => Promise<void>;
   getMediaDirectories: () => Promise<{ path: string; isActive: boolean }[]>;
-  getSupportedExtensions: () => Promise<{ images: string[]; videos: string[]; all: string[] }>;
+  getSupportedExtensions: () => Promise<{
+    images: string[];
+    videos: string[];
+    all: string[];
+  }>;
   getServerPort: () => Promise<number>;
-  openInVlc: (filePath: string) => Promise<{ success: boolean; message?: string }>;
+  openInVlc: (
+    filePath: string,
+  ) => Promise<{ success: boolean; message?: string }>;
 }
 
 // Expose a controlled API to the renderer process via `window.electronAPI`.

@@ -42,10 +42,10 @@ function generateFileId(filePath: string): string {
 
 interface WorkerResult {
   success: boolean;
-  data?: any;
+  data?: unknown;
   error?: string;
 }
-  
+
 /**
  * Initializes the database connection in the worker thread.
  * @param dbPath - The path to the SQLite database file.
@@ -119,10 +119,10 @@ function initDatabase(dbPath: string): WorkerResult {
 
     console.log('[worker] SQLite database initialized at:', dbPath);
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[worker] Failed to initialize database:', error);
     db = null; // Ensure db is null on failure
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
@@ -145,9 +145,9 @@ function recordMediaView(filePath: string): WorkerResult {
 
     transaction();
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`[worker] Error recording view for ${filePath}:`, error);
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
@@ -168,7 +168,9 @@ function getMediaViewCounts(filePaths: string[]): WorkerResult {
     const transaction = db.transaction((paths: string[]) => {
       paths.forEach((filePath) => {
         const fileId = generateFileId(filePath);
-        const row = statements.getMediaView.get(fileId) as { view_count: number } | undefined;
+        const row = statements.getMediaView.get(fileId) as
+          | { view_count: number }
+          | undefined;
         viewCountsMap[filePath] = row ? row.view_count : 0;
       });
     });
@@ -176,9 +178,9 @@ function getMediaViewCounts(filePaths: string[]): WorkerResult {
     transaction(filePaths);
 
     return { success: true, data: viewCountsMap };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[worker] Error fetching view counts:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
@@ -188,7 +190,7 @@ function getMediaViewCounts(filePaths: string[]): WorkerResult {
  * @param albums - The album data to cache.
  * @returns The result of the operation.
  */
-function cacheAlbums(cacheKey: string, albums: any): WorkerResult {
+function cacheAlbums(cacheKey: string, albums: unknown): WorkerResult {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
     statements.cacheAlbum.run(
@@ -197,9 +199,9 @@ function cacheAlbums(cacheKey: string, albums: any): WorkerResult {
       new Date().toISOString(),
     );
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[worker] Error caching albums:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
@@ -211,12 +213,14 @@ function cacheAlbums(cacheKey: string, albums: any): WorkerResult {
 function getCachedAlbums(cacheKey: string): WorkerResult {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
-    const row = statements.getCachedAlbum.get(cacheKey) as { cache_value: string } | undefined;
+    const row = statements.getCachedAlbum.get(cacheKey) as
+      | { cache_value: string }
+      | undefined;
     const data = row && row.cache_value ? JSON.parse(row.cache_value) : null;
     return { success: true, data };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[worker] Error reading cached albums:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
@@ -235,9 +239,9 @@ function closeDatabase(): WorkerResult {
     }
     console.log('[worker] Database connection closed.');
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[worker] Error closing database:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
@@ -251,12 +255,12 @@ function addMediaDirectory(directoryPath: string): WorkerResult {
   try {
     statements.addMediaDirectory.run(directoryPath);
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(
       `[worker] Error adding media directory ${directoryPath}:`,
       error,
     );
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
@@ -267,15 +271,18 @@ function addMediaDirectory(directoryPath: string): WorkerResult {
 function getMediaDirectories(): WorkerResult {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
-    const rows = statements.getMediaDirectories.all() as { path: string; is_active: number }[];
+    const rows = statements.getMediaDirectories.all() as {
+      path: string;
+      is_active: number;
+    }[];
     const directories = rows.map((row) => ({
       path: row.path,
       isActive: !!row.is_active,
     }));
     return { success: true, data: directories };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[worker] Error fetching media directories:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
@@ -289,12 +296,12 @@ function removeMediaDirectory(directoryPath: string): WorkerResult {
   try {
     statements.removeMediaDirectory.run(directoryPath);
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(
       `[worker] Error removing media directory ${directoryPath}:`,
       error,
     );
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
@@ -304,17 +311,20 @@ function removeMediaDirectory(directoryPath: string): WorkerResult {
  * @param isActive - The new active state.
  * @returns The result of the operation.
  */
-function setDirectoryActiveState(directoryPath: string, isActive: boolean): WorkerResult {
+function setDirectoryActiveState(
+  directoryPath: string,
+  isActive: boolean,
+): WorkerResult {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
     statements.setDirectoryActiveState.run(isActive ? 1 : 0, directoryPath);
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(
       `[worker] Error updating active state for ${directoryPath}:`,
       error,
     );
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
@@ -365,12 +375,12 @@ if (parentPort) {
         default:
           result = { success: false, error: `Unknown message type: ${type}` };
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(
         `[worker] Error processing message id=${id}, type=${type}:`,
         error,
       );
-      result = { success: false, error: error.message };
+      result = { success: false, error: (error as Error).message };
     }
 
     parentPort!.postMessage({ id, result });

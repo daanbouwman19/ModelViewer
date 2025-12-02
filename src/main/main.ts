@@ -4,7 +4,13 @@
  * backend logic and communication with the renderer process via IPC.
  * This includes file system operations, database management, and running a local server.
  */
-import { app, BrowserWindow, ipcMain, dialog, IpcMainInvokeEvent } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  dialog,
+  IpcMainInvokeEvent,
+} from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { spawn } from 'child_process';
@@ -54,74 +60,87 @@ let mainWindow: BrowserWindow | null = null;
  * for large video files.
  * @returns An object containing the result.
  */
-ipcMain.handle('load-file-as-data-url', (_event: IpcMainInvokeEvent, filePath: string, options: { preferHttp?: boolean } = {}) => {
-  try {
-    if (!filePath || !fs.existsSync(filePath)) {
-      return { type: 'error', message: `File does not exist: ${filePath}` };
-    }
+ipcMain.handle(
+  'load-file-as-data-url',
+  (
+    _event: IpcMainInvokeEvent,
+    filePath: string,
+    options: { preferHttp?: boolean } = {},
+  ) => {
+    try {
+      if (!filePath || !fs.existsSync(filePath)) {
+        return { type: 'error', message: `File does not exist: ${filePath}` };
+      }
 
-    const currentServerPort = getServerPort();
+      const currentServerPort = getServerPort();
 
-    // If preferHttp is true, always return an HTTP URL (if the server is running)
-    if (options.preferHttp && currentServerPort > 0) {
-      const pathForUrl = filePath.replace(/\\/g, '/');
-      return {
-        type: 'http-url',
-        url: `http://localhost:${currentServerPort}/${pathForUrl}`,
-      };
-    }
-
-    const stats = fs.statSync(filePath);
-    const isVideo = SUPPORTED_VIDEO_EXTENSIONS.includes(
-      path.extname(filePath).toLowerCase(),
-    );
-
-    if (isVideo && stats.size > MAX_DATA_URL_SIZE_MB * 1024 * 1024) {
-      if (currentServerPort === 0) {
+      // If preferHttp is true, always return an HTTP URL (if the server is running)
+      if (options.preferHttp && currentServerPort > 0) {
+        const pathForUrl = filePath.replace(/\\/g, '/');
         return {
-          type: 'error',
-          message: 'Local server not ready to stream large video.',
+          type: 'http-url',
+          url: `http://localhost:${currentServerPort}/${pathForUrl}`,
         };
       }
-      const pathForUrl = filePath.replace(/\\/g, '/');
+
+      const stats = fs.statSync(filePath);
+      const isVideo = SUPPORTED_VIDEO_EXTENSIONS.includes(
+        path.extname(filePath).toLowerCase(),
+      );
+
+      if (isVideo && stats.size > MAX_DATA_URL_SIZE_MB * 1024 * 1024) {
+        if (currentServerPort === 0) {
+          return {
+            type: 'error',
+            message: 'Local server not ready to stream large video.',
+          };
+        }
+        const pathForUrl = filePath.replace(/\\/g, '/');
+        return {
+          type: 'http-url',
+          url: `http://localhost:${currentServerPort}/${pathForUrl}`,
+        };
+      }
+
+      const mimeType = resolveMimeType(filePath);
+      const fileBuffer = fs.readFileSync(filePath);
+      const dataURL = `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
+      return { type: 'data-url', url: dataURL };
+    } catch (error: unknown) {
+      console.error(
+        `[main.js] Error processing ${filePath} in load-file-as-data-url:`,
+        error,
+      );
       return {
-        type: 'http-url',
-        url: `http://localhost:${currentServerPort}/${pathForUrl}`,
+        type: 'error',
+        message: (error as Error).message || 'Unknown error processing file.',
       };
     }
-
-    const mimeType = resolveMimeType(filePath);
-    const fileBuffer = fs.readFileSync(filePath);
-    const dataURL = `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
-    return { type: 'data-url', url: dataURL };
-  } catch (error: any) {
-    console.error(
-      `[main.js] Error processing ${filePath} in load-file-as-data-url:`,
-      error,
-    );
-    return {
-      type: 'error',
-      message: error.message || 'Unknown error processing file.',
-    };
-  }
-});
+  },
+);
 
 /**
  * Handles the 'record-media-view' IPC call.
  * @param filePath - The path of the media file to record a view for.
  */
-ipcMain.handle('record-media-view', async (_event: IpcMainInvokeEvent, filePath: string) => {
-  await recordMediaView(filePath);
-});
+ipcMain.handle(
+  'record-media-view',
+  async (_event: IpcMainInvokeEvent, filePath: string) => {
+    await recordMediaView(filePath);
+  },
+);
 
 /**
  * Handles the 'get-media-view-counts' IPC call.
  * @param filePaths - An array of file paths.
  * @returns A map of file paths to their view counts.
  */
-ipcMain.handle('get-media-view-counts', async (_event: IpcMainInvokeEvent, filePaths: string[]) => {
-  return getMediaViewCounts(filePaths);
-});
+ipcMain.handle(
+  'get-media-view-counts',
+  async (_event: IpcMainInvokeEvent, filePaths: string[]) => {
+    return getMediaViewCounts(filePaths);
+  },
+);
 
 /**
  * Scans active media directories for albums, caches the result in the database,
@@ -241,9 +260,12 @@ ipcMain.handle('reindex-media-library', async () => {
  * Handles the 'remove-media-directory' IPC call.
  * @param directoryPath - The path of the directory to remove.
  */
-ipcMain.handle('remove-media-directory', async (_event: IpcMainInvokeEvent, directoryPath: string) => {
-  await removeMediaDirectory(directoryPath);
-});
+ipcMain.handle(
+  'remove-media-directory',
+  async (_event: IpcMainInvokeEvent, directoryPath: string) => {
+    await removeMediaDirectory(directoryPath);
+  },
+);
 
 /**
  * Handles the 'set-directory-active-state' IPC call.
@@ -251,7 +273,10 @@ ipcMain.handle('remove-media-directory', async (_event: IpcMainInvokeEvent, dire
  */
 ipcMain.handle(
   'set-directory-active-state',
-  async (_event: IpcMainInvokeEvent, { directoryPath, isActive }: { directoryPath: string; isActive: boolean }) => {
+  async (
+    _event: IpcMainInvokeEvent,
+    { directoryPath, isActive }: { directoryPath: string; isActive: boolean },
+  ) => {
     await setDirectoryActiveState(directoryPath, isActive);
   },
 );
@@ -290,63 +315,66 @@ ipcMain.handle('get-server-port', () => {
  * @param filePath - The path of the file to open.
  * @returns The result of the operation.
  */
-ipcMain.handle('open-in-vlc', async (_event: IpcMainInvokeEvent, filePath: string) => {
-  const platform = process.platform;
-  let vlcPath: string | null = null;
+ipcMain.handle(
+  'open-in-vlc',
+  async (_event: IpcMainInvokeEvent, filePath: string) => {
+    const platform = process.platform;
+    let vlcPath: string | null = null;
 
-  if (platform === 'win32') {
-    const commonPaths = [
-      'C:\\Program Files\\VideoLAN\\VLC\\vlc.exe',
-      'C:\\Program Files (x86)\\VideoLAN\\VLC\\vlc.exe',
-    ];
-    for (const p of commonPaths) {
-      if (fs.existsSync(p)) {
-        vlcPath = p;
-        break;
+    if (platform === 'win32') {
+      const commonPaths = [
+        'C:\\Program Files\\VideoLAN\\VLC\\vlc.exe',
+        'C:\\Program Files (x86)\\VideoLAN\\VLC\\vlc.exe',
+      ];
+      for (const p of commonPaths) {
+        if (fs.existsSync(p)) {
+          vlcPath = p;
+          break;
+        }
       }
-    }
-  } else if (platform === 'darwin') {
-    const macPath = '/Applications/VLC.app/Contents/MacOS/VLC';
-    if (fs.existsSync(macPath)) {
-      vlcPath = macPath;
+    } else if (platform === 'darwin') {
+      const macPath = '/Applications/VLC.app/Contents/MacOS/VLC';
+      if (fs.existsSync(macPath)) {
+        vlcPath = macPath;
+      } else {
+        // Fallback to trying 'vlc' in PATH if the standard app path fails
+        vlcPath = 'vlc';
+      }
     } else {
-      // Fallback to trying 'vlc' in PATH if the standard app path fails
+      // On Linux, assume 'vlc' is in the PATH
       vlcPath = 'vlc';
     }
-  } else {
-    // On Linux, assume 'vlc' is in the PATH
-    vlcPath = 'vlc';
-  }
 
-  if (!vlcPath) {
-    return {
-      success: false,
-      message:
-        'VLC Media Player not found. Please ensure it is installed in the default location.',
-    };
-  }
+    if (!vlcPath) {
+      return {
+        success: false,
+        message:
+          'VLC Media Player not found. Please ensure it is installed in the default location.',
+      };
+    }
 
-  try {
-    const child = spawn(vlcPath, [filePath], {
-      detached: true,
-      stdio: 'ignore',
-    });
+    try {
+      const child = spawn(vlcPath, [filePath], {
+        detached: true,
+        stdio: 'ignore',
+      });
 
-    // Listen for spawn errors (e.g. ENOENT if 'vlc' is not in PATH)
-    child.on('error', (err) => {
-      console.error('[main.js] Error launching VLC (async):', err);
-    });
+      // Listen for spawn errors (e.g. ENOENT if 'vlc' is not in PATH)
+      child.on('error', (err) => {
+        console.error('[main.js] Error launching VLC (async):', err);
+      });
 
-    child.unref();
-    return { success: true };
-  } catch (error: any) {
-    console.error('[main.js] Error launching VLC:', error);
-    return {
-      success: false,
-      message: `Failed to launch VLC: ${error.message}`,
-    };
-  }
-});
+      child.unref();
+      return { success: true };
+    } catch (error: unknown) {
+      console.error('[main.js] Error launching VLC:', error);
+      return {
+        success: false,
+        message: `Failed to launch VLC: ${(error as Error).message}`,
+      };
+    }
+  },
+);
 
 // --- Window Creation ---
 

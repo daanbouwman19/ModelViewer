@@ -59,13 +59,16 @@ import { countTextures, getAlbumAndChildrenNames } from '../utils/albumUtils';
 import { useSlideshow } from '../composables/useSlideshow';
 import type { Album } from '../../main/media-scanner';
 
-const props = withDefaults(defineProps<{
-  album: Album;
-  depth?: number;
-  selection: { [key: string]: boolean };
-}>(), {
-  depth: 0,
-});
+const props = withDefaults(
+  defineProps<{
+    album: Album;
+    depth?: number;
+    selection: { [key: string]: boolean };
+  }>(),
+  {
+    depth: 0,
+  },
+);
 
 const emit = defineEmits<{
   (e: 'toggleSelection', album: Album): void;

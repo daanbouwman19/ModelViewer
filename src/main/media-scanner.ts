@@ -29,7 +29,9 @@ export interface Album {
  * @param directoryPath - The absolute path to the directory to scan.
  * @returns A promise that resolves to an Album object if media is found, otherwise null.
  */
-async function scanDirectoryRecursive(directoryPath: string): Promise<Album | null> {
+async function scanDirectoryRecursive(
+  directoryPath: string,
+): Promise<Album | null> {
   try {
     const items = await fs.readdir(directoryPath, { withFileTypes: true });
     const textures: MediaFile[] = [];
@@ -47,7 +49,9 @@ async function scanDirectoryRecursive(directoryPath: string): Promise<Album | nu
       }
     }
 
-    const children = (await Promise.all(childrenPromises)).filter((child): child is Album => child !== null);
+    const children = (await Promise.all(childrenPromises)).filter(
+      (child): child is Album => child !== null,
+    );
 
     if (textures.length > 0 || children.length > 0) {
       return {
@@ -56,11 +60,11 @@ async function scanDirectoryRecursive(directoryPath: string): Promise<Album | nu
         children,
       };
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (process.env.NODE_ENV !== 'test') {
       console.error(
         `[media-scanner.js] Error reading directory ${directoryPath}:`,
-        err.message,
+        (err as Error).message,
       );
     }
   }
@@ -73,7 +77,9 @@ async function scanDirectoryRecursive(directoryPath: string): Promise<Album | nu
  * @param baseMediaDirectories - An array of root directories to scan.
  * @returns A promise that resolves to an array of root album objects. Returns an empty array on failure.
  */
-async function performFullMediaScan(baseMediaDirectories: string[]): Promise<Album[]> {
+async function performFullMediaScan(
+  baseMediaDirectories: string[],
+): Promise<Album[]> {
   if (process.env.NODE_ENV !== 'test') {
     console.log(
       `[media-scanner.js] Starting disk scan in directories:`,
@@ -86,17 +92,19 @@ async function performFullMediaScan(baseMediaDirectories: string[]): Promise<Alb
       try {
         await fs.access(baseDir);
         return scanDirectoryRecursive(baseDir);
-      } catch (dirError: any) {
+      } catch (dirError: unknown) {
         if (process.env.NODE_ENV !== 'test') {
           console.error(
-            `[media-scanner.js] Error accessing or scanning directory ${baseDir}: ${dirError.message}`,
+            `[media-scanner.js] Error accessing or scanning directory ${baseDir}: ${(dirError as Error).message}`,
           );
         }
         return null;
       }
     });
 
-    const result = (await Promise.all(scanPromises)).filter((album): album is Album => album !== null);
+    const result = (await Promise.all(scanPromises)).filter(
+      (album): album is Album => album !== null,
+    );
 
     if (process.env.NODE_ENV !== 'test') {
       console.log(

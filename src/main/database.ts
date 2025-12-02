@@ -26,7 +26,9 @@ let isTerminating = false;
 let messageIdCounter = 0;
 
 interface PendingMessage {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   resolve: (value: any) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   reject: (reason?: any) => void;
   timeoutId: NodeJS.Timeout;
 }
@@ -48,7 +50,10 @@ let operationTimeout = 30000;
  * @returns A promise that resolves with the worker's response data.
  * @throws {Error} If the worker is not initialized or the operation times out.
  */
-function sendMessageToWorker(type: string, payload: any = {}): Promise<any> {
+function sendMessageToWorker<T = unknown>(
+  type: string,
+  payload: unknown = {},
+): Promise<T> {
   return new Promise((resolve, reject) => {
     if (!dbWorker) {
       return reject(new Error('Database worker not initialized'));
@@ -67,9 +72,9 @@ function sendMessageToWorker(type: string, payload: any = {}): Promise<any> {
 
     try {
       dbWorker.postMessage({ id, type, payload });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(
-        `[database.js] Error posting message to worker: ${error.message}`,
+        `[database.js] Error posting message to worker: ${(error as Error).message}`,
       );
       clearTimeout(timeoutId);
       pendingMessages.delete(id);
@@ -103,7 +108,10 @@ async function initDatabase(): Promise<void> {
 
     if (isTest || !import.meta.url.startsWith('file://')) {
       const pathModule = await import('path');
-      workerPath = pathModule.resolve(process.cwd(), 'src/main/database-worker.ts');
+      workerPath = pathModule.resolve(
+        process.cwd(),
+        'src/main/database-worker.ts',
+      );
     } else {
       workerPath = new URL('./database-worker.js', import.meta.url);
     }
@@ -115,8 +123,8 @@ async function initDatabase(): Promise<void> {
     // If running in built app, it should be .js.
     // Let's check if we are in dev or prod.
     if (app.isPackaged) {
-        // In packaged app, it's likely .js in the same directory
-        workerPath = path.join(__dirname, 'database-worker.js');
+      // In packaged app, it's likely .js in the same directory
+      workerPath = path.join(__dirname, 'database-worker.js');
     }
 
     dbWorker = new Worker(workerPath);
@@ -164,7 +172,7 @@ async function initDatabase(): Promise<void> {
       app.getPath('userData'),
       'media_slideshow_stats.sqlite',
     );
-    await sendMessageToWorker('init', { dbPath });
+    await sendMessageToWorker<void>('init', { dbPath });
 
     if (process.env.NODE_ENV !== 'test') {
       console.log('[database.js] Database worker initialized successfully.');
@@ -186,11 +194,11 @@ async function initDatabase(): Promise<void> {
  */
 async function recordMediaView(filePath: string): Promise<void> {
   try {
-    await sendMessageToWorker('recordMediaView', { filePath });
-  } catch (error: any) {
+    await sendMessageToWorker<void>('recordMediaView', { filePath });
+  } catch (error: unknown) {
     if (process.env.NODE_ENV !== 'test') {
       console.warn(
-        `[database.js] Error recording media view: ${error.message}`,
+        `[database.js] Error recording media view: ${(error as Error).message}`,
       );
     }
   }
@@ -201,12 +209,17 @@ async function recordMediaView(filePath: string): Promise<void> {
  * @param filePaths - An array of file paths.
  * @returns A promise that resolves to a map of file paths to their view counts. Returns an empty object on error.
  */
-async function getMediaViewCounts(filePaths: string[]): Promise<{[filePath: string]: number}> {
+async function getMediaViewCounts(
+  filePaths: string[],
+): Promise<{ [filePath: string]: number }> {
   if (!filePaths || filePaths.length === 0) {
     return {};
   }
   try {
-    return await sendMessageToWorker('getMediaViewCounts', { filePaths });
+    return await sendMessageToWorker<{ [filePath: string]: number }>(
+      'getMediaViewCounts',
+      { filePaths },
+    );
   } catch (error) {
     console.error('[database.js] Error fetching view counts:', error);
     return {};
@@ -220,7 +233,7 @@ async function getMediaViewCounts(filePaths: string[]): Promise<{[filePath: stri
  */
 async function cacheAlbums(albums: Album[]): Promise<void> {
   try {
-    await sendMessageToWorker('cacheAlbums', {
+    await sendMessageToWorker<void>('cacheAlbums', {
       cacheKey: FILE_INDEX_CACHE_KEY,
       albums,
     });
@@ -235,13 +248,13 @@ async function cacheAlbums(albums: Album[]): Promise<void> {
  */
 async function getCachedAlbums(): Promise<Album[] | null> {
   try {
-    return await sendMessageToWorker('getCachedAlbums', {
+    return await sendMessageToWorker<Album[] | null>('getCachedAlbums', {
       cacheKey: FILE_INDEX_CACHE_KEY,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (process.env.NODE_ENV !== 'test') {
       console.warn(
-        `[database.js] Error getting cached albums: ${error.message}`,
+        `[database.js] Error getting cached albums: ${(error as Error).message}`,
       );
     }
     return null;
@@ -257,7 +270,7 @@ async function closeDatabase(): Promise<void> {
     isTerminating = true;
     try {
       // Attempt to gracefully shut down the worker
-      await sendMessageToWorker('close');
+      await sendMessageToWorker<void>('close');
     } catch {
       // This is expected if the worker has already crashed, so we can ignore it.
     } finally {
@@ -292,7 +305,7 @@ function setOperationTimeout(timeout: number): void {
  */
 async function addMediaDirectory(directoryPath: string): Promise<void> {
   try {
-    await sendMessageToWorker('addMediaDirectory', { directoryPath });
+    await sendMessageToWorker<void>('addMediaDirectory', { directoryPath });
   } catch (error) {
     console.error(
       `[database.js] Error adding media directory '${directoryPath}':`,
@@ -313,7 +326,9 @@ export interface MediaDirectory {
  */
 async function getMediaDirectories(): Promise<MediaDirectory[]> {
   try {
-    const directories = await sendMessageToWorker('getMediaDirectories');
+    const directories = await sendMessageToWorker<MediaDirectory[]>(
+      'getMediaDirectories',
+    );
     return directories || [];
   } catch (error) {
     console.error('[database.js] Error getting media directories:', error);
@@ -329,7 +344,7 @@ async function getMediaDirectories(): Promise<MediaDirectory[]> {
  */
 async function removeMediaDirectory(directoryPath: string): Promise<void> {
   try {
-    await sendMessageToWorker('removeMediaDirectory', { directoryPath });
+    await sendMessageToWorker<void>('removeMediaDirectory', { directoryPath });
   } catch (error) {
     console.error(
       `[database.js] Error removing media directory '${directoryPath}':`,
@@ -346,9 +361,12 @@ async function removeMediaDirectory(directoryPath: string): Promise<void> {
  * @returns A promise that resolves on success or rejects on failure.
  * @throws {Error} If the database operation fails.
  */
-async function setDirectoryActiveState(directoryPath: string, isActive: boolean): Promise<void> {
+async function setDirectoryActiveState(
+  directoryPath: string,
+  isActive: boolean,
+): Promise<void> {
   try {
-    await sendMessageToWorker('setDirectoryActiveState', {
+    await sendMessageToWorker<void>('setDirectoryActiveState', {
       directoryPath,
       isActive,
     });

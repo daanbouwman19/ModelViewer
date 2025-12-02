@@ -22,7 +22,7 @@
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "typecheck": "vue-tsc --noEmit"
+    "typecheck": "vue-tsc --noEmit && tsc -p tsconfig.node.json --noEmit"
   },
   "author": {
     "name": "Daan Bouwman",

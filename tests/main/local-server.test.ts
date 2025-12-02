@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, vi, beforeEach } from 'vitest';
+import { describe, it, expect, afterEach, vi, beforeEach, Mock } from 'vitest';
 import http from 'http';
 import { EventEmitter } from 'events';
 import fs from 'fs';
@@ -19,12 +19,12 @@ import { getMediaDirectories } from '../../src/main/database';
 
 // Helper to promisify callback-based functions
 const startServer = () =>
-  new Promise((resolve) => {
+  new Promise<void>((resolve) => {
     startLocalServer(() => resolve());
   });
 
 const stopServer = () =>
-  new Promise((resolve) => {
+  new Promise<void>((resolve) => {
     stopLocalServer(() => resolve());
   });
 
@@ -32,7 +32,7 @@ describe('Local Server', () => {
   beforeEach(() => {
     // Mock getMediaDirectories to return the process's current working directory
     // This allows tests to serve files from the test environment
-    getMediaDirectories.mockResolvedValue([{ path: process.cwd() }]);
+    (getMediaDirectories as unknown as Mock).mockResolvedValue([{ path: process.cwd() }]);
   });
 
   afterEach(async () => {
@@ -111,7 +111,8 @@ describe('Local Server', () => {
   });
 
   describe('HTTP Request Handling', () => {
-    let testFilePath;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let testFilePath: any;
 
     afterEach(() => {
       // Clean up test file
@@ -134,7 +135,8 @@ describe('Local Server', () => {
       const port = getServerPort();
 
       // Make HTTP request
-      const response = await new Promise((resolve, reject) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response: any = await new Promise((resolve, reject) => {
         const req = http.get(
           `http://127.0.0.1:${port}/${encodeURIComponent(testFilePath)}`,
           (res) => {
@@ -161,7 +163,8 @@ describe('Local Server', () => {
       await startServer();
       const port = getServerPort();
 
-      const response = await new Promise((resolve, reject) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response: any = await new Promise((resolve, reject) => {
         const req = http.get(
           `http://127.0.0.1:${port}/nonexistent-file.txt`,
           (res) => {
@@ -191,7 +194,8 @@ describe('Local Server', () => {
       const port = getServerPort();
 
       // Make range request
-      const response = await new Promise((resolve, reject) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response: any = await new Promise((resolve, reject) => {
         const options = {
           hostname: '127.0.0.1',
           port,
@@ -227,7 +231,8 @@ describe('Local Server', () => {
       const port = getServerPort();
 
       // Make invalid range request
-      const response = await new Promise((resolve, reject) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response: any = await new Promise((resolve, reject) => {
         const options = {
           hostname: '127.0.0.1',
           port,
@@ -259,7 +264,8 @@ describe('Local Server', () => {
       await startServer();
       const port = getServerPort();
 
-      const response = await new Promise((resolve, reject) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response: any = await new Promise((resolve, reject) => {
         const req = http.get(
           `http://127.0.0.1:${port}/${encodeURIComponent(testFilePath)}`,
           (res) => {
@@ -280,7 +286,8 @@ describe('Local Server', () => {
   });
 
   describe('Security - Path Validation', () => {
-    let testFilePath;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let testFilePath: any;
 
     afterEach(() => {
       // Clean up test file after each test
@@ -292,7 +299,7 @@ describe('Local Server', () => {
     it('should return 403 for files outside allowed directories', async () => {
       // Mock getMediaDirectories to return a specific directory
       const allowedDir = path.join(process.cwd(), 'tests', 'temp');
-      getMediaDirectories.mockResolvedValue([{ path: allowedDir }]);
+      (getMediaDirectories as unknown as Mock).mockResolvedValue([{ path: allowedDir }]);
 
       // Create a file outside the allowed directory
       const outsideDir = path.join(process.cwd(), 'tests', 'forbidden');
@@ -305,7 +312,8 @@ describe('Local Server', () => {
       await startServer();
       const port = getServerPort();
 
-      const response = await new Promise((resolve, reject) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response: any = await new Promise((resolve, reject) => {
         const req = http.get(
           `http://127.0.0.1:${port}/${encodeURIComponent(testFilePath)}`,
           (res) => {
@@ -330,7 +338,7 @@ describe('Local Server', () => {
 
     it('should return 500 when database error occurs during path validation', async () => {
       // Mock getMediaDirectories to throw an error
-      getMediaDirectories.mockRejectedValue(new Error('Database error'));
+      (getMediaDirectories as unknown as Mock).mockRejectedValue(new Error('Database error'));
 
       const testDir = path.join(process.cwd(), 'tests', 'temp');
       if (!fs.existsSync(testDir)) {
@@ -342,7 +350,8 @@ describe('Local Server', () => {
       await startServer();
       const port = getServerPort();
 
-      const response = await new Promise((resolve, reject) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response: any = await new Promise((resolve, reject) => {
         const req = http.get(
           `http://127.0.0.1:${port}/${encodeURIComponent(testFilePath)}`,
           (res) => {
@@ -358,7 +367,7 @@ describe('Local Server', () => {
       expect(response.data).toBe('Internal server error.');
 
       // Restore mock for subsequent tests
-      getMediaDirectories.mockResolvedValue([{ path: process.cwd() }]);
+      (getMediaDirectories as unknown as Mock).mockResolvedValue([{ path: process.cwd() }]);
     });
   });
 
@@ -368,8 +377,10 @@ describe('Local Server', () => {
         .spyOn(console, 'error')
         .mockImplementation(() => {});
 
-      const mockServer = new EventEmitter();
-      mockServer.listen = vi.fn((port, host, cb) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mockServer: any = new EventEmitter();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockServer.listen = vi.fn((_port: any, _host: any, cb: any) => {
         // Defer error emission to ensure the '.on('error',...)' handler is attached.
         process.nextTick(() =>
           mockServer.emit('error', new Error('EADDRINUSE test error')),
@@ -401,7 +412,7 @@ describe('Local Server', () => {
       await startServer();
       let callbackCalled = false;
 
-      await new Promise((resolve) => {
+      await new Promise<void>((resolve) => {
         stopLocalServer(() => {
           callbackCalled = true;
           resolve();
@@ -418,8 +429,10 @@ describe('Local Server', () => {
         .mockImplementation(() => {});
       const closeError = new Error('Server close failed');
 
-      const mockServer = new EventEmitter();
-      mockServer.listen = vi.fn((port, host, cb) => cb && cb());
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mockServer: any = new EventEmitter();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockServer.listen = vi.fn((_port: any, _host: any, cb: any) => cb && cb());
       mockServer.address = () => ({ port: 12345 });
       mockServer.unref = vi.fn();
       mockServer.close = vi.fn((cb) => cb && cb(closeError));

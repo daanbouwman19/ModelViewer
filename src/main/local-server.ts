@@ -60,7 +60,10 @@ function getMimeType(filePath: string): string {
  * @param allowedDirectories - Array of allowed directory objects.
  * @returns True if the file is within an allowed directory, false otherwise.
  */
-function isPathAllowed(filePath: string, allowedDirectories: MediaDirectory[]): boolean {
+function isPathAllowed(
+  filePath: string,
+  allowedDirectories: MediaDirectory[],
+): boolean {
   const normalizedPath = path.resolve(filePath);
   return allowedDirectories.some((dir) => {
     const normalizedDir = path.resolve(dir.path);
@@ -97,9 +100,9 @@ function startLocalServer(onReadyCallback?: () => void): void {
 
   const server = http.createServer(async (req, res) => {
     if (!req.url) {
-        res.writeHead(400);
-        res.end();
-        return;
+      res.writeHead(400);
+      res.end();
+      return;
     }
     const parsedUrl = new URL(
       req.url,
@@ -124,9 +127,9 @@ function startLocalServer(onReadyCallback?: () => void): void {
         res.writeHead(403, { 'Content-Type': 'text/plain' });
         return res.end('Access denied.');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(
-        `[local-server.js] Error validating path: ${error.message}`,
+        `[local-server.js] Error validating path: ${(error as Error).message}`,
       );
       res.writeHead(500, { 'Content-Type': 'text/plain' });
       return res.end('Internal server error.');

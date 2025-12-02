@@ -285,7 +285,7 @@ watch(pauseTimerOnPlay, (newValue) => {
 
 watch(
   currentMediaItem,
-  (newItem, _oldItem) => {
+  (newItem) => {
     loadMediaUrl();
     if (
       newItem &&

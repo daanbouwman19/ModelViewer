@@ -47,7 +47,7 @@
               :src="getMediaUrl(item)"
               muted
               preload="metadata"
-              :poster="getPosterUrl(item)"
+              :poster="getPosterUrl()"
               class="h-full w-full object-cover rounded"
             ></video>
             <div
@@ -105,9 +105,12 @@ const visibleMediaFiles = computed(() => {
  * @param delay - Delay in milliseconds
  * @returns Throttled function
  */
-const throttle = (func: Function, delay: number) => {
+const throttle = <A extends unknown[]>(
+  func: (...args: A) => void,
+  delay: number,
+) => {
   let inThrottle: boolean;
-  return function (this: any, ...args: any[]) {
+  return function (this: unknown, ...args: A) {
     if (!inThrottle) {
       func.apply(this, args);
       inThrottle = true;
@@ -138,7 +141,7 @@ const handleScrollInternal = (e: Event) => {
 const handleScroll = throttle(handleScrollInternal, 150);
 
 // Reset visible count when the underlying data changes (e.g. new album opened)
-watch(allMediaFiles, (_newFiles, _oldFiles) => {
+watch(allMediaFiles, () => {
   visibleCount.value = BATCH_SIZE;
   // Scroll to top when album changes
   const container = document.querySelector('.media-grid-container');
@@ -201,7 +204,7 @@ const getMediaUrl = (item: MediaFile) => {
   return ''; // Placeholder until port is loaded
 };
 
-const getPosterUrl = (_item: MediaFile) => {
+const getPosterUrl = () => {
   // For videos, we might not have a thumbnail.
   // Just return null/empty to show black or first frame (if preload metadata).
   return '';

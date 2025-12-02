@@ -14,7 +14,10 @@ import type { Album, MediaFile } from '../../main/media-scanner';
  * @param selection - A map of selected album names.
  * @returns A flattened list of all textures from selected albums.
  */
-function collectSelectedTextures(albums: Album[], selection: { [key: string]: boolean }): MediaFile[] {
+function collectSelectedTextures(
+  albums: Album[],
+  selection: { [key: string]: boolean },
+): MediaFile[] {
   const textures: MediaFile[] = [];
   for (const album of albums) {
     if (selection[album.name]) {
@@ -85,7 +88,10 @@ export function useSlideshow() {
    * @param excludePaths - An array of paths to exclude from selection.
    * @returns The selected media item, or null if no item could be selected.
    */
-  const selectWeightedRandom = (items: MediaFile[], excludePaths: string[] = []): MediaFile | null => {
+  const selectWeightedRandom = (
+    items: MediaFile[],
+    excludePaths: string[] = [],
+  ): MediaFile | null => {
     if (!items || items.length === 0) return null;
 
     let eligibleItems = items.filter(

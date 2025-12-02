@@ -51,7 +51,11 @@ export const getAlbumAndChildrenNames = (album: Album): string[] => {
  * @param selectionMap - The selection map to modify.
  * @param isSelected - The selection state to set.
  */
-export const selectAllAlbums = (albums: Album[], selectionMap: { [key: string]: boolean }, isSelected: boolean): void => {
+export const selectAllAlbums = (
+  albums: Album[],
+  selectionMap: { [key: string]: boolean },
+  isSelected: boolean,
+): void => {
   for (const album of albums) {
     selectionMap[album.name] = isSelected;
     if (album.children) {

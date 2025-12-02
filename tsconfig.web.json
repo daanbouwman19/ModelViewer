@@ -14,5 +14,9 @@
       "@/*": ["./src/renderer/*"]
     }
   },
-  "include": ["src/renderer/**/*", "src/renderer/**/*.vue", "tests/renderer/**/*"]
+  "include": [
+    "src/renderer/**/*",
+    "src/renderer/**/*.vue",
+    "tests/renderer/**/*"
+  ]
 }

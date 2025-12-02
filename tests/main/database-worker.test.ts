@@ -10,8 +10,8 @@ vi.mock('worker_threads');
 import '../../src/main/database-worker.js';
 
 describe('Database Worker', () => {
-  let dbPath;
-  let tempDir;
+  let dbPath: string;
+  let tempDir: string;
   let messageId = 0;
 
   beforeEach(async () => {
@@ -24,7 +24,7 @@ describe('Database Worker', () => {
 
     // We don't remove listeners because the worker's listener must remain.
     // We only need to ensure we don't have stale 'workerMessage' listeners from previous tests.
-    parentPort.removeAllListeners('workerMessage');
+    parentPort!.removeAllListeners('workerMessage');
   });
 
   afterEach(async () => {
@@ -39,25 +39,27 @@ describe('Database Worker', () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  const sendMessage = (type, payload) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sendMessage = (type: string, payload: any): Promise<any> => {
     const id = messageId++;
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         // Clean up listener on timeout
-        parentPort.off('workerMessage', messageHandler);
+        parentPort!.off('workerMessage', messageHandler);
         reject(new Error(`Message ${id} (${type}) timed out`));
       }, 2000);
 
-      const messageHandler = (message) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const messageHandler = (message: any) => {
         if (message.id === id) {
-          parentPort.off('workerMessage', messageHandler);
+          parentPort!.off('workerMessage', messageHandler);
           clearTimeout(timeout);
           resolve(message.result);
         }
       };
 
-      parentPort.on('workerMessage', messageHandler);
-      parentPort.emit('message', { id, type, payload });
+      parentPort!.on('workerMessage', messageHandler);
+      parentPort!.emit('message', { id, type, payload });
     });
   };
 
@@ -202,7 +204,8 @@ describe('Database Worker', () => {
       await sendMessage('addMediaDirectory', { directoryPath: dirPath });
       await sendMessage('addMediaDirectory', { directoryPath: dirPath });
       const result = await sendMessage('getMediaDirectories', {});
-      const dirs = result.data.filter((d) => d.path === dirPath);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const dirs = result.data.filter((d: any) => d.path === dirPath);
       expect(dirs).toHaveLength(1);
     });
 
@@ -215,7 +218,8 @@ describe('Database Worker', () => {
       });
       await sendMessage('addMediaDirectory', { directoryPath: dirPath });
       const result = await sendMessage('getMediaDirectories', {});
-      const dir = result.data.find((d) => d.path === dirPath);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const dir = result.data.find((d: any) => d.path === dirPath);
       expect(dir.isActive).toBe(true);
     });
 
@@ -272,7 +276,8 @@ describe('Database Worker', () => {
 
       it.each(testCases)(
         '$type should fail gracefully',
-        async ({ type, payload }) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        async ({ type, payload }: any) => {
           const result = await sendMessage(type, payload);
           expect(result.success).toBe(false);
           expect(result.error).toBe('Database not initialized');
@@ -295,7 +300,8 @@ describe('Database Worker', () => {
 
       it.each(testCases)(
         '$type should fail gracefully',
-        async ({ type, payload }) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        async ({ type, payload }: any) => {
           const result = await sendMessage(type, payload);
           expect(result.success).toBe(false);
           expect(result.error).toBe('Database not initialized');

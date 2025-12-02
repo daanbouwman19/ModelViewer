@@ -10,5 +10,10 @@
     "outDir": "out",
     "types": ["node"]
   },
-  "include": ["src/main/**/*", "src/preload/**/*", "electron.vite.config.mjs", "tests/main/**/*"]
+  "include": [
+    "src/main/**/*",
+    "src/preload/**/*",
+    "electron.vite.config.mjs",
+    "tests/main/**/*"
+  ]
 }

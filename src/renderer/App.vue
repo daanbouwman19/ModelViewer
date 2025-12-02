@@ -43,7 +43,10 @@ const { navigateMedia, toggleSlideshowTimer } = useSlideshow();
  */
 const handleKeydown = (event: KeyboardEvent) => {
   // Ignore keyboard events if an input field is focused
-  if ((event.target as HTMLElement).tagName === 'INPUT' || (event.target as HTMLElement).tagName === 'TEXTAREA') {
+  if (
+    (event.target as HTMLElement).tagName === 'INPUT' ||
+    (event.target as HTMLElement).tagName === 'TEXTAREA'
+  ) {
     return;
   }
 
