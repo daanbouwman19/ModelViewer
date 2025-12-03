@@ -23,9 +23,9 @@ function collectSelectedTextures(
   for (const album of albums) {
     if (selection[album.name]) {
       textures.push(...album.textures);
-      if (album.children) {
-        textures.push(...collectSelectedTextures(album.children, selection));
-      }
+    }
+    if (album.children) {
+      textures.push(...collectSelectedTextures(album.children, selection));
     }
   }
   return textures;

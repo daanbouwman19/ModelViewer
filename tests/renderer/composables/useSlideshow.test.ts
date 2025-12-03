@@ -466,6 +466,37 @@ describe('useSlideshow', () => {
       expect(mockState.isSlideshowActive).toBe(false);
       expect(mockState.globalMediaPoolForSelection.length).toBe(0);
     });
+
+    it('should collect textures from selected children even if parent is unselected', async () => {
+      mockState.allAlbums = [
+        {
+          name: 'Parent',
+          textures: [{ path: 'parent.png', name: 'parent.png' }],
+          children: [
+            {
+              name: 'Child',
+              textures: [{ path: 'child.png', name: 'child.png' }],
+              children: [],
+            },
+          ],
+        },
+      ];
+
+      // Select ONLY the child
+      mockState.albumsSelectedForSlideshow = {
+        Parent: false,
+        Child: true,
+      };
+
+      const { startSlideshow } = useSlideshow();
+      await startSlideshow();
+
+      const paths = mockState.globalMediaPoolForSelection.map(
+        (f: any) => f.path,
+      );
+      expect(paths).toContain('child.png');
+      expect(paths).not.toContain('parent.png');
+    });
   });
 
   describe('reapplyFilter', () => {
