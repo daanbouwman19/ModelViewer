@@ -1,7 +1,7 @@
 {
-  "name": "Electron Dev Container",
+  "name": "ModelViewer Electron Dev",
   "dockerComposeFile": "docker-compose.yml",
-  "service": "electron-app",
+  "service": "app",
   "workspaceFolder": "/home/builduser/app",
   "remoteUser": "builduser",
   "customizations": {
@@ -11,11 +11,18 @@
         "vitest.explorer",
         "esbenp.prettier-vscode",
         "dbaeumer.vscode-eslint"
-      ]
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+          "source.fixAll.eslint": "explicit"
+        }
+      }
     }
   },
   "features": {
     "ghcr.io/devcontainers/features/git:1": {}
   },
-  "postStartCommand": "/usr/local/share/desktop-init.sh && npm ci && npm run dev"
+  "postCreateCommand": "npm install && npx electron-builder install-app-deps",
+  "postStartCommand": "/usr/local/share/desktop-init.sh"
 }
