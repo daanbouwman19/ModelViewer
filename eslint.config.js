@@ -13,6 +13,8 @@ export default [
       '.vite',
       'release',
       '.cache',
+      'dist-server',
+      'dist-web',
     ],
   },
   {
