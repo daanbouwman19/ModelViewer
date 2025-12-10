@@ -18,6 +18,11 @@ export interface FileSystemEntry {
 export async function listDirectory(
   directoryPath: string,
 ): Promise<FileSystemEntry[]> {
+  // Check for special Root indicator or empty path
+  if (!directoryPath || directoryPath === 'ROOT') {
+    return listDrives();
+  }
+
   try {
     const items = await fs.readdir(directoryPath, { withFileTypes: true });
     const entries: FileSystemEntry[] = items.map((item) => ({
@@ -43,6 +48,54 @@ export async function listDirectory(
       );
     }
     throw error;
+  }
+}
+
+import { exec } from 'child_process';
+import util from 'util';
+import os from 'os';
+
+const execAsync = util.promisify(exec);
+
+/**
+ * Lists the available drives on Windows.
+ * On other platforms, returns the root directory.
+ */
+export async function listDrives(): Promise<FileSystemEntry[]> {
+  if (os.platform() !== 'win32') {
+    // For non-Windows, simply return root
+    return [
+      {
+        name: 'Root',
+        path: '/',
+        isDirectory: true,
+      },
+    ];
+  }
+
+  try {
+    const { stdout } = await execAsync('fsutil fsinfo drives');
+    // Output format: "Drives: C:\ D:\"
+
+    // Remove "Drives:" prefix and split by space
+    const drivesLine = stdout.replace('Drives:', '').trim();
+    const drives = drivesLine.split(/\s+/).filter((d) => d);
+
+    return drives.map((drive) => ({
+      name: drive.replace(/\\$/, ''), // "C:"
+      path: drive, // "C:\" (fsutil returns with backslash)
+      isDirectory: true,
+    }));
+  } catch (error) {
+    console.error('Failed to list drives:', error);
+    // Fallback to C:\ if fsutil fails
+    return [
+      {
+        name: 'C:',
+        path: 'C:\\',
+        isDirectory: true,
+      },
+    ];
   }
 }
 

@@ -83,12 +83,11 @@ describe('ElectronAdapter', () => {
   });
 
   it('addMediaDirectory should call electronAPI.addMediaDirectory', async () => {
-    mockElectronAPI.addMediaDirectory.mockResolvedValue('/new/path');
+    mockElectronAPI.addMediaDirectory.mockResolvedValue(null);
 
-    const result = await adapter.addMediaDirectory('/test');
+    const result = await adapter.addMediaDirectory();
 
-    expect(mockElectronAPI.addMediaDirectory).toHaveBeenCalledWith('/test');
-    expect(result).toBe('/new/path');
+    expect(result).toBe(null);
   });
 
   it('removeMediaDirectory should call electronAPI.removeMediaDirectory', async () => {

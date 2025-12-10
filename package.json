@@ -31,7 +31,8 @@
     "build:web:fast": "vite build",
     "build:server": "vite build --mode server",
     "build:all": "npm run build:web && npm run build:server",
-    "start:server:prod": "NODE_ENV=production node dist/server/index.js"
+    "start:server:prod": "cross-env NODE_ENV=production node dist/server/index.js",
+    "prestart:server:prod": "npm rebuild better-sqlite3"
   },
   "author": {
     "name": "Daan Bouwman",
@@ -84,6 +85,7 @@
     "better-sqlite3": "^12.5.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
+    "execa": "^9.6.1",
     "express": "^5.2.1",
     "ffmpeg-static": "^5.3.0",
     "vue": "^3.5.12"
@@ -102,6 +104,7 @@
     "@vitest/coverage-istanbul": "^4.0.6",
     "@vue/test-utils": "^2.4.6",
     "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
     "electron": "^39.2.6",
     "electron-builder": "^26.3.5",
     "electron-vite": "^5.0.0",

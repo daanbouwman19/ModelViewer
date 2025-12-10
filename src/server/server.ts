@@ -172,8 +172,12 @@ export async function createApp() {
     const dirPath = req.query.path as string;
     if (!dirPath) return res.status(400).send('Missing path');
     const parent = path.dirname(dirPath);
-    // If we are at root
+    // If we are at root or at a drive root (e.g., C:\)
+    // path.dirname('C:\\') returns 'C:\\' on Windows
+    // path.dirname('/') returns '/' on Linux
     if (parent === dirPath) {
+      // We are at the FS root of a drive or the system.
+      // Return null to signal "Go to Drives/Root View"
       return res.json({ parent: null });
     }
     res.json({ parent });
