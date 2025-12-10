@@ -19,7 +19,8 @@ vi.mock('fs/promises', () => ({
 vi.mock('child_process', () => {
   return {
     spawn: mockSpawn,
-    default: { spawn: mockSpawn },
+    exec: vi.fn(),
+    default: { spawn: mockSpawn, exec: vi.fn() },
   };
 });
 

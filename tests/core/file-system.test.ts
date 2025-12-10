@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { listDirectory, isValidDirectory } from '../../src/core/file-system';
+import {
+  listDirectory,
+  isValidDirectory,
+  listDrives,
+} from '../../src/core/file-system';
 import fs from 'fs/promises';
+import { execa } from 'execa';
+import os from 'os';
 
 vi.mock('fs/promises', () => {
   return {
@@ -11,9 +17,15 @@ vi.mock('fs/promises', () => {
   };
 });
 
+vi.mock('execa', () => {
+  return {
+    execa: vi.fn(),
+  };
+});
+
 describe('file-system', () => {
   afterEach(() => {
-    vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe('listDirectory', () => {
@@ -38,8 +50,6 @@ describe('file-system', () => {
       expect(result[3].name).toBe('file2.txt');
 
       // Paths should be correct
-      // Note: path.join behavior depends on OS in test environment
-      // but assuming relative simplicity:
       expect(result[0].path).toContain('dir1');
     });
 
@@ -51,11 +61,57 @@ describe('file-system', () => {
         .mockImplementation(() => {});
 
       await expect(listDirectory('/test')).rejects.toThrow('Access denied');
-
-      // In test env, it suppresses log? code: if (process.env.NODE_ENV !== 'test')
-      // So console.error should NOT be called if NODE_ENV is test.
-      // Vitest sets NODE_ENV to 'test' by default.
       expect(consoleSpy).not.toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    it('returns drives if path is ROOT', async () => {
+      vi.spyOn(os, 'platform').mockReturnValue('linux');
+      const result = await listDirectory('ROOT');
+      expect(result[0].path).toBe('/');
+    });
+  });
+
+  describe('listDrives', () => {
+    it('returns root on non-Windows', async () => {
+      vi.spyOn(os, 'platform').mockReturnValue('linux');
+      const result = await listDrives();
+      expect(result).toHaveLength(1);
+      expect(result[0].path).toBe('/');
+      expect(result[0].name).toBe('Root');
+    });
+
+    it('returns drives on Windows', async () => {
+      vi.spyOn(os, 'platform').mockReturnValue('win32');
+
+      // Mock execa to simulate fsutil output
+      // execa returns a Promise that resolves to an object with stdout
+      vi.mocked(execa).mockResolvedValue({
+        stdout: 'Drives: C:\\ D:\\',
+      } as any);
+
+      const result = await listDrives();
+      expect(result).toHaveLength(2);
+      expect(result[0].name).toBe('C:');
+      expect(result[0].path).toBe('C:\\');
+      expect(result[1].name).toBe('D:');
+      expect(result[1].path).toBe('D:\\');
+    });
+
+    it('returns fallback C: on Windows if exec fails', async () => {
+      vi.spyOn(os, 'platform').mockReturnValue('win32');
+
+      vi.mocked(execa).mockRejectedValue(new Error('Command failed'));
+
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+
+      const result = await listDrives();
+
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('C:');
+      expect(consoleSpy).toHaveBeenCalled();
       consoleSpy.mockRestore();
     });
   });

@@ -29,11 +29,16 @@
     </div>
 
     <!-- File List -->
-    <div class="file-list flex-grow overflow-y-auto p-2">
-      <div v-if="isLoading" class="text-center p-4 text-gray-400">
-        Loading...
+    <div class="file-list flex-grow overflow-y-auto p-2 relative">
+      <!-- Loading Overlay -->
+      <div
+        v-if="isLoading"
+        class="absolute inset-0 bg-gray-900/50 flex items-center justify-center z-10"
+      >
+        <div class="text-white bg-black/75 p-3 rounded">Loading...</div>
       </div>
-      <div v-else-if="error" class="text-center p-4 text-red-400">
+
+      <div v-if="error" class="text-center p-4 text-red-400">
         {{ error }}
       </div>
       <ul v-else class="space-y-1">
@@ -45,13 +50,18 @@
           @click="handleEntryClick(entry)"
           @dblclick="handleEntryDoubleClick(entry)"
         >
-          <span class="icon">{{ entry.isDirectory ? '📁' : '📄' }}</span>
+          <span class="icon">{{
+            entry.isDirectory ? (isDriveRoot(entry.path) ? '💾' : '📁') : '📄'
+          }}</span>
           <span class="name flex-grow truncate">{{ entry.name }}</span>
-          <span v-if="entry.isDirectory" class="text-xs text-gray-500"
-            >DIR</span
-          >
+          <span v-if="entry.isDirectory" class="text-xs text-gray-500">{{
+            isDriveRoot(entry.path) ? 'DRIVE' : 'DIR'
+          }}</span>
         </li>
-        <li v-if="entries.length === 0" class="text-gray-500 text-center p-4">
+        <li
+          v-if="entries.length === 0 && !isLoading"
+          class="text-gray-500 text-center p-4"
+        >
           Empty directory
         </li>
       </ul>
@@ -109,23 +119,41 @@ const sortedEntries = computed(() => {
   });
 });
 
+const isDriveRoot = (path: string) => {
+  // Simple check for windows drive root like "C:\"
+  return /^[A-Z]:\\?$/i.test(path);
+};
+
 const loadDirectory = async (path: string) => {
-  if (!path) return;
   isLoading.value = true;
   error.value = null;
-  selectedPath.value = null; // Reset selection on nav
+  // Don't reset selection immediately on refresh so it doesn't jump,
+  // but if we navigate, we probably should.
+  // We'll reset if path changes distinctively.
+
   try {
-    const result = await api.listDirectory(path);
+    // If path is empty, we load ROOT (Drives)
+    const targetPath = path || 'ROOT';
+    const result = await api.listDirectory(targetPath);
     entries.value = result;
-    currentPath.value = path;
-    // Fetch parent path
-    parentPath.value = await api.getParentDirectory(path);
+
+    if (targetPath === 'ROOT') {
+      currentPath.value = 'My PC'; // Display name for root
+      parentPath.value = null;
+    } else {
+      currentPath.value = path;
+      // Fetch parent path
+      try {
+        const parent = await api.getParentDirectory(path);
+        // If parent is null, it means we can go up to ROOT
+        parentPath.value = parent !== null ? parent : 'ROOT';
+      } catch {
+        parentPath.value = 'ROOT';
+      }
+    }
   } catch (err) {
     console.error('Failed to list directory:', err);
     error.value = 'Failed to load directory.';
-    // If we failed to load, maybe we shouldn't update currentPath?
-    // But we need to know where we are.
-    // If it's the initial load, maybe default to root?
   } finally {
     isLoading.value = false;
   }
@@ -133,18 +161,21 @@ const loadDirectory = async (path: string) => {
 
 const navigateUp = () => {
   if (parentPath.value) {
-    loadDirectory(parentPath.value);
+    if (parentPath.value === 'ROOT') {
+      loadDirectory('');
+    } else {
+      loadDirectory(parentPath.value);
+    }
   }
 };
 
 const refresh = () => {
-  loadDirectory(currentPath.value);
+  let path = currentPath.value;
+  if (path === 'My PC') path = '';
+  loadDirectory(path);
 };
 
 const handleEntryClick = (entry: FileSystemEntry) => {
-  // In this picker, we only care about directories for selection?
-  // The requirement is "FileExplorer".
-  // "Add Media Sources" -> implies selecting a directory.
   if (entry.isDirectory) {
     selectedPath.value = entry.path;
   } else {
@@ -155,6 +186,7 @@ const handleEntryClick = (entry: FileSystemEntry) => {
 const handleEntryDoubleClick = (entry: FileSystemEntry) => {
   if (entry.isDirectory) {
     loadDirectory(entry.path);
+    selectedPath.value = null; // Reset selection on nav
   }
 };
 
@@ -168,12 +200,8 @@ onMounted(async () => {
   if (props.initialPath) {
     await loadDirectory(props.initialPath);
   } else {
-    // Try to guess a starting path?
-    // Maybe root '/'?
-    // Or ask backend for "home" dir? API doesn't have `getHomeDir`.
-    // We'll try '/' for linux/mac and 'C:/' for windows?
-    // We can just try '/' and see.
-    await loadDirectory('/');
+    // Start at root/drives
+    await loadDirectory('');
   }
 });
 </script>
