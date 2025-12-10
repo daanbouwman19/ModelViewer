@@ -289,4 +289,55 @@ describe('database.js additional coverage', () => {
     // Re-initialize for the afterEach hook to run without issues.
     await db.initDatabase();
   });
+  it('sendMessageToWorker handles synchronous postMessage error', async () => {
+    // We need to re-import because we are messing with the worker instance
+    await db.closeDatabase();
+    await db.initDatabase();
+
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+
+    // Mock postMessage to throw synchronously
+    mockWorkerInstance!.postMessage.mockImplementation(() => {
+      throw new Error('Sync postMessage error');
+    });
+
+    await expect(db.addMediaDirectory('/test')).rejects.toThrow(
+      'Sync postMessage error',
+    );
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        '[database.js] Error posting message to worker: Sync postMessage error',
+      ),
+    );
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('closeDatabase logs warning if close message fails in non-test env', async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'development';
+
+    await db.closeDatabase();
+    await db.initDatabase();
+
+    const consoleWarnSpy = vi
+      .spyOn(console, 'warn')
+      .mockImplementation(() => {});
+
+    mockWorkerInstance!.postMessage.mockImplementation((msg: any) => {
+      if (msg.type === 'close') throw new Error('Close message failed');
+    });
+
+    await db.closeDatabase();
+
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      '[database.js] Warning during worker shutdown:',
+      expect.any(Error),
+    );
+
+    consoleWarnSpy.mockRestore();
+    process.env.NODE_ENV = originalNodeEnv;
+  });
 });

@@ -45,6 +45,14 @@ describe('AlbumTree.vue', () => {
     expect(wrapper.text()).toContain('root (4)');
   });
 
+  it('handles album with empty or missing children safely', () => {
+    const emptyAlbum = { name: 'empty', textures: [], children: [] };
+    const wrapper = mount(AlbumTree, {
+      props: { album: emptyAlbum, selection: {} },
+    });
+    expect(wrapper.find('.toggle-button').exists()).toBe(false);
+  });
+
   it('does not render children by default', () => {
     const wrapper = mount(AlbumTree, {
       props: {
@@ -179,5 +187,52 @@ describe('AlbumTree.vue', () => {
           .indeterminate,
       ).toBe(true);
     });
+  });
+
+  it('re-emits toggleSelection from child component', async () => {
+    // Need to expand to see children
+    const wrapper = mount(AlbumTree, {
+      props: { album: testAlbum, selection: {} },
+    });
+    await wrapper.find('.toggle-button').trigger('click');
+
+    // Find child AlbumTree
+    const childTree = wrapper.findComponent({ name: 'AlbumTree' });
+    expect(childTree.exists()).toBe(true);
+
+    // Emit event from child
+    childTree.vm.$emit('toggleSelection', testAlbum.children[0]);
+
+    expect(wrapper.emitted().toggleSelection).toBeTruthy();
+    expect((wrapper.emitted().toggleSelection as unknown[][])[0][0]).toEqual(
+      testAlbum.children[0],
+    );
+  });
+
+  it('re-emits albumClick from child component', async () => {
+    const wrapper = mount(AlbumTree, {
+      props: { album: testAlbum, selection: {} },
+    });
+    await wrapper.find('.toggle-button').trigger('click');
+
+    const childTree = wrapper.findComponent({ name: 'AlbumTree' });
+    childTree.vm.$emit('albumClick', testAlbum.children[0]);
+
+    expect(wrapper.emitted().albumClick).toBeTruthy();
+    expect((wrapper.emitted().albumClick as unknown[][])[0][0]).toEqual(
+      testAlbum.children[0],
+    );
+  });
+
+  it('stops propagation when clicking album controls', async () => {
+    const wrapper = mount(AlbumTree, {
+      props: { album: testAlbum, selection: {} },
+    });
+
+    // Clicking .album-controls should NOT trigger album click (which is on .album-item parent)
+    const controls = wrapper.find('.album-controls');
+    await controls.trigger('click');
+
+    expect(wrapper.emitted().albumClick).toBeFalsy();
   });
 });

@@ -346,7 +346,7 @@ describe('MediaDisplay.vue', () => {
     mockRefs.displayedMediaFiles.value = [];
     const wrapper = mount(MediaDisplay);
     const buttons = wrapper.findAll('.nav-button');
-    buttons.forEach((button) => {
+    buttons.forEach((button: any) => {
       expect(button.attributes('disabled')).toBeDefined();
     });
   });
@@ -462,6 +462,122 @@ describe('MediaDisplay.vue', () => {
       const wrapper = mount(MediaDisplay);
       await wrapper.vm.$nextTick();
       expect(resumeSlideshowTimer).toHaveBeenCalled();
+    });
+  });
+
+  describe('Transcoding Logic', () => {
+    it('should start transcoding when tryTranscoding is called', async () => {
+      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      await (wrapper.vm as any).tryTranscoding(10);
+
+      expect((wrapper.vm as any).mediaUrl).toBe('stream//test.mp4');
+      expect((wrapper.vm as any).isTranscodingMode).toBe(true);
+    });
+
+    it('should handle video loaded metadata for unsupported formats', async () => {
+      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      // Simulate loadedmetadata with 0 width
+      const video = { videoWidth: 0, videoHeight: 0 };
+      (wrapper.vm as any).handleVideoLoadedMetadata({ target: video } as any);
+
+      expect((wrapper.vm as any).isVideoSupported).toBe(false);
+      // It triggers transcoding async
+      await flushPromises();
+      expect((wrapper.vm as any).isTranscodingMode).toBe(true);
+    });
+
+    it('should show unsupported format overlay and handle transcoding click', async () => {
+      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      // Simulate unsupported video
+      (wrapper.vm as any).isVideoSupported = false;
+      (wrapper.vm as any).isTranscodingMode = false;
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.text()).toContain('Video Format Not Supported');
+      expect(wrapper.text()).toContain('Try Transcoding');
+
+      // Click try transcoding
+      const transcodeBtn = wrapper
+        .findAll('button')
+        .filter((b: any) => b.text().includes('Try Transcoding'))[0];
+      await transcodeBtn.trigger('click');
+
+      expect((wrapper.vm as any).isTranscodingMode).toBe(true);
+    });
+  });
+
+  describe('Video Controls', () => {
+    it('should format time correctly', () => {
+      const wrapper = mount(MediaDisplay);
+      const vm = wrapper.vm as any;
+      expect(vm.formatTime(65)).toBe('01:05');
+      expect(vm.formatTime(3665)).toBe('1:01:05');
+      expect(vm.formatTime(0)).toBe('00:00');
+    });
+
+    it('should handle progress bar click', async () => {
+      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      // Mock video element
+      const videoElement = { duration: 100, currentTime: 0 };
+      (wrapper.vm as any).videoElement = videoElement;
+
+      // Simulate click event
+      const event = {
+        currentTarget: {
+          getBoundingClientRect: () => ({ left: 0, width: 100 }),
+        },
+        clientX: 50,
+      };
+
+      (wrapper.vm as any).handleProgressBarClick(event);
+      expect(videoElement.currentTime).toBe(50);
+    });
+
+    it('should handle progress bar click in transcoding mode', async () => {
+      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      (wrapper.vm as any).isTranscodingMode = true;
+      (wrapper.vm as any).transcodedDuration = 100;
+
+      const event = {
+        currentTarget: {
+          getBoundingClientRect: () => ({ left: 0, width: 100 }),
+        },
+        clientX: 50,
+      };
+
+      await (wrapper.vm as any).handleProgressBarClick(event);
+      expect((wrapper.vm as any).currentTranscodeStartTime).toBe(50);
+    });
+  });
+
+  describe('VLC Integration', () => {
+    it('should pause video and open vlc', async () => {
+      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      const pause = vi.fn();
+      (wrapper.vm as any).videoElement = { pause };
+
+      await (wrapper.vm as any).openInVlc();
+
+      expect(pause).toHaveBeenCalled();
+      expect(api.openInVlc).toHaveBeenCalledWith('/test.mp4');
     });
   });
 });

@@ -138,18 +138,6 @@ export class WebAdapter implements IMediaBackend {
     return { success: false, message: 'Not supported in Web version.' };
   }
 
-  async getMediaByColor(
-    color: { r: number; g: number; b: number },
-    threshold: number,
-  ): Promise<string[]> {
-    const res = await fetch(`${API_BASE}/media/color`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...color, threshold }),
-    });
-    return res.json();
-  }
-
   async listDirectory(path: string): Promise<FileSystemEntry[]> {
     const res = await fetch(
       `${API_BASE}/fs/ls?path=${encodeURIComponent(path)}`,

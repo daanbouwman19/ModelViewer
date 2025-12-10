@@ -101,13 +101,6 @@ export class ElectronAdapter implements IMediaBackend {
     return window.electronAPI.openInVlc(filePath);
   }
 
-  async getMediaByColor(
-    color: { r: number; g: number; b: number },
-    threshold: number,
-  ): Promise<string[]> {
-    return window.electronAPI.getMediaByColor(color, threshold);
-  }
-
   async listDirectory(path: string): Promise<FileSystemEntry[]> {
     return window.electronAPI.listDirectory(path);
   }

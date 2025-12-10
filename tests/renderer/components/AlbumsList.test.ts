@@ -139,4 +139,11 @@ describe('AlbumsList.vue', () => {
     expect(mockToggleAlbumSelection).toHaveBeenCalledWith('Album1', false);
     expect(mockToggleAlbumSelection).toHaveBeenCalledWith('SubAlbum1', false);
   });
+
+  it('toggles slideshow timer when timer button is clicked', async () => {
+    const wrapper = mount(AlbumsList);
+    const timerButton = wrapper.find('.timer-button');
+    await timerButton.trigger('click');
+    expect(mockToggleSlideshowTimer).toHaveBeenCalled();
+  });
 });
