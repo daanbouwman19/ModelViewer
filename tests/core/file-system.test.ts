@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { listDirectory, isValidDirectory } from '../../src/core/file-system';
+import { listDirectory, isValidDirectory, listDrives } from '../../src/core/file-system';
 import fs from 'fs/promises';
+import { exec } from 'child_process';
+import os from 'os';
 
 vi.mock('fs/promises', () => {
   return {
@@ -11,9 +13,19 @@ vi.mock('fs/promises', () => {
   };
 });
 
+vi.mock('child_process', () => {
+  const exec = vi.fn();
+  return {
+    exec,
+    default: { exec },
+  };
+});
+
+// os mock removed
+
 describe('file-system', () => {
   afterEach(() => {
-    vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe('listDirectory', () => {
@@ -56,6 +68,55 @@ describe('file-system', () => {
       // So console.error should NOT be called if NODE_ENV is test.
       // Vitest sets NODE_ENV to 'test' by default.
       expect(consoleSpy).not.toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    it('returns drives if path is ROOT', async () => {
+       vi.spyOn(os, 'platform').mockReturnValue('linux');
+       const result = await listDirectory('ROOT');
+       expect(result[0].path).toBe('/');
+    });
+  });
+
+  describe('listDrives', () => {
+    it('returns root on non-Windows', async () => {
+      vi.spyOn(os, 'platform').mockReturnValue('linux');
+      const result = await listDrives();
+      expect(result).toHaveLength(1);
+      expect(result[0].path).toBe('/');
+      expect(result[0].name).toBe('Root');
+    });
+
+    it('returns drives on Windows', async () => {
+      vi.spyOn(os, 'platform').mockReturnValue('win32');
+      
+      // Mock exec to simulate fsutil output
+      (exec as any).mockImplementation((_cmd: string, callback: any) => {
+        callback(null, { stdout: 'Drives: C:\\ D:\\' });
+      });
+
+      const result = await listDrives();
+      expect(result).toHaveLength(2);
+      expect(result[0].name).toBe('C:');
+      expect(result[0].path).toBe('C:\\');
+      expect(result[1].name).toBe('D:');
+      expect(result[1].path).toBe('D:\\');
+    });
+
+    it('returns fallback C: on Windows if exec fails', async () => {
+      vi.spyOn(os, 'platform').mockReturnValue('win32');
+      
+      (exec as any).mockImplementation((_cmd: string, callback: any) => {
+        callback(new Error('Command failed'));
+      });
+      
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      const result = await listDrives();
+      
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('C:');
+      expect(consoleSpy).toHaveBeenCalled();
       consoleSpy.mockRestore();
     });
   });

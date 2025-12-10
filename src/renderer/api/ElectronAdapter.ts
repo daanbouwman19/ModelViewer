@@ -25,8 +25,10 @@ export class ElectronAdapter implements IMediaBackend {
     return window.electronAPI.reindexMediaLibrary();
   }
 
-  async addMediaDirectory(path?: string): Promise<string | null> {
-    return window.electronAPI.addMediaDirectory(path);
+  async addMediaDirectory(): Promise<string | null> {
+    // Return null to signal the UI to use the custom File Explorer modal
+    // instead of the native Electron dialog.
+    return null;
   }
 
   async removeMediaDirectory(directoryPath: string): Promise<void> {
