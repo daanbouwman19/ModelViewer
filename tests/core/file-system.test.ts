@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { listDirectory, isValidDirectory, listDrives } from '../../src/core/file-system';
+import {
+  listDirectory,
+  isValidDirectory,
+  listDrives,
+} from '../../src/core/file-system';
 import fs from 'fs/promises';
 import { exec } from 'child_process';
 import os from 'os';
@@ -72,9 +76,9 @@ describe('file-system', () => {
     });
 
     it('returns drives if path is ROOT', async () => {
-       vi.spyOn(os, 'platform').mockReturnValue('linux');
-       const result = await listDirectory('ROOT');
-       expect(result[0].path).toBe('/');
+      vi.spyOn(os, 'platform').mockReturnValue('linux');
+      const result = await listDirectory('ROOT');
+      expect(result[0].path).toBe('/');
     });
   });
 
@@ -89,7 +93,7 @@ describe('file-system', () => {
 
     it('returns drives on Windows', async () => {
       vi.spyOn(os, 'platform').mockReturnValue('win32');
-      
+
       // Mock exec to simulate fsutil output
       (exec as any).mockImplementation((_cmd: string, callback: any) => {
         callback(null, { stdout: 'Drives: C:\\ D:\\' });
@@ -105,15 +109,17 @@ describe('file-system', () => {
 
     it('returns fallback C: on Windows if exec fails', async () => {
       vi.spyOn(os, 'platform').mockReturnValue('win32');
-      
+
       (exec as any).mockImplementation((_cmd: string, callback: any) => {
         callback(new Error('Command failed'));
       });
-      
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
 
       const result = await listDrives();
-      
+
       expect(result).toHaveLength(1);
       expect(result[0].name).toBe('C:');
       expect(consoleSpy).toHaveBeenCalled();
