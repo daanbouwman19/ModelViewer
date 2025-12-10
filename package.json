@@ -30,7 +30,7 @@
     "build:web": "vue-tsc -b --noEmit && vite build",
     "build:web:fast": "vite build",
     "build:server": "concurrently \"esbuild src/server/server.ts --bundle --platform=node --format=esm --outfile=dist-server/index.js --packages=external\" \"esbuild src/core/database-worker.ts --bundle --platform=node --format=esm --outfile=dist-server/worker.js --packages=external\"",
-    "start:server": "tsx src/server/server.ts"
+    "start:server:prod": "NODE_ENV=production node dist-server/index.js"
   },
   "author": {
     "name": "Daan Bouwman",
