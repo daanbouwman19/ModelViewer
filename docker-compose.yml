@@ -1,0 +1,15 @@
+services:
+  app:
+    build: .
+    ports:
+      - '3000:3000'
+    volumes:
+      # efficient sqlite persistence
+      - ./media-library.db:/app/media-library.db
+      # Mount your media directories here.
+      # You can add more mappings as needed.
+      # Host path : Container path
+      - ./media:/media
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped

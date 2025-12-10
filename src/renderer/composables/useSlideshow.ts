@@ -5,7 +5,8 @@
  */
 import { useAppState } from './useAppState';
 import { collectTexturesRecursive } from '../utils/albumUtils';
-import type { Album, MediaFile } from '../../main/media-scanner';
+import type { Album, MediaFile } from '../../core/types';
+import { api } from '../api';
 
 /**
  * Recursively collects all textures (media files) from a list of albums and their children
@@ -137,7 +138,7 @@ export function useSlideshow() {
   const displayMedia = async (mediaItem: MediaFile | null) => {
     if (!mediaItem) return;
     try {
-      await window.electronAPI.recordMediaView(mediaItem.path);
+      await api.recordMediaView(mediaItem.path);
       if (state.isTimerRunning) {
         resumeSlideshowTimer();
       }

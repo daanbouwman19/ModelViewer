@@ -2,14 +2,15 @@
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
     "jsx": "preserve",
     "strict": true,
+    "skipLibCheck": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "outDir": "out",
-    "types": ["vite/client"],
+    "types": ["vite/client", "node"],
     "paths": {
       "@/*": ["./src/renderer/*"]
     }
@@ -17,6 +18,7 @@
   "include": [
     "src/renderer/**/*",
     "src/renderer/**/*.vue",
+    "src/preload/**/*.ts",
     "tests/renderer/**/*"
   ]
 }

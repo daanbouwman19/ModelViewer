@@ -9,18 +9,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { ALL_SUPPORTED_EXTENSIONS } from './constants';
-
-export interface MediaFile {
-  name: string;
-  path: string;
-  viewCount?: number;
-}
-
-export interface Album {
-  name: string;
-  textures: MediaFile[];
-  children: Album[];
-}
+import type { Album, MediaFile } from './types';
 
 /**
  * Asynchronously and recursively scans a directory to build a hierarchical album structure.

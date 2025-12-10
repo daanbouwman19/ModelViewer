@@ -13,7 +13,9 @@
   "include": [
     "src/main/**/*",
     "src/preload/**/*",
-    "electron.vite.config.mjs",
+    "src/server/**/*",
+    "src/core/**/*",
+    "electron.vite.config.ts",
     "tests/main/**/*"
   ]
 }

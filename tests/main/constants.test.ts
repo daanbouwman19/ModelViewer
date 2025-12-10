@@ -4,7 +4,7 @@ import {
   SUPPORTED_IMAGE_EXTENSIONS,
   SUPPORTED_VIDEO_EXTENSIONS,
   ALL_SUPPORTED_EXTENSIONS,
-} from '../../src/main/constants';
+} from '../../src/core/constants';
 
 describe('Constants', () => {
   it('should have valid MAX_DATA_URL_SIZE_MB', () => {

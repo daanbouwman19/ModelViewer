@@ -84,7 +84,8 @@
  */
 import { ref, onMounted, computed, watch } from 'vue';
 import { useAppState } from '../composables/useAppState';
-import type { MediaFile } from '../../main/media-scanner';
+import type { MediaFile } from '../../core/types';
+import { api } from '../api';
 
 const { state } = useAppState();
 
@@ -173,45 +174,33 @@ const isVideo = (item: MediaFile) => {
  * Generates a URL for the media item.
  * Uses the new 'preferHttp' option to get an HTTP URL for grid performance.
  */
-const serverPort = ref(0);
+const mediaUrlGenerator = ref<((path: string) => string) | null>(null);
+const thumbnailUrlGenerator = ref<((path: string) => string) | null>(null);
 
 onMounted(async () => {
   try {
-    serverPort.value = await window.electronAPI.getServerPort();
+    mediaUrlGenerator.value = await api.getMediaUrlGenerator();
+    thumbnailUrlGenerator.value = await api.getThumbnailUrlGenerator();
   } catch (e) {
-    console.error('Failed to determine server port', e);
+    console.error('Failed to initialize media URL generators', e);
   }
 });
 
 const getMediaUrl = (item: MediaFile) => {
-  if (serverPort.value > 0) {
-    let pathForUrl = item.path.replace(/\\/g, '/');
-    // Encode each path segment to handle all special characters
-    pathForUrl = pathForUrl
-      .split('/')
-      .map((segment) => encodeURIComponent(segment))
-      .join('/');
-
-    let url = `http://localhost:${serverPort.value}/${pathForUrl}`;
-
+  if (mediaUrlGenerator.value) {
+    let url = mediaUrlGenerator.value(item.path);
     // For videos, add a time fragment to force a thumbnail frame
     if (isVideo(item)) {
       url += '#t=0.001';
     }
-
     return url;
   }
-  return ''; // Placeholder until port is loaded
+  return '';
 };
 
 const getPosterUrl = (item: MediaFile) => {
-  if (serverPort.value > 0) {
-    let pathForUrl = item.path.replace(/\\/g, '/');
-    pathForUrl = pathForUrl
-      .split('/')
-      .map((segment) => encodeURIComponent(segment))
-      .join('/');
-    return `http://localhost:${serverPort.value}/video/thumbnail?file=${pathForUrl}`;
+  if (thumbnailUrlGenerator.value) {
+    return thumbnailUrlGenerator.value(item.path);
   }
   return '';
 };

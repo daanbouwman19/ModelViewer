@@ -6,3 +6,11 @@ declare module '*.vue' {
   const component: DefineComponent<object, object, any>;
   export default component;
 }
+
+import type { ElectronAPI } from '../preload/preload';
+
+declare global {
+  interface Window {
+    electronAPI: ElectronAPI;
+  }
+}

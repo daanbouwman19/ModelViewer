@@ -57,7 +57,7 @@
 import { ref, computed } from 'vue';
 import { countTextures, getAlbumAndChildrenNames } from '../utils/albumUtils';
 import { useSlideshow } from '../composables/useSlideshow';
-import type { Album } from '../../main/media-scanner';
+import type { Album } from '../../core/types';
 
 const props = withDefaults(
   defineProps<{

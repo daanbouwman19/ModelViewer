@@ -20,31 +20,29 @@ import {
   SUPPORTED_VIDEO_EXTENSIONS,
   SUPPORTED_IMAGE_EXTENSIONS,
   ALL_SUPPORTED_EXTENSIONS,
-} from './constants';
+} from '../core/constants';
 
 import {
   initDatabase,
   recordMediaView,
   getMediaViewCounts,
-  cacheAlbums,
-  getCachedAlbums,
   closeDatabase,
   getMediaDirectories,
   addMediaDirectory,
   removeMediaDirectory,
   setDirectoryActiveState,
 } from './database';
-import { performFullMediaScan, Album } from './media-scanner';
+import {
+  getAlbumsWithViewCountsAfterScan,
+  getAlbumsWithViewCounts,
+} from '../core/media-service';
 import {
   startLocalServer,
   stopLocalServer,
   getServerPort,
   getMimeType as resolveMimeType,
 } from './local-server';
-
-/**
- * A flag indicating if the application is running in development mode.
- */
+import { listDirectory } from '../core/file-system';
 const isDev = !app.isPackaged;
 
 /**
@@ -150,59 +148,6 @@ ipcMain.handle(
  * and returns the list of albums found.
  * @returns The list of albums found.
  */
-async function scanDiskForAlbumsAndCache(): Promise<Album[]> {
-  const allDirectories = await getMediaDirectories();
-  const activeDirectories = allDirectories
-    .filter((dir) => dir.isActive)
-    .map((dir) => dir.path);
-
-  if (!activeDirectories || activeDirectories.length === 0) {
-    await cacheAlbums([]);
-    return [];
-  }
-
-  const albums = await performFullMediaScan(activeDirectories);
-  await cacheAlbums(albums || []);
-  return albums || [];
-}
-
-/**
- * Retrieves albums by first checking the cache, and if the cache is empty,
- * performs a disk scan.
- * @returns The list of albums.
- */
-async function getAlbumsFromCacheOrDisk(): Promise<Album[]> {
-  const albums = await getCachedAlbums();
-  if (albums && albums.length > 0) {
-    return albums;
-  }
-  return scanDiskForAlbumsAndCache();
-}
-
-/**
- * Performs a fresh disk scan and returns the albums with their view counts.
- * This is a utility function to combine scanning and view count retrieval.
- * @returns The list of albums with view counts.
- */
-async function getAlbumsWithViewCountsAfterScan(): Promise<Album[]> {
-  const albums = await scanDiskForAlbumsAndCache();
-  if (!albums || albums.length === 0) {
-    return [];
-  }
-
-  const allFilePaths = albums.flatMap((album) =>
-    album.textures.map((texture) => texture.path),
-  );
-  const viewCountsMap = await getMediaViewCounts(allFilePaths);
-
-  return albums.map((album) => ({
-    ...album,
-    textures: album.textures.map((texture) => ({
-      ...texture,
-      viewCount: viewCountsMap[texture.path] || 0,
-    })),
-  }));
-}
 
 /**
  * Handles the 'get-albums-with-view-counts' IPC call.
@@ -210,23 +155,7 @@ async function getAlbumsWithViewCountsAfterScan(): Promise<Album[]> {
  * @returns A promise that resolves to the list of albums with view counts.
  */
 ipcMain.handle('get-albums-with-view-counts', async () => {
-  const albums = await getAlbumsFromCacheOrDisk();
-  if (!albums || albums.length === 0) {
-    return [];
-  }
-
-  const allFilePaths = albums.flatMap((album) =>
-    album.textures.map((texture) => texture.path),
-  );
-  const viewCountsMap = await getMediaViewCounts(allFilePaths);
-
-  return albums.map((album) => ({
-    ...album,
-    textures: album.textures.map((texture) => ({
-      ...texture,
-      viewCount: viewCountsMap[texture.path] || 0,
-    })),
-  }));
+  return getAlbumsWithViewCounts();
 });
 
 /**
@@ -234,22 +163,36 @@ ipcMain.handle('get-albums-with-view-counts', async () => {
  * adds it to the database, and returns the path.
  * @returns The path of the new directory, or null if canceled.
  */
-ipcMain.handle('add-media-directory', async () => {
-  if (!mainWindow) return null;
+ipcMain.handle(
+  'add-media-directory',
+  async (_event: IpcMainInvokeEvent, targetPath?: string) => {
+    if (targetPath) {
+      try {
+        if (!fs.existsSync(targetPath)) return null;
+        await addMediaDirectory(targetPath);
+        return targetPath;
+      } catch (e) {
+        console.error('Failed to add directory by path', e);
+        return null;
+      }
+    }
 
-  const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openDirectory'],
-    title: 'Select Media Directory',
-  });
+    if (!mainWindow) return null;
 
-  if (canceled || !filePaths || filePaths.length === 0) {
-    return null;
-  }
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openDirectory'],
+      title: 'Select Media Directory',
+    });
 
-  const newPath = filePaths[0];
-  await addMediaDirectory(newPath);
-  return newPath;
-});
+    if (canceled || !filePaths || filePaths.length === 0) {
+      return null;
+    }
+
+    const newPath = filePaths[0];
+    await addMediaDirectory(newPath);
+    return newPath;
+  },
+);
 
 /**
  * Handles the 'reindex-media-library' IPC call.
@@ -376,6 +319,18 @@ ipcMain.handle(
         message: `Failed to launch VLC: ${(error as Error).message}`,
       };
     }
+  },
+);
+
+/**
+ * Handles the 'list-directory' IPC call.
+ * @param directoryPath - The path to list.
+ * @returns The contents of the directory.
+ */
+ipcMain.handle(
+  'list-directory',
+  async (_event: IpcMainInvokeEvent, directoryPath: string) => {
+    return listDirectory(directoryPath);
   },
 );
 

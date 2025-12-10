@@ -1,7 +1,7 @@
 /**
  * @file Provides utility functions for working with album data structures.
  */
-import type { Album, MediaFile } from '../../main/media-scanner';
+import type { Album, MediaFile } from '../../core/types';
 
 /**
  * Recursively counts the total number of textures in an album and all its children.
