@@ -18,6 +18,8 @@ export default defineConfig({
         'src/main/**/*.{js,ts}',
         'src/renderer/**/*.{js,ts}',
         'src/renderer/**/*.vue',
+        'src/core/**/*.{js,ts}',
+        'src/server/**/*.{js,ts}',
       ],
       exclude: [
         'src/main/main.ts',
