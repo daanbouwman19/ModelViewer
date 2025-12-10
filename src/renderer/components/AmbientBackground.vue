@@ -14,6 +14,7 @@
  */
 import { ref, watch, onUnmounted } from 'vue';
 import { useAppState } from '../composables/useAppState';
+import { api } from '../api';
 
 const { currentMediaItem, supportedExtensions, mainVideoElement } =
   useAppState();
@@ -33,9 +34,8 @@ const loadMedia = async () => {
   }
 
   try {
-    const result = await window.electronAPI.loadFileAsDataURL(
-      currentMediaItem.value.path,
-    );
+    const result = await api.loadFileAsDataURL(currentMediaItem.value.path);
+
     if (
       (result.type === 'data-url' || result.type === 'http-url') &&
       result.url

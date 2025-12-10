@@ -1,17 +1,6 @@
-/**
- * @file Manages the global reactive state for the Vue application.
- * This composable provides a centralized state object and functions to modify it,
- * ensuring that all components share a single source of truth.
- */
 import { reactive, toRefs } from 'vue';
-import type { Album, MediaFile } from '../../main/media-scanner';
-import type { ElectronAPI } from '../../preload/preload';
-
-declare global {
-  interface Window {
-    electronAPI: ElectronAPI;
-  }
-}
+import type { Album, MediaFile } from '../../core/types';
+import { api } from '../api';
 
 /**
  * Defines the shape of the global application state.
@@ -105,13 +94,9 @@ export function useAppState() {
    */
   const initializeApp = async () => {
     try {
-      if (!window.electronAPI) {
-        throw new Error('electronAPI is not available');
-      }
-      state.allAlbums = await window.electronAPI.getAlbumsWithViewCounts();
-      state.mediaDirectories = await window.electronAPI.getMediaDirectories();
-      state.supportedExtensions =
-        await window.electronAPI.getSupportedExtensions();
+      state.allAlbums = await api.getAlbumsWithViewCounts();
+      state.mediaDirectories = await api.getMediaDirectories();
+      state.supportedExtensions = await api.getSupportedExtensions();
 
       state.allAlbums.forEach((album) => {
         state.albumsSelectedForSlideshow[album.name] = true;

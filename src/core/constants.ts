@@ -1,6 +1,5 @@
 /**
- * @file Defines constants used throughout the main process of the application.
- * These include settings for file handling, caching, and supported media types.
+ * @file Defines constants used throughout the core of the application.
  */
 
 /**

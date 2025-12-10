@@ -6,7 +6,9 @@
  * process isolation and security in the Electron application.
  */
 import { contextBridge, ipcRenderer } from 'electron';
-import type { Album } from '../main/media-scanner';
+import type { Album } from '../core/types';
+
+import type { FileSystemEntry } from '../core/file-system';
 
 export interface LoadResult {
   type: 'data-url' | 'http-url' | 'error';
@@ -22,7 +24,7 @@ export interface ElectronAPI {
   ) => Promise<{ [filePath: string]: number }>;
   getAlbumsWithViewCounts: () => Promise<Album[]>;
   reindexMediaLibrary: () => Promise<Album[]>;
-  addMediaDirectory: () => Promise<string | null>;
+  addMediaDirectory: (path?: string) => Promise<string | null>;
   removeMediaDirectory: (directoryPath: string) => Promise<void>;
   setDirectoryActiveState: (
     directoryPath: string,
@@ -42,6 +44,8 @@ export interface ElectronAPI {
     color: { r: number; g: number; b: number },
     threshold: number,
   ) => Promise<string[]>;
+  listDirectory: (directoryPath: string) => Promise<FileSystemEntry[]>;
+  getParentDirectory: (path: string) => Promise<string | null>;
 }
 
 // Expose a controlled API to the renderer process via `window.electronAPI`.
@@ -89,7 +93,8 @@ const api: ElectronAPI = {
    * Opens a dialog to select a new media directory, adds it, and triggers a re-index.
    * @returns A promise that resolves to the updated list of albums, or null if the user cancels.
    */
-  addMediaDirectory: () => ipcRenderer.invoke('add-media-directory'),
+  addMediaDirectory: (path?: string) =>
+    ipcRenderer.invoke('add-media-directory', path),
 
   /**
    * Removes a media directory from the database.
@@ -144,6 +149,22 @@ const api: ElectronAPI = {
     color: { r: number; g: number; b: number },
     threshold: number,
   ) => ipcRenderer.invoke('get-media-by-color', color, threshold),
+
+  /**
+   * Lists the contents of a directory.
+   * @param directoryPath - The absolute path of the directory.
+   * @returns A promise that resolves to an array of file system entries.
+   */
+  listDirectory: (directoryPath: string) =>
+    ipcRenderer.invoke('list-directory', directoryPath),
+
+  /**
+   * Gets the parent directory of a given path.
+   * @param path - The path to look up.
+   * @returns A promise that resolves to the parent path string or null.
+   */
+  getParentDirectory: (path: string) =>
+    ipcRenderer.invoke('get-parent-directory', path),
 };
 
 contextBridge.exposeInMainWorld('electronAPI', api);

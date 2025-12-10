@@ -64,7 +64,7 @@ import {
   getAlbumAndChildrenNames,
   collectTexturesRecursive,
 } from '../utils/albumUtils';
-import type { Album } from '../../main/media-scanner';
+import type { Album } from '../../core/types';
 
 const {
   allAlbums,

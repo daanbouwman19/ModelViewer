@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import fsPromises from 'fs/promises';
-import { performFullMediaScan } from '../../src/main/media-scanner';
+import { performFullMediaScan } from '../../src/core/media-scanner';
 
 let testDir: string;
 

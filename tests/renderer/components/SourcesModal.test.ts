@@ -3,17 +3,25 @@ import { mount, flushPromises } from '@vue/test-utils';
 import { ref } from 'vue';
 import SourcesModal from '@/components/SourcesModal.vue';
 import { useAppState } from '@/composables/useAppState';
-import { createMockElectronAPI } from '../mocks/electronAPI';
+import { api } from '@/api';
 
 // Mock the composables
-vi.mock('@/composables/useAppState.js');
+vi.mock('@/composables/useAppState');
 
-// Mock window.electronAPI
-global.window.electronAPI = createMockElectronAPI();
+// Mock the API module
+// This intercepts calls to api.someMethod made by the component
+vi.mock('@/api', () => ({
+  api: {
+    addMediaDirectory: vi.fn(),
+    removeMediaDirectory: vi.fn(),
+    setDirectoryActiveState: vi.fn(),
+    getMediaDirectories: vi.fn(),
+    reindexMediaLibrary: vi.fn(),
+  },
+}));
 
 describe('SourcesModal.vue', () => {
   let mockRefs: any;
-
   let mockState: any;
 
   beforeEach(() => {
@@ -55,25 +63,18 @@ describe('SourcesModal.vue', () => {
       stopSlideshow: vi.fn(),
     };
 
+    // Return the mock refs when useAppState is called
     (useAppState as Mock).mockReturnValue(mockRefs);
 
-    // Reset mocks and provide default success implementations
+    // Reset API mocks
     vi.clearAllMocks();
-    (window.electronAPI.addMediaDirectory as Mock)
-      .mockReset()
-      .mockResolvedValue('/default/path');
-    (window.electronAPI.removeMediaDirectory as Mock)
-      .mockReset()
-      .mockResolvedValue(undefined);
-    (window.electronAPI.setDirectoryActiveState as Mock)
-      .mockReset()
-      .mockResolvedValue(undefined);
-    (window.electronAPI.getMediaDirectories as Mock)
-      .mockReset()
-      .mockResolvedValue([]);
-    (window.electronAPI.reindexMediaLibrary as Mock)
-      .mockReset()
-      .mockResolvedValue([]);
+
+    // Default mock implementations
+    (api.addMediaDirectory as Mock).mockResolvedValue('/default/path');
+    (api.removeMediaDirectory as Mock).mockResolvedValue(undefined);
+    (api.setDirectoryActiveState as Mock).mockResolvedValue(undefined);
+    (api.getMediaDirectories as Mock).mockResolvedValue([]);
+    (api.reindexMediaLibrary as Mock).mockResolvedValue([]);
   });
 
   it('should render modal when visible', () => {
@@ -122,40 +123,30 @@ describe('SourcesModal.vue', () => {
   });
 
   it('should call setDirectoryActiveState when checkbox changed', async () => {
-    (window.electronAPI.setDirectoryActiveState as Mock).mockResolvedValue(
-      undefined,
-    );
     const wrapper = mount(SourcesModal);
     const checkbox = wrapper.findAll('.source-checkbox')[0];
     await checkbox.setValue(false);
-    expect(window.electronAPI.setDirectoryActiveState).toHaveBeenCalledWith(
+    expect(api.setDirectoryActiveState).toHaveBeenCalledWith(
       '/path/to/dir1',
       false,
     );
   });
 
   it('should call removeMediaDirectory when remove button clicked', async () => {
-    (window.electronAPI.removeMediaDirectory as Mock).mockResolvedValue(
-      undefined,
-    );
     const wrapper = mount(SourcesModal);
     const removeButton = wrapper.findAll('.remove-button')[0];
     await removeButton.trigger('click');
-    expect(window.electronAPI.removeMediaDirectory).toHaveBeenCalledWith(
-      '/path/to/dir1',
-    );
+    expect(api.removeMediaDirectory).toHaveBeenCalledWith('/path/to/dir1');
   });
 
   it('should call addMediaDirectory when add button clicked', async () => {
-    (window.electronAPI.addMediaDirectory as Mock).mockResolvedValue(
-      '/new/path',
-    );
+    (api.addMediaDirectory as Mock).mockResolvedValue('/new/path');
     const wrapper = mount(SourcesModal);
     const buttons = wrapper.findAll('.modal-actions .action-button');
     const addButton = buttons[0];
     await addButton.trigger('click');
     await flushPromises();
-    expect(window.electronAPI.addMediaDirectory).toHaveBeenCalled();
+    expect(api.addMediaDirectory).toHaveBeenCalled();
     expect(mockRefs.mediaDirectories.value).toContainEqual({
       path: '/new/path',
       isActive: true,
@@ -167,10 +158,8 @@ describe('SourcesModal.vue', () => {
       { name: 'newAlbum1', children: [] },
       { name: 'newAlbum2', children: [{ name: 'subAlbum', children: [] }] },
     ];
-    (window.electronAPI.reindexMediaLibrary as Mock).mockResolvedValue(
-      newAlbums,
-    );
-    (window.electronAPI.getMediaDirectories as Mock).mockResolvedValue([]);
+    (api.reindexMediaLibrary as Mock).mockResolvedValue(newAlbums);
+    (api.getMediaDirectories as Mock).mockResolvedValue([]);
 
     const wrapper = mount(SourcesModal);
     const buttons = wrapper.findAll('.modal-actions .action-button');
@@ -178,7 +167,7 @@ describe('SourcesModal.vue', () => {
     await reindexButton.trigger('click');
     await flushPromises();
 
-    expect(window.electronAPI.reindexMediaLibrary).toHaveBeenCalled();
+    expect(api.reindexMediaLibrary).toHaveBeenCalled();
     expect(mockState.allAlbums).toEqual(newAlbums);
     expect(mockState.albumsSelectedForSlideshow).toEqual({
       newAlbum1: true,
@@ -189,7 +178,7 @@ describe('SourcesModal.vue', () => {
 
   it('should handle error when reindexing fails', async () => {
     const error = new Error('Reindex failed');
-    (window.electronAPI.reindexMediaLibrary as Mock).mockRejectedValue(error);
+    (api.reindexMediaLibrary as Mock).mockRejectedValue(error);
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const wrapper = mount(SourcesModal);
@@ -199,7 +188,7 @@ describe('SourcesModal.vue', () => {
     await reindexButton.trigger('click');
     await flushPromises();
 
-    expect(window.electronAPI.reindexMediaLibrary).toHaveBeenCalled();
+    expect(api.reindexMediaLibrary).toHaveBeenCalled();
     expect(consoleSpy).toHaveBeenCalledWith(
       'Error re-indexing library:',
       error,
@@ -211,7 +200,7 @@ describe('SourcesModal.vue', () => {
 
   it('should handle user cancelling directory selection', async () => {
     // Return null to simulate cancellation
-    (window.electronAPI.addMediaDirectory as Mock).mockResolvedValue(null);
+    (api.addMediaDirectory as Mock).mockResolvedValue(null);
 
     const wrapper = mount(SourcesModal);
     const buttons = wrapper.findAll('.modal-actions .action-button');
@@ -220,14 +209,14 @@ describe('SourcesModal.vue', () => {
     await addButton.trigger('click');
     await flushPromises();
 
-    expect(window.electronAPI.addMediaDirectory).toHaveBeenCalled();
+    expect(api.addMediaDirectory).toHaveBeenCalled();
     // No new directory should be added
     expect(mockRefs.mediaDirectories.value).toHaveLength(2);
   });
 
   it('should handle error when adding directory fails', async () => {
     const error = new Error('Add failed');
-    (window.electronAPI.addMediaDirectory as Mock).mockRejectedValue(error);
+    (api.addMediaDirectory as Mock).mockRejectedValue(error);
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const wrapper = mount(SourcesModal);
@@ -247,9 +236,7 @@ describe('SourcesModal.vue', () => {
 
   it('should handle error when toggling directory fails', async () => {
     const error = new Error('Toggle failed');
-    (window.electronAPI.setDirectoryActiveState as Mock).mockRejectedValue(
-      error,
-    );
+    (api.setDirectoryActiveState as Mock).mockRejectedValue(error);
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const wrapper = mount(SourcesModal);
@@ -267,21 +254,15 @@ describe('SourcesModal.vue', () => {
   });
 
   it('should handle directory not found during toggle', async () => {
-    // This simulates a race condition where the directory might have been removed
     const wrapper = mount(SourcesModal);
-
-    // Manually call the handler with a path that doesn't exist in the list
-
     await (wrapper.vm as any).handleToggleActive('/non-existent/path', true);
-
-    // Expect no crash and no state change for existing directories
     expect(mockRefs.mediaDirectories.value[0].isActive).toBe(true);
     expect(mockRefs.mediaDirectories.value[1].isActive).toBe(false);
   });
 
   it('should handle error when removing directory fails', async () => {
     const error = new Error('Remove failed');
-    (window.electronAPI.removeMediaDirectory as Mock).mockRejectedValue(error);
+    (api.removeMediaDirectory as Mock).mockRejectedValue(error);
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const wrapper = mount(SourcesModal);
@@ -296,14 +277,8 @@ describe('SourcesModal.vue', () => {
   });
 
   it('should handle directory not found during remove', async () => {
-    // This simulates a race condition where the directory might have been removed already
     const wrapper = mount(SourcesModal);
-
-    // Manually call the handler with a path that doesn't exist in the list
-
     await (wrapper.vm as any).handleRemove('/non-existent/path');
-
-    // Expect list to remain unchanged
     expect(mockRefs.mediaDirectories.value).toHaveLength(2);
   });
 });

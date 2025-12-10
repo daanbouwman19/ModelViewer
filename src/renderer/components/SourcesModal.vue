@@ -61,6 +61,22 @@
       </div>
     </div>
   </div>
+
+  <!-- File Explorer Modal -->
+  <div
+    v-if="isFileExplorerOpen"
+    class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 modal-overlay"
+    @click.self="closeFileExplorer"
+  >
+    <div
+      class="bg-gray-800 rounded-lg shadow-2xl w-full max-w-2xl overflow-hidden modal-content"
+    >
+      <FileExplorer
+        @select="handleFileExplorerSelect"
+        @cancel="closeFileExplorer"
+      />
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -71,8 +87,12 @@
  */
 import { useAppState } from '../composables/useAppState';
 import { selectAllAlbums } from '../utils/albumUtils';
+import { api } from '../api';
+import { ref } from 'vue';
+import FileExplorer from './FileExplorer.vue';
 
 const { isSourcesModalVisible, mediaDirectories, state } = useAppState();
+const isFileExplorerOpen = ref(false);
 
 /**
  * Closes the modal.
@@ -100,7 +120,7 @@ const resetSlideshowState = () => {
  */
 const handleToggleActive = async (path: string, isActive: boolean) => {
   try {
-    await window.electronAPI.setDirectoryActiveState(path, isActive);
+    await api.setDirectoryActiveState(path, isActive);
     const dir = mediaDirectories.value.find((d) => d.path === path);
     if (dir) {
       dir.isActive = isActive;
@@ -116,7 +136,7 @@ const handleToggleActive = async (path: string, isActive: boolean) => {
  */
 const handleRemove = async (path: string) => {
   try {
-    await window.electronAPI.removeMediaDirectory(path);
+    await api.removeMediaDirectory(path);
     const index = mediaDirectories.value.findIndex((d) => d.path === path);
     if (index !== -1) {
       mediaDirectories.value.splice(index, 1);
@@ -131,12 +151,31 @@ const handleRemove = async (path: string) => {
  */
 const handleAddDirectory = async () => {
   try {
-    const newPath = await window.electronAPI.addMediaDirectory();
+    const newPath = await api.addMediaDirectory();
     if (newPath) {
       mediaDirectories.value.push({ path: newPath, isActive: true });
+    } else {
+      // Fallback to custom File Explorer if native dialog not supported
+      isFileExplorerOpen.value = true;
     }
   } catch (error) {
     console.error('Error adding media directory:', error);
+  }
+};
+
+const closeFileExplorer = () => {
+  isFileExplorerOpen.value = false;
+};
+
+const handleFileExplorerSelect = async (path: string) => {
+  closeFileExplorer();
+  try {
+    const result = await api.addMediaDirectory(path);
+    if (result) {
+      mediaDirectories.value.push({ path: result, isActive: true });
+    }
+  } catch (error) {
+    console.error('Error adding media directory via explorer:', error);
   }
 };
 
@@ -146,9 +185,9 @@ const handleAddDirectory = async () => {
 const reindex = async () => {
   state.isScanning = true;
   try {
-    const updatedAlbums = await window.electronAPI.reindexMediaLibrary();
+    const updatedAlbums = await api.reindexMediaLibrary();
     state.allAlbums = updatedAlbums;
-    state.mediaDirectories = await window.electronAPI.getMediaDirectories();
+    state.mediaDirectories = await api.getMediaDirectories();
     selectAllAlbums(updatedAlbums, state.albumsSelectedForSlideshow, true);
     resetSlideshowState();
   } catch (error) {

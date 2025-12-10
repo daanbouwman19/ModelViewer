@@ -1,87 +1,12 @@
 /**
- * @file Manages all database interactions for the application using a Worker Thread.
- * This module acts as a bridge between the main process and the database worker thread,
- * which handles all sqlite3 operations to avoid blocking the main process.
+ * @file Manages database interactions for the Electron main process.
+ * Wraps the core database logic and handles worker path resolution specific to Electron.
  */
 
 import path from 'path';
 import { app } from 'electron';
-import { Worker } from 'worker_threads';
-import { FILE_INDEX_CACHE_KEY } from './constants';
-import type { Album } from './media-scanner';
-
-/**
- * The database worker thread instance.
- */
-let dbWorker: Worker | null = null;
-
-/**
- * A flag to indicate if the worker is being terminated intentionally.
- */
-let isTerminating = false;
-
-/**
- * A counter for generating unique message IDs for worker communication.
- */
-let messageIdCounter = 0;
-
-interface PendingMessage {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  resolve: (value: any) => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  reject: (reason?: any) => void;
-  timeoutId: NodeJS.Timeout;
-}
-
-/**
- * A map of pending promises waiting for worker responses, keyed by message ID.
- */
-const pendingMessages = new Map<number, PendingMessage>();
-
-/**
- * The timeout duration for database operations in milliseconds.
- */
-let operationTimeout = 30000;
-
-/**
- * Sends a message to the database worker and returns a promise that resolves with the result.
- * @param type - The type of operation to perform (e.g., 'init', 'recordMediaView').
- * @param payload - The data payload for the operation.
- * @returns A promise that resolves with the worker's response data.
- * @throws {Error} If the worker is not initialized or the operation times out.
- */
-function sendMessageToWorker<T = unknown>(
-  type: string,
-  payload: unknown = {},
-): Promise<T> {
-  return new Promise((resolve, reject) => {
-    if (!dbWorker) {
-      return reject(new Error('Database worker not initialized'));
-    }
-
-    const id = messageIdCounter++;
-
-    const timeoutId = setTimeout(() => {
-      if (pendingMessages.has(id)) {
-        pendingMessages.delete(id);
-        reject(new Error(`Database operation timed out: ${type}`));
-      }
-    }, operationTimeout);
-
-    pendingMessages.set(id, { resolve, reject, timeoutId });
-
-    try {
-      dbWorker.postMessage({ id, type, payload });
-    } catch (error: unknown) {
-      console.error(
-        `[database.js] Error posting message to worker: ${(error as Error).message}`,
-      );
-      clearTimeout(timeoutId);
-      pendingMessages.delete(id);
-      reject(error);
-    }
-  });
-}
+import { initDatabase as initCoreDatabase } from '../core/database';
+export * from '../core/database';
 
 /**
  * Initializes the database by creating and managing a worker thread.
@@ -89,374 +14,36 @@ function sendMessageToWorker<T = unknown>(
  * @returns A promise that resolves when the database is successfully initialized.
  * @throws {Error} If the worker initialization fails.
  */
-async function initDatabase(): Promise<void> {
-  if (dbWorker) {
-    console.log(
-      '[database.js] Terminating existing database worker before re-init.',
+export async function initDatabase(): Promise<void> {
+  const dbPath = path.join(
+    app.getPath('userData'),
+    'media_slideshow_stats.sqlite',
+  );
+
+  let workerPath: string | URL;
+  const isTest =
+    process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
+
+  if (app.isPackaged) {
+    // In a packaged app, the worker is a JS file relative to the main script.
+    workerPath = path.join(__dirname, 'database-worker.js');
+  } else if (isTest) {
+    // In a test environment (Vitest), resolve the path to the TS source file.
+    const pathModule = await import('path');
+    workerPath = pathModule.resolve(
+      process.cwd(),
+      'src/core/database-worker.ts',
     );
-    isTerminating = true;
-    await dbWorker.terminate();
-    dbWorker = null;
+  } else {
+    // In development, use the URL constructor relative to the current module.
+    // electron-vite handles the bundling of the worker file.
+    // We point to the local file which will be bundled.
+    // Note: When using electron-vite, we might need to verify where the worker ends up.
+    // Usually it expects 'database-worker.js' in the output directory.
+    // For now, let's try pointing to the core one, or we might need to copy/alias it.
+    // Given the previous setup, it expected ./database-worker.js.
+    workerPath = new URL('../core/database-worker.ts', import.meta.url);
   }
 
-  isTerminating = false;
-
-  try {
-    let workerPath: string | URL;
-    const isTest =
-      process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
-
-    if (app.isPackaged) {
-      // In a packaged app, the worker is a JS file relative to the main script.
-      workerPath = path.join(__dirname, 'database-worker.js');
-    } else if (isTest) {
-      // In a test environment (Vitest), resolve the path to the TS source file.
-      const pathModule = await import('path');
-      workerPath = pathModule.resolve(
-        process.cwd(),
-        'src/main/database-worker.ts',
-      );
-    } else {
-      // In development, use the URL constructor relative to the current module.
-      // electron-vite handles the bundling of the worker file.
-      workerPath = new URL('./database-worker.js', import.meta.url);
-    }
-
-    dbWorker = new Worker(workerPath);
-
-    dbWorker.on(
-      'message',
-      (message: {
-        id: number;
-        result: { success: boolean; data?: unknown; error?: string };
-      }) => {
-        const { id, result } = message;
-        const pending = pendingMessages.get(id);
-        if (pending) {
-          clearTimeout(pending.timeoutId);
-          pendingMessages.delete(id);
-          if (result.success) {
-            pending.resolve(result.data);
-          } else {
-            pending.reject(new Error(result.error || 'Unknown database error'));
-          }
-        }
-      },
-    );
-
-    dbWorker.on('error', (error) => {
-      console.error('[database.js] Database worker error:', error);
-      for (const [id, pending] of pendingMessages.entries()) {
-        clearTimeout(pending.timeoutId);
-        pending.reject(error);
-        pendingMessages.delete(id);
-      }
-    });
-
-    dbWorker.on('exit', (code) => {
-      if (code !== 0 && !isTerminating) {
-        console.error(
-          `[database.js] Database worker exited unexpectedly with code ${code}`,
-        );
-      }
-      // Do not set dbWorker to null here. The closeDatabase function is responsible
-      // for cleanup and nullification. This ensures that even if the worker crashes,
-      // closeDatabase can still attempt to call terminate() on the worker handle.
-      for (const [id, pending] of pendingMessages.entries()) {
-        clearTimeout(pending.timeoutId);
-        pending.reject(new Error('Database worker exited unexpectedly'));
-        pendingMessages.delete(id);
-      }
-    });
-
-    const dbPath = path.join(
-      app.getPath('userData'),
-      'media_slideshow_stats.sqlite',
-    );
-    await sendMessageToWorker<void>('init', { dbPath });
-
-    if (process.env.NODE_ENV !== 'test') {
-      console.log('[database.js] Database worker initialized successfully.');
-    }
-  } catch (error) {
-    console.error(
-      '[database.js] CRITICAL ERROR: Failed to initialize database worker:',
-      error,
-    );
-    dbWorker = null;
-    throw error;
-  }
+  return initCoreDatabase(dbPath, workerPath);
 }
-
-/**
- * Records a view for a media file.
- * @param filePath - The path to the media file.
- * @returns A promise that resolves when the view is recorded. Errors are logged but not re-thrown.
- */
-async function recordMediaView(filePath: string): Promise<void> {
-  try {
-    await sendMessageToWorker<void>('recordMediaView', { filePath });
-  } catch (error: unknown) {
-    if (process.env.NODE_ENV !== 'test') {
-      console.warn(
-        `[database.js] Error recording media view: ${(error as Error).message}`,
-      );
-    }
-  }
-}
-
-/**
- * Retrieves view counts for a list of media files.
- * @param filePaths - An array of file paths.
- * @returns A promise that resolves to a map of file paths to their view counts. Returns an empty object on error.
- */
-async function getMediaViewCounts(
-  filePaths: string[],
-): Promise<{ [filePath: string]: number }> {
-  if (!filePaths || filePaths.length === 0) {
-    return {};
-  }
-  try {
-    return await sendMessageToWorker<{ [filePath: string]: number }>(
-      'getMediaViewCounts',
-      { filePaths },
-    );
-  } catch (error) {
-    console.error('[database.js] Error fetching view counts:', error);
-    return {};
-  }
-}
-
-/**
- * Caches the list of albums (file index) into the database.
- * @param albums - The array of album objects to cache.
- * @returns A promise that resolves when the albums are cached. Errors are logged but not re-thrown.
- */
-async function cacheAlbums(albums: Album[]): Promise<void> {
-  try {
-    await sendMessageToWorker<void>('cacheAlbums', {
-      cacheKey: FILE_INDEX_CACHE_KEY,
-      albums,
-    });
-  } catch (error) {
-    console.error('[database.js] Error caching albums:', error);
-  }
-}
-
-/**
- * Retrieves the cached list of albums from the database.
- * @returns A promise that resolves to the cached albums, or null if not found or an error occurs.
- */
-async function getCachedAlbums(): Promise<Album[] | null> {
-  try {
-    return await sendMessageToWorker<Album[] | null>('getCachedAlbums', {
-      cacheKey: FILE_INDEX_CACHE_KEY,
-    });
-  } catch (error: unknown) {
-    if (process.env.NODE_ENV !== 'test') {
-      console.warn(
-        `[database.js] Error getting cached albums: ${(error as Error).message}`,
-      );
-    }
-    return null;
-  }
-}
-
-/**
- * Closes the database connection by terminating the worker thread.
- * @returns A promise that resolves when the worker has been terminated.
- */
-async function closeDatabase(): Promise<void> {
-  if (dbWorker) {
-    isTerminating = true;
-    try {
-      // Attempt to gracefully shut down the worker
-      await sendMessageToWorker<void>('close');
-    } catch (error) {
-      // This is expected if the worker has already crashed or is not responding, so we can ignore it.
-      // But we should log it for debugging purposes if it's not just a "worker exited" error.
-      if (process.env.NODE_ENV !== 'test') {
-        console.warn('[database.js] Warning during worker shutdown:', error);
-      }
-    } finally {
-      try {
-        if (dbWorker) {
-          await dbWorker.terminate();
-        }
-      } catch (error) {
-        // This handles cases where terminate() itself fails.
-        console.error('[database.js] Error closing database worker:', error);
-      } finally {
-        // Ensure the worker reference is cleared in all scenarios.
-        dbWorker = null;
-        isTerminating = false;
-        console.log('[database.js] Database worker terminated.');
-      }
-    }
-  }
-}
-
-/**
- * Sets the timeout duration for database operations. Useful for testing.
- * @param timeout - The timeout in milliseconds.
- */
-function setOperationTimeout(timeout: number): void {
-  operationTimeout = timeout;
-}
-
-/**
- * Adds a new media directory to the database.
- * @param directoryPath - The absolute path of the directory to add.
- * @returns A promise that resolves on success or rejects on failure.
- * @throws {Error} If the database operation fails.
- */
-async function addMediaDirectory(directoryPath: string): Promise<void> {
-  try {
-    await sendMessageToWorker<void>('addMediaDirectory', { directoryPath });
-  } catch (error) {
-    console.error(
-      `[database.js] Error adding media directory '${directoryPath}':`,
-      error,
-    );
-    throw error;
-  }
-}
-
-export interface MediaDirectory {
-  path: string;
-  isActive: boolean;
-}
-
-/**
- * Retrieves all media directories from the database.
- * @returns A promise that resolves to a list of all media directory objects. Returns an empty array on error.
- */
-async function getMediaDirectories(): Promise<MediaDirectory[]> {
-  try {
-    const directories = await sendMessageToWorker<MediaDirectory[]>(
-      'getMediaDirectories',
-    );
-    return directories || [];
-  } catch (error) {
-    console.error('[database.js] Error getting media directories:', error);
-    return [];
-  }
-}
-
-/**
- * Removes a media directory from the database.
- * @param directoryPath - The absolute path of the directory to remove.
- * @returns A promise that resolves on success or rejects on failure.
- * @throws {Error} If the database operation fails.
- */
-async function removeMediaDirectory(directoryPath: string): Promise<void> {
-  try {
-    await sendMessageToWorker<void>('removeMediaDirectory', { directoryPath });
-  } catch (error) {
-    console.error(
-      `[database.js] Error removing media directory '${directoryPath}':`,
-      error,
-    );
-    throw error;
-  }
-}
-
-/**
- * Updates the active state for a given media directory.
- * @param directoryPath - The path of the directory to update.
- * @param isActive - The new active state.
- * @returns A promise that resolves on success or rejects on failure.
- * @throws {Error} If the database operation fails.
- */
-async function setDirectoryActiveState(
-  directoryPath: string,
-  isActive: boolean,
-): Promise<void> {
-  try {
-    await sendMessageToWorker<void>('setDirectoryActiveState', {
-      directoryPath,
-      isActive,
-    });
-  } catch (error) {
-    console.error(
-      `[database.js] Error setting active state for '${directoryPath}':`,
-      error,
-    );
-    throw error;
-  }
-}
-
-/**
- * Retrieves media files that match a specific dominant color within a given threshold.
- * @param r - The red component (0-255).
- * @param g - The green component (0-255).
- * @param b - The blue component (0-255).
- * @param threshold - The maximum Euclidean distance in RGB space to consider a match. Defaults to 50.
- * @returns A promise that resolves to a list of file paths that match the color criteria.
- */
-async function getMediaByColor(
-  r: number,
-  g: number,
-  b: number,
-  threshold: number = 50,
-): Promise<string[]> {
-  try {
-    return await sendMessageToWorker<string[]>('getMediaByColor', {
-      r,
-      g,
-      b,
-      threshold,
-    });
-  } catch (error) {
-    console.error('[database.js] Error getting media by color:', error);
-    return [];
-  }
-}
-
-/**
- * Retrieves a list of files that do not yet have dominant color information stored.
- * This is used to prioritize background analysis tasks.
- * @returns A promise that resolves to a list of file paths needing analysis.
- */
-async function getFilesMissingColor(): Promise<string[]> {
-  try {
-    return await sendMessageToWorker<string[]>('getFilesMissingColor');
-  } catch (error) {
-    console.error('[database.js] Error getting files missing color:', error);
-    return [];
-  }
-}
-
-/**
- * Updates the dominant color information for a specific file in the database.
- * @param filePath - The path of the file to update.
- * @param color - The color object containing hex string and RGB values.
- * @returns A promise that resolves when the operation is complete.
- */
-async function setFileColor(
-  filePath: string,
-  color: { hex: string; r: number; g: number; b: number },
-): Promise<void> {
-  try {
-    await sendMessageToWorker<void>('setFileColor', { filePath, color });
-  } catch (error) {
-    console.error('[database.js] Error setting file color:', error);
-  }
-}
-
-export {
-  initDatabase,
-  recordMediaView,
-  getMediaViewCounts,
-  cacheAlbums,
-  getCachedAlbums,
-  closeDatabase,
-  setOperationTimeout,
-  addMediaDirectory,
-  getMediaDirectories,
-  removeMediaDirectory,
-  setDirectoryActiveState,
-  getMediaByColor,
-  getFilesMissingColor,
-  setFileColor,
-};

@@ -189,9 +189,10 @@
  * It handles loading the media from the main process, displaying loading/error states,
  * and providing navigation controls to move between media items.
  */
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue'; // Added onMounted
 import { useAppState } from '../composables/useAppState';
 import { useSlideshow } from '../composables/useSlideshow';
+import { api } from '../api';
 import VlcIcon from './icons/VlcIcon.vue';
 
 const {
@@ -253,6 +254,17 @@ const currentVideoTime = ref(0);
 const currentVideoDuration = ref(0);
 const isControlsVisible = ref(true);
 let controlsTimeout: NodeJS.Timeout | null = null;
+const videoStreamUrlGenerator = ref<
+  ((filePath: string, startTime?: number) => string) | null
+>(null);
+
+onMounted(async () => {
+  try {
+    videoStreamUrlGenerator.value = await api.getVideoStreamUrlGenerator();
+  } catch (error) {
+    console.error('Failed to initialize video stream generator', error);
+  }
+});
 
 /* Removed local ambient lighting logic */
 /* const ambientCanvas = ref<HTMLCanvasElement | null>(null); */
@@ -323,9 +335,7 @@ const loadMediaUrl = async () => {
   currentVideoDuration.value = 0;
 
   try {
-    const result = await window.electronAPI.loadFileAsDataURL(
-      currentMediaItem.value.path,
-    );
+    const result = await api.loadFileAsDataURL(currentMediaItem.value.path);
     if (result.type === 'error') {
       error.value = result.message || 'Unknown error';
       mediaUrl.value = null;
@@ -540,17 +550,13 @@ const tryTranscoding = async (startTime = 0) => {
   currentTranscodeStartTime.value = startTime;
 
   try {
-    const port = await window.electronAPI.getServerPort();
-    if (port > 0) {
-      const encodedPath = encodeURIComponent(currentMediaItem.value.path);
+    if (videoStreamUrlGenerator.value) {
+      const encodedPath = currentMediaItem.value.path; // API handles encoding? Generator logic encodes it.
 
       // Fetch duration if not already known
       if (transcodedDuration.value === 0) {
         try {
-          const metaResponse = await fetch(
-            `http://localhost:${port}/video/metadata?file=${encodedPath}`,
-          );
-          const meta = await metaResponse.json();
+          const meta = await api.getVideoMetadata(encodedPath);
           if (meta.duration) {
             transcodedDuration.value = meta.duration;
           }
@@ -559,7 +565,10 @@ const tryTranscoding = async (startTime = 0) => {
         }
       }
 
-      const transcodeUrl = `http://localhost:${port}/video/stream?file=${encodedPath}&startTime=${startTime}`;
+      const transcodeUrl = videoStreamUrlGenerator.value(
+        encodedPath,
+        startTime,
+      );
       console.log('Transcoding URL:', transcodeUrl);
 
       // Update mediaUrl to point to the transcoding stream
@@ -570,7 +579,7 @@ const tryTranscoding = async (startTime = 0) => {
 
       // Wait for video to load
     } else {
-      error.value = 'Local server not running';
+      error.value = 'Local server not available';
       isTranscodingLoading.value = false;
     }
   } catch (e) {
@@ -591,9 +600,7 @@ const openInVlc = async () => {
     videoElement.value.pause();
   }
 
-  const result = await window.electronAPI.openInVlc(
-    currentMediaItem.value.path,
-  );
+  const result = await api.openInVlc(currentMediaItem.value.path);
   if (!result.success) {
     error.value = result.message || 'Failed to open in VLC.';
   }

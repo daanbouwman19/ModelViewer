@@ -12,7 +12,7 @@ import {
   IpcMainInvokeEvent,
 } from 'electron';
 import path from 'path';
-import fs from 'fs';
+import fs from 'fs/promises';
 import { spawn } from 'child_process';
 
 import {
@@ -20,31 +20,29 @@ import {
   SUPPORTED_VIDEO_EXTENSIONS,
   SUPPORTED_IMAGE_EXTENSIONS,
   ALL_SUPPORTED_EXTENSIONS,
-} from './constants';
+} from '../core/constants';
 
 import {
   initDatabase,
   recordMediaView,
   getMediaViewCounts,
-  cacheAlbums,
-  getCachedAlbums,
   closeDatabase,
   getMediaDirectories,
   addMediaDirectory,
   removeMediaDirectory,
   setDirectoryActiveState,
 } from './database';
-import { performFullMediaScan, Album } from './media-scanner';
+import {
+  getAlbumsWithViewCountsAfterScan,
+  getAlbumsWithViewCounts,
+} from '../core/media-service';
 import {
   startLocalServer,
   stopLocalServer,
   getServerPort,
   getMimeType as resolveMimeType,
 } from './local-server';
-
-/**
- * A flag indicating if the application is running in development mode.
- */
+import { listDirectory } from '../core/file-system';
 const isDev = !app.isPackaged;
 
 /**
@@ -65,13 +63,18 @@ let mainWindow: BrowserWindow | null = null;
  */
 ipcMain.handle(
   'load-file-as-data-url',
-  (
+  async (
     _event: IpcMainInvokeEvent,
     filePath: string,
     options: { preferHttp?: boolean } = {},
   ) => {
     try {
-      if (!filePath || !fs.existsSync(filePath)) {
+      if (!filePath) {
+        return { type: 'error', message: `File path is empty` };
+      }
+      try {
+        await fs.access(filePath);
+      } catch {
         return { type: 'error', message: `File does not exist: ${filePath}` };
       }
 
@@ -86,7 +89,7 @@ ipcMain.handle(
         };
       }
 
-      const stats = fs.statSync(filePath);
+      const stats = await fs.stat(filePath);
       const isVideo = SUPPORTED_VIDEO_EXTENSIONS.includes(
         path.extname(filePath).toLowerCase(),
       );
@@ -106,7 +109,7 @@ ipcMain.handle(
       }
 
       const mimeType = resolveMimeType(filePath);
-      const fileBuffer = fs.readFileSync(filePath);
+      const fileBuffer = await fs.readFile(filePath);
       const dataURL = `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
       return { type: 'data-url', url: dataURL };
     } catch (error: unknown) {
@@ -150,59 +153,6 @@ ipcMain.handle(
  * and returns the list of albums found.
  * @returns The list of albums found.
  */
-async function scanDiskForAlbumsAndCache(): Promise<Album[]> {
-  const allDirectories = await getMediaDirectories();
-  const activeDirectories = allDirectories
-    .filter((dir) => dir.isActive)
-    .map((dir) => dir.path);
-
-  if (!activeDirectories || activeDirectories.length === 0) {
-    await cacheAlbums([]);
-    return [];
-  }
-
-  const albums = await performFullMediaScan(activeDirectories);
-  await cacheAlbums(albums || []);
-  return albums || [];
-}
-
-/**
- * Retrieves albums by first checking the cache, and if the cache is empty,
- * performs a disk scan.
- * @returns The list of albums.
- */
-async function getAlbumsFromCacheOrDisk(): Promise<Album[]> {
-  const albums = await getCachedAlbums();
-  if (albums && albums.length > 0) {
-    return albums;
-  }
-  return scanDiskForAlbumsAndCache();
-}
-
-/**
- * Performs a fresh disk scan and returns the albums with their view counts.
- * This is a utility function to combine scanning and view count retrieval.
- * @returns The list of albums with view counts.
- */
-async function getAlbumsWithViewCountsAfterScan(): Promise<Album[]> {
-  const albums = await scanDiskForAlbumsAndCache();
-  if (!albums || albums.length === 0) {
-    return [];
-  }
-
-  const allFilePaths = albums.flatMap((album) =>
-    album.textures.map((texture) => texture.path),
-  );
-  const viewCountsMap = await getMediaViewCounts(allFilePaths);
-
-  return albums.map((album) => ({
-    ...album,
-    textures: album.textures.map((texture) => ({
-      ...texture,
-      viewCount: viewCountsMap[texture.path] || 0,
-    })),
-  }));
-}
 
 /**
  * Handles the 'get-albums-with-view-counts' IPC call.
@@ -210,23 +160,7 @@ async function getAlbumsWithViewCountsAfterScan(): Promise<Album[]> {
  * @returns A promise that resolves to the list of albums with view counts.
  */
 ipcMain.handle('get-albums-with-view-counts', async () => {
-  const albums = await getAlbumsFromCacheOrDisk();
-  if (!albums || albums.length === 0) {
-    return [];
-  }
-
-  const allFilePaths = albums.flatMap((album) =>
-    album.textures.map((texture) => texture.path),
-  );
-  const viewCountsMap = await getMediaViewCounts(allFilePaths);
-
-  return albums.map((album) => ({
-    ...album,
-    textures: album.textures.map((texture) => ({
-      ...texture,
-      viewCount: viewCountsMap[texture.path] || 0,
-    })),
-  }));
+  return getAlbumsWithViewCounts();
 });
 
 /**
@@ -234,22 +168,40 @@ ipcMain.handle('get-albums-with-view-counts', async () => {
  * adds it to the database, and returns the path.
  * @returns The path of the new directory, or null if canceled.
  */
-ipcMain.handle('add-media-directory', async () => {
-  if (!mainWindow) return null;
+ipcMain.handle(
+  'add-media-directory',
+  async (_event: IpcMainInvokeEvent, targetPath?: string) => {
+    if (targetPath) {
+      try {
+        try {
+          await fs.access(targetPath);
+        } catch {
+          return null;
+        }
+        await addMediaDirectory(targetPath);
+        return targetPath;
+      } catch (e) {
+        console.error('Failed to add directory by path', e);
+        return null;
+      }
+    }
 
-  const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
-    properties: ['openDirectory'],
-    title: 'Select Media Directory',
-  });
+    if (!mainWindow) return null;
 
-  if (canceled || !filePaths || filePaths.length === 0) {
-    return null;
-  }
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openDirectory'],
+      title: 'Select Media Directory',
+    });
 
-  const newPath = filePaths[0];
-  await addMediaDirectory(newPath);
-  return newPath;
-});
+    if (canceled || !filePaths || filePaths.length === 0) {
+      return null;
+    }
+
+    const newPath = filePaths[0];
+    await addMediaDirectory(newPath);
+    return newPath;
+  },
+);
 
 /**
  * Handles the 'reindex-media-library' IPC call.
@@ -330,16 +282,20 @@ ipcMain.handle(
         'C:\\Program Files (x86)\\VideoLAN\\VLC\\vlc.exe',
       ];
       for (const p of commonPaths) {
-        if (fs.existsSync(p)) {
+        try {
+          await fs.access(p);
           vlcPath = p;
           break;
+        } catch {
+          // Continue checking other paths
         }
       }
     } else if (platform === 'darwin') {
       const macPath = '/Applications/VLC.app/Contents/MacOS/VLC';
-      if (fs.existsSync(macPath)) {
+      try {
+        await fs.access(macPath);
         vlcPath = macPath;
-      } else {
+      } catch {
         // Fallback to trying 'vlc' in PATH if the standard app path fails
         vlcPath = 'vlc';
       }
@@ -376,6 +332,35 @@ ipcMain.handle(
         message: `Failed to launch VLC: ${(error as Error).message}`,
       };
     }
+  },
+);
+
+/**
+ * Handles the 'list-directory' IPC call.
+ * @param directoryPath - The path to list.
+ * @returns The contents of the directory.
+ */
+ipcMain.handle(
+  'list-directory',
+  async (_event: IpcMainInvokeEvent, directoryPath: string) => {
+    return listDirectory(directoryPath);
+  },
+);
+
+/**
+ * Handles the 'get-parent-directory' IPC call.
+ * @param targetPath - The path to get the parent of.
+ * @returns The parent directory path.
+ */
+ipcMain.handle(
+  'get-parent-directory',
+  async (_event: IpcMainInvokeEvent, targetPath: string) => {
+    if (!targetPath) return null;
+    const parent = path.dirname(targetPath);
+    // path.dirname('/') returns '/' on posix, 'C:\' on win32 if 'C:\' provided?
+    // If parent is same as path, we are at root.
+    if (parent === targetPath) return null;
+    return parent;
   },
 );
 
