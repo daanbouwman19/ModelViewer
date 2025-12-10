@@ -1,16 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { ipcMain } from 'electron';
-import fs from 'fs';
 
 // Hoist the mock function so it's accessible in the factory and the test
-const { mockSpawn } = vi.hoisted(() => ({
+const { mockSpawn, mockFsAccess } = vi.hoisted(() => ({
   mockSpawn: vi.fn(),
+  mockFsAccess: vi.fn(),
 }));
 
 // Mock dependencies
-vi.mock('fs', () => ({
+vi.mock('fs/promises', () => ({
   default: {
-    existsSync: vi.fn(),
+    access: mockFsAccess,
+    stat: vi.fn(),
+    readFile: vi.fn(),
   },
 }));
 
@@ -85,7 +87,7 @@ describe('Main Process IPC - open-in-vlc', () => {
 
   it('should fail if VLC is not found on Windows', async () => {
     Object.defineProperty(process, 'platform', { value: 'win32' });
-    (fs.existsSync as unknown as Mock).mockReturnValue(false);
+    mockFsAccess.mockRejectedValue(new Error('ENOENT'));
 
     const result = await openInVlcHandler({}, 'C:\\video.mp4');
 
@@ -97,8 +99,10 @@ describe('Main Process IPC - open-in-vlc', () => {
   it('should succeed if VLC is found on Windows', async () => {
     Object.defineProperty(process, 'platform', { value: 'win32' });
 
-    (fs.existsSync as unknown as Mock).mockImplementation((path: any) =>
-      path.includes('vlc.exe'),
+    mockFsAccess.mockImplementation((path: any) =>
+      path.includes('vlc.exe')
+        ? Promise.resolve()
+        : Promise.reject(new Error('ENOENT')),
     );
 
     const mockChild = { unref: vi.fn(), on: vi.fn() };
@@ -129,8 +133,10 @@ describe('Main Process IPC - open-in-vlc', () => {
 
   it('should use standard path on macOS if it exists', async () => {
     Object.defineProperty(process, 'platform', { value: 'darwin' });
-    (fs.existsSync as unknown as Mock).mockImplementation(
-      (path: any) => path === '/Applications/VLC.app/Contents/MacOS/VLC',
+    mockFsAccess.mockImplementation((path: any) =>
+      path === '/Applications/VLC.app/Contents/MacOS/VLC'
+        ? Promise.resolve()
+        : Promise.reject(new Error('ENOENT')),
     );
 
     const mockChild = { unref: vi.fn(), on: vi.fn() };
@@ -148,7 +154,7 @@ describe('Main Process IPC - open-in-vlc', () => {
 
   it('should fallback to "vlc" on macOS if standard path does not exist', async () => {
     Object.defineProperty(process, 'platform', { value: 'darwin' });
-    (fs.existsSync as unknown as Mock).mockReturnValue(false);
+    mockFsAccess.mockRejectedValue(new Error('ENOENT'));
 
     const mockChild = { unref: vi.fn(), on: vi.fn() };
     mockSpawn.mockReturnValue(mockChild);

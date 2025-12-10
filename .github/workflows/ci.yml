@@ -120,3 +120,42 @@ jobs:
             release/*.deb
             release/*.exe
           if-no-files-found: warn
+
+  web-build:
+    name: Web Build
+    needs: [quality]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Web Frontend
+        # Run vite build directly to skip redundant typecheck (already done in quality job)
+        run: npx vite build
+
+      - name: Build Web Server
+        run: npm run build:server
+
+      - name: Verify Web Artifacts
+        run: |
+          ls -lh dist-web/index.html
+          ls -lh dist-server/index.js
+          ls -lh dist-server/worker.js
+
+      - name: Upload Web Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: |
+            dist-web/
+            dist-server/

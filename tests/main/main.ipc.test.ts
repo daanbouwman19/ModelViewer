@@ -1,13 +1,12 @@
 import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { ipcMain } from 'electron';
-import fs from 'fs';
 
 // Mock dependencies
-vi.mock('fs', () => ({
+vi.mock('fs/promises', () => ({
   default: {
-    existsSync: vi.fn(),
-    statSync: vi.fn(),
-    readFileSync: vi.fn(),
+    access: vi.fn(),
+    stat: vi.fn(),
+    readFile: vi.fn(),
   },
 }));
 
@@ -53,16 +52,19 @@ describe('main.js IPC Handlers', () => {
     }
   });
 
-  it('should return a descriptive error for a non-existent file', () => {
+  it('should return a descriptive error for a non-existent file', async () => {
     const nonExistentPath = '/path/to/nothing.txt';
-    (fs.existsSync as unknown as Mock).mockReturnValue(false);
+    const fsPromises = await import('fs/promises');
+    (fsPromises.default.access as unknown as Mock).mockRejectedValue(
+      new Error('ENOENT'),
+    );
 
-    const result = handler(null, nonExistentPath);
+    const result = await handler(null, nonExistentPath);
 
     expect(result).toEqual({
       type: 'error',
       message: `File does not exist: ${nonExistentPath}`,
     });
-    expect(fs.existsSync).toHaveBeenCalledWith(nonExistentPath);
+    expect(fsPromises.default.access).toHaveBeenCalledWith(nonExistentPath);
   });
 });
