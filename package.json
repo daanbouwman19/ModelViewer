@@ -29,8 +29,9 @@
     "dev:all": "concurrently \"npm run dev:server\" \"npm run dev:web\"",
     "build:web": "vue-tsc -b --noEmit && vite build",
     "build:web:fast": "vite build",
-    "build:server": "concurrently \"esbuild src/server/server.ts --bundle --platform=node --format=esm --outfile=dist-server/index.js --packages=external\" \"esbuild src/core/database-worker.ts --bundle --platform=node --format=esm --outfile=dist-server/worker.js --packages=external\"",
-    "start:server:prod": "NODE_ENV=production node dist-server/index.js"
+    "build:server": "vite build --mode server",
+    "build:all": "npm run build:web && npm run build:server",
+    "start:server:prod": "NODE_ENV=production node dist/server/index.js"
   },
   "author": {
     "name": "Daan Bouwman",
@@ -90,8 +91,6 @@
   "devDependencies": {
     "@swc/core": "^1.15.3",
     "@tailwindcss/vite": "^4.1.17",
-    "rimraf": "^6.0.1",
-    "esbuild": "^0.25.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
@@ -111,6 +110,7 @@
     "globals": "^16.5.0",
     "happy-dom": "^20.0.10",
     "prettier": "^3.3.3",
+    "rimraf": "^6.0.1",
     "tailwindcss": "^4.1.17",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
