@@ -8,3 +8,5 @@ release/
 dist-server/
 dist-web/
 media-library.db
+media-library.db-shm
+media-library.db-wal

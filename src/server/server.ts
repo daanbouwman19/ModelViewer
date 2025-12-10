@@ -44,7 +44,7 @@ const DB_PATH = path.join(process.cwd(), 'media-library.db');
 // In dev (tsx), the worker is TS. In prod (build), it is JS adjacent to this file.
 const WORKER_PATH = isDev
   ? path.join(__dirname, '../core/database-worker.ts')
-  : path.join(__dirname, './worker.js');
+  : path.join(__dirname, 'worker.js');
 
 const PORT = 3000;
 
@@ -238,7 +238,7 @@ async function bootstrap() {
   // Frontend Serving (Production)
   if (!isDev) {
     // Serve any static files
-    const clientDistPath = path.join(__dirname, '../dist-web');
+    const clientDistPath = path.join(__dirname, '../client');
     app.use(express.static(clientDistPath));
 
     // SPA Fallback
