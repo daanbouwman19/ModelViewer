@@ -83,6 +83,34 @@ describe('Local Server', () => {
       const port2 = getServerPort();
       expect(port1).toBe(port2);
     });
+
+    it('should ignore start request if server is already running (callback)', async () => {
+      await new Promise<void>((resolve) => {
+        startLocalServer(() => {
+          const originalPort = getServerPort();
+          const consoleSpy = vi
+            .spyOn(console, 'warn')
+            .mockImplementation(() => {});
+
+          startLocalServer(() => {
+            expect(getServerPort()).toBe(originalPort);
+            expect(consoleSpy).toHaveBeenCalledWith(
+              expect.stringContaining('Server already started'),
+            );
+            consoleSpy.mockRestore();
+            resolve();
+          });
+        });
+      });
+    });
+
+    it('should handle start without callback when running', async () => {
+      await startServer();
+      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      startLocalServer(); // No callback
+      expect(consoleSpy).toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
   });
 
   describe('stopLocalServer', () => {
@@ -97,6 +125,26 @@ describe('Local Server', () => {
     it('should handle stopping when server not running', async () => {
       await stopServer();
       expect(getServerPort()).toBe(0);
+    });
+
+    it('should handle stop without callback', async () => {
+      await startServer();
+      stopLocalServer(); // No callback
+      // Give it time to close async
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(getServerPort()).toBe(0);
+    });
+
+    it('should handle stop callback if server is already stopped', async () => {
+      await new Promise<void>((resolve) => {
+        stopLocalServer(() => {
+          // Server is stopped
+          stopLocalServer(() => {
+            // Callback called immediately
+            resolve();
+          });
+        });
+      });
     });
   });
 

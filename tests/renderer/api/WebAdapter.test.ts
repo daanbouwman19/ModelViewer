@@ -165,6 +165,10 @@ describe('WebAdapter', () => {
     expect(gen('path/file.mp4', 10)).toBe(
       '/api/stream?file=path%2Ffile.mp4&startTime=10',
     );
+    // Test default arg
+    expect(gen('path/file.mp4')).toBe(
+      '/api/stream?file=path%2Ffile.mp4&startTime=0',
+    );
   });
 
   it('getVideoMetadata should fetch /metadata', async () => {
@@ -182,20 +186,6 @@ describe('WebAdapter', () => {
       success: false,
       message: 'Not supported in Web version.',
     });
-  });
-
-  it('getMediaByColor should post to /media/color', async () => {
-    const mockFiles = ['file1.jpg'];
-    mockFetch.mockResolvedValue({
-      json: () => Promise.resolve(mockFiles),
-    });
-    const result = await adapter.getMediaByColor({ r: 255, g: 0, b: 0 }, 10);
-    expect(mockFetch).toHaveBeenCalledWith('/api/media/color', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ r: 255, g: 0, b: 0, threshold: 10 }),
-    });
-    expect(result).toEqual(mockFiles);
   });
 
   it('listDirectory should fetch /fs/ls and return json', async () => {

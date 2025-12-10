@@ -182,4 +182,44 @@ describe('MediaGrid.vue', () => {
     // Our mock logic uses encodeURIComponent, so we expect encoded space
     expect(img.attributes('src')).toContain('with%20spaces');
   });
+  it('handles files with no extension', async () => {
+    mockState.gridMediaFiles = [
+      { path: '/path/noextension', name: 'noextension' },
+    ];
+    const wrapper = mount(MediaGrid);
+    await flushPromises();
+    // Should not render img or video if extension not supported
+    expect(wrapper.find('img').exists()).toBe(false);
+    expect(wrapper.find('video').exists()).toBe(false);
+  });
+
+  it('throttles scroll events', async () => {
+    vi.useFakeTimers();
+    const items = Array.from({ length: 100 }, (_, i) => ({
+      path: `/p/${i}.jpg`,
+      name: `${i}.jpg`,
+    }));
+    mockState.gridMediaFiles = items;
+
+    const wrapper = mount(MediaGrid);
+    await flushPromises();
+
+    const container = wrapper.find('.media-grid-container');
+    Object.defineProperty(container.element, 'scrollTop', { value: 1300 }); // 1300 + 500 = 1800 > 1700
+    Object.defineProperty(container.element, 'clientHeight', { value: 500 });
+    Object.defineProperty(container.element, 'scrollHeight', { value: 2000 });
+
+    // Trigger multiple scrolls rapidly
+    await container.trigger('scroll');
+    await container.trigger('scroll');
+    await container.trigger('scroll');
+
+    // Advance by more than throttle limit (150ms)
+    vi.advanceTimersByTime(300);
+    await wrapper.vm.$nextTick();
+    await flushPromises();
+
+    expect(wrapper.findAll('.grid-item').length).toBeGreaterThan(24);
+    vi.useRealTimers();
+  });
 });

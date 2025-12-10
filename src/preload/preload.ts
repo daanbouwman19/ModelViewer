@@ -40,10 +40,6 @@ export interface ElectronAPI {
   openInVlc: (
     filePath: string,
   ) => Promise<{ success: boolean; message?: string }>;
-  getMediaByColor: (
-    color: { r: number; g: number; b: number },
-    threshold: number,
-  ) => Promise<string[]>;
   listDirectory: (directoryPath: string) => Promise<FileSystemEntry[]>;
   getParentDirectory: (path: string) => Promise<string | null>;
 }
@@ -138,17 +134,6 @@ const api: ElectronAPI = {
    * @returns A promise that resolves to the result object.
    */
   openInVlc: (filePath: string) => ipcRenderer.invoke('open-in-vlc', filePath),
-
-  /**
-   * Retrieves media files that match a specific dominant color.
-   * @param color - The target color (RGB).
-   * @param threshold - The maximum distance (tolerance) for the color match.
-   * @returns A promise that resolves to an array of matching file paths.
-   */
-  getMediaByColor: (
-    color: { r: number; g: number; b: number },
-    threshold: number,
-  ) => ipcRenderer.invoke('get-media-by-color', color, threshold),
 
   /**
    * Lists the contents of a directory.

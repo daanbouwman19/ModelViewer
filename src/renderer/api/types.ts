@@ -35,10 +35,7 @@ export interface IMediaBackend {
   >;
   getVideoMetadata(filePath: string): Promise<{ duration: number }>;
   openInVlc(filePath: string): Promise<{ success: boolean; message?: string }>;
-  getMediaByColor(
-    color: { r: number; g: number; b: number },
-    threshold: number,
-  ): Promise<string[]>;
+
   listDirectory(path: string): Promise<FileSystemEntry[]>;
   getParentDirectory(path: string): Promise<string | null>;
 }

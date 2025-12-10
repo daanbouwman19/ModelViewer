@@ -16,7 +16,7 @@ describe('ElectronAdapter', () => {
     getSupportedExtensions: vi.fn(),
     getServerPort: vi.fn(),
     openInVlc: vi.fn(),
-    getMediaByColor: vi.fn(),
+
     listDirectory: vi.fn(),
     getParentDirectory: vi.fn(),
   };
@@ -173,6 +173,12 @@ describe('ElectronAdapter', () => {
     expect(url).toBe(
       'http://localhost:3000/video/stream?file=path%2Fto%2Ffile.mp4&startTime=10',
     );
+
+    // Test default arg
+    const urlDefault = generator('path/to/file.mp4');
+    expect(urlDefault).toBe(
+      'http://localhost:3000/video/stream?file=path%2Fto%2Ffile.mp4&startTime=0',
+    );
   });
 
   it('getVideoMetadata should fetch metadata from server', async () => {
@@ -198,19 +204,6 @@ describe('ElectronAdapter', () => {
 
     expect(mockElectronAPI.openInVlc).toHaveBeenCalledWith('file.mp4');
     expect(result).toBe(mockResponse);
-  });
-
-  it('getMediaByColor should call electronAPI.getMediaByColor', async () => {
-    const mockFiles = ['file1.jpg'];
-    mockElectronAPI.getMediaByColor.mockResolvedValue(mockFiles);
-
-    const result = await adapter.getMediaByColor({ r: 255, g: 0, b: 0 }, 10);
-
-    expect(mockElectronAPI.getMediaByColor).toHaveBeenCalledWith(
-      { r: 255, g: 0, b: 0 },
-      10,
-    );
-    expect(result).toBe(mockFiles);
   });
 
   it('listDirectory should call electronAPI.listDirectory', async () => {

@@ -17,7 +17,6 @@ import {
   setDirectoryActiveState,
   recordMediaView,
   getMediaViewCounts,
-  getMediaByColor,
 } from '../core/database';
 import {
   getAlbumsWithViewCounts,
@@ -48,7 +47,7 @@ const WORKER_PATH = isDev
 
 const PORT = 3000;
 
-async function bootstrap() {
+export async function createApp() {
   const app = express();
 
   // Middleware
@@ -189,20 +188,6 @@ async function bootstrap() {
     });
   });
 
-  // Media By Color
-  app.post('/api/media/color', async (req, res) => {
-    const { r, g, b, threshold } = req.body;
-    if (r === undefined || g === undefined || b === undefined) {
-      return res.status(400).json({ error: 'Missing color components' });
-    }
-    try {
-      const files = await getMediaByColor(r, g, b, threshold);
-      res.json(files);
-    } catch {
-      res.status(500).json({ error: 'Failed to get media by color' });
-    }
-  });
-
   // Media handler (Streaming, Thumbnails, Metadata, Static Files)
   // We define specific routes for granular control.
 
@@ -247,10 +232,18 @@ async function bootstrap() {
     });
   }
 
+  return app;
+}
+
+export async function bootstrap() {
+  const app = await createApp();
   app.listen(PORT, () => {
     console.log(`Server running at http://localhost:${PORT}`);
     console.log(`Environment: ${isDev ? 'Development' : 'Production'}`);
   });
 }
 
-bootstrap();
+// Only run if called directly
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  bootstrap();
+}

@@ -93,17 +93,6 @@ function initDatabase(dbPath: string): WorkerResult {
       )`,
     ).run();
 
-    db.prepare(
-      `CREATE TABLE IF NOT EXISTS media_attributes (
-        file_path_hash TEXT PRIMARY KEY,
-        file_path TEXT,
-        dominant_color TEXT,
-        r INTEGER,
-        g INTEGER,
-        b INTEGER
-      )`,
-    ).run();
-
     // Prepare statements for reuse
     statements.insertMediaView = db.prepare(
       `INSERT OR IGNORE INTO media_views (file_path_hash, file_path, view_count, last_viewed) VALUES (?, ?, 0, ?)`,
@@ -134,22 +123,6 @@ function initDatabase(dbPath: string): WorkerResult {
     statements.setDirectoryActiveState = db.prepare(
       'UPDATE media_directories SET is_active = ? WHERE path = ?',
     );
-    statements.setFileColor = db.prepare(
-      `INSERT OR REPLACE INTO media_attributes (file_path_hash, file_path, dominant_color, r, g, b)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-    );
-    statements.getFilesMissingColor = db.prepare(
-      `SELECT file_path FROM media_views
-       WHERE file_path_hash NOT IN (SELECT file_path_hash FROM media_attributes)
-       LIMIT 50`,
-    );
-    statements.getMediaByColor = db.prepare(`
-      SELECT file_path,
-        ((r - ?) * (r - ?) + (g - ?) * (g - ?) + (b - ?) * (b - ?)) as distance_sq
-      FROM media_attributes
-      WHERE distance_sq <= ?
-      ORDER BY distance_sq ASC
-    `);
 
     console.log('[worker] SQLite database initialized at:', dbPath);
     return { success: true };
@@ -371,69 +344,7 @@ function setDirectoryActiveState(
   }
 }
 
-function getMediaByColor(
-  r: number,
-  g: number,
-  b: number,
-  threshold: number = 50,
-): WorkerResult {
-  if (!db) return { success: false, error: 'Database not initialized' };
-  try {
-    // Euclidean distance in RGB space: sqrt((r1-r2)^2 + (g1-g2)^2 + (b1-b2)^2)
-    // We can order by distance squared to avoid sqrt for sorting.
-    const thresholdSq = threshold * threshold;
-    const rows = statements.getMediaByColor.all(
-      r,
-      r,
-      g,
-      g,
-      b,
-      b,
-      thresholdSq,
-    ) as {
-      file_path: string;
-    }[];
-    return { success: true, data: rows.map((row) => row.file_path) };
-  } catch (error: unknown) {
-    console.error('[worker] Error getting media by color:', error);
-    return { success: false, error: (error as Error).message };
-  }
-}
-
-function getFilesMissingColor(): WorkerResult {
-  if (!db) return { success: false, error: 'Database not initialized' };
-  try {
-    const rows = statements.getFilesMissingColor.all() as {
-      file_path: string;
-    }[];
-    return { success: true, data: rows.map((row) => row.file_path) };
-  } catch (error: unknown) {
-    console.error('[worker] Error getting files missing color:', error);
-    return { success: false, error: (error as Error).message };
-  }
-}
-
-async function setFileColor(
-  filePath: string,
-  color: { hex: string; r: number; g: number; b: number },
-): Promise<WorkerResult> {
-  if (!db) return { success: false, error: 'Database not initialized' };
-  try {
-    const fileId = await generateFileId(filePath);
-    statements.setFileColor.run(
-      fileId,
-      filePath,
-      color.hex,
-      color.r,
-      color.g,
-      color.b,
-    );
-    return { success: true };
-  } catch (error: unknown) {
-    console.error(`[worker] Error setting file color for ${filePath}:`, error);
-    return { success: false, error: (error as Error).message };
-  }
-}
+// Color functions removed as deprecated
 
 if (parentPort) {
   /**
@@ -485,20 +396,6 @@ if (parentPort) {
             payload.directoryPath,
             payload.isActive,
           );
-          break;
-        case 'getMediaByColor':
-          result = getMediaByColor(
-            payload.r,
-            payload.g,
-            payload.b,
-            payload.threshold,
-          );
-          break;
-        case 'getFilesMissingColor':
-          result = getFilesMissingColor();
-          break;
-        case 'setFileColor':
-          result = await setFileColor(payload.filePath, payload.color);
           break;
         default:
           result = { success: false, error: `Unknown message type: ${type}` };
