@@ -1,0 +1,6 @@
+Initializing database at /app/media-library.db using worker /app/src/core/database-worker.ts
+[database-worker.js] Worker thread started and ready.
+[worker] SQLite database initialized at: /app/media-library.db
+[database.js] Database worker initialized successfully.
+Server running at http://localhost:3000
+Environment: Development

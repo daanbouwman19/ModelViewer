@@ -113,6 +113,7 @@
     "eslint-plugin-vue": "^10.6.2",
     "globals": "^16.5.0",
     "happy-dom": "^20.0.10",
+    "playwright": "^1.57.0",
     "prettier": "^3.3.3",
     "rimraf": "^6.0.1",
     "supertest": "^7.1.4",

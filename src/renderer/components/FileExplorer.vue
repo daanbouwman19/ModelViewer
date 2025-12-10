@@ -120,8 +120,8 @@ const sortedEntries = computed(() => {
 });
 
 const isDriveRoot = (path: string) => {
-  // Simple check for windows drive root like "C:\"
-  return /^[A-Z]:\\?$/i.test(path);
+  // Simple check for windows drive root like "C:\" or unix root "/"
+  return /^[A-Z]:\\?$/i.test(path) || path === '/';
 };
 
 const loadDirectory = async (path: string) => {

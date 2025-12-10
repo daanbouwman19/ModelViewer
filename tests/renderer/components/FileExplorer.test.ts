@@ -258,4 +258,21 @@ describe('FileExplorer.vue', () => {
     expect(items[1].find('.icon').text()).toBe('💾');
     expect(items[1].find('.text-xs').text()).toBe('DRIVE');
   });
+
+  it('correctly identifies unix root / as drive', async () => {
+    (api.listDirectory as any).mockResolvedValue([
+      { name: 'Root', path: '/', isDirectory: true },
+    ]);
+    (api.getParentDirectory as any).mockResolvedValue(null);
+
+    const wrapper = mount(FileExplorer, {
+      props: { initialPath: 'ROOT' },
+    });
+    await flushPromises();
+
+    const items = wrapper.findAll('li.cursor-pointer');
+    // First item: /
+    expect(items[0].find('.icon').text()).toBe('💾');
+    expect(items[0].find('.text-xs').text()).toBe('DRIVE');
+  });
 });
