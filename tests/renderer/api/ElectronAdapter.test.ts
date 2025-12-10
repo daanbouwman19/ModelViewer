@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { ElectronAdapter } from '../../../src/renderer/api/ElectronAdapter';
-import { IMediaBackend } from '../../../src/renderer/api/types';
 
 describe('ElectronAdapter', () => {
   let adapter: ElectronAdapter;
@@ -30,7 +29,7 @@ describe('ElectronAdapter', () => {
   });
 
   afterEach(() => {
-    delete global.window.electronAPI;
+    global.window.electronAPI = undefined as any;
   });
 
   it('loadFileAsDataURL should call electronAPI.loadFileAsDataURL', async () => {
