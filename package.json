@@ -90,6 +90,8 @@
   "devDependencies": {
     "@swc/core": "^1.15.3",
     "@tailwindcss/vite": "^4.1.17",
+    "rimraf": "^6.0.1",
+    "esbuild": "^0.25.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",

@@ -37,12 +37,8 @@ export async function initDatabase(): Promise<void> {
   } else {
     // In development, use the URL constructor relative to the current module.
     // electron-vite handles the bundling of the worker file.
-    // We point to the local file which will be bundled.
-    // Note: When using electron-vite, we might need to verify where the worker ends up.
-    // Usually it expects 'database-worker.js' in the output directory.
-    // For now, let's try pointing to the core one, or we might need to copy/alias it.
-    // Given the previous setup, it expected ./database-worker.js.
-    workerPath = new URL('../core/database-worker.ts', import.meta.url);
+    // The worker is built to 'out/main/database-worker.js', same directory as this file's output.
+    workerPath = new URL('./database-worker.js', import.meta.url);
   }
 
   return initCoreDatabase(dbPath, workerPath);
