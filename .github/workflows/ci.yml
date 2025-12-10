@@ -197,9 +197,9 @@ jobs:
 
       - name: Verify Web Artifacts
         run: |
-          ls -lh dist-web/index.html
-          ls -lh dist-server/index.js
-          ls -lh dist-server/worker.js
+          ls -lh dist/client/index.html
+          ls -lh dist/server/index.js
+          ls -lh dist/server/worker.js
 
       - name: Upload Web Artifacts
         uses: actions/upload-artifact@v4
