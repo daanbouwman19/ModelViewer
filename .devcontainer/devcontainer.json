@@ -23,6 +23,9 @@
   "features": {
     "ghcr.io/devcontainers/features/git:1": {}
   },
-  "postCreateCommand": "sudo chown -R builduser:builduser node_modules && npm install && npx electron-builder install-app-deps",
+  "mounts": [
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/home/builduser/.ssh,readonly,type=bind,consistency=cached"
+  ],
+  "postCreateCommand": "npm install && npx electron-builder install-app-deps",
   "postStartCommand": "/usr/local/share/desktop-init.sh"
 }
