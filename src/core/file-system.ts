@@ -74,7 +74,7 @@ export async function listDrives(): Promise<FileSystemEntry[]> {
   }
 
   try {
-    const { stdout } = await execAsync('fsutil fsinfo drives');
+    const { stdout } = await execa('fsutil', ['fsinfo', 'drives']);
     // Output format: "Drives: C:\ D:\"
 
     // Remove "Drives:" prefix and split by space
