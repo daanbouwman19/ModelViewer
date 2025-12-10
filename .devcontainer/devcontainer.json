@@ -11,13 +11,7 @@
         "vitest.explorer",
         "esbenp.prettier-vscode",
         "dbaeumer.vscode-eslint"
-      ],
-      "settings": {
-        "editor.formatOnSave": true,
-        "editor.codeActionsOnSave": {
-          "source.fixAll.eslint": "explicit"
-        }
-      }
+      ]
     }
   },
   "features": {
@@ -27,5 +21,5 @@
     "source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/home/builduser/.ssh,readonly,type=bind,consistency=cached"
   ],
   "postCreateCommand": "npm install && npx electron-builder install-app-deps",
-  "postStartCommand": "/usr/local/share/desktop-init.sh"
+  "postStartCommand": "/usr/local/share/desktop-init.sh && npm run dev"
 }
