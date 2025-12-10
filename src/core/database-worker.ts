@@ -8,7 +8,7 @@
 import { parentPort } from 'worker_threads';
 import Database from 'better-sqlite3';
 import crypto from 'crypto';
-import fs from 'fs';
+import fs from 'fs/promises';
 
 /**
  * The database instance for this worker thread.
@@ -28,9 +28,9 @@ const statements: { [key: string]: Database.Statement } = {};
  * @param filePath - The path to the file.
  * @returns A unique MD5 hash for the file.
  */
-function generateFileId(filePath: string): string {
+async function generateFileId(filePath: string): Promise<string> {
   try {
-    const stats = fs.statSync(filePath);
+    const stats = await fs.stat(filePath);
     const uniqueString = `${stats.size}-${stats.mtime.getTime()}`;
     return crypto.createHash('md5').update(uniqueString).digest('hex');
   } catch (error) {
@@ -165,13 +165,13 @@ function initDatabase(dbPath: string): WorkerResult {
  * @param filePath - The path of the file that was viewed.
  * @returns The result of the operation.
  */
-function recordMediaView(filePath: string): WorkerResult {
+async function recordMediaView(filePath: string): Promise<WorkerResult> {
   if (!db) return { success: false, error: 'Database not initialized' };
 
-  const fileId = generateFileId(filePath);
-  const now = new Date().toISOString();
-
   try {
+    const fileId = await generateFileId(filePath);
+    const now = new Date().toISOString();
+
     const transaction = db.transaction(() => {
       statements.insertMediaView.run(fileId, filePath, now);
       statements.updateMediaView.run(now, fileId);
@@ -190,7 +190,7 @@ function recordMediaView(filePath: string): WorkerResult {
  * @param filePaths - An array of file paths.
  * @returns The result including the view count map.
  */
-function getMediaViewCounts(filePaths: string[]): WorkerResult {
+async function getMediaViewCounts(filePaths: string[]): Promise<WorkerResult> {
   if (!db) return { success: false, error: 'Database not initialized' };
   if (!filePaths || filePaths.length === 0) {
     return { success: true, data: {} };
@@ -198,14 +198,23 @@ function getMediaViewCounts(filePaths: string[]): WorkerResult {
 
   try {
     const viewCountsMap: { [key: string]: number } = {};
+    const pathIdMap = new Map<string, string>();
+
+    // Pre-calculate file IDs asynchronously
+    for (const filePath of filePaths) {
+      const fileId = await generateFileId(filePath);
+      pathIdMap.set(filePath, fileId);
+    }
 
     const transaction = db.transaction((paths: string[]) => {
       paths.forEach((filePath) => {
-        const fileId = generateFileId(filePath);
-        const row = statements.getMediaView.get(fileId) as
-          | { view_count: number }
-          | undefined;
-        viewCountsMap[filePath] = row ? row.view_count : 0;
+        const fileId = pathIdMap.get(filePath);
+        if (fileId) {
+          const row = statements.getMediaView.get(fileId) as
+            | { view_count: number }
+            | undefined;
+          viewCountsMap[filePath] = row ? row.view_count : 0;
+        }
       });
     });
 
@@ -404,13 +413,13 @@ function getFilesMissingColor(): WorkerResult {
   }
 }
 
-function setFileColor(
+async function setFileColor(
   filePath: string,
   color: { hex: string; r: number; g: number; b: number },
-): WorkerResult {
+): Promise<WorkerResult> {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
-    const fileId = generateFileId(filePath);
+    const fileId = await generateFileId(filePath);
     statements.setFileColor.run(
       fileId,
       filePath,
@@ -448,10 +457,10 @@ if (parentPort) {
           result = initDatabase(payload.dbPath);
           break;
         case 'recordMediaView':
-          result = recordMediaView(payload.filePath);
+          result = await recordMediaView(payload.filePath);
           break;
         case 'getMediaViewCounts':
-          result = getMediaViewCounts(payload.filePaths);
+          result = await getMediaViewCounts(payload.filePaths);
           break;
         case 'cacheAlbums':
           result = cacheAlbums(payload.cacheKey, payload.albums);
@@ -489,7 +498,7 @@ if (parentPort) {
           result = getFilesMissingColor();
           break;
         case 'setFileColor':
-          result = setFileColor(payload.filePath, payload.color);
+          result = await setFileColor(payload.filePath, payload.color);
           break;
         default:
           result = { success: false, error: `Unknown message type: ${type}` };

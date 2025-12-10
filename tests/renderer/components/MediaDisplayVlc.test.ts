@@ -1,11 +1,10 @@
 import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
-import { mount } from '@vue/test-utils';
+import { mount, flushPromises } from '@vue/test-utils';
 import { ref } from 'vue';
 import MediaDisplay from '@/components/MediaDisplay.vue';
 import { useAppState } from '@/composables/useAppState';
 import { useSlideshow } from '@/composables/useSlideshow';
-import { createMockElectronAPI } from '../mocks/electronAPI';
-import type { LoadResult } from '../../../src/preload/preload';
+import { api } from '@/api';
 
 // Mock the composables
 vi.mock('@/composables/useAppState');
@@ -14,6 +13,16 @@ vi.mock('@/composables/useSlideshow');
 // Mock VlcIcon component
 vi.mock('@/components/icons/VlcIcon.vue', () => ({
   default: { template: '<svg class="vlc-icon-mock"></svg>' },
+}));
+
+// Mock API
+vi.mock('@/api', () => ({
+  api: {
+    loadFileAsDataURL: vi.fn(),
+    openInVlc: vi.fn(),
+    getVideoStreamUrlGenerator: vi.fn(),
+    getVideoMetadata: vi.fn(),
+  },
 }));
 
 describe('MediaDisplay.vue', () => {
@@ -78,6 +87,19 @@ describe('MediaDisplay.vue', () => {
       filterMedia: vi.fn(),
       selectWeightedRandom: vi.fn(),
     });
+
+    vi.clearAllMocks();
+
+    // Default success mocks
+    (api.loadFileAsDataURL as Mock).mockResolvedValue({
+      type: 'http-url',
+      url: 'http://localhost/test-media',
+    });
+    (api.getVideoStreamUrlGenerator as Mock).mockResolvedValue(
+      (path: string) => `stream/${path}`,
+    );
+    (api.getVideoMetadata as Mock).mockResolvedValue({ duration: 100 });
+    (api.openInVlc as Mock).mockResolvedValue({ success: true });
   });
 
   it('should render placeholder when no media', () => {
@@ -85,14 +107,7 @@ describe('MediaDisplay.vue', () => {
     expect(wrapper.text()).toContain('Media will appear here');
   });
 
-  // ... (Existing tests skipped for brevity, assuming they pass or are untouched) ...
-
   describe('VLC Integration', () => {
-    beforeEach(() => {
-      // Mock window.electronAPI
-      global.window.electronAPI = createMockElectronAPI();
-    });
-
     it('should not show VLC button for images', async () => {
       mockRefs.currentMediaItem.value = { name: 'test.jpg', path: '/test.jpg' };
       const wrapper = mount(MediaDisplay);
@@ -104,11 +119,6 @@ describe('MediaDisplay.vue', () => {
 
     it('should show VLC button for videos', async () => {
       mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
-      (global.window.electronAPI.loadFileAsDataURL as Mock).mockResolvedValue({
-        type: 'http-url',
-        url: 'http://...',
-      } as LoadResult);
-
       const wrapper = mount(MediaDisplay);
       await wrapper.vm.$nextTick();
       await wrapper.vm.$nextTick();
@@ -119,40 +129,30 @@ describe('MediaDisplay.vue', () => {
 
     it('should pause video and call openInVlc when button clicked', async () => {
       mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
-      (global.window.electronAPI.loadFileAsDataURL as Mock).mockResolvedValue({
-        type: 'http-url',
-        url: 'http://...',
-      } as LoadResult);
 
       const wrapper = mount(MediaDisplay, {
-        attachTo: document.body, // Needed for some DOM interactions
+        attachTo: document.body,
       });
       await wrapper.vm.$nextTick();
-      await wrapper.vm.$nextTick(); // Wait for computed properties and async loading
+      await wrapper.vm.$nextTick();
 
       // Mock the video element pause method
       const videoEl = wrapper.find('video').element;
-      // We need to ensure the ref is populated.
-      // In jsdom/happy-dom, the ref might be set but methods like pause() might need mocking if not supported.
       videoEl.pause = vi.fn();
 
       const vlcButton = wrapper.find('.vlc-button');
       await vlcButton.trigger('click');
 
       expect(videoEl.pause).toHaveBeenCalled();
-      expect(global.window.electronAPI.openInVlc).toHaveBeenCalledWith(
-        '/test.mp4',
-      );
+      expect(api.openInVlc).toHaveBeenCalledWith('/test.mp4');
+
+      wrapper.unmount();
     });
 
     it('should display error if openInVlc fails', async () => {
       mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
-      global.window.electronAPI = createMockElectronAPI();
-      vi.mocked(global.window.electronAPI.loadFileAsDataURL).mockResolvedValue({
-        type: 'http-url',
-        url: 'http://localhost/test.mp4',
-      } as LoadResult);
-      vi.mocked(global.window.electronAPI.openInVlc).mockResolvedValue({
+
+      (api.openInVlc as Mock).mockResolvedValue({
         success: false,
         message: 'VLC error',
       });
@@ -161,19 +161,16 @@ describe('MediaDisplay.vue', () => {
       await wrapper.vm.$nextTick();
       await wrapper.vm.$nextTick();
 
-      // Wait for video to load
+      // Mock video element pause
       const video = wrapper.find('video');
-      expect(video.exists()).toBe(true);
-
-      // Mock pause to avoid errors
-      const videoEl = video.element;
-      videoEl.pause = vi.fn();
+      video.element.pause = vi.fn();
 
       const vlcButton = wrapper.find('.vlc-button');
       await vlcButton.trigger('click');
-      await wrapper.vm.$nextTick(); // Update error state
+      await wrapper.vm.$nextTick();
+      await flushPromises(); // Wait for async promise to resolve
 
-      expect(wrapper.text()).toContain('VLC error');
+      expect(wrapper.text()).toContain('VLC error'); // The error should be displayed in p.text-red-400
     });
   });
 });

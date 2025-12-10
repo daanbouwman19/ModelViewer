@@ -18,4 +18,5 @@ export const createMockElectronAPI = (): ElectronAPI => ({
     .mockResolvedValue({ images: [], videos: [], all: [] }),
   getMediaByColor: vi.fn().mockResolvedValue([]),
   listDirectory: vi.fn().mockResolvedValue([]),
+  getParentDirectory: vi.fn().mockResolvedValue(null),
 });

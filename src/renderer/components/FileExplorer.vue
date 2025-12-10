@@ -98,23 +98,10 @@ const isLoading = ref(false);
 const error = ref<string | null>(null);
 const selectedPath = ref<string | null>(null);
 
+const parentPath = ref<string | null>(null);
+
 // Computes parent path string (naive logic, assumes / or \ separator)
-const parentPath = computed(() => {
-  if (!currentPath.value || currentPath.value === '/') return null;
-  // Handle both separators
-  const parts = currentPath.value.split(/[/\\]/);
-  if (parts.length <= 1) return null; // Root or empty
-  // Remove last part
-  parts.pop();
-  // Join back. If it was root /foo, parts is ['', 'foo'] -> pops foo -> ['']. Join -> /?
-  // This simple logic might fail on complex windows paths but ok for now.
-  // Better to ask backend for parent?
-  // IMediaBackend doesn't support getParent?
-  // We'll rely on string manipulation for now.
-  const parent = parts.join('/');
-  // Fix for root /
-  return parent === '' ? '/' : parent;
-});
+// replaced by async call to backend
 
 const sortedEntries = computed(() => {
   return [...entries.value].sort((a, b) => {
@@ -134,6 +121,8 @@ const loadDirectory = async (path: string) => {
     const result = await api.listDirectory(path);
     entries.value = result;
     currentPath.value = path;
+    // Fetch parent path
+    parentPath.value = await api.getParentDirectory(path);
   } catch (err) {
     console.error('Failed to list directory:', err);
     error.value = 'Failed to load directory.';

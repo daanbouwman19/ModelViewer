@@ -3,10 +3,22 @@
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useAppState } from '@/composables/useAppState';
-import { createMockElectronAPI } from '../mocks/electronAPI';
+// Import the api instance so we can spy/mock on it.
+// We mock the module below, so this import gets the mocked version.
+import { api } from '@/api';
+
+// Mock the api module.
+// We only mock the methods we use in the test.
+vi.mock('@/api', () => ({
+  api: {
+    getAlbumsWithViewCounts: vi.fn(),
+    getMediaDirectories: vi.fn(),
+    getSupportedExtensions: vi.fn(),
+  },
+}));
 
 describe('useAppState', () => {
-  let appState: any;
+  let appState: ReturnType<typeof useAppState>;
 
   beforeEach(() => {
     // Reset the state before each test
@@ -18,11 +30,13 @@ describe('useAppState', () => {
     appState.state.isSlideshowActive = false;
     appState.state.slideshowTimerId = null;
     appState.state.isTimerRunning = false;
+
+    // Clear mocks
+    vi.clearAllMocks();
   });
 
   describe('initializeApp', () => {
-    it('should initialize app state with data from electronAPI', async () => {
-      // Mock window.electronAPI
+    it('should initialize app state with data from API', async () => {
       const mockAlbums = [
         { name: 'Album1', textures: [], totalViews: 0, children: [] },
         { name: 'Album2', textures: [], totalViews: 5, children: [] },
@@ -34,16 +48,10 @@ describe('useAppState', () => {
         all: ['.jpg', '.png', '.mp4'],
       };
 
-      global.window.electronAPI = createMockElectronAPI();
-      vi.mocked(
-        global.window.electronAPI.getAlbumsWithViewCounts,
-      ).mockResolvedValue(mockAlbums);
-      vi.mocked(
-        global.window.electronAPI.getMediaDirectories,
-      ).mockResolvedValue(mockDirectories);
-      vi.mocked(
-        global.window.electronAPI.getSupportedExtensions,
-      ).mockResolvedValue(mockExtensions);
+      // Setup mock returns
+      vi.mocked(api.getAlbumsWithViewCounts).mockResolvedValue(mockAlbums);
+      vi.mocked(api.getMediaDirectories).mockResolvedValue(mockDirectories);
+      vi.mocked(api.getSupportedExtensions).mockResolvedValue(mockExtensions);
 
       await appState.initializeApp();
 
@@ -56,27 +64,10 @@ describe('useAppState', () => {
       });
     });
 
-    it('should handle error when electronAPI is not available', async () => {
-      global.window = {} as any;
-      const consoleSpy = vi
-        .spyOn(console, 'error')
-        .mockImplementation(() => {});
-
-      await appState.initializeApp();
-
-      expect(consoleSpy).toHaveBeenCalledWith(
-        '[useAppState] Error during initial load:',
-        expect.any(Error),
-      );
-
-      consoleSpy.mockRestore();
-    });
-
     it('should handle error when API calls fail', async () => {
-      global.window.electronAPI = createMockElectronAPI();
-      vi.mocked(
-        global.window.electronAPI.getAlbumsWithViewCounts,
-      ).mockRejectedValue(new Error('API Error'));
+      vi.mocked(api.getAlbumsWithViewCounts).mockRejectedValue(
+        new Error('API Error'),
+      );
       const consoleSpy = vi
         .spyOn(console, 'error')
         .mockImplementation(() => {});
@@ -96,10 +87,23 @@ describe('useAppState', () => {
     it('should reset all slideshow-related state', () => {
       // Set up some state
       appState.state.isSlideshowActive = true;
-      appState.state.displayedMediaFiles = ['file1.jpg', 'file2.jpg'];
+      appState.state.displayedMediaFiles = [
+        {
+          name: 'file1.jpg',
+          path: '/path/file1.jpg',
+        },
+      ];
       appState.state.currentMediaIndex = 5;
-      appState.state.currentMediaItem = { path: 'test.jpg' };
-      appState.state.globalMediaPoolForSelection = ['file3.jpg'];
+      appState.state.currentMediaItem = {
+        name: 'test.jpg',
+        path: '/path/test.jpg',
+      };
+      appState.state.globalMediaPoolForSelection = [
+        {
+          name: 'file3.jpg',
+          path: '/path/file3.jpg',
+        },
+      ];
 
       appState.resetState();
 

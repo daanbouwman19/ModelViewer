@@ -22,9 +22,8 @@ let isTerminating = false;
  */
 let messageIdCounter = 0;
 
-interface PendingMessage {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  resolve: (value: any) => void;
+interface PendingMessage<T = unknown> {
+  resolve: (value: T) => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   reject: (reason?: any) => void;
   timeoutId: NodeJS.Timeout;
@@ -33,7 +32,8 @@ interface PendingMessage {
 /**
  * A map of pending promises waiting for worker responses, keyed by message ID.
  */
-const pendingMessages = new Map<number, PendingMessage>();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const pendingMessages = new Map<number, PendingMessage<any>>();
 
 /**
  * The timeout duration for database operations in milliseconds.

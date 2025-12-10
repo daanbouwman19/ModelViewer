@@ -11,11 +11,11 @@ import {
 } from '../../src/main/local-server';
 
 // Mock the database module
-vi.mock('../../src/main/database', () => ({
+vi.mock('../../src/core/database', () => ({
   getMediaDirectories: vi.fn(),
 }));
 
-import { getMediaDirectories } from '../../src/main/database';
+import { getMediaDirectories } from '../../src/core/database';
 
 // Helper to promisify callback-based functions
 const startServer = () =>

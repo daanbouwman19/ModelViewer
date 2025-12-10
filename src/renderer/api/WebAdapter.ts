@@ -157,4 +157,13 @@ export class WebAdapter implements IMediaBackend {
     if (!res.ok) throw new Error('Failed to list directory');
     return res.json();
   }
+
+  async getParentDirectory(path: string): Promise<string | null> {
+    const res = await fetch(
+      `${API_BASE}/fs/parent?path=${encodeURIComponent(path)}`,
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.parent;
+  }
 }

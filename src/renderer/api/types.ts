@@ -39,7 +39,6 @@ export interface IMediaBackend {
     color: { r: number; g: number; b: number },
     threshold: number,
   ): Promise<string[]>;
-
-  // New methods
   listDirectory(path: string): Promise<FileSystemEntry[]>;
+  getParentDirectory(path: string): Promise<string | null>;
 }

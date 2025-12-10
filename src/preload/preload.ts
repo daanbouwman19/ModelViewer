@@ -45,6 +45,7 @@ export interface ElectronAPI {
     threshold: number,
   ) => Promise<string[]>;
   listDirectory: (directoryPath: string) => Promise<FileSystemEntry[]>;
+  getParentDirectory: (path: string) => Promise<string | null>;
 }
 
 // Expose a controlled API to the renderer process via `window.electronAPI`.
@@ -156,6 +157,14 @@ const api: ElectronAPI = {
    */
   listDirectory: (directoryPath: string) =>
     ipcRenderer.invoke('list-directory', directoryPath),
+
+  /**
+   * Gets the parent directory of a given path.
+   * @param path - The path to look up.
+   * @returns A promise that resolves to the parent path string or null.
+   */
+  getParentDirectory: (path: string) =>
+    ipcRenderer.invoke('get-parent-directory', path),
 };
 
 contextBridge.exposeInMainWorld('electronAPI', api);

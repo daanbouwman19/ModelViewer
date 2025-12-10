@@ -111,4 +111,8 @@ export class ElectronAdapter implements IMediaBackend {
   async listDirectory(path: string): Promise<FileSystemEntry[]> {
     return window.electronAPI.listDirectory(path);
   }
+
+  async getParentDirectory(path: string): Promise<string | null> {
+    return window.electronAPI.getParentDirectory(path);
+  }
 }

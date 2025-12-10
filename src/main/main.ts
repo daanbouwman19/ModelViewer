@@ -12,7 +12,7 @@ import {
   IpcMainInvokeEvent,
 } from 'electron';
 import path from 'path';
-import fs from 'fs';
+import fs from 'fs/promises';
 import { spawn } from 'child_process';
 
 import {
@@ -63,13 +63,18 @@ let mainWindow: BrowserWindow | null = null;
  */
 ipcMain.handle(
   'load-file-as-data-url',
-  (
+  async (
     _event: IpcMainInvokeEvent,
     filePath: string,
     options: { preferHttp?: boolean } = {},
   ) => {
     try {
-      if (!filePath || !fs.existsSync(filePath)) {
+      if (!filePath) {
+        return { type: 'error', message: `File path is empty` };
+      }
+      try {
+        await fs.access(filePath);
+      } catch {
         return { type: 'error', message: `File does not exist: ${filePath}` };
       }
 
@@ -84,7 +89,7 @@ ipcMain.handle(
         };
       }
 
-      const stats = fs.statSync(filePath);
+      const stats = await fs.stat(filePath);
       const isVideo = SUPPORTED_VIDEO_EXTENSIONS.includes(
         path.extname(filePath).toLowerCase(),
       );
@@ -104,7 +109,7 @@ ipcMain.handle(
       }
 
       const mimeType = resolveMimeType(filePath);
-      const fileBuffer = fs.readFileSync(filePath);
+      const fileBuffer = await fs.readFile(filePath);
       const dataURL = `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
       return { type: 'data-url', url: dataURL };
     } catch (error: unknown) {
@@ -168,7 +173,11 @@ ipcMain.handle(
   async (_event: IpcMainInvokeEvent, targetPath?: string) => {
     if (targetPath) {
       try {
-        if (!fs.existsSync(targetPath)) return null;
+        try {
+          await fs.access(targetPath);
+        } catch {
+          return null;
+        }
         await addMediaDirectory(targetPath);
         return targetPath;
       } catch (e) {
@@ -273,16 +282,20 @@ ipcMain.handle(
         'C:\\Program Files (x86)\\VideoLAN\\VLC\\vlc.exe',
       ];
       for (const p of commonPaths) {
-        if (fs.existsSync(p)) {
+        try {
+          await fs.access(p);
           vlcPath = p;
           break;
+        } catch {
+          // Continue checking other paths
         }
       }
     } else if (platform === 'darwin') {
       const macPath = '/Applications/VLC.app/Contents/MacOS/VLC';
-      if (fs.existsSync(macPath)) {
+      try {
+        await fs.access(macPath);
         vlcPath = macPath;
-      } else {
+      } catch {
         // Fallback to trying 'vlc' in PATH if the standard app path fails
         vlcPath = 'vlc';
       }
@@ -331,6 +344,23 @@ ipcMain.handle(
   'list-directory',
   async (_event: IpcMainInvokeEvent, directoryPath: string) => {
     return listDirectory(directoryPath);
+  },
+);
+
+/**
+ * Handles the 'get-parent-directory' IPC call.
+ * @param targetPath - The path to get the parent of.
+ * @returns The parent directory path.
+ */
+ipcMain.handle(
+  'get-parent-directory',
+  async (_event: IpcMainInvokeEvent, targetPath: string) => {
+    if (!targetPath) return null;
+    const parent = path.dirname(targetPath);
+    // path.dirname('/') returns '/' on posix, 'C:\' on win32 if 'C:\' provided?
+    // If parent is same as path, we are at root.
+    if (parent === targetPath) return null;
+    return parent;
   },
 );
 

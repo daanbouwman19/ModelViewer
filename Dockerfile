@@ -3,10 +3,7 @@ FROM node:24
 WORKDIR /app
 
 # Install dependencies needed for native module compilation (better-sqlite3)
-# Node base image usually has python3, make, g++, but let's ensure.
-# Also install ffmpeg system libraries if needed, but ffmpeg-static handles binaries.
-# However, for production robustness, having system ffmpeg is sometimes a good fallback, 
-# but our code relies on ffmpeg-static path.
+# The Node base image typically includes python3, make, and g++.
 
 # Copy package files
 COPY package.json package-lock.json ./
@@ -22,7 +19,7 @@ RUN npm run build:web
 RUN npm run build:server
 
 # Prune dev dependencies to save space (optional, but keep it simple for now)
-# RUN npm prune --production
+RUN npm prune --production
 # We need esbuild during build but not runtime. 
 # Better-sqlite3 is a dependency.
 

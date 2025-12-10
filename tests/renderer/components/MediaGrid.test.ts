@@ -8,10 +8,10 @@ import {
   type Mock,
 } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
-import MediaGrid from '../../../src/renderer/components/MediaGrid.vue';
-import { createMockElectronAPI } from '../mocks/electronAPI';
+import MediaGrid from '@/components/MediaGrid.vue';
+import { api } from '@/api';
 
-// Mock useAppState
+// Shared mock state
 const mockState = {
   gridMediaFiles: [] as { path: string; name: string }[],
   supportedExtensions: {
@@ -26,22 +26,37 @@ const mockState = {
   isTimerRunning: false,
 };
 
-vi.mock('../../../src/renderer/composables/useAppState', () => ({
+// Mock useAppState
+vi.mock('@/composables/useAppState', () => ({
   useAppState: () => ({
     state: mockState,
   }),
 }));
 
-// Mock electronAPI
-global.window.electronAPI = createMockElectronAPI();
+// Mock api
+vi.mock('@/api', () => ({
+  api: {
+    getMediaUrlGenerator: vi.fn(),
+    getThumbnailUrlGenerator: vi.fn(),
+  },
+}));
 
 describe('MediaGrid.vue', () => {
   beforeEach(() => {
     mockState.gridMediaFiles = [];
     mockState.viewMode = 'grid';
+
     vi.clearAllMocks();
-    // Reset default success implementation
-    (global.window.electronAPI.getServerPort as Mock).mockResolvedValue(1234);
+
+    // Default success implementation for generators
+    // Return a simple function that returns the path prefixed
+    (api.getMediaUrlGenerator as Mock).mockResolvedValue(
+      (path: string) => `http://localhost:1234/${encodeURIComponent(path)}`,
+    );
+    (api.getThumbnailUrlGenerator as Mock).mockResolvedValue(
+      (path: string) =>
+        `http://localhost:1234/thumb/${encodeURIComponent(path)}`,
+    );
   });
 
   afterEach(() => {
@@ -60,7 +75,7 @@ describe('MediaGrid.vue', () => {
     ];
 
     const wrapper = mount(MediaGrid);
-    await flushPromises(); // Wait for onMounted port fetching
+    await flushPromises(); // Wait for onMounted
 
     const items = wrapper.findAll('.grid-item');
     expect(items).toHaveLength(2);
@@ -68,12 +83,17 @@ describe('MediaGrid.vue', () => {
     // Check image rendering
     const img = items[0].find('img');
     expect(img.exists()).toBe(true);
-    expect(img.attributes('src')).toContain('image1.jpg'); // Encoded path
+    // Our mock generator encodes paths
+    expect(img.attributes('src')).toContain(
+      encodeURIComponent('/path/to/image1.jpg'),
+    );
 
     // Check video rendering
     const video = items[1].find('video');
     expect(video.exists()).toBe(true);
-    expect(video.attributes('src')).toContain('video1.mp4');
+    expect(video.attributes('src')).toContain(
+      encodeURIComponent('/path/to/video1.mp4'),
+    );
   });
 
   it('handles item click correctly', async () => {
@@ -129,23 +149,23 @@ describe('MediaGrid.vue', () => {
 
     // Wait for throttle (150ms) + re-render
     await new Promise((r) => setTimeout(r, 200));
+    // Force update if needed or just wait for next tick
     await wrapper.vm.$nextTick();
+    await flushPromises();
 
-    // Should now show all 30 (24 + 6)
+    // Should now show all 30
     expect(wrapper.findAll('.grid-item')).toHaveLength(30);
   });
 
-  it('handles server port error gracefully', async () => {
+  it('handles generator initialization error gracefully', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    (global.window.electronAPI.getServerPort as Mock).mockRejectedValue(
-      new Error('Failed'),
-    );
+    (api.getMediaUrlGenerator as Mock).mockRejectedValue(new Error('Failed'));
 
     mount(MediaGrid);
     await flushPromises();
 
     expect(consoleSpy).toHaveBeenCalledWith(
-      'Failed to determine server port',
+      'Failed to initialize media URL generators',
       expect.any(Error),
     );
   });
@@ -159,7 +179,7 @@ describe('MediaGrid.vue', () => {
     await flushPromises();
 
     const img = wrapper.find('img');
-    // http://localhost:1234/%2Fpath%2Fwith%20spaces%2Fimage.jpg
+    // Our mock logic uses encodeURIComponent, so we expect encoded space
     expect(img.attributes('src')).toContain('with%20spaces');
   });
 });

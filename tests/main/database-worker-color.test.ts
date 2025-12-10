@@ -1,40 +1,47 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { Worker } from 'worker_threads';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
+import { parentPort } from 'worker_threads';
+
+vi.mock('worker_threads');
+
+// Import the worker code directly.
+// In Vitest, this will execute the code in the same process/context as the test,
+// allowing us to assert on the behavior using the mocked parentPort.
+import '../../src/core/database-worker';
 
 describe('Database Worker - Color Features', () => {
-  let worker: Worker;
   let tmpDbPath: string;
   let messageId = 0;
 
-  beforeEach(async () => {
-    tmpDbPath = path.join(os.tmpdir(), `test-db-${Date.now()}.sqlite`);
-    const workerPath = path.resolve(
-      __dirname,
-      '../../src/main/database-worker.ts',
-    );
-
-    worker = new Worker(workerPath);
-
-    await new Promise<void>((resolve) => {
-      const onMessage = (msg: unknown) => {
-        const typedMsg = msg as { type: string };
-        if (typedMsg.type === 'ready') {
-          worker.off('message', onMessage);
-          resolve();
+  // Helper to send message and wait for response
+  const sendMessage = (
+    type: string,
+    payload: unknown,
+  ): Promise<{ success: boolean; data?: unknown; error?: string }> => {
+    const id = messageId++;
+    return new Promise((resolve) => {
+      const handler = (msg: any) => {
+        if (msg.id === id) {
+          parentPort!.off('workerMessage', handler);
+          resolve(msg.result);
         }
       };
-      worker.on('message', onMessage);
+      parentPort!.on('workerMessage', handler);
+      parentPort!.emit('message', { id, type, payload });
     });
+  };
 
-    // Init DB
+  beforeEach(async () => {
+    tmpDbPath = path.join(os.tmpdir(), `test-db-${Date.now()}.sqlite`);
+
+    // Initialize DB
     await sendMessage('init', { dbPath: tmpDbPath });
   });
 
   afterEach(async () => {
-    await worker.terminate();
+    await sendMessage('close', {});
     if (fs.existsSync(tmpDbPath)) {
       try {
         fs.unlinkSync(tmpDbPath);
@@ -43,33 +50,6 @@ describe('Database Worker - Color Features', () => {
       }
     }
   });
-
-  interface WorkerResponse {
-    id: number;
-    result: {
-      success: boolean;
-      data?: unknown;
-      error?: string;
-    };
-  }
-
-  const sendMessage = (
-    type: string,
-    payload: unknown,
-  ): Promise<{ success: boolean; data?: unknown; error?: string }> => {
-    const id = messageId++;
-    return new Promise((resolve) => {
-      worker.postMessage({ id, type, payload });
-      const handler = (msg: unknown) => {
-        const typedMsg = msg as WorkerResponse;
-        if (typedMsg.id === id) {
-          worker.off('message', handler);
-          resolve(typedMsg.result);
-        }
-      };
-      worker.on('message', handler);
-    });
-  };
 
   it('should store and retrieve file colors', async () => {
     const filePath = '/path/to/image.jpg';
@@ -117,7 +97,7 @@ describe('Database Worker - Color Features', () => {
   it('should identify files missing color', async () => {
     const newFile = '/path/new.jpg';
 
-    // Record view to add it to media_views
+    // Record view to add it to media_views (which is where candidates come from?)
     await sendMessage('recordMediaView', { filePath: newFile });
 
     const missingRes = await sendMessage('getFilesMissingColor', {});

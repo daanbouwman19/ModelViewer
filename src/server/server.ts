@@ -8,7 +8,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import fs from 'fs';
+import fs from 'fs/promises';
 import {
   initDatabase,
   addMediaDirectory,
@@ -122,7 +122,9 @@ async function bootstrap() {
     const { path: dirPath } = req.body;
     if (!dirPath) return res.status(400).send('Missing path');
     try {
-      if (!fs.existsSync(dirPath)) {
+      try {
+        await fs.stat(dirPath);
+      } catch {
         return res.status(400).json({ error: 'Directory does not exist' });
       }
       await addMediaDirectory(dirPath);
@@ -165,6 +167,17 @@ async function bootstrap() {
     } catch {
       res.status(500).json({ error: 'Failed to list directory' });
     }
+  });
+
+  app.get('/api/fs/parent', (req, res) => {
+    const dirPath = req.query.path as string;
+    if (!dirPath) return res.status(400).send('Missing path');
+    const parent = path.dirname(dirPath);
+    // If we are at root
+    if (parent === dirPath) {
+      return res.json({ parent: null });
+    }
+    res.json({ parent });
   });
 
   // Extensions
