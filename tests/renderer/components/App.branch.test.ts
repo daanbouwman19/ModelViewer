@@ -71,7 +71,7 @@ describe('App.vue', () => {
   });
 
   it('handles shortcuts', async () => {
-    mount(App);
+    const wrapper = mount(App);
     await flushPromises();
 
     // Mock handlers from useSlideshow
@@ -94,6 +94,8 @@ describe('App.vue', () => {
     Object.defineProperty(spaceEvent, 'target', { value: document.body });
     await document.dispatchEvent(spaceEvent);
     expect(toggleSlideshowTimer).toHaveBeenCalled();
+
+    wrapper.unmount();
   });
 
   it('toggles sidebar', async () => {
@@ -103,10 +105,13 @@ describe('App.vue', () => {
     const toggleBtn = wrapper.find('.icon-button');
     await toggleBtn.trigger('click');
 
-    // might be stubbed as div
-    // Since we stubbed components, we check if the v-if condition changed?
-    // showSidebar is a ref in setup. We can check button text or state if exposed?
-    // We can check if text changed from "Hide Albums" to "Show Albums"
+    const albumsList = wrapper.findComponent({ name: 'AlbumsList' });
+    // When sidebar is hidden (after 1 click from true default?), wait.
+    // default showSidebar = true.
+    // Click -> false.
+    // Check that it's gone?
+    // But findComponent returns a wrapper even if it doesn't exist? verify exists()
+    expect(albumsList.exists()).toBe(false);
 
     expect(wrapper.text()).toContain('Show Albums');
     expect(wrapper.text()).not.toContain('Hide Albums');
