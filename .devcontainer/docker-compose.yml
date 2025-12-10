@@ -1,23 +1,24 @@
 services:
-  electron-app:
+  app:
     build:
       context: ..
       dockerfile: .devcontainer/Dockerfile
 
+    volumes:
+      - ..:/home/builduser/app
+      - node_modules_cache:/home/builduser/app/node_modules
     working_dir: /home/builduser/app
-    ports:
-      - '5901:5901' # VNC
-      - '6080:6080' # noVNC web interface
-      - '5173:5173' # Vite dev server
+
     environment:
       - DISPLAY=:1
-      # Still use builduser's HOME for configs
       - HOME=/home/builduser
 
-    volumes:
-      # Mount the parent directory (project root)
-      - ..:/home/builduser/app
-      # Use a named volume to persist node_modules
-      - node_modules_cache:/home/builduser/app/node_modules
+    ports:
+      - '5901:5901' # VNC Server
+      - '6080:6080' # noVNC Web Client
+      - '5173:5173' # Vite Dev Server
+
+    command: sleep infinity
+
 volumes:
   node_modules_cache:

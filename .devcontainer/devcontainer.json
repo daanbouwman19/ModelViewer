@@ -1,7 +1,7 @@
 {
-  "name": "Electron Dev Container",
+  "name": "ModelViewer Electron Dev",
   "dockerComposeFile": "docker-compose.yml",
-  "service": "electron-app",
+  "service": "app",
   "workspaceFolder": "/home/builduser/app",
   "remoteUser": "builduser",
   "customizations": {
@@ -17,5 +17,9 @@
   "features": {
     "ghcr.io/devcontainers/features/git:1": {}
   },
-  "postStartCommand": "/usr/local/share/desktop-init.sh && npm ci && npm run dev"
+  "mounts": [
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/home/builduser/.ssh,readonly,type=bind,consistency=cached"
+  ],
+  "postCreateCommand": "npm install && npx electron-builder install-app-deps",
+  "postStartCommand": "/usr/local/share/desktop-init.sh && npm run dev"
 }

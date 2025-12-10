@@ -1,22 +1,12 @@
 FROM ghcr.io/electron/devcontainer:latest
 
 USER root
+RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
+    && apt-get install -y --no-install-recommends libsqlite3-dev \
+    && apt-get clean -y && rm -rf /var/lib/apt/lists/*
 RUN sed -i '/cd \/workspaces\/gclient\/src\/electron/d' /home/builduser/.bashrc
-
+RUN mkdir -p /home/builduser/app/node_modules \
+    && chown -R builduser:builduser /home/builduser/app
 USER builduser
-
-WORKDIR /home/builduser/app 
-
-COPY --chown=builduser:builduser package*.json ./
-
-RUN --mount=type=cache,target=/home/builduser/.npm \
-    sh -c "sudo chown -R builduser:builduser /home/builduser/.npm && npm ci"
-    
-COPY --chown=builduser:builduser . .
-
-# Set Electron environment variables to disable sandbox/GPU in container
 ENV ELECTRON_DISABLE_SANDBOX=1 \
     ELECTRON_DISABLE_GPU=1
-
-ENTRYPOINT []
-CMD ["sleep", "infinity"]
