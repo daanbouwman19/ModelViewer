@@ -100,9 +100,6 @@ const selectedPath = ref<string | null>(null);
 
 const parentPath = ref<string | null>(null);
 
-// Computes parent path string (naive logic, assumes / or \ separator)
-// replaced by async call to backend
-
 const sortedEntries = computed(() => {
   return [...entries.value].sort((a, b) => {
     // Directories first
