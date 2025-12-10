@@ -5,7 +5,7 @@ import {
   listDrives,
 } from '../../src/core/file-system';
 import fs from 'fs/promises';
-import { exec } from 'child_process';
+import { execa } from 'execa';
 import os from 'os';
 
 vi.mock('fs/promises', () => {
@@ -17,15 +17,11 @@ vi.mock('fs/promises', () => {
   };
 });
 
-vi.mock('child_process', () => {
-  const exec = vi.fn();
+vi.mock('execa', () => {
   return {
-    exec,
-    default: { exec },
+    execa: vi.fn(),
   };
 });
-
-// os mock removed
 
 describe('file-system', () => {
   afterEach(() => {
@@ -54,8 +50,6 @@ describe('file-system', () => {
       expect(result[3].name).toBe('file2.txt');
 
       // Paths should be correct
-      // Note: path.join behavior depends on OS in test environment
-      // but assuming relative simplicity:
       expect(result[0].path).toContain('dir1');
     });
 
@@ -67,10 +61,6 @@ describe('file-system', () => {
         .mockImplementation(() => {});
 
       await expect(listDirectory('/test')).rejects.toThrow('Access denied');
-
-      // In test env, it suppresses log? code: if (process.env.NODE_ENV !== 'test')
-      // So console.error should NOT be called if NODE_ENV is test.
-      // Vitest sets NODE_ENV to 'test' by default.
       expect(consoleSpy).not.toHaveBeenCalled();
       consoleSpy.mockRestore();
     });
@@ -94,10 +84,11 @@ describe('file-system', () => {
     it('returns drives on Windows', async () => {
       vi.spyOn(os, 'platform').mockReturnValue('win32');
 
-      // Mock exec to simulate fsutil output
-      (exec as any).mockImplementation((_cmd: string, callback: any) => {
-        callback(null, { stdout: 'Drives: C:\\ D:\\' });
-      });
+      // Mock execa to simulate fsutil output
+      // execa returns a Promise that resolves to an object with stdout
+      vi.mocked(execa).mockResolvedValue({
+        stdout: 'Drives: C:\\ D:\\',
+      } as any);
 
       const result = await listDrives();
       expect(result).toHaveLength(2);
@@ -110,9 +101,7 @@ describe('file-system', () => {
     it('returns fallback C: on Windows if exec fails', async () => {
       vi.spyOn(os, 'platform').mockReturnValue('win32');
 
-      (exec as any).mockImplementation((_cmd: string, callback: any) => {
-        callback(new Error('Command failed'));
-      });
+      vi.mocked(execa).mockRejectedValue(new Error('Command failed'));
 
       const consoleSpy = vi
         .spyOn(console, 'error')

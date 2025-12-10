@@ -235,4 +235,27 @@ describe('FileExplorer.vue', () => {
     expect(items[1].text()).toContain('c_folder');
     expect(items[2].text()).toContain('b_file.txt');
   });
+  it('correctly identifies drive roots with different cases', async () => {
+    (api.listDirectory as any).mockResolvedValue([
+      { name: 'C:', path: 'C:\\', isDirectory: true },
+      { name: 'd:', path: 'd:\\', isDirectory: true },
+    ]);
+    (api.getParentDirectory as any).mockResolvedValue(null);
+
+    const wrapper = mount(FileExplorer, {
+      props: { initialPath: 'ROOT' },
+    });
+    await flushPromises();
+
+    // Check if icons are displayed correctly (Floppy disk 💾 for drives)
+    const items = wrapper.findAll('li.cursor-pointer');
+
+    // First item: C:\
+    expect(items[0].find('.icon').text()).toBe('💾');
+    expect(items[0].find('.text-xs').text()).toBe('DRIVE');
+
+    // Second item: d:\
+    expect(items[1].find('.icon').text()).toBe('💾');
+    expect(items[1].find('.text-xs').text()).toBe('DRIVE');
+  });
 });

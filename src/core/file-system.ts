@@ -51,11 +51,8 @@ export async function listDirectory(
   }
 }
 
-import { exec } from 'child_process';
-import util from 'util';
 import os from 'os';
-
-const execAsync = util.promisify(exec);
+import { execa } from 'execa';
 
 /**
  * Lists the available drives on Windows.

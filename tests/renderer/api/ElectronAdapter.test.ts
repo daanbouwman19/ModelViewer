@@ -90,12 +90,11 @@ describe('ElectronAdapter', () => {
     expect(result).toBe(null);
   });
 
-  it('removeMediaDirectory should call electronAPI.removeMediaDirectory', async () => {
-    mockElectronAPI.removeMediaDirectory.mockResolvedValue(undefined);
+  it('addMediaDirectory should return null to trigger custom file explorer', async () => {
+    const result = await adapter.addMediaDirectory();
 
-    await adapter.removeMediaDirectory('/path');
-
-    expect(mockElectronAPI.removeMediaDirectory).toHaveBeenCalledWith('/path');
+    expect(result).toBe(null);
+    expect(mockElectronAPI.addMediaDirectory).not.toHaveBeenCalled();
   });
 
   it('setDirectoryActiveState should call electronAPI.setDirectoryActiveState', async () => {

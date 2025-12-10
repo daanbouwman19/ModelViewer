@@ -121,7 +121,7 @@ const sortedEntries = computed(() => {
 
 const isDriveRoot = (path: string) => {
   // Simple check for windows drive root like "C:\"
-  return /^[A-Z]:\\?$/.test(path);
+  return /^[A-Z]:\\?$/i.test(path);
 };
 
 const loadDirectory = async (path: string) => {
