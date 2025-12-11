@@ -151,13 +151,24 @@ watch(allMediaFiles, () => {
 // -- End Infinite Scroll Logic --
 
 /**
+ * Helper to extract file extension efficiently.
+ * @param path - The file path.
+ * @returns The extension including the dot, or empty string if none.
+ */
+const getExtension = (path: string) => {
+  const lastDotIndex = path.lastIndexOf('.');
+  if (lastDotIndex === -1) return '';
+  return path.substring(lastDotIndex).toLowerCase();
+};
+
+/**
  * Checks if the file is an image based on extension.
  * @param item - The media item.
  * @returns True if it is an image.
  */
 const isImage = (item: MediaFile) => {
-  const ext = item.path.split('.').pop()?.toLowerCase();
-  return ext ? state.supportedExtensions.images.includes(`.${ext}`) : false;
+  const ext = getExtension(item.path);
+  return state.supportedExtensions.images.includes(ext);
 };
 
 /**
@@ -166,8 +177,8 @@ const isImage = (item: MediaFile) => {
  * @returns True if it is a video.
  */
 const isVideo = (item: MediaFile) => {
-  const ext = item.path.split('.').pop()?.toLowerCase();
-  return ext ? state.supportedExtensions.videos.includes(`.${ext}`) : false;
+  const ext = getExtension(item.path);
+  return state.supportedExtensions.videos.includes(ext);
 };
 
 /**
