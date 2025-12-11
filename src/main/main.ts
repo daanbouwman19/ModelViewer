@@ -75,35 +75,30 @@ ipcMain.handle(
 
       // Security Check: Ensure the file is within an allowed media directory
       const mediaDirectories = await getMediaDirectories();
-      if (!mediaDirectories.success || !mediaDirectories.data) {
-        return {
-          type: 'error',
-          message: 'Failed to retrieve media configuration.',
-        };
+
+      let realPath: string;
+      try {
+        realPath = await fs.realpath(filePath);
+      } catch (error) {
+        return { type: 'error', message: `File does not exist: ${filePath}` };
       }
 
-      const allowedPaths = mediaDirectories.data.map(
-        (d: { path: string }) => d.path,
+      const allowedPaths = mediaDirectories.map(
+        (d) => d.path,
       );
       const isAllowed = allowedPaths.some((allowedDir: string) => {
-        const relative = path.relative(allowedDir, filePath);
+        const relative = path.relative(allowedDir, realPath);
         return !relative.startsWith('..') && !path.isAbsolute(relative);
       });
 
       if (!isAllowed) {
         console.warn(
-          `[Security] Access denied to file outside media directories: ${filePath}`,
+          `[Security] Access denied to file outside media directories: ${realPath} (resolved from ${filePath})`,
         );
         return {
           type: 'error',
           message: `Access denied: File is not in a configured media directory.`,
         };
-      }
-
-      try {
-        await fs.access(filePath);
-      } catch {
-        return { type: 'error', message: `File does not exist: ${filePath}` };
       }
 
       const currentServerPort = getServerPort();

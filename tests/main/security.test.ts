@@ -8,6 +8,7 @@ vi.mock('fs/promises', () => ({
     access: vi.fn(),
     stat: vi.fn(),
     readFile: vi.fn(),
+    realpath: vi.fn(),
   },
 }));
 
@@ -84,15 +85,14 @@ describe('Security: load-file-as-data-url', () => {
 
     // Setup allowed directories
     const allowedDir = '/allowed/media';
-    (db.getMediaDirectories as unknown as Mock).mockResolvedValue({
-      success: true,
-      data: [{ path: allowedDir, isActive: true }],
-    });
+    (db.getMediaDirectories as unknown as Mock).mockResolvedValue(
+      [{ path: allowedDir, isActive: true }],
+    );
 
     const validFile = path.join(allowedDir, 'image.jpg');
 
     // Mock FS calls
-    (fsPromises.default.access as unknown as Mock).mockResolvedValue(undefined);
+    (fsPromises.default.realpath as unknown as Mock).mockResolvedValue(validFile);
     (fsPromises.default.stat as unknown as Mock).mockResolvedValue({
       size: 1000,
     });
@@ -111,15 +111,14 @@ describe('Security: load-file-as-data-url', () => {
     const db = await import('../../src/main/database');
 
     // Setup allowed directories
-    (db.getMediaDirectories as unknown as Mock).mockResolvedValue({
-      success: true,
-      data: [{ path: '/allowed/media', isActive: true }],
-    });
+    (db.getMediaDirectories as unknown as Mock).mockResolvedValue(
+      [{ path: '/allowed/media', isActive: true }],
+    );
 
     const sensitiveFile = '/etc/passwd';
 
     // Mock FS to pretend the file exists
-    (fsPromises.default.access as unknown as Mock).mockResolvedValue(undefined);
+    (fsPromises.default.realpath as unknown as Mock).mockResolvedValue(sensitiveFile);
 
     const result = await handler(null, sensitiveFile);
 
@@ -135,20 +134,43 @@ describe('Security: load-file-as-data-url', () => {
     const db = await import('../../src/main/database');
 
     const allowedDir = '/allowed/media';
-    (db.getMediaDirectories as unknown as Mock).mockResolvedValue({
-      success: true,
-      data: [{ path: allowedDir, isActive: true }],
-    });
+    (db.getMediaDirectories as unknown as Mock).mockResolvedValue(
+      [{ path: allowedDir, isActive: true }],
+    );
 
     // Attempt to break out of the directory
-    // Note: path.resolve or similar normalization is needed in implementation
-    // On Linux /allowed/media/../../etc/passwd resolves to /etc/passwd
     const traversalPath = path.join(allowedDir, '../../etc/passwd');
+    const resolvedPath = '/etc/passwd';
 
     // Mock FS
-    (fsPromises.default.access as unknown as Mock).mockResolvedValue(undefined);
+    (fsPromises.default.realpath as unknown as Mock).mockResolvedValue(resolvedPath);
 
     const result = await handler(null, traversalPath);
+
+    expect(result).toEqual({
+      type: 'error',
+      message: expect.stringContaining('Access denied'),
+    });
+  });
+
+  it('should deny symlink traversal attacks', async () => {
+    await setupHandler();
+    const fsPromises = await import('fs/promises');
+    const db = await import('../../src/main/database');
+
+    const allowedDir = '/allowed/media';
+    (db.getMediaDirectories as unknown as Mock).mockResolvedValue(
+      [{ path: allowedDir, isActive: true }],
+    );
+
+    // Symlink inside allowed directory pointing outside
+    const symlinkPath = path.join(allowedDir, 'secret_link');
+    const targetPath = '/etc/passwd';
+
+    // Mock realpath to return the sensitive target
+    (fsPromises.default.realpath as unknown as Mock).mockResolvedValue(targetPath);
+
+    const result = await handler(null, symlinkPath);
 
     expect(result).toEqual({
       type: 'error',

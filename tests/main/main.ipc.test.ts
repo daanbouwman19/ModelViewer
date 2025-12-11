@@ -7,6 +7,7 @@ vi.mock('fs/promises', () => ({
     access: vi.fn(),
     stat: vi.fn(),
     readFile: vi.fn(),
+    realpath: vi.fn(),
   },
 }));
 
@@ -53,10 +54,9 @@ describe('main.js IPC Handlers', () => {
     vi.clearAllMocks();
     // Setup default mock response for getMediaDirectories
     const db = await import('../../src/main/database');
-    (db.getMediaDirectories as unknown as Mock).mockResolvedValue({
-      success: true,
-      data: [{ path: '/path/to', isActive: true }],
-    });
+    (db.getMediaDirectories as unknown as Mock).mockResolvedValue(
+      [{ path: '/path/to', isActive: true }]
+    );
 
     // Import main.js to register the handlers
     await import('../../src/main/main.js');
@@ -73,7 +73,7 @@ describe('main.js IPC Handlers', () => {
   it('should return a descriptive error for a non-existent file', async () => {
     const nonExistentPath = '/path/to/nothing.txt';
     const fsPromises = await import('fs/promises');
-    (fsPromises.default.access as unknown as Mock).mockRejectedValue(
+    (fsPromises.default.realpath as unknown as Mock).mockRejectedValue(
       new Error('ENOENT'),
     );
 
@@ -83,6 +83,6 @@ describe('main.js IPC Handlers', () => {
       type: 'error',
       message: `File does not exist: ${nonExistentPath}`,
     });
-    expect(fsPromises.default.access).toHaveBeenCalledWith(nonExistentPath);
+    expect(fsPromises.default.realpath).toHaveBeenCalledWith(nonExistentPath);
   });
 });
