@@ -158,6 +158,14 @@ watch(allMediaFiles, () => {
 const getExtension = (path: string) => {
   const lastDotIndex = path.lastIndexOf('.');
   if (lastDotIndex === -1) return '';
+
+  const lastSlashIndex = Math.max(
+    path.lastIndexOf('/'),
+    path.lastIndexOf('\\'),
+  );
+  if (lastDotIndex < lastSlashIndex) return ''; // Dot is in directory name
+  if (lastDotIndex === lastSlashIndex + 1) return ''; // Dotfile (e.g. .gitignore)
+
   return path.substring(lastDotIndex).toLowerCase();
 };
 
