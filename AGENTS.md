@@ -2,7 +2,7 @@
 
 This document provides guidelines for agents working on this repository.
 
-## For Jules (and other Agents)
+## Pre-push Checks
 
 To ensure the Continuous Integration (CI) pipeline remains green, please follow these steps before submitting any changes:
 
