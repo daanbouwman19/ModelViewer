@@ -54,9 +54,9 @@ describe('main.js IPC Handlers', () => {
     vi.clearAllMocks();
     // Setup default mock response for getMediaDirectories
     const db = await import('../../src/main/database');
-    (db.getMediaDirectories as unknown as Mock).mockResolvedValue(
-      [{ path: '/path/to', isActive: true }]
-    );
+    (db.getMediaDirectories as unknown as Mock).mockResolvedValue([
+      { path: '/path/to', isActive: true },
+    ]);
 
     // Import main.js to register the handlers
     await import('../../src/main/main.js');
