@@ -160,7 +160,7 @@ describe('WebAdapter', () => {
       // Temporarily redefine property
       Object.defineProperty(window, 'location', {
         value: { port: '' },
-        writable: true
+        writable: true,
       });
       const port = await adapter.getServerPort();
       expect(port).toBe(80);
@@ -168,7 +168,7 @@ describe('WebAdapter', () => {
       // Reset
       Object.defineProperty(window, 'location', {
         value: { port: '3000' },
-        writable: true
+        writable: true,
       });
     });
   });
@@ -200,7 +200,10 @@ describe('WebAdapter', () => {
   describe('openInVlc', () => {
     it('returns not supported', async () => {
       const result = await adapter.openInVlc();
-      expect(result).toEqual({ success: false, message: 'Not supported in Web version.' });
+      expect(result).toEqual({
+        success: false,
+        message: 'Not supported in Web version.',
+      });
     });
   });
 
