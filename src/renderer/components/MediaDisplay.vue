@@ -141,6 +141,7 @@
       <button
         :disabled="!canNavigate"
         class="nav-button glass-button"
+        aria-label="Previous media"
         @click="handlePrevious"
       >
         ←
@@ -161,6 +162,7 @@
       <button
         :disabled="!canNavigate"
         class="nav-button glass-button"
+        aria-label="Next media"
         @click="handleNext"
       >
         →
@@ -175,6 +177,7 @@
         v-if="!isImage && currentMediaItem"
         class="vlc-button glass-button-icon"
         title="Open with VLC"
+        aria-label="Open in VLC"
         @click="openInVlc"
       >
         <VlcIcon />
