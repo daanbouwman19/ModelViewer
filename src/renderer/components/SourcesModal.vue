@@ -11,6 +11,7 @@
         <h2 class="text-2xl font-semibold">Manage Media Sources</h2>
         <button
           class="text-gray-400 hover:text-white text-3xl close-button"
+          aria-label="Close"
           @click="closeModal"
         >
           &times;
