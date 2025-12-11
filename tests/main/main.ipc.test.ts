@@ -35,11 +35,29 @@ vi.mock('../../src/main/local-server.js', () => ({
   getMimeType: vi.fn(),
 }));
 
+vi.mock('../../src/main/database', () => ({
+  getMediaDirectories: vi.fn(),
+  initDatabase: vi.fn(),
+  recordMediaView: vi.fn(),
+  getMediaViewCounts: vi.fn(),
+  closeDatabase: vi.fn(),
+  addMediaDirectory: vi.fn(),
+  removeMediaDirectory: vi.fn(),
+  setDirectoryActiveState: vi.fn(),
+}));
+
 describe('main.js IPC Handlers', () => {
   let handler: (event: any, ...args: any[]) => any;
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    // Setup default mock response for getMediaDirectories
+    const db = await import('../../src/main/database');
+    (db.getMediaDirectories as unknown as Mock).mockResolvedValue({
+      success: true,
+      data: [{ path: '/path/to', isActive: true }],
+    });
+
     // Import main.js to register the handlers
     await import('../../src/main/main.js');
     // Find the handler for 'load-file-as-data-url'

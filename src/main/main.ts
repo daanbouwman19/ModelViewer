@@ -72,6 +72,34 @@ ipcMain.handle(
       if (!filePath) {
         return { type: 'error', message: `File path is empty` };
       }
+
+      // Security Check: Ensure the file is within an allowed media directory
+      const mediaDirectories = await getMediaDirectories();
+      if (!mediaDirectories.success || !mediaDirectories.data) {
+        return {
+          type: 'error',
+          message: 'Failed to retrieve media configuration.',
+        };
+      }
+
+      const allowedPaths = mediaDirectories.data.map(
+        (d: { path: string }) => d.path,
+      );
+      const isAllowed = allowedPaths.some((allowedDir: string) => {
+        const relative = path.relative(allowedDir, filePath);
+        return !relative.startsWith('..') && !path.isAbsolute(relative);
+      });
+
+      if (!isAllowed) {
+        console.warn(
+          `[Security] Access denied to file outside media directories: ${filePath}`,
+        );
+        return {
+          type: 'error',
+          message: `Access denied: File is not in a configured media directory.`,
+        };
+      }
+
       try {
         await fs.access(filePath);
       } catch {
