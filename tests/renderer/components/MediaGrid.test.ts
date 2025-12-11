@@ -193,6 +193,26 @@ describe('MediaGrid.vue', () => {
     expect(wrapper.find('video').exists()).toBe(false);
   });
 
+  it('handles tricky paths correctly (dots in dirs, dotfiles)', async () => {
+    mockState.gridMediaFiles = [
+      { path: '/path.to/file', name: 'file' }, // Dot in dir, no file ext
+      { path: '/path/.config', name: '.config' }, // Dotfile
+      { path: '/path/image.jpg', name: 'image.jpg' }, // Normal
+    ];
+    const wrapper = mount(MediaGrid);
+    await flushPromises();
+
+    // Should render all grid items, but only one image
+    expect(wrapper.findAll('.grid-item')).toHaveLength(3);
+
+    // /path.to/file should NOT be an image
+    // /path/.config should NOT be an image
+    // /path/image.jpg SHOULD be an image
+    expect(wrapper.findAll('img')).toHaveLength(1);
+    const img = wrapper.find('img');
+    expect(img.attributes('src')).toContain('image.jpg');
+  });
+
   it('throttles scroll events', async () => {
     vi.useFakeTimers();
     const items = Array.from({ length: 100 }, (_, i) => ({
