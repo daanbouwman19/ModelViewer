@@ -104,7 +104,6 @@ describe('Palette Accessibility Improvements', () => {
       const prevBtn = wrapper.findAll('.nav-button')[0];
       const nextBtn = wrapper.findAll('.nav-button')[1];
 
-      // These assertions will fail until we implement the fix
       expect(prevBtn.attributes('aria-label')).toBe('Previous media');
       expect(nextBtn.attributes('aria-label')).toBe('Next media');
     });
