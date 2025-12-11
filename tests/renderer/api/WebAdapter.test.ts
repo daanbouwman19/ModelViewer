@@ -155,6 +155,22 @@ describe('WebAdapter', () => {
       const port = await adapter.getServerPort();
       expect(port).toBe(3000);
     });
+
+    it('defaults to 80 if port is empty', async () => {
+      // Temporarily redefine property
+      Object.defineProperty(window, 'location', {
+        value: { port: '' },
+        writable: true
+      });
+      const port = await adapter.getServerPort();
+      expect(port).toBe(80);
+
+      // Reset
+      Object.defineProperty(window, 'location', {
+        value: { port: '3000' },
+        writable: true
+      });
+    });
   });
 
   describe('URL Generators', () => {
@@ -173,6 +189,18 @@ describe('WebAdapter', () => {
       expect(gen('/file.mp4', 10)).toBe(
         '/api/stream?file=%2Ffile.mp4&startTime=10',
       );
+    });
+
+    it('generates video stream url with default start time', async () => {
+      const gen = await adapter.getVideoStreamUrlGenerator();
+      expect(gen('/file.mp4')).toBe('/api/stream?file=%2Ffile.mp4&startTime=0');
+    });
+  });
+
+  describe('openInVlc', () => {
+    it('returns not supported', async () => {
+      const result = await adapter.openInVlc();
+      expect(result).toEqual({ success: false, message: 'Not supported in Web version.' });
     });
   });
 
