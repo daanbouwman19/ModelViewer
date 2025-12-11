@@ -7,6 +7,7 @@ vi.mock('fs/promises', () => ({
     access: vi.fn(),
     stat: vi.fn(),
     readFile: vi.fn(),
+    realpath: vi.fn(),
   },
 }));
 
@@ -35,11 +36,28 @@ vi.mock('../../src/main/local-server.js', () => ({
   getMimeType: vi.fn(),
 }));
 
+vi.mock('../../src/main/database', () => ({
+  getMediaDirectories: vi.fn(),
+  initDatabase: vi.fn(),
+  recordMediaView: vi.fn(),
+  getMediaViewCounts: vi.fn(),
+  closeDatabase: vi.fn(),
+  addMediaDirectory: vi.fn(),
+  removeMediaDirectory: vi.fn(),
+  setDirectoryActiveState: vi.fn(),
+}));
+
 describe('main.js IPC Handlers', () => {
   let handler: (event: any, ...args: any[]) => any;
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    // Setup default mock response for getMediaDirectories
+    const db = await import('../../src/main/database');
+    (db.getMediaDirectories as unknown as Mock).mockResolvedValue([
+      { path: '/path/to', isActive: true },
+    ]);
+
     // Import main.js to register the handlers
     await import('../../src/main/main.js');
     // Find the handler for 'load-file-as-data-url'
@@ -55,7 +73,7 @@ describe('main.js IPC Handlers', () => {
   it('should return a descriptive error for a non-existent file', async () => {
     const nonExistentPath = '/path/to/nothing.txt';
     const fsPromises = await import('fs/promises');
-    (fsPromises.default.access as unknown as Mock).mockRejectedValue(
+    (fsPromises.default.realpath as unknown as Mock).mockRejectedValue(
       new Error('ENOENT'),
     );
 
@@ -65,6 +83,6 @@ describe('main.js IPC Handlers', () => {
       type: 'error',
       message: `File does not exist: ${nonExistentPath}`,
     });
-    expect(fsPromises.default.access).toHaveBeenCalledWith(nonExistentPath);
+    expect(fsPromises.default.realpath).toHaveBeenCalledWith(nonExistentPath);
   });
 });
