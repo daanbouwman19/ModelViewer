@@ -176,7 +176,7 @@
       <button
         v-if="!isImage && currentMediaItem"
         class="vlc-button glass-button-icon"
-        title="Open with VLC"
+        title="Open in VLC"
         aria-label="Open in VLC"
         @click="openInVlc"
       >
