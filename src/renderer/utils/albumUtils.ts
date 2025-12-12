@@ -24,13 +24,30 @@ export const countTextures = (album: Album): number => {
  * @returns A flattened list of all media files in the album tree.
  */
 export const collectTexturesRecursive = (album: Album): MediaFile[] => {
-  let textures = [...album.textures];
-  if (album.children) {
-    for (const child of album.children) {
-      textures = textures.concat(collectTexturesRecursive(child));
+  const results: MediaFile[] = [];
+
+  // Use a stack for iterative traversal to avoid call stack limits
+  // and avoid the performance penalty of array concatenation (O(n^2))
+  const stack = [album];
+
+  while (stack.length > 0) {
+    const node = stack.pop()!;
+
+    if (node.textures) {
+      for (const texture of node.textures) {
+        results.push(texture);
+      }
+    }
+
+    if (node.children) {
+      // Push children in reverse order so they are processed in original order
+      for (let i = node.children.length - 1; i >= 0; i--) {
+        stack.push(node.children[i]);
+      }
     }
   }
-  return textures;
+
+  return results;
 };
 
 /**
