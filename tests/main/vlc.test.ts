@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { ipcMain } from 'electron';
-import path from 'path';
 
 // Hoist the mock function so it's accessible in the factory and the test
 const { mockSpawn, mockFsAccess, mockRealpath, mockGetMediaDirectories } =

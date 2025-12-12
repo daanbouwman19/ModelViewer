@@ -111,8 +111,6 @@ describe('Security: open-in-vlc', () => {
 
     const result = await handler(null, sensitiveFile);
 
-    // This expectation is for the FIXED behavior.
-    // Currently, this should FAIL because the code allows the access.
     expect(result).toEqual({
       success: false,
       message: expect.stringContaining('Access denied'),
