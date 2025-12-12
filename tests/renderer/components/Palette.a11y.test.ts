@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils';
 import { ref } from 'vue';
 import MediaDisplay from '@/components/MediaDisplay.vue';
 import SourcesModal from '@/components/SourcesModal.vue';
+import AlbumTree from '@/components/AlbumTree.vue';
 import { useAppState } from '@/composables/useAppState';
 import { useSlideshow } from '@/composables/useSlideshow';
 import { api } from '@/api';
@@ -135,6 +136,49 @@ describe('Palette Accessibility Improvements', () => {
 
       expect(closeBtn.exists()).toBe(true);
       expect(closeBtn.attributes('aria-label')).toBe('Close');
+    });
+  });
+
+  describe('AlbumTree.vue', () => {
+    it('toggle button should have accessible label and aria-expanded', async () => {
+      const album = {
+        name: 'Root Album',
+        children: [{ name: 'Child', textures: [], children: [] }],
+        textures: [],
+      };
+      const wrapper = mount(AlbumTree, {
+        props: {
+          album,
+          selection: {},
+        },
+      });
+
+      const toggleBtn = wrapper.find('.toggle-button');
+      expect(toggleBtn.exists()).toBe(true);
+
+      // Initial state (collapsed)
+      expect(toggleBtn.attributes('aria-label')).toBe('Expand Root Album');
+      expect(toggleBtn.attributes('aria-expanded')).toBe('false');
+      expect(toggleBtn.text()).toBe('▶');
+
+      // Click to expand
+      await toggleBtn.trigger('click');
+      expect(toggleBtn.attributes('aria-label')).toBe('Collapse Root Album');
+      expect(toggleBtn.attributes('aria-expanded')).toBe('true');
+      expect(toggleBtn.text()).toBe('▼');
+    });
+
+    it('checkbox should have accessible label', () => {
+      const album = { name: 'Test Album', children: [], textures: [] };
+      const wrapper = mount(AlbumTree, {
+        props: {
+          album,
+          selection: {},
+        },
+      });
+
+      const checkbox = wrapper.find('input[type="checkbox"]');
+      expect(checkbox.attributes('aria-label')).toBe('Select Test Album');
     });
   });
 });
