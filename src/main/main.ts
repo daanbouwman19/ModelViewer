@@ -294,6 +294,30 @@ ipcMain.handle('get-server-port', () => {
 ipcMain.handle(
   'open-in-vlc',
   async (_event: IpcMainInvokeEvent, filePath: string) => {
+    const mediaDirectories = await getMediaDirectories();
+    let realPath: string;
+    try {
+      realPath = await fs.realpath(filePath);
+    } catch {
+      return { success: false, message: `File does not exist: ${filePath}` };
+    }
+
+    const allowedPaths = mediaDirectories.map((d) => d.path);
+    const isAllowed = allowedPaths.some((allowedDir: string) => {
+      const relative = path.relative(allowedDir, realPath);
+      return !relative.startsWith('..') && !path.isAbsolute(relative);
+    });
+
+    if (!isAllowed) {
+      console.warn(
+        `[Security] Access denied to file outside media directories: ${realPath} (resolved from ${filePath})`,
+      );
+      return {
+        success: false,
+        message: `Access denied: File is not in a configured media directory.`,
+      };
+    }
+
     const platform = process.platform;
     let vlcPath: string | null = null;
 
