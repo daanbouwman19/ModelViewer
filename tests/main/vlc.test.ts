@@ -2,17 +2,64 @@ import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { ipcMain } from 'electron';
 
 // Hoist the mock function so it's accessible in the factory and the test
-const { mockSpawn, mockFsAccess } = vi.hoisted(() => ({
-  mockSpawn: vi.fn(),
-  mockFsAccess: vi.fn(),
-}));
+const { mockSpawn, mockFsAccess, mockRealpath, mockGetMediaDirectories } =
+  vi.hoisted(() => ({
+    mockSpawn: vi.fn(),
+    mockFsAccess: vi.fn(),
+    mockRealpath: vi.fn(),
+    mockGetMediaDirectories: vi.fn(),
+  }));
 
-// Mock dependencies
+// Mock path module to be platform-aware based on process.platform
+vi.mock('path', async () => {
+  const win32 = {
+    relative: (from: string, to: string) => {
+      if (to.startsWith(from)) {
+        return to.slice(from.length).replace(/^\\/, '');
+      }
+      return '..\\outside';
+    },
+    isAbsolute: (p: string) => /^[a-zA-Z]:\\/.test(p),
+    sep: '\\',
+  };
+  const posix = {
+    relative: (from: string, to: string) => {
+      if (to.startsWith(from)) {
+        return to.slice(from.length).replace(/^\//, '');
+      }
+      return '../outside';
+    },
+    isAbsolute: (p: string) => p.startsWith('/'),
+    sep: '/',
+  };
+
+  const mocked = {
+    ...posix,
+    win32,
+    posix,
+    relative: (from: string, to: string) => {
+      return process.platform === 'win32'
+        ? win32.relative(from, to)
+        : posix.relative(from, to);
+    },
+    isAbsolute: (p: string) => {
+      return process.platform === 'win32'
+        ? win32.isAbsolute(p)
+        : posix.isAbsolute(p);
+    },
+  };
+  return {
+    ...mocked,
+    default: mocked,
+  };
+});
+
 vi.mock('fs/promises', () => ({
   default: {
     access: mockFsAccess,
     stat: vi.fn(),
     readFile: vi.fn(),
+    realpath: mockRealpath,
   },
 }));
 
@@ -54,6 +101,7 @@ vi.mock('../../src/main/local-server.js', () => ({
 vi.mock('../../src/main/database.js', () => ({
   initDatabase: vi.fn(),
   closeDatabase: vi.fn(),
+  getMediaDirectories: mockGetMediaDirectories,
 }));
 
 describe('Main Process IPC - open-in-vlc', () => {
@@ -63,6 +111,17 @@ describe('Main Process IPC - open-in-vlc', () => {
   beforeEach(async () => {
     vi.resetModules();
     vi.clearAllMocks();
+
+    // Default mocks
+    mockRealpath.mockImplementation(async (p) => p);
+
+    // Default allowed directories (covers both win/unix examples)
+    mockGetMediaDirectories.mockResolvedValue([
+      { path: 'C:\\', isActive: true },
+      { path: '/home/user', isActive: true },
+      { path: '/Users', isActive: true },
+      { path: '/', isActive: true },
+    ]);
 
     // Import main.js to register the handlers
     await import('../../src/main/main.js');
