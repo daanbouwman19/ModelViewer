@@ -81,3 +81,39 @@ export const selectAllAlbums = (
     }
   }
 };
+
+/**
+ * Collects all textures (media files) from a list of albums and their children
+ * if their names are marked as true in the provided selection map.
+ * This is used to build the global media pool for the slideshow.
+ * @param albums - The list of root albums to traverse.
+ * @param selection - A map where keys are album names and values are booleans indicating selection.
+ * @returns A flattened list of all media files from the selected albums.
+ */
+export const collectSelectedTextures = (
+  albums: Album[],
+  selection: { [key: string]: boolean },
+): MediaFile[] => {
+  const textures: MediaFile[] = [];
+  // Use a stack for iterative traversal to avoid call stack limits
+  // We process the list in reverse so that popping from stack maintains order
+  const stack = [...albums].reverse();
+
+  while (stack.length > 0) {
+    const album = stack.pop()!;
+
+    if (selection[album.name] && album.textures) {
+      for (const texture of album.textures) {
+        textures.push(texture);
+      }
+    }
+
+    if (album.children && album.children.length > 0) {
+      // Push children in reverse order so they are processed in original order
+      for (let i = album.children.length - 1; i >= 0; i--) {
+        stack.push(album.children[i]);
+      }
+    }
+  }
+  return textures;
+};
