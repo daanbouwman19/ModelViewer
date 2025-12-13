@@ -28,6 +28,7 @@ import {
   ALL_SUPPORTED_EXTENSIONS,
 } from '../core/constants';
 import { listDirectory } from '../core/file-system';
+import { authorizeFilePath } from '../core/security';
 import ffmpegStatic from 'ffmpeg-static';
 
 // Check if we are running in dev mode or production
@@ -99,6 +100,11 @@ export async function createApp() {
   app.post('/api/media/view', async (req, res) => {
     const { filePath } = req.body;
     if (!filePath) return res.status(400).send('Missing filePath');
+
+    const auth = await authorizeFilePath(filePath);
+    if (!auth.isAllowed)
+      return res.status(403).send(auth.message || 'Access denied');
+
     await recordMediaView(filePath);
     res.sendStatus(200);
   });
@@ -107,7 +113,17 @@ export async function createApp() {
     const { filePaths } = req.body;
     if (!Array.isArray(filePaths))
       return res.status(400).send('Invalid filePaths');
-    const counts = await getMediaViewCounts(filePaths);
+
+    // Filter out unauthorized paths to prevent probing
+    const allowedPaths: string[] = [];
+    for (const p of filePaths) {
+      const auth = await authorizeFilePath(p);
+      if (auth.isAllowed) {
+        allowedPaths.push(p);
+      }
+    }
+
+    const counts = await getMediaViewCounts(allowedPaths);
     res.json(counts);
   });
 

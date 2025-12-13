@@ -43,6 +43,17 @@ vi.mock('../../src/main/database', () => ({
   setDirectoryActiveState: vi.fn(),
 }));
 
+vi.mock('../../src/core/database', () => ({
+  getMediaDirectories: vi.fn(),
+  initDatabase: vi.fn(),
+  recordMediaView: vi.fn(),
+  getMediaViewCounts: vi.fn(),
+  closeDatabase: vi.fn(),
+  addMediaDirectory: vi.fn(),
+  removeMediaDirectory: vi.fn(),
+  setDirectoryActiveState: vi.fn(),
+}));
+
 vi.mock('../../src/main/local-server', () => ({
   startLocalServer: vi.fn(),
   stopLocalServer: vi.fn(),
@@ -81,7 +92,7 @@ describe('Security: load-file-as-data-url', () => {
   it('should allow access to files within allowed media directories', async () => {
     await setupHandler();
     const fsPromises = await import('fs/promises');
-    const db = await import('../../src/main/database');
+    const db = await import('../../src/core/database');
 
     // Setup allowed directories
     const allowedDir = '/allowed/media';
@@ -110,7 +121,7 @@ describe('Security: load-file-as-data-url', () => {
   it('should deny access to files outside allowed media directories', async () => {
     await setupHandler();
     const fsPromises = await import('fs/promises');
-    const db = await import('../../src/main/database');
+    const db = await import('../../src/core/database');
 
     // Setup allowed directories
     (db.getMediaDirectories as unknown as Mock).mockResolvedValue([
@@ -135,7 +146,7 @@ describe('Security: load-file-as-data-url', () => {
   it('should deny path traversal attempts', async () => {
     await setupHandler();
     const fsPromises = await import('fs/promises');
-    const db = await import('../../src/main/database');
+    const db = await import('../../src/core/database');
 
     const allowedDir = '/allowed/media';
     (db.getMediaDirectories as unknown as Mock).mockResolvedValue([
@@ -162,7 +173,7 @@ describe('Security: load-file-as-data-url', () => {
   it('should deny symlink traversal attacks', async () => {
     await setupHandler();
     const fsPromises = await import('fs/promises');
-    const db = await import('../../src/main/database');
+    const db = await import('../../src/core/database');
 
     const allowedDir = '/allowed/media';
     (db.getMediaDirectories as unknown as Mock).mockResolvedValue([
