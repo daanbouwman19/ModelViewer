@@ -4,33 +4,12 @@
  * and selecting media items based on a weighted random algorithm.
  */
 import { useAppState } from './useAppState';
-import { collectTexturesRecursive } from '../utils/albumUtils';
+import {
+  collectTexturesRecursive,
+  collectSelectedTextures,
+} from '../utils/albumUtils';
 import type { Album, MediaFile } from '../../core/types';
 import { api } from '../api';
-
-/**
- * Recursively collects all textures (media files) from a list of albums and their children
- * if their names are marked as true in the provided selection map.
- * This is used to build the global media pool for the slideshow.
- * @param albums - The list of root albums to traverse.
- * @param selection - A map where keys are album names and values are booleans indicating selection.
- * @returns A flattened list of all media files from the selected albums.
- */
-function collectSelectedTextures(
-  albums: Album[],
-  selection: { [key: string]: boolean },
-): MediaFile[] {
-  const textures: MediaFile[] = [];
-  for (const album of albums) {
-    if (selection[album.name]) {
-      textures.push(...album.textures);
-    }
-    if (album.children) {
-      textures.push(...collectSelectedTextures(album.children, selection));
-    }
-  }
-  return textures;
-}
 
 /**
  * A Vue composable that provides functions for controlling the media slideshow.
