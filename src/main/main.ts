@@ -22,7 +22,7 @@ import {
   ALL_SUPPORTED_EXTENSIONS,
 } from '../core/constants';
 
-import { authorizeFilePath } from './security';
+import { authorizeFilePath } from '../core/security';
 import {
   initDatabase,
   recordMediaView,

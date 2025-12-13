@@ -5,12 +5,14 @@ import * as database from '../../src/core/database';
 import * as mediaService from '../../src/core/media-service';
 import * as fileSystem from '../../src/core/file-system';
 import * as mediaHandler from '../../src/core/media-handler';
+import * as security from '../../src/core/security';
 import fs from 'fs/promises';
 
 // Mock dependencies
 vi.mock('../../src/core/database');
 vi.mock('../../src/core/media-service');
 vi.mock('../../src/core/file-system');
+vi.mock('../../src/core/security');
 vi.mock('fs/promises', () => ({
   default: {
     stat: vi.fn(),
@@ -30,6 +32,11 @@ describe('Server', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    // Default allow
+    vi.mocked(security.authorizeFilePath).mockResolvedValue({
+      isAllowed: true,
+      realPath: '/resolved/path',
+    });
     app = await createApp();
   });
 
@@ -99,6 +106,18 @@ describe('Server', () => {
       const response = await request(app).post('/api/media/view').send({});
 
       expect(response.status).toBe(400);
+    });
+
+    it('should return 403 if access is denied', async () => {
+      vi.mocked(security.authorizeFilePath).mockResolvedValue({
+        isAllowed: false,
+        message: 'Denied',
+      });
+      const response = await request(app)
+        .post('/api/media/view')
+        .send({ filePath: '/secret' });
+
+      expect(response.status).toBe(403);
     });
   });
 

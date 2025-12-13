@@ -49,6 +49,17 @@ vi.mock('../../src/main/database', () => ({
   setDirectoryActiveState: vi.fn(),
 }));
 
+vi.mock('../../src/core/database', () => ({
+  getMediaDirectories: vi.fn(),
+  initDatabase: vi.fn(),
+  recordMediaView: vi.fn(),
+  getMediaViewCounts: vi.fn(),
+  closeDatabase: vi.fn(),
+  addMediaDirectory: vi.fn(),
+  removeMediaDirectory: vi.fn(),
+  setDirectoryActiveState: vi.fn(),
+}));
+
 vi.mock('../../src/main/local-server', () => ({
   startLocalServer: vi.fn(),
   stopLocalServer: vi.fn(),
@@ -85,7 +96,7 @@ describe('Security: open-in-vlc', () => {
 
   it('should deny access to files outside allowed media directories', async () => {
     await setupHandler();
-    const db = await import('../../src/main/database');
+    const db = await import('../../src/core/database');
     const cp = await import('child_process');
     const fsPromises = await import('fs/promises');
 

@@ -11,8 +11,7 @@ import {
   SUPPORTED_IMAGE_EXTENSIONS,
   SUPPORTED_VIDEO_EXTENSIONS,
 } from './constants';
-import { MediaDirectory } from './types';
-import { getMediaDirectories } from './database';
+import { authorizeFilePath } from './security';
 
 export interface MediaHandlerOptions {
   ffmpegPath: string | null;
@@ -48,31 +47,6 @@ export function getMimeType(filePath: string): string {
 }
 
 /**
- * Checks if a file path is within the allowed media directories.
- */
-function isPathAllowed(
-  filePath: string,
-  allowedDirectories: MediaDirectory[],
-): boolean {
-  const normalizedPath = path.resolve(filePath);
-  return allowedDirectories.some((dir) => {
-    const normalizedDir = path.resolve(dir.path);
-    if (process.platform === 'win32') {
-      return (
-        normalizedPath
-          .toLowerCase()
-          .startsWith(normalizedDir.toLowerCase() + path.sep) ||
-        normalizedPath.toLowerCase() === normalizedDir.toLowerCase()
-      );
-    }
-    return (
-      normalizedPath.startsWith(normalizedDir + path.sep) ||
-      normalizedPath === normalizedDir
-    );
-  });
-}
-
-/**
  * Handles metadata retrieval.
  */
 export async function serveMetadata(
@@ -87,10 +61,10 @@ export async function serveMetadata(
   }
 
   try {
-    const allowedDirectories = await getMediaDirectories();
-    if (!isPathAllowed(filePath, allowedDirectories)) {
+    const auth = await authorizeFilePath(filePath);
+    if (!auth.isAllowed) {
       res.writeHead(403);
-      return res.end('Access denied');
+      return res.end(auth.message || 'Access denied');
     }
   } catch (e) {
     console.error('[Metadata] Path validation error:', e);
@@ -135,10 +109,10 @@ export async function serveTranscode(
   ffmpegPath: string | null,
 ) {
   try {
-    const allowedDirectories = await getMediaDirectories();
-    if (!isPathAllowed(filePath, allowedDirectories)) {
+    const auth = await authorizeFilePath(filePath);
+    if (!auth.isAllowed) {
       res.writeHead(403);
-      return res.end('Access denied');
+      return res.end(auth.message || 'Access denied');
     }
   } catch (e) {
     console.error('[Transcode] Path validation error:', e);
@@ -201,10 +175,10 @@ export async function serveThumbnail(
   ffmpegPath: string | null,
 ) {
   try {
-    const allowedDirectories = await getMediaDirectories();
-    if (!isPathAllowed(filePath, allowedDirectories)) {
+    const auth = await authorizeFilePath(filePath);
+    if (!auth.isAllowed) {
       res.writeHead(403);
-      return res.end('Access denied');
+      return res.end(auth.message || 'Access denied');
     }
   } catch {
     res.writeHead(500);
@@ -256,10 +230,10 @@ export async function serveStaticFile(
   }
 
   try {
-    const allowedDirectories = await getMediaDirectories();
-    if (!isPathAllowed(normalizedFilePath, allowedDirectories)) {
+    const auth = await authorizeFilePath(normalizedFilePath);
+    if (!auth.isAllowed) {
       res.writeHead(403, { 'Content-Type': 'text/plain' });
-      return res.end('Access denied.');
+      return res.end(auth.message || 'Access denied.');
     }
   } catch {
     res.writeHead(500);
