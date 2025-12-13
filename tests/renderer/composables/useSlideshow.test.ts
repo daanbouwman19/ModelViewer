@@ -16,6 +16,13 @@ vi.mock('@/composables/useAppState.js', () => ({
   useAppState: vi.fn(),
 }));
 
+// Mock the api module
+vi.mock('@/api', () => ({
+  api: {
+    recordMediaView: vi.fn(),
+  },
+}));
+
 // Mock the global window.electronAPI
 global.window.electronAPI = createMockElectronAPI();
 

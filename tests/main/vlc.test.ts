@@ -98,7 +98,7 @@ vi.mock('../../src/main/local-server.js', () => ({
   stopLocalServer: vi.fn(),
 }));
 
-vi.mock('../../src/main/database.js', () => ({
+vi.mock('../../src/core/database', () => ({
   initDatabase: vi.fn(),
   closeDatabase: vi.fn(),
   getMediaDirectories: mockGetMediaDirectories,
