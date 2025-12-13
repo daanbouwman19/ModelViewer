@@ -373,7 +373,9 @@ describe('Local Server', () => {
       });
 
       expect(response.statusCode).toBe(403);
-      expect(response.data).toBe('Access denied.');
+      expect(response.data).toBe(
+        'Access denied: File is not in a configured media directory.',
+      );
 
       // Cleanup directory (file cleanup handled by afterEach)
       if (fs.existsSync(outsideDir)) {
