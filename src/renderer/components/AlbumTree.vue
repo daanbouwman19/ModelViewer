@@ -6,8 +6,14 @@
     @click="handleClickAlbum(album)"
   >
     <div class="album-content">
-      <button v-if="isFolder" class="toggle-button" @click.stop="toggle">
-        {{ isOpen ? '[-]' : '[+]' }}
+      <button
+        v-if="isFolder"
+        class="toggle-button"
+        :aria-expanded="isOpen"
+        :aria-label="isOpen ? `Collapse ${album.name}` : `Expand ${album.name}`"
+        @click.stop="toggle"
+      >
+        {{ isOpen ? '▼' : '▶' }}
       </button>
       <div class="album-controls" @click.stop>
         <label class="checkbox-container">
@@ -15,6 +21,7 @@
             type="checkbox"
             :checked="selectionState === 'all'"
             :indeterminate="selectionState === 'some'"
+            :aria-label="`Select ${album.name}`"
             @change="handleToggleSelection(album)"
           />
           <span
@@ -167,7 +174,6 @@ const handleOpenGrid = (album: Album) => {
   border: 1px solid var(--border-color);
   color: var(--text-muted);
   cursor: pointer;
-  font-family: monospace;
   width: 24px;
   height: 24px;
   display: flex;
