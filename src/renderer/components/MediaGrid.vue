@@ -28,16 +28,18 @@
         v-else
         class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"
       >
-        <div
+        <button
           v-for="item in visibleMediaFiles"
           :key="item.path"
-          class="relative group grid-item cursor-pointer"
+          type="button"
+          class="relative group grid-item cursor-pointer w-full h-full text-left bg-transparent border-0 p-0 block focus:outline-none focus:ring-2 focus:ring-pink-500 rounded"
+          :aria-label="`View ${getFileName(item.path)}`"
           @click="handleItemClick(item)"
         >
           <template v-if="isImage(item)">
             <img
               :src="getMediaUrl(item)"
-              :alt="getFileName(item.path)"
+              alt=""
               class="h-full w-full object-cover rounded"
               loading="lazy"
             />
@@ -57,13 +59,13 @@
             </div>
           </template>
           <div
-            class="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+            class="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
           >
             <p class="text-white text-xs truncate">
               {{ getFileName(item.path) }}
             </p>
           </div>
-        </div>
+        </button>
 
         <div
           v-if="visibleCount < allMediaFiles.length"

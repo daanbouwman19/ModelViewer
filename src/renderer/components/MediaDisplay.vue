@@ -18,6 +18,7 @@
           :key="filter"
           class="filter-button whitespace-nowrap"
           :class="{ active: mediaFilter === filter }"
+          :aria-pressed="mediaFilter === filter"
           @click="setFilter(filter)"
         >
           {{ filter }}
