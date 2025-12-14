@@ -445,17 +445,22 @@ app.commandLine.appendSwitch(
   'platform-media-player-enable-hevc-support-for-win10',
 );
 
-app.on('ready', async () => {
-  try {
-    await initDatabase();
-    startLocalServer(createWindow);
-  } catch (error) {
-    console.error(
-      '[main.js] Database initialization failed during app ready sequence:',
-      error,
-    );
-    app.quit();
-  }
+app.on('ready', () => {
+  createWindow();
+
+  initDatabase()
+    .then(() => {
+      startLocalServer(() => {
+        console.log('[main.js] Local server started in background.');
+      });
+    })
+    .catch((error) => {
+      console.error(
+        '[main.js] Database initialization failed during app ready sequence:',
+        error,
+      );
+      // Do not quit app, allow UI to remain open even if DB fails
+    });
 });
 
 app.on('window-all-closed', () => {

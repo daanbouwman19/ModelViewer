@@ -67,7 +67,7 @@ function initDatabase(dbPath: string): WorkerResult {
 
     db = new Database(dbPath);
     // Enable WAL mode for better concurrency
-    db.pragma('journal_mode = WAL');
+    // db.pragma('journal_mode = WAL');
 
     db.prepare(
       `CREATE TABLE IF NOT EXISTS media_views (
