@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import request from 'supertest';
-import { createApp } from '../../src/server/server';
 import * as security from '../../src/core/security';
 
 // Mock dependencies
@@ -23,40 +23,81 @@ vi.mock('../../src/core/media-handler', () => ({
 
 describe('Server CORS', () => {
   let app: any;
+  let createApp: any;
 
-  beforeEach(async () => {
-    vi.clearAllMocks();
-    vi.mocked(security.authorizeFilePath).mockResolvedValue({
-      isAllowed: true,
-      realPath: '/resolved/path',
+  // Save original env
+  const originalEnv = process.env.NODE_ENV;
+
+  afterEach(() => {
+    process.env.NODE_ENV = originalEnv;
+    vi.resetModules();
+  });
+
+  describe('Development Environment', () => {
+    beforeEach(async () => {
+      process.env.NODE_ENV = 'test'; // isDev = true
+      vi.resetModules();
+
+      // Re-import to pick up env change
+      const serverModule = await import('../../src/server/server');
+      createApp = serverModule.createApp;
+
+      vi.mocked(security.authorizeFilePath).mockResolvedValue({
+        isAllowed: true,
+        realPath: '/resolved/path',
+      });
     });
-    // createApp is called in each test.
-    // Since isDev is module-level const, we can't easily change it between tests without resetting modules.
-    // In 'test' env, isDev is true.
+
+    it('should block evil.com origin (by returning mismatched allowed origin)', async () => {
+      app = await createApp();
+      const response = await request(app)
+        .get('/api/extensions')
+        .set('Origin', 'http://evil.com');
+
+      // Should NOT be *
+      expect(response.headers['access-control-allow-origin']).not.toBe('*');
+      // It returns the configured dev origin
+      expect(response.headers['access-control-allow-origin']).toBe(
+        'http://localhost:5173',
+      );
+    });
+
+    it('should allow localhost:5173', async () => {
+      app = await createApp();
+      const response = await request(app)
+        .get('/api/extensions')
+        .set('Origin', 'http://localhost:5173');
+
+      expect(response.headers['access-control-allow-origin']).toBe(
+        'http://localhost:5173',
+      );
+    });
   });
 
-  it('should block evil.com origin', async () => {
-    app = await createApp();
-    const response = await request(app)
-      .get('/api/extensions')
-      .set('Origin', 'http://evil.com');
+  describe('Production Environment', () => {
+    beforeEach(async () => {
+      process.env.NODE_ENV = 'production'; // isDev = false
+      vi.resetModules();
 
-    // Should NOT be *
-    // It returns the configured origin. The browser will block this because 'http://evil.com' != 'http://localhost:5173'
-    expect(response.headers['access-control-allow-origin']).not.toBe('*');
-    expect(response.headers['access-control-allow-origin']).toBe(
-      'http://localhost:5173',
-    );
-  });
+      // Re-import to pick up env change
+      const serverModule = await import('../../src/server/server');
+      createApp = serverModule.createApp;
 
-  it('should allow localhost:5173 in dev/test mode', async () => {
-    app = await createApp();
-    const response = await request(app)
-      .get('/api/extensions')
-      .set('Origin', 'http://localhost:5173');
+      vi.mocked(security.authorizeFilePath).mockResolvedValue({
+        isAllowed: true,
+        realPath: '/resolved/path',
+      });
+    });
 
-    expect(response.headers['access-control-allow-origin']).toBe(
-      'http://localhost:5173',
-    );
+    it('should disable CORS (Same-Origin enforced) by not sending headers', async () => {
+      app = await createApp();
+      const response = await request(app)
+        .get('/api/extensions')
+        .set('Origin', 'http://evil.com');
+
+      // In production, we pass origin: false to cors().
+      // This means no Access-Control-Allow-Origin header should be present.
+      expect(response.headers['access-control-allow-origin']).toBeUndefined();
+    });
   });
 });
