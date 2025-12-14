@@ -167,7 +167,10 @@ ipcMain.handle(
     } catch (error: unknown) {
       console.error('[main.js] Error getting video metadata:', error);
       return {
-        error: (error as Error).message || 'Unknown error getting metadata',
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Unknown error getting metadata',
       };
     }
   },

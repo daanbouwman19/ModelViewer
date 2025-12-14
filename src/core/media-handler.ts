@@ -110,7 +110,6 @@ export async function serveMetadata(
 
   res.writeHead(200, {
     'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
   });
   res.end(JSON.stringify(result));
 }
@@ -144,7 +143,6 @@ export async function serveTranscode(
 
   res.writeHead(200, {
     'Content-Type': 'video/mp4',
-    'Access-Control-Allow-Origin': '*',
   });
 
   const ffmpegArgs = [
@@ -209,7 +207,6 @@ export async function serveThumbnail(
 
   res.writeHead(200, {
     'Content-Type': 'image/jpeg',
-    'Access-Control-Allow-Origin': '*',
     'Cache-Control': 'public, max-age=31536000',
   });
 
