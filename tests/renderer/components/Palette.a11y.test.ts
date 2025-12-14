@@ -127,6 +127,123 @@ describe('Palette Accessibility Improvements', () => {
       expect(vlcBtn.exists()).toBe(true);
       expect(vlcBtn.attributes('aria-label')).toBe('Open in VLC');
     });
+
+    it('video progress bar should be accessible', async () => {
+      // Setup video media
+      mockRefs.currentMediaItem.value = {
+        name: 'video.mp4',
+        path: '/video.mp4',
+      };
+      mockRefs.supportedExtensions.value = {
+        images: ['.jpg'],
+        videos: ['.mp4'],
+      };
+
+      const wrapper = mount(MediaDisplay);
+      await wrapper.vm.$nextTick(); // Wait for re-render
+
+      const progressBar = wrapper.find('[data-testid="video-progress-bar"]');
+      expect(progressBar.exists()).toBe(true);
+
+      // Check ARIA attributes
+      expect(progressBar.attributes('role')).toBe('slider');
+      expect(progressBar.attributes('tabindex')).toBe('0');
+      expect(progressBar.attributes('aria-label')).toBe('Seek video');
+      expect(progressBar.attributes('aria-valuemin')).toBe('0');
+      expect(progressBar.attributes('aria-valuemax')).toBe('100');
+    });
+
+    it('should handle keyboard navigation on progress bar', async () => {
+      // Setup video media with a specific duration
+      mockRefs.currentMediaItem.value = {
+        name: 'video.mp4',
+        path: '/video.mp4',
+      };
+      const wrapper = mount(MediaDisplay);
+      await wrapper.vm.$nextTick();
+
+      // Mock video element
+      const mockVideo = { currentTime: 10, duration: 100 };
+      (wrapper.vm as any).videoElement = mockVideo;
+
+      const progressBar = wrapper.find('[data-testid="video-progress-bar"]');
+
+      // Right arrow - forward 5s
+      await progressBar.trigger('keydown', { key: 'ArrowRight' });
+      expect(mockVideo.currentTime).toBe(15);
+
+      // Left arrow - backward 5s
+      await progressBar.trigger('keydown', { key: 'ArrowLeft' });
+      expect(mockVideo.currentTime).toBe(10); // Back to 10
+
+      // Boundary check - min
+      mockVideo.currentTime = 2;
+      await progressBar.trigger('keydown', { key: 'ArrowLeft' });
+      expect(mockVideo.currentTime).toBe(0); // Clamped to 0
+
+      // Boundary check - max
+      mockVideo.currentTime = 98;
+      await progressBar.trigger('keydown', { key: 'ArrowRight' });
+      expect(mockVideo.currentTime).toBe(100); // Clamped to 100
+    });
+
+    it('should handle keyboard navigation on progress bar in transcoding mode', async () => {
+      // Setup video media
+      mockRefs.currentMediaItem.value = {
+        name: 'video.mp4',
+        path: '/video.mp4',
+      };
+      const wrapper = mount(MediaDisplay);
+      await wrapper.vm.$nextTick();
+
+      // Enable transcoding mode
+      (wrapper.vm as any).isTranscodingMode = true;
+      (wrapper.vm as any).transcodedDuration = 100;
+      (wrapper.vm as any).currentVideoTime = 10;
+
+      // Mock tryTranscoding function
+      // We need to attach the spy to the instance before it's used
+      // But since we can't easily replace a method on an already mounted component vm for internal calls
+      // without some hacking, we will verify the side effect (api call or state change)
+      // OR we can mock the method if we can access the underlying component definition or setup return.
+      // However, simplified approach: check if tryTranscoding implementation logic is triggered.
+
+      // Better approach for this test environment:
+      // The component calls `tryTranscoding` internally.
+      // We can mock `tryTranscoding` by overwriting it on the vm instance
+      // BUT internal template calls might use the hoisted version from setup().
+      // Let's rely on the side effect: `mediaUrl` changes or `api.getVideoStreamUrlGenerator` usage.
+
+      // Actually, standard `vi.spyOn(wrapper.vm, ...)` often works for Options API but for Composition API
+      // setup() returns functions that are bound.
+      // Let's retry by checking if we can just assert on the state change it produces.
+
+      // Direct mock doesn't work well with Composition API setup() bound functions.
+      // Instead, we will observe the side-effects.
+      // When tryTranscoding(15) is called, it should set isTranscodingMode=true,
+      // isTranscodingLoading=true, and currentTranscodeStartTime=15.
+
+      const progressBar = wrapper.find('[data-testid="video-progress-bar"]');
+
+      // Right arrow - forward 5s from currentVideoTime=10 -> 15
+      await progressBar.trigger('keydown', { key: 'ArrowRight' });
+      await wrapper.vm.$nextTick();
+
+      // Check state changes that `tryTranscoding` performs
+      expect((wrapper.vm as any).isTranscodingLoading).toBe(true);
+      expect((wrapper.vm as any).currentTranscodeStartTime).toBe(15);
+
+      // Reset state for next assertion
+      (wrapper.vm as any).isTranscodingLoading = false;
+      (wrapper.vm as any).currentVideoTime = 15;
+
+      // Left arrow - backward 5s from 15 -> 10
+      await progressBar.trigger('keydown', { key: 'ArrowLeft' });
+      await wrapper.vm.$nextTick();
+
+      expect((wrapper.vm as any).isTranscodingLoading).toBe(true);
+      expect((wrapper.vm as any).currentTranscodeStartTime).toBe(10);
+    });
   });
 
   describe('SourcesModal.vue', () => {
