@@ -173,10 +173,29 @@ async function getMediaViewCounts(filePaths: string[]): Promise<WorkerResult> {
     const viewCountsMap: { [key: string]: number } = {};
     const pathIdMap = new Map<string, string>();
 
-    // Pre-calculate file IDs asynchronously
-    for (const filePath of filePaths) {
-      const fileId = await generateFileId(filePath);
-      pathIdMap.set(filePath, fileId);
+    // Optimization: Process file ID generation in parallel batches
+    // instead of sequentially to reduce I/O bottleneck.
+    const BATCH_SIZE = 50;
+    for (let i = 0; i < filePaths.length; i += BATCH_SIZE) {
+      const batch = filePaths.slice(i, i + BATCH_SIZE);
+      const results = await Promise.allSettled(
+        batch.map(async (filePath) => {
+          const fileId = await generateFileId(filePath);
+          return { filePath, fileId };
+        }),
+      );
+
+      for (const result of results) {
+        if (result.status === 'fulfilled') {
+          const { filePath, fileId } = result.value;
+          pathIdMap.set(filePath, fileId);
+        } else {
+          console.error(
+            `[worker] Error generating file ID in batch:`,
+            result.reason,
+          );
+        }
+      }
     }
 
     const transaction = db.transaction((paths: string[]) => {
