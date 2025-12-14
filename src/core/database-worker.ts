@@ -178,15 +178,23 @@ async function getMediaViewCounts(filePaths: string[]): Promise<WorkerResult> {
     const BATCH_SIZE = 50;
     for (let i = 0; i < filePaths.length; i += BATCH_SIZE) {
       const batch = filePaths.slice(i, i + BATCH_SIZE);
-      const results = await Promise.all(
+      const results = await Promise.allSettled(
         batch.map(async (filePath) => {
           const fileId = await generateFileId(filePath);
           return { filePath, fileId };
         }),
       );
 
-      for (const { filePath, fileId } of results) {
-        pathIdMap.set(filePath, fileId);
+      for (const result of results) {
+        if (result.status === 'fulfilled') {
+          const { filePath, fileId } = result.value;
+          pathIdMap.set(filePath, fileId);
+        } else {
+          console.error(
+            `[worker] Error generating file ID in batch:`,
+            result.reason,
+          );
+        }
       }
     }
 
