@@ -103,9 +103,16 @@
       <div
         v-if="currentMediaItem && !isImage"
         data-testid="video-progress-bar"
-        class="video-progress-bar-container cursor-pointer transition-transform-opacity duration-300 ease-in-out will-change-transform"
+        class="video-progress-bar-container cursor-pointer transition-transform-opacity duration-300 ease-in-out will-change-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500"
         :class="{ 'translate-y-full opacity-0': !isControlsVisible }"
+        role="slider"
+        tabindex="0"
+        aria-label="Seek video"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        :aria-valuenow="videoProgress"
         @click="handleProgressBarClick"
+        @keydown="handleProgressBarKeydown"
       >
         <div
           class="video-progress-bar"
@@ -515,6 +522,38 @@ const handleProgressBarClick = (event: MouseEvent) => {
     }
   } else if (videoElement.value && videoElement.value.duration) {
     videoElement.value.currentTime = percentage * videoElement.value.duration;
+  }
+};
+
+/**
+ * Handles keyboard navigation on the progress bar.
+ * Allows seeking with Left/Right arrows (5s step).
+ * @param event - The keyboard event.
+ */
+const handleProgressBarKeydown = (event: KeyboardEvent) => {
+  if (!currentMediaItem.value) return;
+
+  const step = 5; // 5 seconds
+  if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+    event.preventDefault();
+    const direction = event.key === 'ArrowRight' ? 1 : -1;
+
+    if (isTranscodingMode.value) {
+      if (transcodedDuration.value > 0) {
+        const newTime = currentVideoTime.value + step * direction;
+        const seekTime = Math.max(
+          0,
+          Math.min(newTime, transcodedDuration.value),
+        );
+        tryTranscoding(seekTime);
+      }
+    } else if (videoElement.value && videoElement.value.duration) {
+      const newTime = videoElement.value.currentTime + step * direction;
+      videoElement.value.currentTime = Math.max(
+        0,
+        Math.min(newTime, videoElement.value.duration),
+      );
+    }
   }
 };
 

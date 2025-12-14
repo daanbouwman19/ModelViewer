@@ -127,6 +127,31 @@ describe('Palette Accessibility Improvements', () => {
       expect(vlcBtn.exists()).toBe(true);
       expect(vlcBtn.attributes('aria-label')).toBe('Open in VLC');
     });
+
+    it('video progress bar should be accessible', async () => {
+      // Setup video media
+      mockRefs.currentMediaItem.value = {
+        name: 'video.mp4',
+        path: '/video.mp4',
+      };
+      mockRefs.supportedExtensions.value = {
+        images: ['.jpg'],
+        videos: ['.mp4'],
+      };
+
+      const wrapper = mount(MediaDisplay);
+      await wrapper.vm.$nextTick(); // Wait for re-render
+
+      const progressBar = wrapper.find('[data-testid="video-progress-bar"]');
+      expect(progressBar.exists()).toBe(true);
+
+      // Check ARIA attributes
+      expect(progressBar.attributes('role')).toBe('slider');
+      expect(progressBar.attributes('tabindex')).toBe('0');
+      expect(progressBar.attributes('aria-label')).toBe('Seek video');
+      expect(progressBar.attributes('aria-valuemin')).toBe('0');
+      expect(progressBar.attributes('aria-valuemax')).toBe('100');
+    });
   });
 
   describe('SourcesModal.vue', () => {
