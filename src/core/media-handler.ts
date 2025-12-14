@@ -61,9 +61,7 @@ export async function getVideoDuration(
     });
 
     ffmpegProcess.on('close', () => {
-      const match = stderrData.match(
-        /Duration:\s+(\d+):(\d+):(\d+(?:\.\d+)?)/,
-      );
+      const match = stderrData.match(/Duration:\s+(\d+):(\d+):(\d+(?:\.\d+)?)/);
       if (match) {
         const hours = parseFloat(match[1]);
         const minutes = parseFloat(match[2]);
