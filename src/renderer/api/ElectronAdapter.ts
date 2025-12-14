@@ -90,11 +90,11 @@ export class ElectronAdapter implements IMediaBackend {
   }
 
   async getVideoMetadata(filePath: string): Promise<{ duration: number }> {
-    const port = await window.electronAPI.getServerPort();
-    const res = await fetch(
-      `http://localhost:${port}/video/metadata?file=${encodeURIComponent(filePath)}`,
-    );
-    return res.json();
+    const res = await window.electronAPI.getVideoMetadata(filePath);
+    if (res.error || res.duration === undefined) {
+      throw new Error(res.error || 'Failed to get video metadata');
+    }
+    return { duration: res.duration };
   }
 
   async openInVlc(

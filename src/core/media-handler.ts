@@ -47,6 +47,42 @@ export function getMimeType(filePath: string): string {
 }
 
 /**
+ * Retrieves video duration using ffmpeg.
+ */
+export async function getVideoDuration(
+  filePath: string,
+  ffmpegPath: string,
+): Promise<{ duration: number } | { error: string }> {
+  return new Promise((resolve) => {
+    const ffmpegProcess = spawn(ffmpegPath, ['-i', filePath]);
+    let stderrData = '';
+    ffmpegProcess.stderr.on('data', (data: Buffer) => {
+      stderrData += data.toString();
+    });
+
+    ffmpegProcess.on('close', () => {
+      const match = stderrData.match(
+        /Duration:\s+(\d+):(\d+):(\d+(?:\.\d+)?)/,
+      );
+      if (match) {
+        const hours = parseFloat(match[1]);
+        const minutes = parseFloat(match[2]);
+        const seconds = parseFloat(match[3]);
+        const duration = hours * 3600 + minutes * 60 + seconds;
+        resolve({ duration });
+      } else {
+        resolve({ error: 'Could not determine duration' });
+      }
+    });
+
+    ffmpegProcess.on('error', (err) => {
+      console.error('[Metadata] FFmpeg spawn error:', err);
+      resolve({ error: 'FFmpeg execution failed' });
+    });
+  });
+}
+
+/**
  * Handles metadata retrieval.
  */
 export async function serveMetadata(
@@ -72,30 +108,13 @@ export async function serveMetadata(
     return res.end('Internal Error');
   }
 
-  const ffmpegProcess = spawn(ffmpegPath, ['-i', filePath]);
-  let stderrData = '';
-  ffmpegProcess.stderr.on('data', (data: Buffer) => {
-    stderrData += data.toString();
-  });
+  const result = await getVideoDuration(filePath, ffmpegPath);
 
-  ffmpegProcess.on('close', () => {
-    const match = stderrData.match(/Duration:\s+(\d+):(\d+):(\d+(?:\.\d+)?)/);
-    if (match) {
-      const hours = parseFloat(match[1]);
-      const minutes = parseFloat(match[2]);
-      const seconds = parseFloat(match[3]);
-      const duration = hours * 3600 + minutes * 60 + seconds;
-
-      res.writeHead(200, {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      });
-      res.end(JSON.stringify({ duration }));
-    } else {
-      res.writeHead(200, { 'Access-Control-Allow-Origin': '*' });
-      res.end(JSON.stringify({ error: 'Could not determine duration' }));
-    }
+  res.writeHead(200, {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
   });
+  res.end(JSON.stringify(result));
 }
 
 /**

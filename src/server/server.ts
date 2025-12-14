@@ -52,7 +52,13 @@ export async function createApp() {
   const app = express();
 
   // Middleware
-  app.use(cors());
+  // Restrict CORS to development server only, or disable in production (Same-Origin)
+  const corsOptions = {
+    origin: isDev
+      ? process.env.VITE_DEV_SERVER_URL || 'http://localhost:5173'
+      : false,
+  };
+  app.use(cors(corsOptions));
   app.use(express.json());
 
   // Initialize Database
