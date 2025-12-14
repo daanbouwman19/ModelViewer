@@ -1,6 +1,6 @@
 {
   "name": "albumviewer-app",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "My Album Slideshow Viewer",
   "main": "out/main/index.js",
   "type": "module",
@@ -53,7 +53,7 @@
     "electronLanguages": [
       "en-US"
     ],
-    "compression": "maximum",
+    "compression": "normal",
     "npmRebuild": true,
     "buildDependenciesFromSource": false,
     "files": [
