@@ -16,6 +16,7 @@ describe('ElectronAdapter', () => {
     getSupportedExtensions: vi.fn(),
     getServerPort: vi.fn(),
     openInVlc: vi.fn(),
+    getVideoMetadata: vi.fn(),
 
     listDirectory: vi.fn(),
     getParentDirectory: vi.fn(),
@@ -179,19 +180,24 @@ describe('ElectronAdapter', () => {
     );
   });
 
-  it('getVideoMetadata should fetch metadata from server', async () => {
-    mockElectronAPI.getServerPort.mockResolvedValue(3000);
-    const mockFetch = vi.fn().mockResolvedValue({
-      json: () => Promise.resolve({ duration: 100 }),
-    });
-    global.fetch = mockFetch;
+  it('getVideoMetadata should call electronAPI.getVideoMetadata', async () => {
+    const mockRes = { duration: 100 };
+    mockElectronAPI.getVideoMetadata.mockResolvedValue(mockRes);
 
     const result = await adapter.getVideoMetadata('file.mp4');
 
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining('http://localhost:3000/video/metadata'),
-    );
+    expect(mockElectronAPI.getVideoMetadata).toHaveBeenCalledWith('file.mp4');
     expect(result).toEqual({ duration: 100 });
+  });
+
+  it('getVideoMetadata should throw error if API returns error', async () => {
+    mockElectronAPI.getVideoMetadata.mockResolvedValue({
+      error: 'Failed',
+    });
+
+    await expect(adapter.getVideoMetadata('file.mp4')).rejects.toThrow(
+      'Failed',
+    );
   });
 
   it('openInVlc should call electronAPI.openInVlc', async () => {

@@ -130,10 +130,13 @@ describe('media-handler', () => {
 
       vi.mocked(spawn).mockReturnValue(processMock);
 
-      await serveMetadata(req, res, 'video.mp4', '/bin/ffmpeg');
+      const promise = serveMetadata(req, res, 'video.mp4', '/bin/ffmpeg');
 
+      await new Promise((resolve) => setTimeout(resolve, 0));
       stderr.emit('data', Buffer.from('Duration: 00:01:00.00'));
       processMock.emit('close');
+
+      await promise;
 
       expect(res.end).toHaveBeenCalledWith(JSON.stringify({ duration: 60 }));
     });
@@ -227,7 +230,10 @@ describe('createMediaRequestHandler', () => {
     processMock.stderr = new EventEmitter();
     vi.mocked(spawn).mockReturnValue(processMock);
 
-    await handler(req, res);
+    const promise = handler(req, res);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    processMock.emit('close');
+    await promise;
 
     expect(spawn).toHaveBeenCalledWith(
       '/bin/ffmpeg',
@@ -324,10 +330,13 @@ describe('Edge Cases', () => {
     processMock.stderr = stderr;
     vi.mocked(spawn).mockReturnValue(processMock);
 
-    await serveMetadata(req, res, 'video.mp4', '/bin/ffmpeg');
+    const promise = serveMetadata(req, res, 'video.mp4', '/bin/ffmpeg');
 
+    await new Promise((resolve) => setTimeout(resolve, 0));
     stderr.emit('data', Buffer.from('No duration here'));
     processMock.emit('close');
+
+    await promise;
 
     expect(res.end).toHaveBeenCalledWith(
       JSON.stringify({ error: 'Could not determine duration' }),

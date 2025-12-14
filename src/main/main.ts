@@ -14,6 +14,7 @@ import {
 import path from 'path';
 import fs from 'fs/promises';
 import { spawn } from 'child_process';
+import ffmpegPath from 'ffmpeg-static';
 
 import {
   MAX_DATA_URL_SIZE_MB,
@@ -37,6 +38,7 @@ import {
   getAlbumsWithViewCountsAfterScan,
   getAlbumsWithViewCounts,
 } from '../core/media-service';
+import { getVideoDuration } from '../core/media-handler';
 import {
   startLocalServer,
   stopLocalServer,
@@ -142,6 +144,35 @@ ipcMain.handle(
   'get-media-view-counts',
   async (_event: IpcMainInvokeEvent, filePaths: string[]) => {
     return getMediaViewCounts(filePaths);
+  },
+);
+
+/**
+ * Handles the 'get-video-metadata' IPC call.
+ * @param filePath - The path of the video file.
+ * @returns The metadata object (duration).
+ */
+ipcMain.handle(
+  'get-video-metadata',
+  async (_event: IpcMainInvokeEvent, filePath: string) => {
+    try {
+      const auth = await authorizeFilePath(filePath);
+      if (!auth.isAllowed) {
+        return { error: auth.message || 'Access denied' };
+      }
+      if (!ffmpegPath) {
+        return { error: 'FFmpeg binary not found' };
+      }
+      return await getVideoDuration(filePath, ffmpegPath);
+    } catch (error: unknown) {
+      console.error('[main.js] Error getting video metadata:', error);
+      return {
+        error:
+          error instanceof Error
+            ? error.message
+            : 'Unknown error getting metadata',
+      };
+    }
   },
 );
 

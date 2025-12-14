@@ -40,6 +40,9 @@ export interface ElectronAPI {
   openInVlc: (
     filePath: string,
   ) => Promise<{ success: boolean; message?: string }>;
+  getVideoMetadata: (
+    filePath: string,
+  ) => Promise<{ duration?: number; error?: string }>;
   listDirectory: (directoryPath: string) => Promise<FileSystemEntry[]>;
   getParentDirectory: (path: string) => Promise<string | null>;
 }
@@ -134,6 +137,14 @@ const api: ElectronAPI = {
    * @returns A promise that resolves to the result object.
    */
   openInVlc: (filePath: string) => ipcRenderer.invoke('open-in-vlc', filePath),
+
+  /**
+   * Retrieves metadata for a video file.
+   * @param filePath - The absolute path to the video file.
+   * @returns A promise that resolves to the metadata object.
+   */
+  getVideoMetadata: (filePath: string) =>
+    ipcRenderer.invoke('get-video-metadata', filePath),
 
   /**
    * Lists the contents of a directory.
