@@ -54,9 +54,12 @@ export async function createApp() {
 
   // Middleware
   // Set security headers
+  // TODO: [SECURITY] Configure and enable Content-Security-Policy.
+  // It is currently disabled to ensure compatibility with external fonts and Vue,
+  // but it's a crucial security feature against XSS attacks.
   app.use(
     helmet({
-      contentSecurityPolicy: false, // Disabling CSP to ensure compatibility with external fonts and Vue
+      contentSecurityPolicy: false,
     }),
   );
 

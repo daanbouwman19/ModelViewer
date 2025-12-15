@@ -368,7 +368,7 @@ describe('Server', () => {
       expect(response.headers['x-content-type-options']).toBe('nosniff');
       expect(response.headers['x-dns-prefetch-control']).toBe('off');
       expect(response.headers['x-frame-options']).toBe('SAMEORIGIN');
-      expect(response.headers['strict-transport-security']).toBeDefined();
+      expect(response.headers['referrer-policy']).toBe('no-referrer');
     });
   });
 
