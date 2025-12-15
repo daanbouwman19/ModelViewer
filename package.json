@@ -23,7 +23,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "vue-tsc -b --noEmit",
-    "dev:server": "tsx watch src/server/server.ts",
+    "dev:server": "node --import tsx --watch src/server/server.ts",
     "dev:web": "vite",
     "predev:all": "npm rebuild better-sqlite3",
     "dev:all": "concurrently \"npm run dev:server\" \"npm run dev:web\"",
