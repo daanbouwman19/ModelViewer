@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
-import { reactive } from 'vue';
+import { reactive, computed } from 'vue';
 import { useSlideshow } from '@/composables/useSlideshow';
 import { useAppState } from '@/composables/useAppState';
 import { createMockElectronAPI } from '../mocks/electronAPI';
@@ -43,12 +43,12 @@ describe('useSlideshow additional coverage', () => {
     (useAppState as Mock).mockReturnValue({
       state: mockState,
       stopSlideshow: vi.fn(),
-      imageExtensionsSet: {
-        value: new Set(mockState.supportedExtensions.images),
-      },
-      videoExtensionsSet: {
-        value: new Set(mockState.supportedExtensions.videos),
-      },
+      imageExtensionsSet: computed(
+        () => new Set(mockState.supportedExtensions.images),
+      ),
+      videoExtensionsSet: computed(
+        () => new Set(mockState.supportedExtensions.videos),
+      ),
     });
   });
 
