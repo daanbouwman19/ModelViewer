@@ -12,3 +12,8 @@
 
 **Learning:** `div`s with click handlers (like in `MediaGrid`) are invisible to keyboard users and screen readers unless manually patched with `role` and `tabindex`.
 **Action:** Always wrap interactive list/grid items in a `<button>` tag instead of a `div`. This provides native focus handling, keyboard activation (Enter/Space), and semantic meaning for free. Use CSS reset utilities to remove button styling if a custom look is needed.
+
+## 2025-05-23 - [Action Buttons in Lists]
+
+**Learning:** List items (like media sources) often have repetitive action buttons (e.g., "Remove"). Without specific context, screen readers just announce "Remove, Remove, Remove".
+**Action:** Always append the item's name or identifier to the `aria-label` of action buttons in lists (e.g., `aria-label="'Remove ' + item.name"`).
