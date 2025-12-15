@@ -168,4 +168,35 @@ describe('useAppState', () => {
       expect(appState.state.isSourcesModalVisible).toBe(true);
     });
   });
+
+  describe('computed properties', () => {
+    it('should provide sets for supported extensions', () => {
+      appState.state.supportedExtensions = {
+        images: ['.jpg', '.png'],
+        videos: ['.mp4'],
+        all: ['.jpg', '.png', '.mp4'],
+      };
+
+      expect(appState.imageExtensionsSet.value.has('.jpg')).toBe(true);
+      expect(appState.imageExtensionsSet.value.has('.mp4')).toBe(false);
+      expect(appState.videoExtensionsSet.value.has('.mp4')).toBe(true);
+      expect(appState.videoExtensionsSet.value.has('.jpg')).toBe(false);
+    });
+
+    it('should update when state changes', () => {
+      appState.state.supportedExtensions = {
+        images: [],
+        videos: [],
+        all: [],
+      };
+      expect(appState.imageExtensionsSet.value.size).toBe(0);
+
+      appState.state.supportedExtensions = {
+        images: ['.gif'],
+        videos: [],
+        all: ['.gif'],
+      };
+      expect(appState.imageExtensionsSet.value.has('.gif')).toBe(true);
+    });
+  });
 });

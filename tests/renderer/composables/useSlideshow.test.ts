@@ -7,6 +7,7 @@ import {
   afterEach,
   type Mock,
 } from 'vitest';
+import { reactive, computed } from 'vue';
 import { useSlideshow } from '@/composables/useSlideshow';
 import { useAppState } from '@/composables/useAppState';
 import { createMockElectronAPI } from '../mocks/electronAPI';
@@ -35,7 +36,7 @@ describe('useSlideshow', () => {
     vi.clearAllMocks();
 
     // Provide a fresh mock state for each test
-    mockState = {
+    mockState = reactive({
       mediaFilter: 'All',
       supportedExtensions: {
         videos: ['.mp4', '.webm'],
@@ -52,7 +53,7 @@ describe('useSlideshow', () => {
       albumsSelectedForSlideshow: {},
       allAlbums: [],
       totalMediaInPool: 0,
-    };
+    });
 
     mockStopSlideshow = vi.fn();
 
@@ -60,6 +61,12 @@ describe('useSlideshow', () => {
     (useAppState as Mock).mockReturnValue({
       state: mockState,
       stopSlideshow: mockStopSlideshow,
+      imageExtensionsSet: computed(
+        () => new Set(mockState.supportedExtensions.images),
+      ),
+      videoExtensionsSet: computed(
+        () => new Set(mockState.supportedExtensions.videos),
+      ),
     });
   });
 

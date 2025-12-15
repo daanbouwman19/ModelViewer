@@ -1,4 +1,4 @@
-import { reactive, toRefs } from 'vue';
+import { reactive, toRefs, computed } from 'vue';
 import type { Album, MediaFile } from '../../core/types';
 import { api } from '../api';
 
@@ -84,6 +84,15 @@ const state = reactive<AppState>({
   mainVideoElement: null,
 });
 
+// Create computed sets for O(1) extension lookups
+// Defined outside the function to share the same computed instance (singleton)
+const imageExtensionsSet = computed(
+  () => new Set(state.supportedExtensions.images),
+);
+const videoExtensionsSet = computed(
+  () => new Set(state.supportedExtensions.videos),
+);
+
 /**
  * A Vue composable that provides access to the global application state and related actions.
  */
@@ -131,6 +140,8 @@ export function useAppState() {
   return {
     ...toRefs(state),
     state,
+    imageExtensionsSet,
+    videoExtensionsSet,
     initializeApp,
     resetState,
     stopSlideshow,
