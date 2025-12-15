@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { serveStaticFile } from '../../src/core/media-handler';
+import {
+  serveStaticFile,
+  serveMetadata,
+  serveTranscode,
+  serveThumbnail,
+} from '../../src/core/media-handler';
 import * as security from '../../src/core/security';
 import fs from 'fs';
 
@@ -30,51 +35,135 @@ describe('media-handler security', () => {
     };
   });
 
-  // Current Vulnerability: We can distinguish between existing-but-forbidden and non-existing files
-  it('prevents file enumeration by returning generic error for all unauthorized/missing files', async () => {
+  it('prevents file enumeration in serveStaticFile', async () => {
     // Scenario 1: File exists but is forbidden
     vi.mocked(fs.existsSync).mockReturnValue(true);
-    vi.mocked(security.authorizeFilePath).mockResolvedValue({
+    vi.mocked(security.authorizeFilePath).mockResolvedValueOnce({
       isAllowed: false,
       message: 'Access denied: File is not in a configured media directory.',
     });
 
-    await serveStaticFile(req, res, '/forbidden/exists.txt');
+    await serveStaticFile(req as any, res as any, '/forbidden/exists.txt');
 
-    // We capture the calls for Scenario 1
     const calls1 = res.writeHead.mock.calls;
     const status1 = calls1.length > 0 ? calls1[0][0] : null;
 
     res.writeHead.mockClear();
     res.end.mockClear();
 
-    // Scenario 2: File does not exist (and thus fails auth because realpath fails)
+    // Scenario 2: File does not exist
     vi.mocked(fs.existsSync).mockReturnValue(false);
-    // Note: In current implementation, serveStaticFile checks existsSync FIRST, so it doesn't call authorizeFilePath.
-    // If we fix it, it will call authorizeFilePath, which will fail.
-
-    vi.mocked(security.authorizeFilePath).mockResolvedValue({
+    vi.mocked(security.authorizeFilePath).mockResolvedValueOnce({
       isAllowed: false,
       message: 'File does not exist: /forbidden/missing.txt',
     });
 
-    await serveStaticFile(req, res, '/forbidden/missing.txt');
+    await serveStaticFile(req as any, res as any, '/forbidden/missing.txt');
 
     const calls2 = res.writeHead.mock.calls;
     const status2 = calls2.length > 0 ? calls2[0][0] : null;
 
     // SECURITY GOAL: The response status/body should not leak existence.
-    // If status1 != status2, we have an enumeration vulnerability.
-
-    // CURRENT BEHAVIOR (Expected to fail until fixed):
-    // status1 should be 403
-    // status2 should be 404
-
-    // If I assert they are EQUAL, the test will fail now, and pass after fix.
     expect(status1).toBe(status2);
     expect(status1).toBe(403);
-
-    // Also check the body message does not leak "File does not exist"
     expect(res.end).toHaveBeenCalledWith('Access denied.');
+  });
+
+  it('prevents file enumeration in serveMetadata', async () => {
+    // Scenario 1: Forbidden
+    vi.mocked(security.authorizeFilePath).mockResolvedValueOnce({
+      isAllowed: false,
+      message: 'Access denied: Forbidden',
+    });
+    await serveMetadata(
+      req as any,
+      res as any,
+      '/forbidden/exists.txt',
+      '/bin/ffmpeg',
+    );
+    const body1 = res.end.mock.calls[0][0];
+    res.end.mockClear();
+
+    // Scenario 2: Missing
+    vi.mocked(security.authorizeFilePath).mockResolvedValueOnce({
+      isAllowed: false,
+      message: 'File does not exist: /missing.txt',
+    });
+    await serveMetadata(
+      req as any,
+      res as any,
+      '/missing.txt',
+      '/bin/ffmpeg',
+    );
+    const body2 = res.end.mock.calls[0][0];
+
+    expect(body1).toBe('Access denied.');
+    expect(body2).toBe('Access denied.');
+  });
+
+  it('prevents file enumeration in serveTranscode', async () => {
+    // Scenario 1: Forbidden
+    vi.mocked(security.authorizeFilePath).mockResolvedValueOnce({
+      isAllowed: false,
+      message: 'Access denied: Forbidden',
+    });
+    await serveTranscode(
+      req as any,
+      res as any,
+      '/forbidden/exists.txt',
+      null,
+      '/bin/ffmpeg',
+    );
+    const body1 = res.end.mock.calls[0][0];
+    res.end.mockClear();
+
+    // Scenario 2: Missing
+    vi.mocked(security.authorizeFilePath).mockResolvedValueOnce({
+      isAllowed: false,
+      message: 'File does not exist: /missing.txt',
+    });
+    await serveTranscode(
+      req as any,
+      res as any,
+      '/missing.txt',
+      null,
+      '/bin/ffmpeg',
+    );
+    const body2 = res.end.mock.calls[0][0];
+
+    expect(body1).toBe('Access denied.');
+    expect(body2).toBe('Access denied.');
+  });
+
+  it('prevents file enumeration in serveThumbnail', async () => {
+    // Scenario 1: Forbidden
+    vi.mocked(security.authorizeFilePath).mockResolvedValueOnce({
+      isAllowed: false,
+      message: 'Access denied: Forbidden',
+    });
+    await serveThumbnail(
+      req as any,
+      res as any,
+      '/forbidden/exists.txt',
+      '/bin/ffmpeg',
+    );
+    const body1 = res.end.mock.calls[0][0];
+    res.end.mockClear();
+
+    // Scenario 2: Missing
+    vi.mocked(security.authorizeFilePath).mockResolvedValueOnce({
+      isAllowed: false,
+      message: 'File does not exist: /missing.txt',
+    });
+    await serveThumbnail(
+      req as any,
+      res as any,
+      '/missing.txt',
+      '/bin/ffmpeg',
+    );
+    const body2 = res.end.mock.calls[0][0];
+
+    expect(body1).toBe('Access denied.');
+    expect(body2).toBe('Access denied.');
   });
 });

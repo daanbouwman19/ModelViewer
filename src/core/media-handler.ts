@@ -98,7 +98,8 @@ export async function serveMetadata(
     const auth = await authorizeFilePath(filePath);
     if (!auth.isAllowed) {
       res.writeHead(403);
-      return res.end(auth.message || 'Access denied');
+      // SECURITY: Do not leak whether the file exists or not in the error message
+      return res.end('Access denied.');
     }
   } catch (e) {
     console.error('[Metadata] Path validation error:', e);
@@ -128,7 +129,8 @@ export async function serveTranscode(
     const auth = await authorizeFilePath(filePath);
     if (!auth.isAllowed) {
       res.writeHead(403);
-      return res.end(auth.message || 'Access denied');
+      // SECURITY: Do not leak whether the file exists or not in the error message
+      return res.end('Access denied.');
     }
   } catch (e) {
     console.error('[Transcode] Path validation error:', e);
@@ -193,7 +195,8 @@ export async function serveThumbnail(
     const auth = await authorizeFilePath(filePath);
     if (!auth.isAllowed) {
       res.writeHead(403);
-      return res.end(auth.message || 'Access denied');
+      // SECURITY: Do not leak whether the file exists or not in the error message
+      return res.end('Access denied.');
     }
   } catch {
     res.writeHead(500);
