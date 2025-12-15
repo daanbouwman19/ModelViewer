@@ -99,8 +99,13 @@ describe('App.vue Navigation Rules', () => {
       selectWeightedRandom: vi.fn(),
     });
 
-    (api.loadFileAsDataURL as Mock).mockResolvedValue({ type: 'success', url: 'blob:...' });
-    (api.getVideoStreamUrlGenerator as Mock).mockResolvedValue(() => 'http://stream...');
+    (api.loadFileAsDataURL as Mock).mockResolvedValue({
+      type: 'success',
+      url: 'blob:...',
+    });
+    (api.getVideoStreamUrlGenerator as Mock).mockResolvedValue(
+      () => 'http://stream...',
+    );
     (api.getVideoMetadata as Mock).mockResolvedValue({});
   });
 
@@ -111,7 +116,10 @@ describe('App.vue Navigation Rules', () => {
     const wrapper = mount(App, { attachTo: document.body });
     await nextTick();
 
-    const event = new KeyboardEvent('keydown', { key: 'ArrowLeft', ctrlKey: true });
+    const event = new KeyboardEvent('keydown', {
+      key: 'ArrowLeft',
+      ctrlKey: true,
+    });
     document.dispatchEvent(event);
 
     expect(navigateMedia).toHaveBeenCalledWith(-1);
@@ -125,7 +133,10 @@ describe('App.vue Navigation Rules', () => {
     const wrapper = mount(App, { attachTo: document.body });
     await nextTick();
 
-    const event = new KeyboardEvent('keydown', { key: 'ArrowRight', ctrlKey: true });
+    const event = new KeyboardEvent('keydown', {
+      key: 'ArrowRight',
+      ctrlKey: true,
+    });
     document.dispatchEvent(event);
 
     expect(navigateMedia).toHaveBeenCalledWith(1);

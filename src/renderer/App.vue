@@ -108,13 +108,19 @@ const handleKeydown = (event: KeyboardEvent) => {
     case 'ArrowLeft':
       // If Ctrl is pressed, always navigate.
       // If NOT Ctrl, navigate only if we are NOT playing a video in player mode.
-      if (isCtrl || !(viewMode.value === 'player' && isCurrentItemVideo.value)) {
+      if (
+        isCtrl ||
+        !(viewMode.value === 'player' && isCurrentItemVideo.value)
+      ) {
         event.preventDefault();
         navigateMedia(-1); // Navigate to the previous media item
       }
       break;
     case 'ArrowRight':
-      if (isCtrl || !(viewMode.value === 'player' && isCurrentItemVideo.value)) {
+      if (
+        isCtrl ||
+        !(viewMode.value === 'player' && isCurrentItemVideo.value)
+      ) {
         event.preventDefault();
         navigateMedia(1); // Navigate to the next media item
       }

@@ -10,7 +10,9 @@ import { api } from '@/api';
 vi.mock('@/composables/useAppState');
 vi.mock('@/composables/useSlideshow');
 vi.mock('@/api');
-vi.mock('@/components/icons/VlcIcon.vue', () => ({ default: { template: '<svg />' } }));
+vi.mock('@/components/icons/VlcIcon.vue', () => ({
+  default: { template: '<svg />' },
+}));
 
 describe('MediaDisplay Seeking Rules', () => {
   let mockRefs: any;
@@ -66,8 +68,13 @@ describe('MediaDisplay Seeking Rules', () => {
       toggleSlideshowTimer: vi.fn(),
     });
 
-    (api.loadFileAsDataURL as Mock).mockResolvedValue({ type: 'success', url: 'blob:...' });
-    (api.getVideoStreamUrlGenerator as Mock).mockResolvedValue(() => 'http://stream...');
+    (api.loadFileAsDataURL as Mock).mockResolvedValue({
+      type: 'success',
+      url: 'blob:...',
+    });
+    (api.getVideoStreamUrlGenerator as Mock).mockResolvedValue(
+      () => 'http://stream...',
+    );
     (api.getVideoMetadata as Mock).mockResolvedValue({});
   });
 
@@ -113,7 +120,10 @@ describe('MediaDisplay Seeking Rules', () => {
     const videoElement = { duration: 100, currentTime: 50 };
     (wrapper.vm as any).videoElement = videoElement;
 
-    const event = new KeyboardEvent('keydown', { key: 'ArrowRight', ctrlKey: true });
+    const event = new KeyboardEvent('keydown', {
+      key: 'ArrowRight',
+      ctrlKey: true,
+    });
     document.dispatchEvent(event);
 
     expect(videoElement.currentTime).toBe(50);
