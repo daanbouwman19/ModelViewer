@@ -637,81 +637,73 @@ if (parentPort) {
     const { id, type, payload } = message;
     let result: WorkerResult;
 
-    try {
-      // Note: Internal functions are now synchronous, but we keep the async handler
-      // structure in case we need async operations in the future or for consistency.
-      // The await keyword is not strictly necessary for sync functions but harmless.
-      switch (type) {
-        case 'init':
-          result = initDatabase(payload.dbPath);
-          break;
-        case 'recordMediaView':
-          result = await recordMediaView(payload.filePath);
-          break;
-        case 'getMediaViewCounts':
-          result = await getMediaViewCounts(payload.filePaths);
-          break;
-        case 'cacheAlbums':
-          result = cacheAlbums(payload.cacheKey, payload.albums);
-          break;
-        case 'getCachedAlbums':
-          result = getCachedAlbums(payload.cacheKey);
-          break;
-        case 'close':
-          result = closeDatabase();
-          break;
-        case 'addMediaDirectory':
-          result = addMediaDirectory(payload.directoryPath);
-          break;
-        case 'getMediaDirectories':
-          result = getMediaDirectories();
-          break;
-        case 'removeMediaDirectory':
-          result = removeMediaDirectory(payload.directoryPath);
-          break;
-        case 'setDirectoryActiveState':
-          result = setDirectoryActiveState(
-            payload.directoryPath,
-            payload.isActive,
-          );
-          break;
-        case 'upsertMetadata':
-          result = await upsertMetadata(payload);
-          break;
-        case 'setRating':
-          result = await setRating(payload.filePath, payload.rating);
-          break;
-        case 'getMetadata':
-          result = await getMetadata(payload.filePaths);
-          break;
-        case 'createSmartPlaylist':
-          result = createSmartPlaylist(payload.name, payload.criteria);
-          break;
-        case 'getSmartPlaylists':
-          result = getSmartPlaylists();
-          break;
-        case 'deleteSmartPlaylist':
-          result = deleteSmartPlaylist(payload.id);
-          break;
-        case 'updateSmartPlaylist':
-          result = updateSmartPlaylist(
-            payload.id,
-            payload.name,
-            payload.criteria,
-          );
-          break;
-        case 'executeSmartPlaylist':
-          result = await executeSmartPlaylist();
-          break;
-        default:
-          result = { success: false, error: `Unknown message type: ${type}` };
-      }
-    } catch (error: unknown) {
-      console.error(
-        `[worker] Error processing message id=${id}, type=${type}:`,
-        error,
-      );
-      result = { success: false, error: (error as Error).message };
+    // Note: Internal functions are now synchronous, but we keep the async handler
+    // structure in case we need async operations in the future or for consistency.
+    // The await keyword is not strictly necessary for sync functions but harmless.
+    switch (type) {
+      case 'init':
+        result = initDatabase(payload.dbPath);
+        break;
+      case 'recordMediaView':
+        result = await recordMediaView(payload.filePath);
+        break;
+      case 'getMediaViewCounts':
+        result = await getMediaViewCounts(payload.filePaths);
+        break;
+      case 'cacheAlbums':
+        result = cacheAlbums(payload.cacheKey, payload.albums);
+        break;
+      case 'getCachedAlbums':
+        result = getCachedAlbums(payload.cacheKey);
+        break;
+      case 'close':
+        result = closeDatabase();
+        break;
+      case 'addMediaDirectory':
+        result = addMediaDirectory(payload.directoryPath);
+        break;
+      case 'getMediaDirectories':
+        result = getMediaDirectories();
+        break;
+      case 'removeMediaDirectory':
+        result = removeMediaDirectory(payload.directoryPath);
+        break;
+      case 'setDirectoryActiveState':
+        result = setDirectoryActiveState(
+          payload.directoryPath,
+          payload.isActive,
+        );
+        break;
+      case 'upsertMetadata':
+        result = await upsertMetadata(payload);
+        break;
+      case 'setRating':
+        result = await setRating(payload.filePath, payload.rating);
+        break;
+      case 'getMetadata':
+        result = await getMetadata(payload.filePaths);
+        break;
+      case 'createSmartPlaylist':
+        result = createSmartPlaylist(payload.name, payload.criteria);
+        break;
+      case 'getSmartPlaylists':
+        result = getSmartPlaylists();
+        break;
+      case 'deleteSmartPlaylist':
+        result = deleteSmartPlaylist(payload.id);
+        break;
+      case 'updateSmartPlaylist':
+        result = updateSmartPlaylist(
+          payload.id,
+          payload.name,
+          payload.criteria,
+        );
+        break;
+      case 'executeSmartPlaylist':
+        result = await executeSmartPlaylist();
+        break;
+      default:
+        result = { success: false, error: `Unknown message type: ${type}` };
     }
 
     parentPort!.postMessage({ id, result });
