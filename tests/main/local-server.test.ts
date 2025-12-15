@@ -208,7 +208,7 @@ describe('Local Server', () => {
       expect(response.headers['content-type']).toBe('application/octet-stream');
     });
 
-    it('should return 404 for non-existent file', async () => {
+    it('should return 403 for non-existent file (security)', async () => {
       await startServer();
       const port = getServerPort();
 
@@ -224,8 +224,9 @@ describe('Local Server', () => {
         req.on('error', reject);
       });
 
-      expect(response.statusCode).toBe(404);
-      expect(response.data).toBe('File not found.');
+      // Expect 403 to prevent file enumeration
+      expect(response.statusCode).toBe(403);
+      expect(response.data).toBe('Access denied.');
     });
 
     it('should handle range requests', async () => {
@@ -373,9 +374,7 @@ describe('Local Server', () => {
       });
 
       expect(response.statusCode).toBe(403);
-      expect(response.data).toBe(
-        'Access denied: File is not in a configured media directory.',
-      );
+      expect(response.data).toBe('Access denied.');
 
       // Cleanup directory (file cleanup handled by afterEach)
       if (fs.existsSync(outsideDir)) {
