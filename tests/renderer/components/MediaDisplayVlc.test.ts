@@ -62,6 +62,7 @@ describe('MediaDisplay.vue', () => {
       playFullVideo: ref(false),
       pauseTimerOnPlay: ref(false),
       mainVideoElement: ref(null),
+      isCurrentItemImage: ref(false), // Added isCurrentItemImage
       state: {}, // Also include state for compatibility
       initializeApp: vi.fn(),
       resetState: vi.fn(),
@@ -110,6 +111,7 @@ describe('MediaDisplay.vue', () => {
   describe('VLC Integration', () => {
     it('should not show VLC button for images', async () => {
       mockRefs.currentMediaItem.value = { name: 'test.jpg', path: '/test.jpg' };
+      mockRefs.isCurrentItemImage.value = true; // Update mock for image
       const wrapper = mount(MediaDisplay);
       await wrapper.vm.$nextTick();
 
@@ -119,6 +121,7 @@ describe('MediaDisplay.vue', () => {
 
     it('should show VLC button for videos', async () => {
       mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
+      mockRefs.isCurrentItemImage.value = false; // Update mock for video
       const wrapper = mount(MediaDisplay);
       await wrapper.vm.$nextTick();
       await wrapper.vm.$nextTick();
@@ -129,6 +132,7 @@ describe('MediaDisplay.vue', () => {
 
     it('should pause video and call openInVlc when button clicked', async () => {
       mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
+      mockRefs.isCurrentItemImage.value = false;
 
       const wrapper = mount(MediaDisplay, {
         attachTo: document.body,
@@ -151,6 +155,7 @@ describe('MediaDisplay.vue', () => {
 
     it('should display error if openInVlc fails', async () => {
       mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
+      mockRefs.isCurrentItemImage.value = false;
 
       (api.openInVlc as Mock).mockResolvedValue({
         success: false,

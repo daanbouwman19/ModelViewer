@@ -20,6 +20,15 @@ vi.mock('@/composables/useSlideshow', () => ({
     resumeSlideshowTimer: vi.fn(),
     toggleSlideshowTimer: vi.fn(),
     startSlideshow: vi.fn(),
+    setFilter: vi.fn(),
+    prevMedia: vi.fn(),
+    nextMedia: vi.fn(),
+    toggleTimer: vi.fn(),
+    toggleAlbumSelection: vi.fn(),
+    startIndividualAlbumSlideshow: vi.fn(),
+    pickAndDisplayNextMediaItem: vi.fn(),
+    filterMedia: vi.fn(),
+    selectWeightedRandom: vi.fn(),
   }),
 }));
 
@@ -78,7 +87,7 @@ describe('Progress Bars', () => {
       supportedExtensions: ref({ images: ['.jpg'], videos: ['.mp4'] }),
       playFullVideo: ref(false),
       pauseTimerOnPlay: ref(false),
-
+      isCurrentItemImage: ref(false), // Added isCurrentItemImage
       isTimerRunning: ref(false),
       mainVideoElement: ref(null),
     });

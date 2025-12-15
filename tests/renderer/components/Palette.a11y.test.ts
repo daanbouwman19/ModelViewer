@@ -50,6 +50,7 @@ describe('Palette Accessibility Improvements', () => {
       pauseTimerOnPlay: ref(false),
       isTimerRunning: ref(false),
       mainVideoElement: ref(null),
+      isCurrentItemImage: ref(true), // Default to image for safety
 
       // SourcesModal needs:
       isSourcesModalVisible: ref(true),
@@ -115,6 +116,7 @@ describe('Palette Accessibility Improvements', () => {
         name: 'video.mp4',
         path: '/video.mp4',
       };
+      mockRefs.isCurrentItemImage.value = false;
       mockRefs.supportedExtensions.value = {
         images: ['.jpg'],
         videos: ['.mp4'],
@@ -134,6 +136,7 @@ describe('Palette Accessibility Improvements', () => {
         name: 'video.mp4',
         path: '/video.mp4',
       };
+      mockRefs.isCurrentItemImage.value = false;
       mockRefs.supportedExtensions.value = {
         images: ['.jpg'],
         videos: ['.mp4'],
@@ -159,6 +162,7 @@ describe('Palette Accessibility Improvements', () => {
         name: 'video.mp4',
         path: '/video.mp4',
       };
+      mockRefs.isCurrentItemImage.value = false;
       const wrapper = mount(MediaDisplay);
       await wrapper.vm.$nextTick();
 
@@ -193,6 +197,7 @@ describe('Palette Accessibility Improvements', () => {
         name: 'video.mp4',
         path: '/video.mp4',
       };
+      mockRefs.isCurrentItemImage.value = false;
       const wrapper = mount(MediaDisplay);
       await wrapper.vm.$nextTick();
 

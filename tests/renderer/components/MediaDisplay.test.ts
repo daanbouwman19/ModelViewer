@@ -60,6 +60,7 @@ describe('MediaDisplay.vue', () => {
       playFullVideo: ref(false),
       pauseTimerOnPlay: ref(false),
       mainVideoElement: ref(null),
+      isCurrentItemImage: ref(false), // Added isCurrentItemImage to mock
       state: {},
       initializeApp: vi.fn(),
       resetState: vi.fn(),
@@ -188,6 +189,7 @@ describe('MediaDisplay.vue', () => {
   });
 
   it('should display image when media is an image', async () => {
+    mockRefs.isCurrentItemImage.value = true; // Update mock for image
     (api.loadFileAsDataURL as Mock).mockResolvedValue({
       type: 'data-url',
       url: 'data:image/png;base64,abc',
@@ -204,6 +206,7 @@ describe('MediaDisplay.vue', () => {
   });
 
   it('should display video when media is a video', async () => {
+    mockRefs.isCurrentItemImage.value = false; // Update mock for video
     (api.loadFileAsDataURL as Mock).mockResolvedValue({
       type: 'http-url',
       url: 'http://localhost/test.mp4',
@@ -264,6 +267,7 @@ describe('MediaDisplay.vue', () => {
   });
 
   it('should handle media error on img element', async () => {
+    mockRefs.isCurrentItemImage.value = true;
     (api.loadFileAsDataURL as Mock).mockResolvedValue({
       type: 'data-url',
       url: 'data:image/png;base64,abc',
@@ -459,6 +463,9 @@ describe('MediaDisplay.vue', () => {
         name: 'test.jpg',
         path: '/test.jpg',
       };
+      // Important: set isCurrentItemImage to true for this test case
+      mockRefs.isCurrentItemImage.value = true;
+
       const wrapper = mount(MediaDisplay);
       await wrapper.vm.$nextTick();
       expect(resumeSlideshowTimer).toHaveBeenCalled();
