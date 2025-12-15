@@ -63,6 +63,8 @@ describe('App.vue', () => {
       mediaDirectories: ref([]),
       isScanning: ref(false),
       viewMode: ref('player'),
+      // Added missing isCurrentItemVideo ref
+      isCurrentItemVideo: ref(false),
       state: {},
       initializeApp,
       resetState: vi.fn(),

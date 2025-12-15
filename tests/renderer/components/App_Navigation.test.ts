@@ -72,6 +72,8 @@ describe('App.vue Navigation Rules', () => {
       isScanning: ref(false),
       viewMode: ref('player'),
       mainVideoElement: ref(null),
+      // Adding new ref for isCurrentItemVideo
+      isCurrentItemVideo: ref(false),
       state: {},
       initializeApp,
       resetState: vi.fn(),
@@ -110,7 +112,7 @@ describe('App.vue Navigation Rules', () => {
   });
 
   it('should navigate when Ctrl + ArrowLeft is pressed, even if video is playing', async () => {
-    mockRefs.currentMediaItem.value = { path: 'video.mp4', name: 'video.mp4' };
+    mockRefs.isCurrentItemVideo.value = true;
     mockRefs.viewMode.value = 'player';
 
     const wrapper = mount(App, { attachTo: document.body });
@@ -127,7 +129,7 @@ describe('App.vue Navigation Rules', () => {
   });
 
   it('should navigate when Ctrl + ArrowRight is pressed, even if video is playing', async () => {
-    mockRefs.currentMediaItem.value = { path: 'video.mp4', name: 'video.mp4' };
+    mockRefs.isCurrentItemVideo.value = true;
     mockRefs.viewMode.value = 'player';
 
     const wrapper = mount(App, { attachTo: document.body });
@@ -144,7 +146,7 @@ describe('App.vue Navigation Rules', () => {
   });
 
   it('should navigate when ArrowLeft is pressed on an Image', async () => {
-    mockRefs.currentMediaItem.value = { path: 'image.jpg', name: 'image.jpg' };
+    mockRefs.isCurrentItemVideo.value = false; // Image
     mockRefs.viewMode.value = 'player';
 
     const wrapper = mount(App, { attachTo: document.body });
@@ -158,7 +160,7 @@ describe('App.vue Navigation Rules', () => {
   });
 
   it('should NOT navigate when ArrowLeft is pressed on a Video in Player mode', async () => {
-    mockRefs.currentMediaItem.value = { path: 'video.mp4', name: 'video.mp4' };
+    mockRefs.isCurrentItemVideo.value = true; // Video
     mockRefs.viewMode.value = 'player';
 
     const wrapper = mount(App, { attachTo: document.body });
@@ -172,7 +174,7 @@ describe('App.vue Navigation Rules', () => {
   });
 
   it('should navigate when ArrowLeft is pressed on a Video in Grid mode', async () => {
-    mockRefs.currentMediaItem.value = { path: 'video.mp4', name: 'video.mp4' };
+    mockRefs.isCurrentItemVideo.value = true;
     mockRefs.viewMode.value = 'grid';
 
     const wrapper = mount(App, { attachTo: document.body });

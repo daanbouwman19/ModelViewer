@@ -50,7 +50,7 @@
  * It sets up the overall layout, initializes the application state,
  * and handles global keyboard shortcuts for media navigation.
  */
-import { onMounted, onBeforeUnmount, ref, computed } from 'vue';
+import { onMounted, onBeforeUnmount, ref } from 'vue';
 import AmbientBackground from './components/AmbientBackground.vue';
 import AlbumsList from './components/AlbumsList.vue';
 import MediaDisplay from './components/MediaDisplay.vue';
@@ -60,34 +60,11 @@ import LoadingMask from './components/LoadingMask.vue';
 import { useAppState } from './composables/useAppState';
 import { useSlideshow } from './composables/useSlideshow';
 
-const {
-  initializeApp,
-  isScanning,
-  viewMode,
-  currentMediaItem,
-  videoExtensionsSet,
-} = useAppState();
+const { initializeApp, isScanning, viewMode, isCurrentItemVideo } =
+  useAppState();
 const { navigateMedia, toggleSlideshowTimer } = useSlideshow();
 
 const showSidebar = ref(true);
-
-/**
- * Checks if the current media item is a video.
- */
-const isCurrentItemVideo = computed(() => {
-  if (!currentMediaItem.value) return false;
-  // Ensure we have a valid path string
-  if (
-    !currentMediaItem.value.path ||
-    typeof currentMediaItem.value.path !== 'string'
-  ) {
-    return false;
-  }
-  const lastDotIndex = currentMediaItem.value.path.lastIndexOf('.');
-  if (lastDotIndex === -1) return false;
-  const ext = currentMediaItem.value.path.slice(lastDotIndex).toLowerCase();
-  return videoExtensionsSet.value.has(ext);
-});
 
 /**
  * Handles global keydown events for slideshow control.
@@ -106,6 +83,7 @@ const handleKeydown = (event: KeyboardEvent) => {
 
   switch (event.key) {
     case 'ArrowLeft':
+    case 'ArrowRight': {
       // If Ctrl is pressed, always navigate.
       // If NOT Ctrl, navigate only if we are NOT playing a video in player mode.
       if (
@@ -113,18 +91,11 @@ const handleKeydown = (event: KeyboardEvent) => {
         !(viewMode.value === 'player' && isCurrentItemVideo.value)
       ) {
         event.preventDefault();
-        navigateMedia(-1); // Navigate to the previous media item
+        const direction = event.key === 'ArrowRight' ? 1 : -1;
+        navigateMedia(direction); // Navigate to the next or previous media item
       }
       break;
-    case 'ArrowRight':
-      if (
-        isCtrl ||
-        !(viewMode.value === 'player' && isCurrentItemVideo.value)
-      ) {
-        event.preventDefault();
-        navigateMedia(1); // Navigate to the next media item
-      }
-      break;
+    }
     case ' ':
       event.preventDefault();
       toggleSlideshowTimer(); // Play or pause the slideshow timer

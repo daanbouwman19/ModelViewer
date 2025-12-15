@@ -94,6 +94,41 @@ const videoExtensionsSet = computed(
 );
 
 /**
+ * Checks if the current media item is a video.
+ */
+const isCurrentItemVideo = computed(() => {
+  if (!state.currentMediaItem) return false;
+  // Ensure we have a valid path string
+  if (
+    !state.currentMediaItem.path ||
+    typeof state.currentMediaItem.path !== 'string'
+  ) {
+    return false;
+  }
+  const lastDotIndex = state.currentMediaItem.path.lastIndexOf('.');
+  if (lastDotIndex === -1) return false;
+  const ext = state.currentMediaItem.path.slice(lastDotIndex).toLowerCase();
+  return videoExtensionsSet.value.has(ext);
+});
+
+/**
+ * Checks if the current media item is an image.
+ */
+const isCurrentItemImage = computed(() => {
+  if (!state.currentMediaItem) return false;
+  if (
+    !state.currentMediaItem.path ||
+    typeof state.currentMediaItem.path !== 'string'
+  ) {
+    return false;
+  }
+  const lastDotIndex = state.currentMediaItem.path.lastIndexOf('.');
+  if (lastDotIndex === -1) return false;
+  const ext = state.currentMediaItem.path.slice(lastDotIndex).toLowerCase();
+  return imageExtensionsSet.value.has(ext);
+});
+
+/**
  * A Vue composable that provides access to the global application state and related actions.
  */
 export function useAppState() {
@@ -142,6 +177,8 @@ export function useAppState() {
     state,
     imageExtensionsSet,
     videoExtensionsSet,
+    isCurrentItemVideo,
+    isCurrentItemImage,
     initializeApp,
     resetState,
     stopSlideshow,

@@ -30,6 +30,7 @@ describe('useAppState', () => {
     appState.state.isSlideshowActive = false;
     appState.state.slideshowTimerId = null;
     appState.state.isTimerRunning = false;
+    appState.state.currentMediaItem = null;
 
     // Clear mocks
     vi.clearAllMocks();
@@ -197,6 +198,46 @@ describe('useAppState', () => {
         all: ['.gif'],
       };
       expect(appState.imageExtensionsSet.value.has('.gif')).toBe(true);
+    });
+
+    describe('isCurrentItemVideo', () => {
+      it('should correctly identify video files', () => {
+        appState.state.supportedExtensions = {
+          images: ['.jpg'],
+          videos: ['.mp4'],
+          all: [],
+        };
+        appState.state.currentMediaItem = {
+          name: 'movie.mp4',
+          path: '/path/movie.mp4',
+        };
+        expect(appState.isCurrentItemVideo.value).toBe(true);
+        expect(appState.isCurrentItemImage.value).toBe(false);
+      });
+
+      it('should return false for image files', () => {
+        appState.state.supportedExtensions = {
+          images: ['.jpg'],
+          videos: ['.mp4'],
+          all: [],
+        };
+        appState.state.currentMediaItem = {
+          name: 'photo.jpg',
+          path: '/path/photo.jpg',
+        };
+        expect(appState.isCurrentItemVideo.value).toBe(false);
+        expect(appState.isCurrentItemImage.value).toBe(true);
+      });
+
+      it('should return false if no current item', () => {
+        appState.state.currentMediaItem = null;
+        expect(appState.isCurrentItemVideo.value).toBe(false);
+      });
+
+      it('should return false if path is missing', () => {
+        appState.state.currentMediaItem = { name: 'invalid' } as any;
+        expect(appState.isCurrentItemVideo.value).toBe(false);
+      });
     });
   });
 });

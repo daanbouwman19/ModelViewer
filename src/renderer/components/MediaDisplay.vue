@@ -218,6 +218,7 @@ const {
   pauseTimerOnPlay,
   isTimerRunning,
   mainVideoElement,
+  isCurrentItemImage,
 } = useAppState();
 
 const {
@@ -348,12 +349,9 @@ onBeforeUnmount(() => {
  * A computed property that determines if the current media item is an image.
  */
 const isImage = computed(() => {
-  if (!currentMediaItem.value) return false;
-  const imageExtensions = supportedExtensions.value.images;
-  const ext = currentMediaItem.value.path
-    .slice(currentMediaItem.value.path.lastIndexOf('.'))
-    .toLowerCase();
-  return imageExtensions.includes(ext);
+  // Use the shared logic from useAppState if available, but for local use keep compatibility
+  // The reviewer suggested using shared logic.
+  return isCurrentItemImage.value;
 });
 
 /**
