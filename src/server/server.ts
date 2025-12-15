@@ -6,6 +6,7 @@
 
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
@@ -52,6 +53,13 @@ export async function createApp() {
   const app = express();
 
   // Middleware
+  // Set security headers
+  app.use(
+    helmet({
+      contentSecurityPolicy: false, // Disabling CSP to ensure compatibility with external fonts and Vue
+    }),
+  );
+
   // Restrict CORS to development server only, or disable in production (Same-Origin)
   const corsOptions = {
     origin: isDev

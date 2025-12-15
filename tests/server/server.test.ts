@@ -361,6 +361,17 @@ describe('Server', () => {
     });
   });
 
+  describe('Security Headers', () => {
+    it('should set security headers', async () => {
+      const response = await request(app).get('/api/extensions');
+      // Helmet adds these headers by default
+      expect(response.headers['x-content-type-options']).toBe('nosniff');
+      expect(response.headers['x-dns-prefetch-control']).toBe('off');
+      expect(response.headers['x-frame-options']).toBe('SAMEORIGIN');
+      expect(response.headers['strict-transport-security']).toBeDefined();
+    });
+  });
+
   describe('Other Routes', () => {
     it('GET /api/extensions should return extensions', async () => {
       const response = await request(app).get('/api/extensions');
