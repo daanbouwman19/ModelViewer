@@ -1,4 +1,4 @@
-# My Album Slideshow Viewer
+# MediaPlayer
 
 A desktop application built with Electron and Vue 3 for browsing and viewing local media files, with a focus on creating dynamic, weighted slideshows.
 

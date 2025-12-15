@@ -24,7 +24,7 @@
           <h1
             class="text-xl font-bold tracking-wider text-accent drop-shadow-md font-header"
           >
-            Media Slideshow
+            MediaPlayer
           </h1>
           <div class="w-20"></div>
           <!-- Spacer for balance -->

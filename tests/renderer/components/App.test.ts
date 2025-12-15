@@ -89,7 +89,7 @@ describe('App.vue', () => {
 
   it('should render the app title', () => {
     const wrapper = mount(App);
-    expect(wrapper.find('h1').text()).toBe('Media Slideshow');
+    expect(wrapper.find('h1').text()).toBe('MediaPlayer');
   });
 
   it('should render AlbumsList component', () => {
