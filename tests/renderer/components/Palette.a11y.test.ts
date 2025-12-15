@@ -254,6 +254,38 @@ describe('Palette Accessibility Improvements', () => {
       expect(closeBtn.exists()).toBe(true);
       expect(closeBtn.attributes('aria-label')).toBe('Close');
     });
+
+    it('modal container should have accessible role and label', () => {
+      const wrapper = mount(SourcesModal);
+      const modalOverlay = wrapper.find('.modal-overlay');
+
+      expect(modalOverlay.attributes('role')).toBe('dialog');
+      expect(modalOverlay.attributes('aria-modal')).toBe('true');
+      expect(modalOverlay.attributes('aria-labelledby')).toBe('modal-title');
+
+      const title = wrapper.find('h2');
+      expect(title.attributes('id')).toBe('modal-title');
+    });
+
+    it('remove buttons should have specific accessible labels', async () => {
+      mockRefs.mediaDirectories.value = [
+        { path: '/home/user/media', isActive: true },
+        { path: '/mnt/data/photos', isActive: false },
+      ];
+
+      const wrapper = mount(SourcesModal);
+      await wrapper.vm.$nextTick();
+
+      const removeButtons = wrapper.findAll('.remove-button');
+
+      expect(removeButtons.length).toBe(2);
+      expect(removeButtons[0].attributes('aria-label')).toBe(
+        'Remove /home/user/media',
+      );
+      expect(removeButtons[1].attributes('aria-label')).toBe(
+        'Remove /mnt/data/photos',
+      );
+    });
   });
 
   describe('AlbumTree.vue', () => {

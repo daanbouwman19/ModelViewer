@@ -2,13 +2,18 @@
   <div
     v-if="isSourcesModalVisible"
     class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 modal-overlay"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="modal-title"
     @click.self="closeModal"
   >
     <div
       class="bg-gray-800 rounded-lg shadow-2xl p-6 w-full max-w-2xl max-h-full overflow-y-auto modal-content"
     >
       <div class="flex justify-between items-center mb-4">
-        <h2 class="text-2xl font-semibold">Manage Media Sources</h2>
+        <h2 id="modal-title" class="text-2xl font-semibold">
+          Manage Media Sources
+        </h2>
         <button
           class="text-gray-400 hover:text-white text-3xl close-button"
           aria-label="Close"
@@ -43,6 +48,7 @@
               <span class="ml-2 flex-grow source-path">{{ dir.path }}</span>
               <button
                 class="ml-2 action-button remove-button"
+                :aria-label="'Remove ' + dir.path"
                 @click="handleRemove(dir.path)"
               >
                 Remove
@@ -67,6 +73,8 @@
   <div
     v-if="isFileExplorerOpen"
     class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 modal-overlay"
+    role="dialog"
+    aria-modal="true"
     @click.self="closeFileExplorer"
   >
     <div
