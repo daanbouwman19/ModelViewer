@@ -1,4 +1,4 @@
-# My Album Slideshow Viewer
+# MediaPlayer
 
 A desktop application built with Electron and Vue 3 for browsing and viewing local media files, with a focus on creating dynamic, weighted slideshows.
 
@@ -9,7 +9,7 @@ A desktop application built with Electron and Vue 3 for browsing and viewing loc
 - **Weighted Random Slideshows**: Start a slideshow for a single album or a global slideshow from multiple selected albums. The selection algorithm prioritizes less-viewed items, ensuring you see fresh content more often.
 - **View Count Tracking**: Keeps track of how many times each media file has been viewed, which feeds into the slideshow weighting system.
 - **Persistent Cache**: Your media library index is cached in a local SQLite database for fast startups.
-- **Configurable Media Sources**: Easily add and manage multiple root directories for your media library.
+- **Configurable Media Sources**: Easily add and manage multiple media directories for your media library.
 
 ## How it Works
 
@@ -42,8 +42,8 @@ The application uses a standard Electron architecture:
 1.  **Clone the repository:**
 
     ```bash
-    git clone <repository-url>
-    cd <repository-directory>
+    git clone https://github.com/daanbouwman19/Mediaplayer
+    cd Mediaplayer
     ```
 
 2.  **Install dependencies:**

@@ -1,7 +1,7 @@
 {
-  "name": "albumviewer-app",
+  "name": "mediaplayer",
   "version": "1.0.1",
-  "description": "My Album Slideshow Viewer",
+  "description": "A modern local media player and slideshow viewer",
   "main": "out/main/index.js",
   "type": "module",
   "scripts": {
@@ -36,7 +36,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/daanbouwman19/modelviewer.git"
+    "url": "https://github.com/daanbouwman19/Mediaplayer"
   },
   "author": {
     "name": "Daan Bouwman",
@@ -48,8 +48,8 @@
       "provider": "github",
       "releaseType": "release"
     },
-    "appId": "com.daanbouwman.modelviewer",
-    "productName": "ModelViewer",
+    "appId": "com.daanbouwman.mediaplayer",
+    "productName": "MediaPlayer",
     "electronLanguages": [
       "en-US"
     ],
