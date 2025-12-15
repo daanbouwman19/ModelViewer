@@ -68,8 +68,8 @@ export async function createApp() {
 
   const workerOptions = isDev
     ? {
-      execArgv: ['--import', 'tsx/esm'],
-    }
+        execArgv: ['--import', 'tsx/esm'],
+      }
     : undefined;
 
   try {
