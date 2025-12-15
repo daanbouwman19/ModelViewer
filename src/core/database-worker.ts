@@ -187,7 +187,6 @@ function initDatabase(dbPath: string): WorkerResult {
     statements.updateSmartPlaylist = db.prepare(
       'UPDATE smart_playlists SET name = ?, criteria = ? WHERE id = ?',
     );
-    // statements.getMetadata = db.prepare('SELECT * FROM media_metadata WHERE file_path_hash = ?');
 
     console.log('[worker] SQLite database initialized at:', dbPath);
     return { success: true };
@@ -218,31 +217,13 @@ async function upsertMetadata(payload: MetadataPayload): Promise<WorkerResult> {
     // Let's change strategy: fetch existing first or use specific update statements.
     // Actually, distinct functions for "scan update" vs "user rating" is safer.
 
-    // Checks if row exists
-    const existing = db
-      .prepare('SELECT * FROM media_metadata WHERE file_path_hash = ?')
-      .get(fileId) as MetadataPayload | undefined;
-
-    const duration =
-      payload.duration !== undefined
-        ? payload.duration
-        : existing?.duration || 0;
-    const size =
-      payload.size !== undefined ? payload.size : existing?.size || 0;
-    const createdAt =
-      payload.createdAt !== undefined
-        ? payload.createdAt
-        : existing?.createdAt || '';
-    const rating =
-      payload.rating !== undefined ? payload.rating : existing?.rating || 0;
-
     statements.upsertMetadata.run(
       fileId,
       payload.filePath,
-      duration,
-      size,
-      createdAt,
-      rating,
+      payload.duration === undefined ? null : payload.duration,
+      payload.size === undefined ? null : payload.size,
+      payload.createdAt === undefined ? null : payload.createdAt,
+      payload.rating === undefined ? null : payload.rating,
     );
     return { success: true };
   } catch (error: unknown) {
@@ -273,14 +254,26 @@ async function setRating(
 async function getMetadata(filePaths: string[]): Promise<WorkerResult> {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
+    if (filePaths.length === 0) {
+      return { success: true, data: {} };
+    }
+
+    const fileIds = await Promise.all(
+      filePaths.map((filePath) => generateFileId(filePath)),
+    );
+
+    const placeholders = fileIds.map(() => '?').join(',');
+    const query = `SELECT * FROM media_metadata WHERE file_path_hash IN (${placeholders})`;
+
+    const rows = (db.prepare(query).all(...fileIds) as {
+      file_path: string;
+      [key: string]: unknown;
+    }[]);
+
     const metadataMap: { [key: string]: unknown } = {};
-    for (const filePath of filePaths) {
-      const fileId = await generateFileId(filePath);
-      const row = db
-        .prepare('SELECT * FROM media_metadata WHERE file_path_hash = ?')
-        .get(fileId);
-      if (row) {
-        metadataMap[filePath] = row;
+    for (const row of rows) {
+      if (row.file_path) {
+        metadataMap[row.file_path] = row;
       }
     }
     return { success: true, data: metadataMap };

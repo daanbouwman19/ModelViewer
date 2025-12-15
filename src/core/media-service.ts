@@ -13,7 +13,7 @@ import {
 import { performFullMediaScan } from './media-scanner';
 import { getVideoDuration } from './media-handler';
 import type { Album, MediaMetadata } from './types';
-import fs from 'fs';
+import fs from 'fs/promises';
 
 /**
  * Scans active media directories for albums, caches the result in the database,
@@ -132,7 +132,7 @@ export async function extractAndSaveMetadata(
   // For now simple loop
   for (const filePath of filePaths) {
     try {
-      const stats = fs.statSync(filePath);
+      const stats = await fs.stat(filePath);
       const metadata: MediaMetadata = {
         size: stats.size,
         createdAt: stats.birthtime.toISOString(),
