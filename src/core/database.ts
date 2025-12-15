@@ -5,7 +5,13 @@
 
 import { Worker, WorkerOptions } from 'worker_threads';
 import { FILE_INDEX_CACHE_KEY } from './constants';
-import type { Album, MediaDirectory } from './types';
+import type {
+  Album,
+  MediaDirectory,
+  SmartPlaylist,
+  MediaMetadata,
+  MediaLibraryItem,
+} from './types';
 
 /**
  * The database worker thread instance.
@@ -353,6 +359,136 @@ async function setDirectoryActiveState(
   }
 }
 
+/**
+ * Upserts metadata for a file.
+ */
+async function upsertMetadata(
+  filePath: string,
+  metadata: MediaMetadata,
+): Promise<void> {
+  try {
+    await sendMessageToWorker<void>('upsertMetadata', {
+      filePath,
+      ...metadata,
+    });
+  } catch (error) {
+    console.error('[database.js] Error upserting metadata:', error);
+    throw error;
+  }
+}
+
+/**
+ * Sets the rating for a file.
+ */
+async function setRating(filePath: string, rating: number): Promise<void> {
+  try {
+    await sendMessageToWorker<void>('setRating', {
+      filePath,
+      rating,
+    });
+  } catch (error) {
+    console.error('[database.js] Error setting rating:', error);
+    throw error;
+  }
+}
+
+/**
+ * Retrieves metadata for a list of files.
+ */
+async function getMetadata(
+  filePaths: string[],
+): Promise<{ [path: string]: MediaMetadata }> {
+  try {
+    return await sendMessageToWorker<{ [path: string]: MediaMetadata }>(
+      'getMetadata',
+      { filePaths },
+    );
+  } catch (error) {
+    console.error('[database.js] Error getting metadata:', error);
+    return {};
+  }
+}
+
+/**
+ * Creates a new smart playlist.
+ */
+async function createSmartPlaylist(
+  name: string,
+  criteria: string,
+): Promise<{ id: number }> {
+  try {
+    return await sendMessageToWorker<{ id: number }>('createSmartPlaylist', {
+      name,
+      criteria,
+    });
+  } catch (error) {
+    console.error('[database.js] Error creating smart playlist:', error);
+    throw error;
+  }
+}
+
+/**
+ * Retrieves all smart playlists.
+ */
+async function getSmartPlaylists(): Promise<SmartPlaylist[]> {
+  try {
+    return await sendMessageToWorker<SmartPlaylist[]>('getSmartPlaylists');
+  } catch (error) {
+    console.error('[database.js] Error getting smart playlists:', error);
+    return [];
+  }
+}
+
+/**
+ * Deletes a smart playlist.
+ */
+async function deleteSmartPlaylist(id: number): Promise<void> {
+  try {
+    await sendMessageToWorker<void>('deleteSmartPlaylist', { id });
+  } catch (error) {
+    console.error('[database.js] Error deleting smart playlist:', error);
+    throw error;
+  }
+}
+
+/**
+ * Updates a smart playlist.
+ */
+async function updateSmartPlaylist(
+  id: number,
+  name: string,
+  criteria: string,
+): Promise<void> {
+  try {
+    await sendMessageToWorker<void>('updateSmartPlaylist', {
+      id,
+      name,
+      criteria,
+    });
+  } catch (error) {
+    console.error('[database.js] Error updating smart playlist:', error);
+    throw error;
+  }
+}
+
+/**
+ * Gets all metadata and stats for smart playlist filtering.
+ * Returns a raw list of objects from the DB join.
+ */
+async function getAllMetadataAndStats(): Promise<MediaLibraryItem[]> {
+  try {
+    return await sendMessageToWorker<MediaLibraryItem[]>(
+      'executeSmartPlaylist',
+      {
+        criteria: '{}',
+      },
+    );
+  } catch (error) {
+    console.error('[database.js] Error getting all metadata:', error);
+    return [];
+  }
+}
+
 export {
   initDatabase,
   closeDatabase,
@@ -365,4 +501,12 @@ export {
   removeMediaDirectory,
   setDirectoryActiveState,
   setOperationTimeout,
+  upsertMetadata,
+  setRating,
+  getMetadata,
+  createSmartPlaylist,
+  getSmartPlaylists,
+  deleteSmartPlaylist,
+  updateSmartPlaylist,
+  getAllMetadataAndStats,
 };

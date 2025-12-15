@@ -33,10 +33,19 @@ import {
   addMediaDirectory,
   removeMediaDirectory,
   setDirectoryActiveState,
+  upsertMetadata,
+  setRating,
+  getMetadata,
+  createSmartPlaylist,
+  getSmartPlaylists,
+  deleteSmartPlaylist,
+  updateSmartPlaylist,
+  getAllMetadataAndStats,
 } from './database';
 import {
   getAlbumsWithViewCountsAfterScan,
   getAlbumsWithViewCounts,
+  extractAndSaveMetadata,
 } from '../core/media-service';
 import { getVideoDuration } from '../core/media-handler';
 import {
@@ -188,7 +197,7 @@ ipcMain.handle(
  * @returns A promise that resolves to the list of albums with view counts.
  */
 ipcMain.handle('get-albums-with-view-counts', async () => {
-  return getAlbumsWithViewCounts();
+  return getAlbumsWithViewCounts(ffmpegPath || undefined);
 });
 
 /**
@@ -236,7 +245,7 @@ ipcMain.handle(
  * @returns The updated list of albums.
  */
 ipcMain.handle('reindex-media-library', async () => {
-  return getAlbumsWithViewCountsAfterScan();
+  return getAlbumsWithViewCountsAfterScan(ffmpegPath || undefined);
 });
 
 /**
@@ -394,6 +403,98 @@ ipcMain.handle(
     // If parent is same as path, we are at root.
     if (parent === targetPath) return null;
     return parent;
+  },
+);
+
+/**
+ * Handles 'db:upsert-metadata'
+ */
+ipcMain.handle(
+  'db:upsert-metadata',
+  async (_event: IpcMainInvokeEvent, { filePath, metadata }) => {
+    await upsertMetadata(filePath, metadata);
+  },
+);
+
+/**
+ * Handles 'db:get-metadata'
+ */
+ipcMain.handle(
+  'db:get-metadata',
+  async (_event: IpcMainInvokeEvent, filePaths: string[]) => {
+    return getMetadata(filePaths);
+  },
+);
+
+/**
+ * Handles 'db:set-rating'
+ */
+ipcMain.handle(
+  'db:set-rating',
+  async (_event: IpcMainInvokeEvent, { filePath, rating }) => {
+    await setRating(filePath, rating);
+  },
+);
+
+/**
+ * Handles 'db:create-smart-playlist'
+ */
+ipcMain.handle(
+  'db:create-smart-playlist',
+  async (_event: IpcMainInvokeEvent, { name, criteria }) => {
+    return createSmartPlaylist(name, criteria);
+  },
+);
+
+/**
+ * Handles 'db:get-smart-playlists'
+ */
+ipcMain.handle('db:get-smart-playlists', async () => {
+  return getSmartPlaylists();
+});
+
+/**
+ * Handles 'db:delete-smart-playlist'
+ */
+ipcMain.handle(
+  'db:delete-smart-playlist',
+  async (_event: IpcMainInvokeEvent, id: number) => {
+    await deleteSmartPlaylist(id);
+  },
+);
+
+/**
+ * Handles 'db:update-smart-playlist'
+ */
+ipcMain.handle(
+  'db:update-smart-playlist',
+  async (_event: IpcMainInvokeEvent, { id, name, criteria }) => {
+    await updateSmartPlaylist(id, name, criteria);
+  },
+);
+
+/**
+ * Handles 'db:get-all-metadata-and-stats'
+ */
+ipcMain.handle('db:get-all-metadata-and-stats', async () => {
+  return getAllMetadataAndStats();
+});
+
+/**
+ * Handles 'media:extract-metadata'
+ * Triggers background metadata extraction.
+ */
+ipcMain.handle(
+  'media:extract-metadata',
+  async (_event: IpcMainInvokeEvent, filePaths: string[]) => {
+    if (!ffmpegPath) {
+      console.warn('FFmpeg not found, skipping metadata extraction');
+      return;
+    }
+    // Run in background (dangling promise)
+    extractAndSaveMetadata(filePaths, ffmpegPath).catch((err) =>
+      console.error('State extraction failed', err),
+    );
   },
 );
 

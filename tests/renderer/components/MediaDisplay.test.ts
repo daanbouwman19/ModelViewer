@@ -15,6 +15,10 @@ vi.mock('@/components/icons/VlcIcon.vue', () => ({
   default: { template: '<svg class="vlc-icon-mock"></svg>' },
 }));
 
+vi.mock('@/components/icons/StarIcon.vue', () => ({
+  default: { template: '<svg class="star-icon-mock"></svg>' },
+}));
+
 // Mock API
 vi.mock('@/api', () => ({
   api: {
@@ -22,6 +26,7 @@ vi.mock('@/api', () => ({
     openInVlc: vi.fn(),
     getVideoStreamUrlGenerator: vi.fn(),
     getVideoMetadata: vi.fn(),
+    setRating: vi.fn(), // Add setRating mock
   },
 }));
 
@@ -241,7 +246,8 @@ describe('MediaDisplay.vue', () => {
     mockRefs.totalMediaInPool.value = 10;
 
     const wrapper = mount(MediaDisplay);
-    expect(wrapper.text()).toContain('2 / 10 (viewed 2)');
+    expect(wrapper.text()).toContain('2 / 10');
+    expect(wrapper.text()).not.toContain('(viewed 2)');
   });
 
   it('should hide count info when slideshow is not active', () => {
@@ -360,7 +366,7 @@ describe('MediaDisplay.vue', () => {
     mockRefs.totalMediaInPool.value = 0;
 
     const wrapper = mount(MediaDisplay);
-    expect(wrapper.text()).toContain('1 / 1 (viewed 1)');
+    expect(wrapper.text()).toContain('1 / 1');
   });
 
   describe('Smart Timer Controls', () => {
@@ -577,7 +583,67 @@ describe('MediaDisplay.vue', () => {
       await (wrapper.vm as any).openInVlc();
 
       expect(pause).toHaveBeenCalled();
+      expect(pause).toHaveBeenCalled();
       expect(api.openInVlc).toHaveBeenCalledWith('/test.mp4');
+    });
+  });
+
+  describe('Rating Logic', () => {
+    it('should display rating stars', async () => {
+      mockRefs.currentMediaItem.value = {
+        name: 'test.jpg',
+        path: '/test.jpg',
+        rating: 3,
+        viewCount: 10,
+      };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      const stars = wrapper.findAll('.star-icon-mock');
+      expect(stars.length).toBe(5);
+    });
+
+    it('should call setRating when star is clicked', async () => {
+      mockRefs.currentMediaItem.value = {
+        name: 'test.jpg',
+        path: '/test.jpg',
+        rating: 0,
+      };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      const stars = wrapper.findAll('button');
+      // Filter for rating buttons (5 stars)
+      // The first star button should set rating to 1
+      // Assuming buttons order: Filter buttons (3) + Star buttons (5) + Nav buttons...
+      // Easier to find by looking for button containing star mock
+      const starButtons = stars.filter((b) =>
+        b.find('.star-icon-mock').exists(),
+      );
+      expect(starButtons.length).toBe(5);
+
+      await starButtons[2].trigger('click'); // Click 3rd star
+      expect(api.setRating).toHaveBeenCalledWith('/test.jpg', 3);
+      expect(mockRefs.currentMediaItem.value.rating).toBe(3); // Optimistic update
+    });
+
+    it('should toggle rating to 0 if clicking same rating', async () => {
+      mockRefs.currentMediaItem.value = {
+        name: 'test.jpg',
+        path: '/test.jpg',
+        rating: 3,
+      };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      const stars = wrapper.findAll('button');
+      const starButtons = stars.filter((b) =>
+        b.find('.star-icon-mock').exists(),
+      );
+
+      await starButtons[2].trigger('click'); // Click 3rd star again
+      expect(api.setRating).toHaveBeenCalledWith('/test.jpg', 0);
+      expect(mockRefs.currentMediaItem.value.rating).toBe(0);
     });
   });
 });

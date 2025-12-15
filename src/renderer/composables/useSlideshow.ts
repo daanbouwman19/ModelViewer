@@ -131,12 +131,19 @@ export function useSlideshow() {
   const displayMedia = async (mediaItem: MediaFile | null) => {
     if (!mediaItem) return;
     try {
+      // Optimistically update the local view count so the UI reflects it immediately
+      if (mediaItem.viewCount === undefined) {
+        mediaItem.viewCount = 0;
+      }
+      mediaItem.viewCount++;
+
       await api.recordMediaView(mediaItem.path);
       if (state.isTimerRunning) {
         resumeSlideshowTimer();
       }
     } catch (error) {
       console.error('Error recording media view:', error);
+      // Rollback if needed, but low risk
     }
   };
 

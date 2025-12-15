@@ -111,7 +111,7 @@ describe('WebAdapter', () => {
       expect(fetchMock).toHaveBeenCalledWith('/api/directories', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ directoryPath: '/dir' }),
+        body: JSON.stringify({ path: '/dir' }),
       });
     });
   });
@@ -249,6 +249,98 @@ describe('WebAdapter', () => {
       fetchMock.mockResolvedValue({ ok: false });
       const result = await adapter.getParentDirectory('/');
       expect(result).toBeNull();
+    });
+  });
+
+  describe('Smart Playlists', () => {
+    it('createSmartPlaylist calls API', async () => {
+      fetchMock.mockResolvedValue({
+        json: () => Promise.resolve({ id: 123 }),
+      });
+      const result = await adapter.createSmartPlaylist('My List', '{}');
+      expect(result).toEqual({ id: 123 });
+      expect(fetchMock).toHaveBeenCalledWith('/api/smart-playlists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'My List', criteria: '{}' }),
+      });
+    });
+
+    it('getSmartPlaylists fetches lists', async () => {
+      const mockLists = [{ id: 1, name: 'List' }];
+      fetchMock.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(mockLists),
+      });
+      const result = await adapter.getSmartPlaylists();
+      expect(result).toEqual(mockLists);
+      expect(fetchMock).toHaveBeenCalledWith('/api/smart-playlists');
+    });
+
+    it('updateSmartPlaylist calls API', async () => {
+      const mockPayload = { name: 'New Name', criteria: '{}' };
+      fetchMock.mockResolvedValue({ ok: true });
+      await adapter.updateSmartPlaylist(1, 'New Name', '{}');
+      expect(fetchMock).toHaveBeenCalledWith('/api/smart-playlists/1', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(mockPayload),
+      });
+    });
+
+    it('deleteSmartPlaylist calls API', async () => {
+      fetchMock.mockResolvedValue({ ok: true });
+      await adapter.deleteSmartPlaylist(1);
+      expect(fetchMock).toHaveBeenCalledWith('/api/smart-playlists/1', {
+        method: 'DELETE',
+      });
+    });
+  });
+
+  describe('Metadata & Rating', () => {
+    it('setRating calls API', async () => {
+      fetchMock.mockResolvedValue({ ok: true });
+      await adapter.setRating('/file.jpg', 5);
+      expect(fetchMock).toHaveBeenCalledWith('/api/media/rate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filePath: '/file.jpg', rating: 5 }),
+      });
+    });
+
+    it('upsertMetadata calls API', async () => {
+      const meta = { duration: 10 };
+      fetchMock.mockResolvedValue({ ok: true });
+      await adapter.upsertMetadata('/file.mp4', meta);
+      expect(fetchMock).toHaveBeenCalledWith('/api/media/metadata', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filePath: '/file.mp4', metadata: meta }),
+      });
+    });
+
+    it('getMetadata fetches batch', async () => {
+      const mockRes = { '/file.mp4': { duration: 10 } };
+      fetchMock.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(mockRes),
+      });
+      const result = await adapter.getMetadata(['/file.mp4']);
+      expect(result).toEqual(mockRes);
+      expect(fetchMock).toHaveBeenCalledWith('/api/media/metadata/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filePaths: ['/file.mp4'] }),
+      });
+    });
+
+    it('getAllMetadataAndStats fetches all', async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve([]),
+      });
+      await adapter.getAllMetadataAndStats();
+      expect(fetchMock).toHaveBeenCalledWith('/api/media/all');
     });
   });
 });

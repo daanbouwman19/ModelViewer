@@ -1,5 +1,11 @@
 import { IMediaBackend, LoadResult } from './types';
-import type { Album, MediaDirectory } from '../../core/types';
+import type {
+  Album,
+  MediaDirectory,
+  SmartPlaylist,
+  MediaMetadata,
+  MediaLibraryItem,
+} from '../../core/types';
 import type { FileSystemEntry } from '../../core/file-system';
 
 export class ElectronAdapter implements IMediaBackend {
@@ -25,7 +31,10 @@ export class ElectronAdapter implements IMediaBackend {
     return window.electronAPI.reindexMediaLibrary();
   }
 
-  async addMediaDirectory(): Promise<string | null> {
+  async addMediaDirectory(path?: string): Promise<string | null> {
+    if (path) {
+      return window.electronAPI.addMediaDirectory(path);
+    }
     // Return null to signal the UI to use the custom File Explorer modal
     // instead of the native Electron dialog.
     return null;
@@ -109,5 +118,53 @@ export class ElectronAdapter implements IMediaBackend {
 
   async getParentDirectory(path: string): Promise<string | null> {
     return window.electronAPI.getParentDirectory(path);
+  }
+
+  async upsertMetadata(
+    filePath: string,
+    metadata: MediaMetadata,
+  ): Promise<void> {
+    return window.electronAPI.upsertMetadata(filePath, metadata);
+  }
+
+  async getMetadata(
+    filePaths: string[],
+  ): Promise<{ [path: string]: MediaMetadata }> {
+    return window.electronAPI.getMetadata(filePaths);
+  }
+
+  async setRating(filePath: string, rating: number): Promise<void> {
+    return window.electronAPI.setRating(filePath, rating);
+  }
+
+  async createSmartPlaylist(
+    name: string,
+    criteria: string,
+  ): Promise<{ id: number }> {
+    return window.electronAPI.createSmartPlaylist(name, criteria);
+  }
+
+  async getSmartPlaylists(): Promise<SmartPlaylist[]> {
+    return window.electronAPI.getSmartPlaylists();
+  }
+
+  async deleteSmartPlaylist(id: number): Promise<void> {
+    return window.electronAPI.deleteSmartPlaylist(id);
+  }
+
+  async updateSmartPlaylist(
+    id: number,
+    name: string,
+    criteria: string,
+  ): Promise<void> {
+    return window.electronAPI.updateSmartPlaylist(id, name, criteria);
+  }
+
+  async getAllMetadataAndStats(): Promise<MediaLibraryItem[]> {
+    return window.electronAPI.getAllMetadataAndStats();
+  }
+
+  async extractMetadata(filePaths: string[]): Promise<void> {
+    return window.electronAPI.extractMetadata(filePaths);
   }
 }

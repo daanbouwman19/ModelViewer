@@ -162,6 +162,37 @@
         >
           {{ currentMediaItem ? currentMediaItem.name : 'Select an album' }}
         </p>
+
+        <!-- Rating Controls -->
+        <div v-if="currentMediaItem" class="flex justify-center gap-1 my-1">
+          <button
+            v-for="star in 5"
+            :key="star"
+            class="focus:outline-none transition-transform hover:scale-110"
+            @click.stop="setRating(star)"
+          >
+            <StarIcon
+              class="w-5 h-5 transition-colors"
+              :class="
+                (currentMediaItem.rating || 0) >= star
+                  ? 'text-yellow-400 drop-shadow-md'
+                  : 'text-gray-500 hover:text-yellow-200'
+              "
+            />
+          </button>
+        </div>
+
+        <p
+          v-if="currentMediaItem"
+          class="text-xs text-gray-400 mb-1 drop-shadow-md"
+        >
+          Views: {{ currentMediaItem.viewCount || 0 }}
+          <span v-if="currentMediaItem.lastViewed">
+            • Last:
+            {{ new Date(currentMediaItem.lastViewed).toLocaleDateString() }}
+          </span>
+        </p>
+
         <p class="text-xs text-gray-300 drop-shadow-md">
           {{ countInfo }}
         </p>
@@ -205,6 +236,7 @@ import { useAppState } from '../composables/useAppState';
 import { useSlideshow } from '../composables/useSlideshow';
 import { api } from '../api';
 import VlcIcon from './icons/VlcIcon.vue';
+import StarIcon from './icons/StarIcon.vue';
 
 const {
   currentMediaItem,
@@ -316,7 +348,7 @@ const countInfo = computed(() => {
   const currentInHistory = currentMediaIndex.value + 1;
   const historyLength = displayedMediaFiles.value.length;
   const total = totalMediaInPool.value || historyLength;
-  return `${currentInHistory} / ${total} (viewed ${historyLength})`;
+  return `${currentInHistory} / ${total}`;
 });
 
 /**
@@ -390,6 +422,23 @@ const handleNext = () => {
 const setFilter = async (filter: 'All' | 'Images' | 'Videos') => {
   mediaFilter.value = filter;
   await reapplyFilter();
+};
+
+const setRating = async (rating: number) => {
+  if (!currentMediaItem.value) return;
+
+  // Toggle: If clicking same rating (e.g. 5 on a 5-star item), reset to 0
+  const newRating = currentMediaItem.value.rating === rating ? 0 : rating;
+
+  // Optimistic update
+  currentMediaItem.value.rating = newRating;
+
+  try {
+    await api.setRating(currentMediaItem.value.path, newRating);
+  } catch (e) {
+    console.error('Failed to set rating', e);
+    // Revert on error could go here
+  }
 };
 
 // Watch for changes to the currentMediaItem and trigger a load.

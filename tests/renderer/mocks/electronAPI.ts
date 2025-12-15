@@ -20,4 +20,16 @@ export const createMockElectronAPI = (): ElectronAPI => ({
 
   listDirectory: vi.fn().mockResolvedValue([]),
   getParentDirectory: vi.fn().mockResolvedValue(null),
+
+  // Smart Playlists & Metadata
+  upsertMetadata: vi.fn().mockResolvedValue(undefined),
+  getMetadata: vi.fn().mockResolvedValue({}),
+  setRating: vi.fn().mockResolvedValue(undefined),
+  createSmartPlaylist: vi.fn().mockResolvedValue({ id: 1 }),
+  getSmartPlaylists: vi.fn().mockResolvedValue([]),
+  deleteSmartPlaylist: vi.fn().mockResolvedValue(undefined),
+  updateSmartPlaylist: vi.fn().mockResolvedValue(undefined),
+
+  getAllMetadataAndStats: vi.fn().mockResolvedValue([]),
+  extractMetadata: vi.fn().mockResolvedValue(undefined),
 });

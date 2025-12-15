@@ -1,5 +1,5 @@
 import { reactive, toRefs, computed } from 'vue';
-import type { Album, MediaFile } from '../../core/types';
+import type { Album, MediaFile, SmartPlaylist } from '../../core/types';
 import { api } from '../api';
 
 /**
@@ -44,6 +44,12 @@ export interface AppState {
   gridMediaFiles: MediaFile[];
   /** Controls visibility of the "Manage Sources" modal. */
   isSourcesModalVisible: boolean;
+  /** Controls visibility of the "Create Smart Playlist" modal. */
+  isSmartPlaylistModalVisible: boolean;
+  /** List of saved smart playlists. */
+  smartPlaylists: SmartPlaylist[];
+  /** Playlist currently being edited, or null if creating new. */
+  playlistToEdit: SmartPlaylist | null;
   /** List of configured media source directories. */
   mediaDirectories: { path: string; isActive: boolean }[];
   /** Supported file extensions grouped by type. */
@@ -75,6 +81,9 @@ const state = reactive<AppState>({
   viewMode: 'player', // 'player' or 'grid'
   gridMediaFiles: [],
   isSourcesModalVisible: false,
+  isSmartPlaylistModalVisible: false,
+  smartPlaylists: [],
+  playlistToEdit: null,
   mediaDirectories: [],
   supportedExtensions: {
     images: [],
@@ -105,6 +114,7 @@ export function useAppState() {
     try {
       state.allAlbums = await api.getAlbumsWithViewCounts();
       state.mediaDirectories = await api.getMediaDirectories();
+      state.smartPlaylists = await api.getSmartPlaylists();
       state.supportedExtensions = await api.getSupportedExtensions();
 
       state.allAlbums.forEach((album) => {
