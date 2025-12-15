@@ -41,8 +41,12 @@ export function useSlideshow() {
 
     const filter = state.mediaFilter;
 
-    const videoExtensions = state.supportedExtensions.videos;
-    const imageExtensions = state.supportedExtensions.images;
+    // Pre-calculate sets for O(1) lookup
+    // Optimization: Using Set check is faster than array.includes for repeated checks,
+    // although array.includes is already quite fast for small arrays.
+    // The main optimization is avoiding full string allocation below.
+    const videoExtensions = new Set(state.supportedExtensions.videos);
+    const imageExtensions = new Set(state.supportedExtensions.images);
 
     return mediaFiles.filter((file) => {
       // Guard against missing path property
@@ -53,11 +57,18 @@ export function useSlideshow() {
 
       if (filter === 'All') return true;
 
-      const ext = file.path.toLowerCase().slice(file.path.lastIndexOf('.'));
+      // Optimization: Avoid converting the entire path to lowercase.
+      // Instead, find the extension and only lowercase that small substring.
+      // This reduces memory allocation and CPU usage in large loops.
+      const lastDotIndex = file.path.lastIndexOf('.');
+      if (lastDotIndex === -1) return false;
+
+      const ext = file.path.slice(lastDotIndex).toLowerCase();
+
       if (filter === 'Videos') {
-        return videoExtensions.includes(ext);
+        return videoExtensions.has(ext);
       } else if (filter === 'Images') {
-        return imageExtensions.includes(ext);
+        return imageExtensions.has(ext);
       }
       return true; // Should not be reached with controlled filters
     });
