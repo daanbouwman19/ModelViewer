@@ -238,16 +238,13 @@ export async function serveStaticFile(
 ) {
   const normalizedFilePath = path.normalize(filePath);
 
-  if (!fs.existsSync(normalizedFilePath)) {
-    res.writeHead(404, { 'Content-Type': 'text/plain' });
-    return res.end('File not found.');
-  }
-
   try {
+    // SECURITY: Authorize FIRST to prevent file enumeration (timing/error message attacks)
     const auth = await authorizeFilePath(normalizedFilePath);
     if (!auth.isAllowed) {
       res.writeHead(403, { 'Content-Type': 'text/plain' });
-      return res.end(auth.message || 'Access denied.');
+      // SECURITY: Do not leak whether the file exists or not in the error message
+      return res.end('Access denied.');
     }
   } catch {
     res.writeHead(500);

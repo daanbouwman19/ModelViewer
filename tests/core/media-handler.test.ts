@@ -74,10 +74,14 @@ describe('media-handler', () => {
   });
 
   describe('serveStaticFile', () => {
-    it('returns 404 if file does not exist', async () => {
-      vi.mocked(fs.existsSync).mockReturnValue(false);
+    it('returns 403 if file does not exist (security: prevent enumeration)', async () => {
+      vi.mocked(security.authorizeFilePath).mockResolvedValue({
+        isAllowed: false,
+        message: 'File does not exist',
+      });
       await serveStaticFile(req, res, '/allowed/file.txt');
-      expect(res.writeHead).toHaveBeenCalledWith(404, expect.anything());
+      expect(res.writeHead).toHaveBeenCalledWith(403, expect.anything());
+      expect(res.end).toHaveBeenCalledWith('Access denied.');
     });
 
     it('returns 403 if path not allowed', async () => {
