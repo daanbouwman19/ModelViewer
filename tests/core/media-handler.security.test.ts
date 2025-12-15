@@ -18,8 +18,8 @@ vi.mock('fs', () => {
 });
 
 describe('media-handler security', () => {
-  let req: any;
-  let res: any;
+  let req: { headers: Record<string, string | string[] | undefined> };
+  let res: { writeHead: vi.Mock; end: vi.Mock };
 
   beforeEach(() => {
     vi.clearAllMocks();
