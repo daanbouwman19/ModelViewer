@@ -2,13 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { extractAndSaveMetadata } from '../../src/core/media-service';
 import * as db from '../../src/core/database';
 import * as mediaHandler from '../../src/core/media-handler';
-import fs from 'fs';
+import fs from 'fs/promises';
 
 vi.mock('../../src/core/database');
 vi.mock('../../src/core/media-handler');
-vi.mock('fs', () => ({
+vi.mock('fs/promises', () => ({
   default: {
-    statSync: vi.fn(),
+    stat: vi.fn(),
   },
 }));
 
@@ -20,8 +20,8 @@ describe('media-service coverage', () => {
     vi.clearAllMocks();
   });
 
-  it('extractAndSaveMetadata handles fs.statSync errors gracefully', async () => {
-    (fs.statSync as any).mockImplementation(() => {
+  it('extractAndSaveMetadata handles fs.stat errors gracefully', async () => {
+    (fs.stat as any).mockImplementation(() => {
       throw new Error('File not found');
     });
     const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -36,7 +36,7 @@ describe('media-service coverage', () => {
   });
 
   it('extractAndSaveMetadata handles upsertMetadata errors', async () => {
-    (fs.statSync as any).mockReturnValue({
+    (fs.stat as any).mockResolvedValue({
       size: 1000,
       birthtime: new Date(),
     });
@@ -54,7 +54,7 @@ describe('media-service coverage', () => {
   });
 
   it('extractAndSaveMetadata saves duration if available', async () => {
-    (fs.statSync as any).mockReturnValue({
+    (fs.stat as any).mockResolvedValue({
       size: 1000,
       birthtime: new Date('2023-01-01'),
     });
@@ -72,7 +72,7 @@ describe('media-service coverage', () => {
   });
 
   it('extractAndSaveMetadata skips duration if unavailable', async () => {
-    (fs.statSync as any).mockReturnValue({
+    (fs.stat as any).mockResolvedValue({
       size: 500,
       birthtime: new Date('2023-01-01'),
     });

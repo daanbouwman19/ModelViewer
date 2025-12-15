@@ -265,10 +265,10 @@ async function getMetadata(filePaths: string[]): Promise<WorkerResult> {
     const placeholders = fileIds.map(() => '?').join(',');
     const query = `SELECT * FROM media_metadata WHERE file_path_hash IN (${placeholders})`;
 
-    const rows = (db.prepare(query).all(...fileIds) as {
+    const rows = db.prepare(query).all(...fileIds) as {
       file_path: string;
       [key: string]: unknown;
-    }[]);
+    }[];
 
     const metadataMap: { [key: string]: unknown } = {};
     for (const row of rows) {
