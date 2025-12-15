@@ -3,6 +3,7 @@
  * This includes starting/stopping slideshows, navigating media, filtering,
  * and selecting media items based on a weighted random algorithm.
  */
+import { computed } from 'vue';
 import { useAppState } from './useAppState';
 import {
   collectTexturesRecursive,
@@ -15,7 +16,8 @@ import { api } from '../api';
  * A Vue composable that provides functions for controlling the media slideshow.
  */
 export function useSlideshow() {
-  const { state, stopSlideshow } = useAppState();
+  const { state, stopSlideshow, imageExtensionsSet, videoExtensionsSet } =
+    useAppState();
 
   /**
    * Shuffles an array in place.
@@ -41,13 +43,6 @@ export function useSlideshow() {
 
     const filter = state.mediaFilter;
 
-    // Pre-calculate sets for O(1) lookup
-    // Optimization: Using Set check is faster than array.includes for repeated checks,
-    // although array.includes is already quite fast for small arrays.
-    // The main optimization is avoiding full string allocation below.
-    const videoExtensions = new Set(state.supportedExtensions.videos);
-    const imageExtensions = new Set(state.supportedExtensions.images);
-
     return mediaFiles.filter((file) => {
       // Guard against missing path property
       if (!file || !file.path || typeof file.path !== 'string') {
@@ -66,13 +61,21 @@ export function useSlideshow() {
       const ext = file.path.slice(lastDotIndex).toLowerCase();
 
       if (filter === 'Videos') {
-        return videoExtensions.has(ext);
+        return videoExtensionsSet.value.has(ext);
       } else if (filter === 'Images') {
-        return imageExtensions.has(ext);
+        return imageExtensionsSet.value.has(ext);
       }
       return true; // Should not be reached with controlled filters
     });
   };
+
+  /**
+   * Memoized filtered pool to avoid O(N) filtering on every slide change.
+   * This significantly reduces CPU usage when the media pool is large (e.g., 10k+ items).
+   */
+  const filteredGlobalMediaPool = computed(() => {
+    return filterMedia(state.globalMediaPoolForSelection);
+  });
 
   /**
    * Selects a random item from a list, weighted by view count (less viewed items are more likely).
@@ -149,7 +152,8 @@ export function useSlideshow() {
         console.warn('No media files available in the pool.');
         return;
       }
-      const filteredPool = filterMedia(state.globalMediaPoolForSelection);
+      // Use memoized filtered pool
+      const filteredPool = filteredGlobalMediaPool.value;
       state.totalMediaInPool = filteredPool.length;
 
       if (filteredPool.length === 0) {
