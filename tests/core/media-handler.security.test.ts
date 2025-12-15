@@ -89,12 +89,7 @@ describe('media-handler security', () => {
       isAllowed: false,
       message: 'File does not exist: /missing.txt',
     });
-    await serveMetadata(
-      req as any,
-      res as any,
-      '/missing.txt',
-      '/bin/ffmpeg',
-    );
+    await serveMetadata(req as any, res as any, '/missing.txt', '/bin/ffmpeg');
     const body2 = res.end.mock.calls[0][0];
 
     expect(body1).toBe('Access denied.');
@@ -155,12 +150,7 @@ describe('media-handler security', () => {
       isAllowed: false,
       message: 'File does not exist: /missing.txt',
     });
-    await serveThumbnail(
-      req as any,
-      res as any,
-      '/missing.txt',
-      '/bin/ffmpeg',
-    );
+    await serveThumbnail(req as any, res as any, '/missing.txt', '/bin/ffmpeg');
     const body2 = res.end.mock.calls[0][0];
 
     expect(body1).toBe('Access denied.');
