@@ -19,6 +19,7 @@ vi.mock('../../../src/renderer/composables/useSlideshow', () => ({
     startSlideshow: mockStartSlideshow,
     startIndividualAlbumSlideshow: mockStartIndividualAlbumSlideshow,
     toggleSlideshowTimer: mockToggleSlideshowTimer,
+    openAlbumInGrid: vi.fn(),
   }),
 }));
 
@@ -89,6 +90,7 @@ describe('AlbumsList.vue', () => {
     };
 
     (useAppState as Mock).mockReturnValue(mockAppState);
+    (api.getSmartPlaylists as Mock).mockResolvedValue([]);
   });
 
   it('renders AlbumTree components for each root album', () => {
@@ -196,6 +198,17 @@ describe('AlbumsList.vue', () => {
           criteria: JSON.stringify({ minRating: 5 }),
         },
       ];
+      // Mock allAlbums to contain valid files
+      mockAppState.allAlbums.value = [
+        {
+          name: 'Root',
+          children: [],
+          textures: [
+            { path: '/file1.jpg', name: 'file1.jpg' },
+            { path: '/file2.jpg', name: 'file2.jpg' },
+          ],
+        },
+      ];
 
       const mockItems = [
         { file_path: '/file1.jpg', rating: 5, view_count: 0 },
@@ -206,10 +219,14 @@ describe('AlbumsList.vue', () => {
       const wrapper = mount(AlbumsList);
       await wrapper.vm.$nextTick();
 
-      const playlistBtn = wrapper
-        .findAll('button')
-        .find((b) => b.text().includes('Rated 5'));
-      await playlistBtn?.trigger('click');
+      // Find the smart playlist item first to ensure we click the correct Grid button
+      const playlistItem = wrapper
+        .findAll('li')
+        .find((li) => li.text().includes('Rated 5'));
+      const gridBtn = playlistItem!.find('button[title="Open in Grid"]');
+      await gridBtn.trigger('click');
+
+      await new Promise(process.nextTick);
 
       expect(api.getAllMetadataAndStats).toHaveBeenCalled();
       // Should filter to only file1

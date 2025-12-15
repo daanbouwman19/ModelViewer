@@ -20,7 +20,9 @@ import fs from 'fs';
  * and returns the list of albums found.
  * @returns The list of albums found.
  */
-export async function scanDiskForAlbumsAndCache(): Promise<Album[]> {
+export async function scanDiskForAlbumsAndCache(
+  ffmpegPath?: string,
+): Promise<Album[]> {
   const allDirectories = await getMediaDirectories();
   const activeDirectories = allDirectories
     .filter((dir) => dir.isActive)
@@ -33,6 +35,21 @@ export async function scanDiskForAlbumsAndCache(): Promise<Album[]> {
 
   const albums = await performFullMediaScan(activeDirectories);
   await cacheAlbums(albums || []);
+
+  // Trigger metadata extraction in background if ffmpegPath is provided
+  if (ffmpegPath && albums && albums.length > 0) {
+    const allFilePaths = albums.flatMap((album) =>
+      album.textures.map((texture) => texture.path),
+    );
+    // Fire and forget
+    extractAndSaveMetadata(allFilePaths, ffmpegPath).catch((err) =>
+      console.error(
+        '[media-service] Background metadata extraction failed:',
+        err,
+      ),
+    );
+  }
+
   return albums || [];
 }
 
@@ -41,12 +58,14 @@ export async function scanDiskForAlbumsAndCache(): Promise<Album[]> {
  * performs a disk scan.
  * @returns The list of albums.
  */
-export async function getAlbumsFromCacheOrDisk(): Promise<Album[]> {
+export async function getAlbumsFromCacheOrDisk(
+  ffmpegPath?: string,
+): Promise<Album[]> {
   const albums = await getCachedAlbums();
   if (albums && albums.length > 0) {
     return albums;
   }
-  return scanDiskForAlbumsAndCache();
+  return scanDiskForAlbumsAndCache(ffmpegPath);
 }
 
 /**
@@ -54,8 +73,10 @@ export async function getAlbumsFromCacheOrDisk(): Promise<Album[]> {
  * This is a utility function to combine scanning and view count retrieval.
  * @returns The list of albums with view counts.
  */
-export async function getAlbumsWithViewCountsAfterScan(): Promise<Album[]> {
-  const albums = await scanDiskForAlbumsAndCache();
+export async function getAlbumsWithViewCountsAfterScan(
+  ffmpegPath?: string,
+): Promise<Album[]> {
+  const albums = await scanDiskForAlbumsAndCache(ffmpegPath);
   if (!albums || albums.length === 0) {
     return [];
   }
@@ -78,8 +99,10 @@ export async function getAlbumsWithViewCountsAfterScan(): Promise<Album[]> {
  * Retrieves albums (from cache or disk) and augments them with view counts.
  * @returns The list of albums with view counts.
  */
-export async function getAlbumsWithViewCounts(): Promise<Album[]> {
-  const albums = await getAlbumsFromCacheOrDisk();
+export async function getAlbumsWithViewCounts(
+  ffmpegPath?: string,
+): Promise<Album[]> {
+  const albums = await getAlbumsFromCacheOrDisk(ffmpegPath);
   if (!albums || albums.length === 0) {
     return [];
   }

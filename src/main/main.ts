@@ -197,7 +197,7 @@ ipcMain.handle(
  * @returns A promise that resolves to the list of albums with view counts.
  */
 ipcMain.handle('get-albums-with-view-counts', async () => {
-  return getAlbumsWithViewCounts();
+  return getAlbumsWithViewCounts(ffmpegPath || undefined);
 });
 
 /**
@@ -245,7 +245,7 @@ ipcMain.handle(
  * @returns The updated list of albums.
  */
 ipcMain.handle('reindex-media-library', async () => {
-  return getAlbumsWithViewCountsAfterScan();
+  return getAlbumsWithViewCountsAfterScan(ffmpegPath || undefined);
 });
 
 /**
