@@ -263,13 +263,18 @@ export async function createApp() {
 
 export async function bootstrap() {
   const app = await createApp();
-  app.listen(PORT, () => {
+  app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running at http://localhost:${PORT}`);
     console.log(`Environment: ${isDev ? 'Development' : 'Production'}`);
   });
 }
 
 // Only run if called directly
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+// Check if this module is the entry point
+const isEntryFile =
+  process.argv[1] === fileURLToPath(import.meta.url) ||
+  process.argv[1].endsWith('server.ts');
+
+if (isEntryFile) {
   bootstrap();
 }
