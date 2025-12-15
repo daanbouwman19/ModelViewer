@@ -31,5 +31,4 @@ describe('Database Environment Specific Logging', () => {
       expect.stringContaining('Error recording media view'),
     );
   });
-
 });
