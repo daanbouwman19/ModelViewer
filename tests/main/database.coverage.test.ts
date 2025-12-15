@@ -64,6 +64,8 @@ import { createMockElectron } from './mocks/electron';
 
 vi.mock('electron', () => createMockElectron());
 
+const workerPath = '../../src/core/database-worker.ts';
+
 describe('database.js additional coverage - uninitialized', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -75,6 +77,195 @@ describe('database.js additional coverage - uninitialized', () => {
     await expect(freshDb.addMediaDirectory('/test/path')).rejects.toThrow(
       'Database worker not initialized',
     );
+  });
+
+  describe('Additional Function Coverage', () => {
+    beforeEach(async () => {
+      // Ensure database is initialized before each test
+      const { initDatabase } = await import('../../src/core/database');
+      await initDatabase(':memory:', workerPath);
+    });
+
+    it('should handle setRating errors', async () => {
+      const { setRating } = await import('../../src/core/database');
+
+      // Override postMessage to simulate error
+      const originalPostMessage = mockWorkerInstance!.postMessage;
+      mockWorkerInstance!.postMessage = vi.fn((message: WorkerMessage) => {
+        if (message.type === 'setRating') {
+          process.nextTick(() => {
+            mockWorkerInstance!.simulateMessage({
+              id: message.id,
+              result: { success: false, error: 'Rating error' },
+            });
+          });
+        } else {
+          originalPostMessage.call(mockWorkerInstance, message);
+        }
+      });
+
+      await expect(setRating('/file.mp4', 5)).rejects.toThrow('Rating error');
+      mockWorkerInstance!.postMessage = originalPostMessage;
+    });
+
+    it('should handle upsertMetadata errors', async () => {
+      const { upsertMetadata } = await import('../../src/core/database');
+
+      const originalPostMessage = mockWorkerInstance!.postMessage;
+      mockWorkerInstance!.postMessage = vi.fn((message: WorkerMessage) => {
+        if (message.type === 'upsertMetadata') {
+          process.nextTick(() => {
+            mockWorkerInstance!.simulateMessage({
+              id: message.id,
+              result: { success: false, error: 'Metadata error' },
+            });
+          });
+        } else {
+          originalPostMessage.call(mockWorkerInstance, message);
+        }
+      });
+
+      await expect(upsertMetadata('/file.mp4', { size: 100 })).rejects.toThrow(
+        'Metadata error',
+      );
+      mockWorkerInstance!.postMessage = originalPostMessage;
+    });
+
+    it('should handle createSmartPlaylist errors', async () => {
+      const { createSmartPlaylist } = await import('../../src/core/database');
+
+      const originalPostMessage = mockWorkerInstance!.postMessage;
+      mockWorkerInstance!.postMessage = vi.fn((message: WorkerMessage) => {
+        if (message.type === 'createSmartPlaylist') {
+          process.nextTick(() => {
+            mockWorkerInstance!.simulateMessage({
+              id: message.id,
+              result: { success: false, error: 'Create playlist error' },
+            });
+          });
+        } else {
+          originalPostMessage.call(mockWorkerInstance, message);
+        }
+      });
+
+      await expect(createSmartPlaylist('Test', '{}')).rejects.toThrow(
+        'Create playlist error',
+      );
+      mockWorkerInstance!.postMessage = originalPostMessage;
+    });
+
+    it('should handle updateSmartPlaylist errors', async () => {
+      const { updateSmartPlaylist } = await import('../../src/core/database');
+
+      const originalPostMessage = mockWorkerInstance!.postMessage;
+      mockWorkerInstance!.postMessage = vi.fn((message: WorkerMessage) => {
+        if (message.type === 'updateSmartPlaylist') {
+          process.nextTick(() => {
+            mockWorkerInstance!.simulateMessage({
+              id: message.id,
+              result: { success: false, error: 'Update playlist error' },
+            });
+          });
+        } else {
+          originalPostMessage.call(mockWorkerInstance, message);
+        }
+      });
+
+      await expect(updateSmartPlaylist(1, 'Test', '{}')).rejects.toThrow(
+        'Update playlist error',
+      );
+      mockWorkerInstance!.postMessage = originalPostMessage;
+    });
+
+    it('should handle deleteSmartPlaylist errors', async () => {
+      const { deleteSmartPlaylist } = await import('../../src/core/database');
+
+      const originalPostMessage = mockWorkerInstance!.postMessage;
+      mockWorkerInstance!.postMessage = vi.fn((message: WorkerMessage) => {
+        if (message.type === 'deleteSmartPlaylist') {
+          process.nextTick(() => {
+            mockWorkerInstance!.simulateMessage({
+              id: message.id,
+              result: { success: false, error: 'Delete playlist error' },
+            });
+          });
+        } else {
+          originalPostMessage.call(mockWorkerInstance, message);
+        }
+      });
+
+      await expect(deleteSmartPlaylist(1)).rejects.toThrow(
+        'Delete playlist error',
+      );
+      mockWorkerInstance!.postMessage = originalPostMessage;
+    });
+
+    it('should return empty array on getSmartPlaylists error', async () => {
+      const { getSmartPlaylists } = await import('../../src/core/database');
+
+      const originalPostMessage = mockWorkerInstance!.postMessage;
+      mockWorkerInstance!.postMessage = vi.fn((message: WorkerMessage) => {
+        if (message.type === 'getSmartPlaylists') {
+          process.nextTick(() => {
+            mockWorkerInstance!.simulateMessage({
+              id: message.id,
+              result: { success: false, error: 'Get playlists error' },
+            });
+          });
+        } else {
+          originalPostMessage.call(mockWorkerInstance, message);
+        }
+      });
+
+      const result = await getSmartPlaylists();
+      expect(result).toEqual([]);
+      mockWorkerInstance!.postMessage = originalPostMessage;
+    });
+
+    it('should return empty array on getAllMetadataAndStats error', async () => {
+      const { getAllMetadataAndStats } =
+        await import('../../src/core/database');
+
+      const originalPostMessage = mockWorkerInstance!.postMessage;
+      mockWorkerInstance!.postMessage = vi.fn((message: WorkerMessage) => {
+        if (message.type === 'executeSmartPlaylist') {
+          process.nextTick(() => {
+            mockWorkerInstance!.simulateMessage({
+              id: message.id,
+              result: { success: false, error: 'Get metadata error' },
+            });
+          });
+        } else {
+          originalPostMessage.call(mockWorkerInstance, message);
+        }
+      });
+
+      const result = await getAllMetadataAndStats();
+      expect(result).toEqual([]);
+      mockWorkerInstance!.postMessage = originalPostMessage;
+    });
+
+    it('should return empty object on getMetadata error', async () => {
+      const { getMetadata } = await import('../../src/core/database');
+
+      const originalPostMessage = mockWorkerInstance!.postMessage;
+      mockWorkerInstance!.postMessage = vi.fn((message: WorkerMessage) => {
+        if (message.type === 'getMetadata') {
+          process.nextTick(() => {
+            mockWorkerInstance!.simulateMessage({
+              id: message.id,
+              result: { success: false, error: 'Get metadata error' },
+            });
+          });
+        } else {
+          originalPostMessage.call(mockWorkerInstance, message);
+        }
+      });
+
+      const result = await getMetadata(['/file.mp4']);
+      expect(result).toEqual({});
+      mockWorkerInstance!.postMessage = originalPostMessage;
+    });
   });
 });
 

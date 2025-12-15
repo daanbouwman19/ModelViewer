@@ -1,0 +1,326 @@
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
+import { mount, flushPromises } from '@vue/test-utils';
+import { ref } from 'vue';
+import SmartPlaylistModal from '@/components/SmartPlaylistModal.vue';
+import { useAppState } from '@/composables/useAppState';
+import { api } from '@/api';
+
+vi.mock('@/composables/useAppState');
+vi.mock('@/api');
+
+describe('SmartPlaylistModal Coverage', () => {
+  let mockAppState: any;
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockAppState = {
+      isSmartPlaylistModalVisible: ref(false),
+      smartPlaylists: ref([]),
+    };
+    (useAppState as Mock).mockReturnValue(mockAppState);
+  });
+
+  it('handles invalid JSON in criteria when populating form', async () => {
+    // Start invisible
+    mockAppState.isSmartPlaylistModalVisible.value = false;
+
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const playlistToEdit = {
+      id: 1,
+      name: 'Bad Data',
+      criteria: '{ "invalid": json }', // Malformed JSON
+    };
+
+    const wrapper = mount(SmartPlaylistModal, {
+      props: { playlistToEdit },
+    });
+
+    // Trigger watcher
+    mockAppState.isSmartPlaylistModalVisible.value = true;
+    await wrapper.vm.$nextTick();
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Failed to parse criteria',
+      expect.any(Error),
+    );
+    // Name should still populate
+    expect((wrapper.vm as any).name).toBe('Bad Data');
+  });
+
+  it('save does nothing if name is empty', async () => {
+    mockAppState.isSmartPlaylistModalVisible.value = true;
+    const wrapper = mount(SmartPlaylistModal);
+    await wrapper.vm.$nextTick();
+
+    await wrapper.find('input[type="text"]').setValue('   '); // Whitespace
+    const btn = wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Create Playlist');
+
+    // Button is disabled by UI binding (!name.trim()), so we can't click it normally if checking disabled.
+    // But to test the function guard logic, we can verify the button is disabled.
+    expect(btn?.attributes('disabled')).toBeDefined();
+
+    // Even if we force click, the handler might not run if disabled.
+    // Let's rely on the disabled check for standard behavior.
+    // But if we want to cover the function's strict guard, we'd need to bypass the UI disabled state or call method.
+    // Given coverage is the goal, let's keep the manual call for this specific "guard clause" test,
+    // OR better: remove the manual call and trust the disabled attribute test is sufficient for the feature,
+    // BUT coverage requires the "return" line to be hit.
+    // So we keep manual call or enable it and empty it later?
+    // Let's simulate a non-disabled state but empty name? Not possible with v-model trim potentially.
+    // We'll keep manual call here, but ensure others use click.
+
+    await (wrapper.vm as any).save();
+    expect(api.createSmartPlaylist).not.toHaveBeenCalled();
+  });
+
+  it('save builds criteria correctly (undefined for 0s)', async () => {
+    mockAppState.isSmartPlaylistModalVisible.value = true;
+    const wrapper = mount(SmartPlaylistModal);
+    await wrapper.vm.$nextTick();
+
+    await wrapper.find('input[type="text"]').setValue('Criteria Test');
+    // Leave numbers at 0
+    (api.createSmartPlaylist as Mock).mockResolvedValue({ id: 1 });
+    (api.getSmartPlaylists as Mock).mockResolvedValue([]);
+
+    const btn = wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Create Playlist');
+    await btn?.trigger('click');
+    await flushPromises();
+
+    // If all values are 0/undefined, they are stripped from JSON
+    expect(api.createSmartPlaylist).toHaveBeenCalledWith('Criteria Test', '{}');
+  });
+
+  it('handles API error during updates', async () => {
+    mockAppState.isSmartPlaylistModalVisible.value = false;
+    const playlistToEdit = { id: 1, name: 'Upd', criteria: '{}' };
+    const wrapper = mount(SmartPlaylistModal, { props: { playlistToEdit } });
+
+    mockAppState.isSmartPlaylistModalVisible.value = true;
+    await wrapper.vm.$nextTick();
+
+    (api.updateSmartPlaylist as Mock).mockRejectedValue(
+      new Error('Update Fail'),
+    );
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    // Find Save Changes button
+    const btn = wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Save Changes');
+    await btn?.trigger('click');
+    await flushPromises();
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Failed to save playlist:',
+      expect.any(Error),
+    );
+  });
+
+  it('close function sets modal visibility to false (Cancel button)', async () => {
+    mockAppState.isSmartPlaylistModalVisible.value = true;
+    const wrapper = mount(SmartPlaylistModal);
+    await wrapper.vm.$nextTick();
+
+    // Click Cancel button
+    const btn = wrapper.findAll('button').find((b) => b.text() === 'Cancel');
+    await btn?.trigger('click');
+
+    expect(mockAppState.isSmartPlaylistModalVisible.value).toBe(false);
+  });
+
+  it('close function sets modal visibility to false (Backdrop click)', async () => {
+    mockAppState.isSmartPlaylistModalVisible.value = true;
+    const wrapper = mount(SmartPlaylistModal);
+    await wrapper.vm.$nextTick();
+
+    // Click backdrop (root element)
+    await wrapper.find('.fixed').trigger('click');
+
+    expect(mockAppState.isSmartPlaylistModalVisible.value).toBe(false);
+  });
+
+  it('close function sets modal visibility to false (Close icon)', async () => {
+    mockAppState.isSmartPlaylistModalVisible.value = true;
+    const wrapper = mount(SmartPlaylistModal);
+    await wrapper.vm.$nextTick();
+
+    // Click Close icon - it's a button with &times;
+    // In happy-dom text might be × or &times;, let's find by class to be safe
+    const btn = wrapper
+      .findAll('button')
+      .find((b) => b.classes().includes('text-2xl'));
+    await btn?.trigger('click');
+
+    expect(mockAppState.isSmartPlaylistModalVisible.value).toBe(false);
+  });
+
+  it('watcher resets form when modal closes', async () => {
+    mockAppState.isSmartPlaylistModalVisible.value = true;
+    const wrapper = mount(SmartPlaylistModal);
+    await wrapper.vm.$nextTick();
+
+    // Set some values
+    await wrapper.find('input[type="text"]').setValue('Test Name');
+    (wrapper.vm as any).minRating = 5;
+
+    // Close modal
+    mockAppState.isSmartPlaylistModalVisible.value = false;
+    await wrapper.vm.$nextTick();
+
+    // Wait for setTimeout to execute
+    await new Promise((resolve) => setTimeout(resolve, 350));
+
+    expect((wrapper.vm as any).name).toBe('');
+    expect((wrapper.vm as any).minRating).toBe(0);
+  });
+
+  it('isEditing computed returns true when playlistToEdit exists', async () => {
+    const playlistToEdit = { id: 1, name: 'Edit', criteria: '{}' };
+    const wrapper = mount(SmartPlaylistModal, { props: { playlistToEdit } });
+    await wrapper.vm.$nextTick();
+
+    expect((wrapper.vm as any).isEditing).toBe(true);
+  });
+
+  it('isEditing computed returns false when playlistToEdit is null', async () => {
+    const wrapper = mount(SmartPlaylistModal, {
+      props: { playlistToEdit: null },
+    });
+    await wrapper.vm.$nextTick();
+
+    expect((wrapper.vm as any).isEditing).toBe(false);
+  });
+
+  it('watcher populates form with duration conversion', async () => {
+    mockAppState.isSmartPlaylistModalVisible.value = false;
+    const playlistToEdit = {
+      id: 1,
+      name: 'Duration Test',
+      criteria: JSON.stringify({ minDuration: 180 }), // 3 minutes in seconds
+    };
+    const wrapper = mount(SmartPlaylistModal, { props: { playlistToEdit } });
+
+    mockAppState.isSmartPlaylistModalVisible.value = true;
+    await wrapper.vm.$nextTick();
+
+    expect((wrapper.vm as any).minDurationMinutes).toBe(3);
+  });
+
+  it('successfully updates an existing playlist', async () => {
+    mockAppState.isSmartPlaylistModalVisible.value = true;
+    const playlistToEdit = { id: 123, name: 'Old Name', criteria: '{}' };
+
+    // Mock successful update
+    (api.updateSmartPlaylist as Mock).mockResolvedValue(undefined);
+    (api.getSmartPlaylists as Mock).mockResolvedValue([
+      { id: 123, name: 'New Name' },
+    ]);
+
+    const wrapper = mount(SmartPlaylistModal, { props: { playlistToEdit } });
+    await wrapper.vm.$nextTick();
+
+    // Change values
+    await wrapper.find('input[type="text"]').setValue('New Name');
+
+    // Trigger Save Changes
+    const btn = wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Save Changes');
+    await btn?.trigger('click');
+    await flushPromises();
+
+    expect(api.updateSmartPlaylist).toHaveBeenCalledWith(
+      123,
+      'New Name',
+      expect.any(String),
+    );
+    expect(api.getSmartPlaylists).toHaveBeenCalled();
+    expect(mockAppState.isSmartPlaylistModalVisible.value).toBe(false);
+  });
+  it('save passes all non-zero criteria correctly', async () => {
+    mockAppState.isSmartPlaylistModalVisible.value = true;
+    (api.createSmartPlaylist as Mock).mockResolvedValue({ id: 10 });
+    (api.getSmartPlaylists as Mock).mockResolvedValue([]);
+
+    const wrapper = mount(SmartPlaylistModal);
+    await wrapper.vm.$nextTick();
+
+    await wrapper.find('input[type="text"]').setValue('Full Criteria');
+
+    // Use setValue to trigger v-model.number handlers
+    await wrapper.find('input[type="range"]').setValue(4);
+
+    const numberInputs = wrapper.findAll('input[type="number"]');
+    // 0: minDuration, 1: minViews, 2: maxViews, 3: minDaysSinceView
+    await numberInputs[0].setValue(10);
+    await numberInputs[1].setValue(100);
+    await numberInputs[2].setValue(500);
+    await numberInputs[3].setValue(30);
+
+    const btn = wrapper
+      .findAll('button')
+      .find((b) => b.text() === 'Create Playlist');
+    await btn?.trigger('click');
+    await flushPromises();
+
+    const expectedCriteria = {
+      minRating: 4,
+      minDuration: 600, // 10 * 60
+      minViews: 100,
+      maxViews: 500,
+      minDaysSinceView: 30,
+    };
+
+    expect(api.createSmartPlaylist).toHaveBeenCalledWith(
+      'Full Criteria',
+      JSON.stringify(expectedCriteria),
+    );
+  });
+
+  it('watcher populates all fields correctly from existing playlist', async () => {
+    mockAppState.isSmartPlaylistModalVisible.value = false;
+    const criteria = {
+      minRating: 3,
+      minDuration: 120, // 2 mins
+      minViews: 50,
+      maxViews: 1000,
+      minDaysSinceView: 7,
+    };
+    const playlistToEdit = {
+      id: 5,
+      name: 'Detail Test',
+      criteria: JSON.stringify(criteria),
+    };
+
+    const wrapper = mount(SmartPlaylistModal, { props: { playlistToEdit } });
+
+    // Trigger open
+    mockAppState.isSmartPlaylistModalVisible.value = true;
+    await wrapper.vm.$nextTick();
+
+    expect((wrapper.vm as any).name).toBe('Detail Test');
+    expect((wrapper.vm as any).minRating).toBe(3);
+    expect((wrapper.vm as any).minDurationMinutes).toBe(2);
+    expect((wrapper.vm as any).minViews).toBe(50);
+    expect((wrapper.vm as any).maxViews).toBe(1000);
+    expect((wrapper.vm as any).minDaysSinceView).toBe(7);
+  });
+
+  it('opening modal in create mode does not populate form (implicit else)', async () => {
+    mockAppState.isSmartPlaylistModalVisible.value = false;
+    const wrapper = mount(SmartPlaylistModal); // No playlistToEdit
+
+    // Set some garbage first to ensure it doesn't stick if logic was wrong (though in Vue refs persist if not reset, but here we are mounting fresh)
+    // Actually, let's just assert that it stays empty/default when opened
+    mockAppState.isSmartPlaylistModalVisible.value = true;
+    await wrapper.vm.$nextTick();
+
+    expect((wrapper.vm as any).name).toBe('');
+    expect((wrapper.vm as any).minRating).toBe(0);
+  });
+});

@@ -14,6 +14,7 @@ vi.mock('@/api', () => ({
     getAlbumsWithViewCounts: vi.fn(),
     getMediaDirectories: vi.fn(),
     getSupportedExtensions: vi.fn(),
+    getSmartPlaylists: vi.fn(),
   },
 }));
 
@@ -51,6 +52,7 @@ describe('useAppState', () => {
       // Setup mock returns
       vi.mocked(api.getAlbumsWithViewCounts).mockResolvedValue(mockAlbums);
       vi.mocked(api.getMediaDirectories).mockResolvedValue(mockDirectories);
+      vi.mocked(api.getSmartPlaylists).mockResolvedValue([]);
       vi.mocked(api.getSupportedExtensions).mockResolvedValue(mockExtensions);
 
       await appState.initializeApp();

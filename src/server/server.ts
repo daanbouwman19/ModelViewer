@@ -18,6 +18,14 @@ import {
   setDirectoryActiveState,
   recordMediaView,
   getMediaViewCounts,
+  upsertMetadata,
+  getMetadata,
+  createSmartPlaylist,
+  getSmartPlaylists,
+  deleteSmartPlaylist,
+  updateSmartPlaylist,
+  setRating,
+  getAllMetadataAndStats,
 } from '../core/database';
 import {
   getAlbumsWithViewCounts,
@@ -142,6 +150,106 @@ export async function createApp() {
 
     const counts = await getMediaViewCounts(allowedPaths);
     res.json(counts);
+  });
+
+  // Smart Playlists
+  app.get('/api/smart-playlists', async (_req, res) => {
+    try {
+      const playlists = await getSmartPlaylists();
+      res.json(playlists);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'Failed to fetch smart playlists' });
+    }
+  });
+
+  app.post('/api/smart-playlists', async (req, res) => {
+    const { name, criteria } = req.body;
+    if (!name || !criteria)
+      return res.status(400).send('Missing name or criteria');
+    try {
+      const result = await createSmartPlaylist(name, criteria);
+      res.json(result);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'Failed to create smart playlist' });
+    }
+  });
+
+  app.put('/api/smart-playlists/:id', async (req, res) => {
+    const id = parseInt(req.params.id);
+    const { name, criteria } = req.body;
+    if (isNaN(id) || !name || !criteria)
+      return res.status(400).send('Invalid arguments');
+    try {
+      await updateSmartPlaylist(id, name, criteria);
+      res.sendStatus(200);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'Failed to update smart playlist' });
+    }
+  });
+
+  app.delete('/api/smart-playlists/:id', async (req, res) => {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) return res.status(400).send('Invalid id');
+    try {
+      await deleteSmartPlaylist(id);
+      res.sendStatus(200);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'Failed to delete smart playlist' });
+    }
+  });
+
+  // Media Operations
+  app.post('/api/media/rate', async (req, res) => {
+    const { filePath, rating } = req.body;
+    if (!filePath || typeof rating !== 'number')
+      return res.status(400).send('Missing filePath or rating');
+    try {
+      await setRating(filePath, rating);
+      res.sendStatus(200);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'Failed to set rating' });
+    }
+  });
+
+  app.get('/api/media/all', async (_req, res) => {
+    try {
+      const items = await getAllMetadataAndStats();
+      res.json(items);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'Failed to get all media' });
+    }
+  });
+
+  app.post('/api/media/metadata', async (req, res) => {
+    const { filePath, metadata } = req.body;
+    if (!filePath || !metadata)
+      return res.status(400).send('Missing arguments');
+    try {
+      await upsertMetadata(filePath, metadata);
+      res.sendStatus(200);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'Failed to upsert metadata' });
+    }
+  });
+
+  app.post('/api/media/metadata/batch', async (req, res) => {
+    const { filePaths } = req.body;
+    if (!Array.isArray(filePaths))
+      return res.status(400).send('Invalid filePaths');
+    try {
+      const result = await getMetadata(filePaths);
+      res.json(result);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'Failed to get metadata batch' });
+    }
   });
 
   // Directories

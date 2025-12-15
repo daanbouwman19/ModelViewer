@@ -1,5 +1,11 @@
 import { IMediaBackend, LoadResult } from './types';
-import type { Album, MediaDirectory } from '../../core/types';
+import type {
+  Album,
+  MediaDirectory,
+  SmartPlaylist,
+  MediaMetadata,
+  MediaLibraryItem,
+} from '../../core/types';
 import type { FileSystemEntry } from '../../core/file-system';
 
 const API_BASE = '/api';
@@ -71,7 +77,7 @@ export class WebAdapter implements IMediaBackend {
     await fetch(`${API_BASE}/directories`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ directoryPath }),
+      body: JSON.stringify({ path: directoryPath }),
     });
   }
 
@@ -153,5 +159,83 @@ export class WebAdapter implements IMediaBackend {
     if (!res.ok) return null;
     const data = await res.json();
     return data.parent;
+  }
+
+  async upsertMetadata(
+    filePath: string,
+    metadata: MediaMetadata,
+  ): Promise<void> {
+    await fetch(`${API_BASE}/media/metadata`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filePath, metadata }),
+    });
+  }
+
+  async getMetadata(
+    filePaths: string[],
+  ): Promise<{ [path: string]: MediaMetadata }> {
+    const res = await fetch(`${API_BASE}/media/metadata/batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filePaths }),
+    });
+    if (!res.ok) return {};
+    return res.json();
+  }
+
+  async setRating(filePath: string, rating: number): Promise<void> {
+    await fetch(`${API_BASE}/media/rate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filePath, rating }),
+    });
+  }
+
+  async createSmartPlaylist(
+    name: string,
+    criteria: string,
+  ): Promise<{ id: number }> {
+    const res = await fetch(`${API_BASE}/smart-playlists`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, criteria }),
+    });
+    return res.json();
+  }
+
+  async getSmartPlaylists(): Promise<SmartPlaylist[]> {
+    const res = await fetch(`${API_BASE}/smart-playlists`);
+    if (!res.ok) return [];
+    return res.json();
+  }
+
+  async deleteSmartPlaylist(id: number): Promise<void> {
+    await fetch(`${API_BASE}/smart-playlists/${id}`, { method: 'DELETE' });
+  }
+
+  async updateSmartPlaylist(
+    id: number,
+    name: string,
+    criteria: string,
+  ): Promise<void> {
+    await fetch(`${API_BASE}/smart-playlists/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, criteria }),
+    });
+  }
+
+  async getAllMetadataAndStats(): Promise<MediaLibraryItem[]> {
+    const res = await fetch(`${API_BASE}/media/all`);
+    if (!res.ok) return [];
+    return res.json();
+  }
+
+  async extractMetadata(_filePaths: string[]): Promise<void> {
+    // Trigger extraction on server? Not strictly needed for user flow right now but good to have.
+    // For now, let's keep it empty as extraction is usually automatic.
+    // Or implement a route if needed.
+    console.warn('extractMetadata not implemented for WebAdapter', _filePaths);
   }
 }

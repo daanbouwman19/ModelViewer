@@ -58,6 +58,13 @@
               VIDEO
             </div>
           </template>
+          <!-- Rating Overlay -->
+          <div
+            v-if="item.rating"
+            class="absolute top-2 left-2 bg-black/60 text-yellow-400 text-xs px-1.5 py-0.5 rounded flex items-center pointer-events-none gap-1"
+          >
+            <span>★</span> {{ item.rating }}
+          </div>
           <div
             class="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
           >

@@ -40,6 +40,10 @@
     </main>
 
     <SourcesModal />
+    <SmartPlaylistModal
+      :playlist-to-edit="playlistToEdit"
+      @close="playlistToEdit = null"
+    />
     <LoadingMask v-if="isScanning" />
   </div>
 </template>
@@ -56,11 +60,12 @@ import AlbumsList from './components/AlbumsList.vue';
 import MediaDisplay from './components/MediaDisplay.vue';
 import MediaGrid from './components/MediaGrid.vue';
 import SourcesModal from './components/SourcesModal.vue';
+import SmartPlaylistModal from './components/SmartPlaylistModal.vue';
 import LoadingMask from './components/LoadingMask.vue';
 import { useAppState } from './composables/useAppState';
 import { useSlideshow } from './composables/useSlideshow';
 
-const { initializeApp, isScanning, viewMode } = useAppState();
+const { initializeApp, isScanning, viewMode, playlistToEdit } = useAppState();
 const { navigateMedia, toggleSlideshowTimer } = useSlideshow();
 
 const showSidebar = ref(true);

@@ -1,4 +1,10 @@
-import type { Album, MediaDirectory } from '../../core/types';
+import type {
+  Album,
+  MediaDirectory,
+  SmartPlaylist,
+  MediaMetadata,
+  MediaLibraryItem,
+} from '../../core/types';
 import type { FileSystemEntry } from '../../core/file-system';
 
 export interface LoadResult {
@@ -37,5 +43,22 @@ export interface IMediaBackend {
   openInVlc(filePath: string): Promise<{ success: boolean; message?: string }>;
 
   listDirectory(path: string): Promise<FileSystemEntry[]>;
+
   getParentDirectory(path: string): Promise<string | null>;
+
+  // Smart Playlists & Metadata
+  upsertMetadata(filePath: string, metadata: MediaMetadata): Promise<void>;
+  getMetadata(filePaths: string[]): Promise<{ [path: string]: MediaMetadata }>;
+  setRating(filePath: string, rating: number): Promise<void>;
+  createSmartPlaylist(name: string, criteria: string): Promise<{ id: number }>;
+  getSmartPlaylists(): Promise<SmartPlaylist[]>;
+  deleteSmartPlaylist(id: number): Promise<void>;
+  updateSmartPlaylist(
+    id: number,
+    name: string,
+    criteria: string,
+  ): Promise<void>;
+
+  getAllMetadataAndStats(): Promise<MediaLibraryItem[]>;
+  extractMetadata(filePaths: string[]): Promise<void>;
 }

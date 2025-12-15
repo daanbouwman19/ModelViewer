@@ -20,6 +20,16 @@ describe('ElectronAdapter', () => {
 
     listDirectory: vi.fn(),
     getParentDirectory: vi.fn(),
+
+    // New methods
+    setRating: vi.fn(),
+    createSmartPlaylist: vi.fn(),
+    getSmartPlaylists: vi.fn(),
+    updateSmartPlaylist: vi.fn(),
+    deleteSmartPlaylist: vi.fn(),
+    upsertMetadata: vi.fn(),
+    getMetadata: vi.fn(),
+    getAllMetadataAndStats: vi.fn(),
   };
 
   beforeEach(() => {
@@ -200,6 +210,13 @@ describe('ElectronAdapter', () => {
     );
   });
 
+  it('getVideoMetadata should throw error if duration is undefined', async () => {
+    mockElectronAPI.getVideoMetadata.mockResolvedValue({}); // No duration, no error msg
+    await expect(adapter.getVideoMetadata('file.mp4')).rejects.toThrow(
+      'Failed to get video metadata',
+    );
+  });
+
   it('openInVlc should call electronAPI.openInVlc', async () => {
     const mockResponse = { success: true };
     mockElectronAPI.openInVlc.mockResolvedValue(mockResponse);
@@ -229,5 +246,64 @@ describe('ElectronAdapter', () => {
       '/parent/child',
     );
     expect(result).toBe('/parent');
+  });
+
+  describe('Smart Playlists & Metadata', () => {
+    it('setRating calls api', async () => {
+      await adapter.setRating('file.jpg', 5);
+      expect(mockElectronAPI.setRating).toHaveBeenCalledWith('file.jpg', 5);
+    });
+
+    it('createSmartPlaylist calls api', async () => {
+      mockElectronAPI.createSmartPlaylist.mockResolvedValue({ id: 1 });
+      const res = await adapter.createSmartPlaylist('List', '{}');
+      expect(mockElectronAPI.createSmartPlaylist).toHaveBeenCalledWith(
+        'List',
+        '{}',
+      );
+      expect(res).toEqual({ id: 1 });
+    });
+
+    it('getSmartPlaylists calls api', async () => {
+      mockElectronAPI.getSmartPlaylists.mockResolvedValue([]);
+      const res = await adapter.getSmartPlaylists();
+      expect(mockElectronAPI.getSmartPlaylists).toHaveBeenCalled();
+      expect(res).toEqual([]);
+    });
+
+    it('updateSmartPlaylist calls api', async () => {
+      await adapter.updateSmartPlaylist(1, 'Name', '{}');
+      expect(mockElectronAPI.updateSmartPlaylist).toHaveBeenCalledWith(
+        1,
+        'Name',
+        '{}',
+      );
+    });
+
+    it('deleteSmartPlaylist calls api', async () => {
+      await adapter.deleteSmartPlaylist(1);
+      expect(mockElectronAPI.deleteSmartPlaylist).toHaveBeenCalledWith(1);
+    });
+
+    it('upsertMetadata calls api', async () => {
+      await adapter.upsertMetadata('file.mp4', { duration: 10 });
+      expect(mockElectronAPI.upsertMetadata).toHaveBeenCalledWith('file.mp4', {
+        duration: 10,
+      });
+    });
+
+    it('getMetadata calls api', async () => {
+      mockElectronAPI.getMetadata.mockResolvedValue({});
+      const res = await adapter.getMetadata(['file.mp4']);
+      expect(mockElectronAPI.getMetadata).toHaveBeenCalledWith(['file.mp4']);
+      expect(res).toEqual({});
+    });
+
+    it('getAllMetadataAndStats calls api', async () => {
+      mockElectronAPI.getAllMetadataAndStats.mockResolvedValue([]);
+      const res = await adapter.getAllMetadataAndStats();
+      expect(mockElectronAPI.getAllMetadataAndStats).toHaveBeenCalled();
+      expect(res).toEqual([]);
+    });
   });
 });

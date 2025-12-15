@@ -8,9 +8,12 @@ import {
   cacheAlbums,
   getCachedAlbums,
   getMediaViewCounts,
+  upsertMetadata,
 } from './database';
 import { performFullMediaScan } from './media-scanner';
-import type { Album } from './types';
+import { getVideoDuration } from './media-handler';
+import type { Album, MediaMetadata } from './types';
+import fs from 'fs';
 
 /**
  * Scans active media directories for albums, caches the result in the database,
@@ -93,4 +96,38 @@ export async function getAlbumsWithViewCounts(): Promise<Album[]> {
       viewCount: viewCountsMap[texture.path] || 0,
     })),
   }));
+}
+/**
+ * Extracts metadata for a list of files and saves it to the database.
+ * This is intended to be run in the background.
+ */
+export async function extractAndSaveMetadata(
+  filePaths: string[],
+  ffmpegPath: string,
+): Promise<void> {
+  // Process sequentially to verify stability, or use a concurrency limit
+  // For now simple loop
+  for (const filePath of filePaths) {
+    try {
+      const stats = fs.statSync(filePath);
+      const metadata: MediaMetadata = {
+        size: stats.size,
+        createdAt: stats.birthtime.toISOString(),
+      };
+
+      // Only get duration for video/audio
+      // We can check extension or try ffmpeg
+      const result = await getVideoDuration(filePath, ffmpegPath);
+      if ('duration' in result) {
+        metadata.duration = result.duration;
+      }
+
+      await upsertMetadata(filePath, metadata);
+    } catch (error) {
+      console.warn(
+        `[media-service] Error extracting metadata for ${filePath}:`,
+        error,
+      );
+    }
+  }
 }

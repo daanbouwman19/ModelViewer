@@ -6,7 +6,12 @@
  * process isolation and security in the Electron application.
  */
 import { contextBridge, ipcRenderer } from 'electron';
-import type { Album } from '../core/types';
+import type {
+  Album,
+  SmartPlaylist,
+  MediaMetadata,
+  MediaLibraryItem,
+} from '../core/types';
 
 import type { FileSystemEntry } from '../core/file-system';
 
@@ -45,6 +50,27 @@ export interface ElectronAPI {
   ) => Promise<{ duration?: number; error?: string }>;
   listDirectory: (directoryPath: string) => Promise<FileSystemEntry[]>;
   getParentDirectory: (path: string) => Promise<string | null>;
+
+  // Smart Playlists & Metadata
+  upsertMetadata: (filePath: string, metadata: MediaMetadata) => Promise<void>;
+  getMetadata: (
+    filePaths: string[],
+  ) => Promise<{ [path: string]: MediaMetadata }>;
+  setRating: (filePath: string, rating: number) => Promise<void>;
+  createSmartPlaylist: (
+    name: string,
+    criteria: string,
+  ) => Promise<{ id: number }>;
+  getSmartPlaylists: () => Promise<SmartPlaylist[]>;
+  deleteSmartPlaylist: (id: number) => Promise<void>;
+  updateSmartPlaylist: (
+    id: number,
+    name: string,
+    criteria: string,
+  ) => Promise<void>;
+
+  getAllMetadataAndStats: () => Promise<MediaLibraryItem[]>;
+  extractMetadata: (filePaths: string[]) => Promise<void>;
 }
 
 // Expose a controlled API to the renderer process via `window.electronAPI`.
@@ -161,6 +187,32 @@ const api: ElectronAPI = {
    */
   getParentDirectory: (path: string) =>
     ipcRenderer.invoke('get-parent-directory', path),
+
+  upsertMetadata: (filePath: string, metadata: MediaMetadata) =>
+    ipcRenderer.invoke('db:upsert-metadata', { filePath, metadata }),
+
+  getMetadata: (filePaths: string[]) =>
+    ipcRenderer.invoke('db:get-metadata', filePaths),
+
+  setRating: (filePath: string, rating: number) =>
+    ipcRenderer.invoke('db:set-rating', { filePath, rating }),
+
+  createSmartPlaylist: (name: string, criteria: string) =>
+    ipcRenderer.invoke('db:create-smart-playlist', { name, criteria }),
+
+  getSmartPlaylists: () => ipcRenderer.invoke('db:get-smart-playlists'),
+
+  deleteSmartPlaylist: (id: number) =>
+    ipcRenderer.invoke('db:delete-smart-playlist', id),
+
+  updateSmartPlaylist: (id: number, name: string, criteria: string) =>
+    ipcRenderer.invoke('db:update-smart-playlist', { id, name, criteria }),
+
+  getAllMetadataAndStats: () =>
+    ipcRenderer.invoke('db:get-all-metadata-and-stats'),
+
+  extractMetadata: (filePaths: string[]) =>
+    ipcRenderer.invoke('media:extract-metadata', filePaths),
 };
 
 contextBridge.exposeInMainWorld('electronAPI', api);

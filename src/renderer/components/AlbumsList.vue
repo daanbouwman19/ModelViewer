@@ -25,6 +25,9 @@
       </div>
 
       <button class="action-button" @click="openModal">Manage Sources</button>
+      <button class="action-button" @click="openSmartPlaylistModal">
+        + Playlist
+      </button>
     </div>
     <div
       v-if="isTimerRunning"
@@ -47,6 +50,48 @@
         @album-click="handleClickAlbum"
       />
     </ul>
+
+    <!-- Smart Playlists Section -->
+    <h2 class="albums-list-header mt-4">Smart Playlists</h2>
+    <ul class="space-y-1 grow pr-2 albums-list">
+      <li v-for="playlist in smartPlaylists" :key="playlist.id">
+        <div
+          class="group flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-800 transition-colors"
+        >
+          <button
+            class="grow text-left text-gray-300 hover:text-white flex items-center gap-2"
+            @click="handleSmartPlaylistClick(playlist)"
+          >
+            <span class="text-pink-500">★</span>
+            {{ playlist.name }}
+          </button>
+          <div
+            class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <button
+              class="text-xs text-blue-400 hover:text-blue-300"
+              title="Edit"
+              @click.stop="editPlaylist(playlist)"
+            >
+              ✎
+            </button>
+            <button
+              class="text-xs text-gray-500 hover:text-red-400"
+              title="Delete"
+              @click.stop="deletePlaylist(playlist.id)"
+            >
+              x
+            </button>
+          </div>
+        </div>
+      </li>
+      <li
+        v-if="smartPlaylists.length === 0"
+        class="text-gray-500 italic text-sm px-2"
+      >
+        No smart playlists
+      </li>
+    </ul>
   </div>
 </template>
 
@@ -60,11 +105,12 @@
 import { useAppState } from '../composables/useAppState';
 import { useSlideshow } from '../composables/useSlideshow';
 import AlbumTree from './AlbumTree.vue';
+import { api } from '../api';
 import {
   getAlbumAndChildrenNames,
   collectTexturesRecursive,
 } from '../utils/albumUtils';
-import type { Album } from '../../core/types';
+import type { Album, SmartPlaylist } from '../../core/types';
 
 const {
   allAlbums,
@@ -72,7 +118,12 @@ const {
   timerDuration,
   isTimerRunning,
   isSourcesModalVisible,
+  isSmartPlaylistModalVisible,
   timerProgress,
+  smartPlaylists,
+  gridMediaFiles,
+  viewMode,
+  playlistToEdit,
 } = useAppState();
 
 const slideshow = useSlideshow();
@@ -124,6 +175,83 @@ const handleToggleTimer = () => {
  */
 const openModal = () => {
   isSourcesModalVisible.value = true;
+};
+
+const openSmartPlaylistModal = () => {
+  isSmartPlaylistModalVisible.value = true;
+};
+
+const handleSmartPlaylistClick = async (playlist: SmartPlaylist) => {
+  try {
+    // Current backend returns all items with metadata
+    // In a real app we would pass ID or criteria to backend to filter
+    // For now, let's just use the getAllMetadataAndStats (which uses the join)
+    // AND apply the criteria in frontend or assume backend returns filtered if we passed it?
+    // Wait, getAllMetadataAndStats returns EVERYTHING.
+    // I need to filter it based on playlist.criteria JSON.
+
+    // Actually, createSmartPlaylist saves criteria string.
+    // Let's implement client-side filtering for now as per plan
+    const allItems = await api.getAllMetadataAndStats();
+    const criteria = JSON.parse(playlist.criteria);
+
+    const filtered = allItems.filter((item) => {
+      let match = true;
+      if (criteria.minRating && (item.rating || 0) < criteria.minRating)
+        match = false;
+      if (criteria.minDuration && (item.duration || 0) < criteria.minDuration)
+        match = false;
+
+      const views = item.view_count || 0;
+      if (criteria.minViews !== undefined && views < criteria.minViews)
+        match = false;
+      if (criteria.maxViews !== undefined && views > criteria.maxViews)
+        match = false;
+
+      if (criteria.minDaysSinceView) {
+        if (!item.last_viewed) {
+          // Never viewed is technically "not viewed in X days"
+          // So we keep match = true
+        } else {
+          const lastViewDate = new Date(item.last_viewed).getTime();
+          const diffMs = Date.now() - lastViewDate;
+          const diffDays = diffMs / (1000 * 60 * 60 * 24);
+          if (diffDays < criteria.minDaysSinceView) match = false;
+        }
+      }
+
+      return match;
+    });
+
+    const mediaFiles = filtered
+      .filter((item) => item.file_path)
+      .map((item) => ({
+        name: item.file_path.split(/[/\\]/).pop() || '',
+        path: item.file_path,
+        viewCount: item.view_count || 0,
+        rating: item.rating || 0,
+      }));
+
+    gridMediaFiles.value = mediaFiles;
+    viewMode.value = 'grid'; // Switch to grid view
+  } catch (error) {
+    console.error('Error loading smart playlist', error);
+  }
+};
+
+const deletePlaylist = async (id: number) => {
+  if (!confirm('Delete this playlist?')) return;
+  try {
+    await api.deleteSmartPlaylist(id);
+    smartPlaylists.value = await api.getSmartPlaylists();
+  } catch (e) {
+    console.error('Failed to delete playlist', e);
+  }
+};
+
+const editPlaylist = (playlist: SmartPlaylist) => {
+  playlistToEdit.value = playlist;
+  isSmartPlaylistModalVisible.value = true;
 };
 </script>
 

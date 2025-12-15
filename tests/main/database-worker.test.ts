@@ -144,6 +144,19 @@ describe('Database Worker', () => {
       const result = await sendMessage('recordMediaView', { filePath });
       expect(result.success).toBe(true);
     });
+
+    it('should handle non-existent files (fallback ID generation)', async () => {
+      const filePath = path.join(tempDir, 'non-existent.png');
+      // Do NOT create the file.
+      // this should trigger the catch block in generateFileId
+      const result = await sendMessage('recordMediaView', { filePath });
+      expect(result.success).toBe(true);
+
+      const counts = await sendMessage('getMediaViewCounts', {
+        filePaths: [filePath],
+      });
+      expect((counts.data as any)[filePath]).toBe(1);
+    });
   });
 
   describe('Album Caching', () => {
@@ -269,6 +282,132 @@ describe('Database Worker', () => {
       expect(result2.data).toEqual([
         { path: '/test/directory', isActive: false },
       ]);
+    });
+  });
+
+  describe('Smart Playlists & Metadata', () => {
+    beforeEach(async () => {
+      await sendMessage('init', { dbPath });
+    });
+
+    it('should create and retrieve smart playlists', async () => {
+      const result = await sendMessage('createSmartPlaylist', {
+        name: 'My List',
+        criteria: '{}',
+      });
+      expect(result.success).toBe(true);
+      expect((result.data as any).id).toBeDefined();
+
+      const listResult = await sendMessage('getSmartPlaylists', {});
+      expect(listResult.success).toBe(true);
+      expect(listResult.data).toHaveLength(1);
+      expect((listResult.data as any)[0].name).toBe('My List');
+    });
+
+    it('should update and delete smart playlists', async () => {
+      const createRes = await sendMessage('createSmartPlaylist', {
+        name: 'Temp',
+        criteria: '{}',
+      });
+      const id = (createRes.data as any).id;
+
+      await sendMessage('updateSmartPlaylist', {
+        id,
+        name: 'Updated',
+        criteria: '{"a":1}',
+      });
+      const listRes = await sendMessage('getSmartPlaylists', {});
+      expect((listRes.data as any)[0].name).toBe('Updated');
+
+      await sendMessage('deleteSmartPlaylist', { id });
+      const emptyRes = await sendMessage('getSmartPlaylists', {});
+      expect(emptyRes.data).toHaveLength(0);
+    });
+
+    it('should handle metadata and ratings', async () => {
+      const filePath = path.join(tempDir, 'meta.mp4');
+      fs.writeFileSync(filePath, 'dummy data');
+
+      // Upsert
+      const upsertRes = await sendMessage('upsertMetadata', {
+        filePath,
+        duration: 120,
+      });
+      expect(upsertRes.success).toBe(true);
+
+      // Rate
+      await sendMessage('setRating', { filePath, rating: 5 });
+
+      // Get Metadata
+      const getRes = await sendMessage('getMetadata', {
+        filePaths: [filePath],
+      });
+      const meta = (getRes.data as any)[filePath];
+      expect(meta.duration).toBe(120);
+      expect(meta.rating).toBe(5);
+    });
+
+    it('should handle partial updates (COALESCE logic)', async () => {
+      const filePath = path.join(tempDir, 'partial.mp4');
+      fs.writeFileSync(filePath, 'dummy');
+
+      // Initial insert
+      await sendMessage('upsertMetadata', {
+        filePath,
+        duration: 100,
+        size: 500,
+        rating: 0,
+      });
+
+      // Partial update 1: change duration only
+      await sendMessage('upsertMetadata', { filePath, duration: 200 });
+      let res = await sendMessage('getMetadata', { filePaths: [filePath] });
+      let meta = (res.data as any)[filePath];
+      expect(meta.duration).toBe(200);
+      expect(meta.size).toBe(500); // Should remain
+      expect(meta.rating).toBe(0);
+
+      // Partial update 2: change rating only
+      await sendMessage('upsertMetadata', { filePath, rating: 4 });
+      res = await sendMessage('getMetadata', { filePaths: [filePath] });
+      meta = (res.data as any)[filePath];
+      expect(meta.rating).toBe(4);
+      expect(meta.duration).toBe(200); // Should remain
+    });
+
+    it('should fail gracefully when upsertMetadata receives invalid payload', async () => {
+      // payload missing filePath
+      const result = await sendMessage('upsertMetadata', { duration: 120 });
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
+    });
+
+    it('should handle setRating message', async () => {
+      const filePath = path.join(tempDir, 'rated.mp4');
+      fs.writeFileSync(filePath, 'dummy');
+
+      const result = await sendMessage('setRating', { filePath, rating: 4 });
+      expect(result.success).toBe(true);
+    });
+
+    it('should handle getMetadata message', async () => {
+      const filePath = path.join(tempDir, 'meta.mp4');
+      fs.writeFileSync(filePath, 'dummy');
+      await sendMessage('upsertMetadata', { filePath, duration: 100 });
+
+      const result = await sendMessage('getMetadata', {
+        filePaths: [filePath],
+      });
+      expect(result.success).toBe(true);
+      expect(result.data).toBeDefined();
+    });
+
+    it('should handle executeSmartPlaylist message', async () => {
+      const result = await sendMessage('executeSmartPlaylist', {
+        criteria: '{}',
+      });
+      expect(result.success).toBe(true);
+      expect(Array.isArray(result.data)).toBe(true);
     });
   });
 

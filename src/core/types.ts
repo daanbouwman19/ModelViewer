@@ -6,6 +6,8 @@ export interface MediaFile {
   name: string;
   path: string;
   viewCount?: number;
+  rating?: number;
+  lastViewed?: number;
 }
 
 export interface Album {
@@ -17,4 +19,29 @@ export interface Album {
 export interface MediaDirectory {
   path: string;
   isActive: boolean;
+}
+
+export interface SmartPlaylist {
+  id: number;
+  name: string;
+  criteria: string; // JSON string
+  createdAt: string;
+}
+
+export interface MediaMetadata {
+  duration?: number;
+  size?: number;
+  rating?: number;
+  createdAt?: string; // ISO date
+}
+
+export interface MediaLibraryItem {
+  file_path: string;
+  file_path_hash: string;
+  duration: number | null;
+  size: number | null;
+  rating: number | null;
+  created_at: string | null;
+  view_count: number | null;
+  last_viewed: number | null;
 }

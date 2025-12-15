@@ -46,6 +46,9 @@ describe('Progress Bars', () => {
       isTimerRunning,
       isSourcesModalVisible: ref(false),
       timerProgress: ref(50),
+      smartPlaylists: ref([]),
+      gridMediaFiles: ref([]),
+      viewMode: ref('player'),
     });
 
     const wrapper = mount(AlbumsList);
