@@ -200,7 +200,7 @@
  * It handles loading the media from the main process, displaying loading/error states,
  * and providing navigation controls to move between media items.
  */
-import { ref, computed, watch, onMounted } from 'vue'; // Added onMounted
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue';
 import { useAppState } from '../composables/useAppState';
 import { useSlideshow } from '../composables/useSlideshow';
 import { api } from '../api';
@@ -269,12 +269,71 @@ const videoStreamUrlGenerator = ref<
   ((filePath: string, startTime?: number) => string) | null
 >(null);
 
+/**
+ * Seeks the video by a specified number of seconds.
+ * Handles both native playback and transcoding mode.
+ * @param seconds - The number of seconds to seek (positive or negative).
+ */
+const seekVideo = (seconds: number) => {
+  if (!currentMediaItem.value) return;
+
+  if (isTranscodingMode.value) {
+    if (transcodedDuration.value > 0) {
+      const newTime = currentVideoTime.value + seconds;
+      const seekTime = Math.max(0, Math.min(newTime, transcodedDuration.value));
+      tryTranscoding(seekTime);
+    }
+  } else if (videoElement.value && videoElement.value.duration) {
+    const newTime = videoElement.value.currentTime + seconds;
+    videoElement.value.currentTime = Math.max(
+      0,
+      Math.min(newTime, videoElement.value.duration),
+    );
+  }
+};
+
+/**
+ * Global keydown handler for media interactions like seeking.
+ * @param event - The keyboard event.
+ */
+const handleGlobalKeydown = (event: KeyboardEvent) => {
+  // Ignore input/textarea
+  if (
+    (event.target as HTMLElement).tagName === 'INPUT' ||
+    (event.target as HTMLElement).tagName === 'TEXTAREA'
+  ) {
+    return;
+  }
+
+  // If Ctrl is pressed, do nothing (App.vue handles navigation)
+  if (event.ctrlKey || event.metaKey) return;
+
+  const step = 5; // 5 seconds
+
+  if (event.key === 'ArrowLeft') {
+    if (currentMediaItem.value && !isImage.value) {
+      event.preventDefault();
+      seekVideo(-step);
+    }
+  } else if (event.key === 'ArrowRight') {
+    if (currentMediaItem.value && !isImage.value) {
+      event.preventDefault();
+      seekVideo(step);
+    }
+  }
+};
+
 onMounted(async () => {
   try {
     videoStreamUrlGenerator.value = await api.getVideoStreamUrlGenerator();
   } catch (error) {
     console.error('Failed to initialize video stream generator', error);
   }
+  document.addEventListener('keydown', handleGlobalKeydown);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('keydown', handleGlobalKeydown);
 });
 
 /* Removed local ambient lighting logic */
@@ -537,23 +596,7 @@ const handleProgressBarKeydown = (event: KeyboardEvent) => {
   if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
     event.preventDefault();
     const direction = event.key === 'ArrowRight' ? 1 : -1;
-
-    if (isTranscodingMode.value) {
-      if (transcodedDuration.value > 0) {
-        const newTime = currentVideoTime.value + step * direction;
-        const seekTime = Math.max(
-          0,
-          Math.min(newTime, transcodedDuration.value),
-        );
-        tryTranscoding(seekTime);
-      }
-    } else if (videoElement.value && videoElement.value.duration) {
-      const newTime = videoElement.value.currentTime + step * direction;
-      videoElement.value.currentTime = Math.max(
-        0,
-        Math.min(newTime, videoElement.value.duration),
-      );
-    }
+    seekVideo(step * direction);
   }
 };
 
