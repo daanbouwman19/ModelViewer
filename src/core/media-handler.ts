@@ -510,6 +510,8 @@ export async function serveThumbnail(
     '1',
     '-q:v',
     '5',
+    '-update',
+    '1',
     cacheFile,
   ];
 

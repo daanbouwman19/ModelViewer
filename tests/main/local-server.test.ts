@@ -378,9 +378,7 @@ describe('Local Server', () => {
 
       // Cleanup directory (file cleanup handled by afterEach)
       if (fs.existsSync(outsideDir)) {
-        const files = fs.readdirSync(outsideDir);
-        files.forEach((file) => fs.unlinkSync(path.join(outsideDir, file)));
-        fs.rmdirSync(outsideDir);
+        fs.rmSync(outsideDir, { recursive: true, force: true });
       }
     });
 
