@@ -22,7 +22,6 @@ import { spawn } from 'child_process';
 import ffmpegPath from 'ffmpeg-static';
 
 import {
-  MAX_DATA_URL_SIZE_MB,
   DATA_URL_THRESHOLD_MB,
   SUPPORTED_VIDEO_EXTENSIONS,
   SUPPORTED_IMAGE_EXTENSIONS,
