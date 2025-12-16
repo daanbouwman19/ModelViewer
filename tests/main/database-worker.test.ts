@@ -19,7 +19,10 @@ interface WorkerMessage {
 }
 
 interface Directory {
+  id: string;
   path: string;
+  type: string;
+  name: string;
   isActive: boolean;
 }
 
@@ -228,9 +231,13 @@ describe('Database Worker', () => {
       });
       const result = await sendMessage('getMediaDirectories', {});
       expect(result.success).toBe(true);
-      expect(result.data).toEqual([
-        { path: '/test/directory', isActive: true },
-      ]);
+      // New structure validation
+      const dirs = result.data as Directory[];
+      expect(dirs).toHaveLength(1);
+      expect(dirs[0].path).toBe('/test/directory');
+      expect(dirs[0].isActive).toBe(true);
+      expect(dirs[0].type).toBe('local'); // Default
+      expect(dirs[0].id).toBeDefined();
     });
 
     it('should not duplicate directories', async () => {
@@ -270,18 +277,19 @@ describe('Database Worker', () => {
     });
 
     it('should set directory active state', async () => {
+      const dirPath = '/test/directory';
       await sendMessage('addMediaDirectory', {
-        directoryPath: '/test/directory',
+        directoryPath: dirPath,
       });
       const result = await sendMessage('setDirectoryActiveState', {
-        directoryPath: '/test/directory',
+        directoryPath: dirPath,
         isActive: false,
       });
       expect(result.success).toBe(true);
       const result2 = await sendMessage('getMediaDirectories', {});
-      expect(result2.data).toEqual([
-        { path: '/test/directory', isActive: false },
-      ]);
+      const dir = (result2.data as Directory[]).find(d => d.path === dirPath);
+      expect(dir).toBeDefined();
+      expect(dir!.isActive).toBe(false);
     });
   });
 

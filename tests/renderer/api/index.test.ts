@@ -3,13 +3,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 describe('API Index', () => {
   beforeEach(() => {
     vi.resetModules();
+    delete (window as any).electronAPI;
   });
 
   it('should return ElectronAdapter when window.electronAPI is defined', async () => {
-    global.window.electronAPI = {} as any;
+    (window as any).electronAPI = {};
 
     // Dynamic import to trigger evaluation of createBackend()
-    // Also re-import ElectronAdapter to match the new module registry context
     const { api } = await import('../../../src/renderer/api/index');
     const { ElectronAdapter } =
       await import('../../../src/renderer/api/ElectronAdapter');
@@ -18,7 +18,7 @@ describe('API Index', () => {
   });
 
   it('should return WebAdapter when window.electronAPI is undefined', async () => {
-    global.window.electronAPI = undefined as any;
+    delete (window as any).electronAPI;
 
     vi.resetModules();
     const { api } = await import('../../../src/renderer/api/index');

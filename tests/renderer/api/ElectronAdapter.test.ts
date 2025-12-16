@@ -30,6 +30,10 @@ describe('ElectronAdapter', () => {
     upsertMetadata: vi.fn(),
     getMetadata: vi.fn(),
     getAllMetadataAndStats: vi.fn(),
+    extractMetadata: vi.fn(),
+    startGoogleDriveAuth: vi.fn(),
+    submitGoogleDriveAuthCode: vi.fn(),
+    addGoogleDriveSource: vi.fn(),
   };
 
   beforeEach(() => {
@@ -101,11 +105,13 @@ describe('ElectronAdapter', () => {
     expect(result).toBe(null);
   });
 
-  it('addMediaDirectory should return null to trigger custom file explorer', async () => {
+  it('addMediaDirectory should return null to trigger custom file explorer if API returns null', async () => {
+    // Expect it to call, but return null
+    mockElectronAPI.addMediaDirectory.mockResolvedValue(null);
     const result = await adapter.addMediaDirectory();
 
     expect(result).toBe(null);
-    expect(mockElectronAPI.addMediaDirectory).not.toHaveBeenCalled();
+    expect(mockElectronAPI.addMediaDirectory).toHaveBeenCalled();
   });
 
   it('setDirectoryActiveState should call electronAPI.setDirectoryActiveState', async () => {

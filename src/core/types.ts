@@ -16,8 +16,13 @@ export interface Album {
   children: Album[];
 }
 
+export type DirectoryType = 'local' | 'google_drive';
+
 export interface MediaDirectory {
+  id: string;
   path: string;
+  type: DirectoryType;
+  name: string;
   isActive: boolean;
 }
 

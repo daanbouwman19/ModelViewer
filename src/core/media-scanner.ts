@@ -10,6 +10,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { ALL_SUPPORTED_EXTENSIONS } from './constants';
 import type { Album, MediaFile } from './types';
+import { listDriveFiles } from '../main/google-drive-service';
 
 /**
  * Asynchronously and recursively scans a directory to build a hierarchical album structure.
@@ -61,6 +62,25 @@ async function scanDirectoryRecursive(
 }
 
 /**
+ * Scans a Google Drive folder.
+ * @param folderId - The Google Drive folder ID.
+ */
+async function scanGoogleDrive(folderId: string): Promise<Album | null> {
+  try {
+    // Our service already does recursive or flat listing and returns an Album
+    const album = await listDriveFiles(folderId);
+    // If it's empty, we might want to return null, but for now let's return it
+    if (album.textures.length > 0 || album.children.length > 0) {
+      return album;
+    }
+    return null;
+  } catch (err) {
+    console.error(`[media-scanner.js] Error scanning Google Drive folder ${folderId}:`, err);
+    return null;
+  }
+}
+
+/**
  * Performs a full scan for each base directory and returns a distinct album structure for each.
  * It no longer merges albums with the same root name from different sources.
  * @param baseMediaDirectories - An array of root directories to scan.
@@ -79,8 +99,13 @@ async function performFullMediaScan(
   try {
     const scanPromises = baseMediaDirectories.map(async (baseDir) => {
       try {
-        await fs.access(baseDir);
-        return scanDirectoryRecursive(baseDir);
+        if (baseDir.startsWith('gdrive://')) {
+          const folderId = baseDir.replace('gdrive://', '');
+          return scanGoogleDrive(folderId);
+        } else {
+          await fs.access(baseDir);
+          return scanDirectoryRecursive(baseDir);
+        }
       } catch (dirError: unknown) {
         if (process.env.NODE_ENV !== 'test') {
           console.error(

@@ -11,6 +11,7 @@ import type {
   SmartPlaylist,
   MediaMetadata,
   MediaLibraryItem,
+  MediaDirectory,
 } from '../core/types';
 
 import type { FileSystemEntry } from '../core/file-system';
@@ -35,7 +36,7 @@ export interface ElectronAPI {
     directoryPath: string,
     isActive: boolean,
   ) => Promise<void>;
-  getMediaDirectories: () => Promise<{ path: string; isActive: boolean }[]>;
+  getMediaDirectories: () => Promise<MediaDirectory[]>;
   getSupportedExtensions: () => Promise<{
     images: string[];
     videos: string[];
@@ -71,6 +72,11 @@ export interface ElectronAPI {
 
   getAllMetadataAndStats: () => Promise<MediaLibraryItem[]>;
   extractMetadata: (filePaths: string[]) => Promise<void>;
+
+  // Google Drive
+  startGoogleDriveAuth: () => Promise<string>;
+  submitGoogleDriveAuthCode: (code: string) => Promise<boolean>;
+  addGoogleDriveSource: (folderId: string) => Promise<{ success: boolean; name?: string; error?: string }>;
 }
 
 // Expose a controlled API to the renderer process via `window.electronAPI`.
@@ -213,6 +219,11 @@ const api: ElectronAPI = {
 
   extractMetadata: (filePaths: string[]) =>
     ipcRenderer.invoke('media:extract-metadata', filePaths),
+
+  // Google Drive
+  startGoogleDriveAuth: () => ipcRenderer.invoke('auth:google-drive-start'),
+  submitGoogleDriveAuthCode: (code: string) => ipcRenderer.invoke('auth:google-drive-code', code),
+  addGoogleDriveSource: (folderId: string) => ipcRenderer.invoke('add-google-drive-source', folderId),
 };
 
 contextBridge.exposeInMainWorld('electronAPI', api);

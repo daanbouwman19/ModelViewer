@@ -1,19 +1,21 @@
+/**
+ * @file This module exposes a unified API to the renderer process.
+ * It detects whether the application is running in Electron or a web browser
+ * and exports the appropriate adapter.
+ */
+
 import { IMediaBackend } from './types';
 import { ElectronAdapter } from './ElectronAdapter';
 import { WebAdapter } from './WebAdapter';
 
-/**
- * Creates and returns the appropriate backend adapter based on the environment.
- */
-function createBackend(): IMediaBackend {
-  // Check if we are running in Electron
-  if (window.electronAPI) {
-    console.log('[API] Using Electron Adapter');
-    return new ElectronAdapter();
-  } else {
-    console.log('[API] Using Web Adapter');
-    return new WebAdapter();
-  }
-}
+// Detect environment
+const isElectron = 'electronAPI' in window;
 
-export const api = createBackend();
+// Export the appropriate API instance
+export const api: IMediaBackend = isElectron
+  ? new ElectronAdapter()
+  : new WebAdapter();
+
+// Re-export adapters for testing
+export { ElectronAdapter, WebAdapter };
+export * from './types';

@@ -284,16 +284,20 @@ function setOperationTimeout(timeout: number): void {
 
 /**
  * Adds a new media directory to the database.
- * @param directoryPath - The absolute path of the directory to add.
+ * @param directory - The absolute path of the directory to add, or an object with details.
  * @returns A promise that resolves on success or rejects on failure.
  * @throws {Error} If the database operation fails.
  */
-async function addMediaDirectory(directoryPath: string): Promise<void> {
+async function addMediaDirectory(directory: string | { id?: string; path: string; type?: 'local' | 'google_drive'; name?: string }): Promise<void> {
   try {
-    await sendMessageToWorker<void>('addMediaDirectory', { directoryPath });
+    if (typeof directory === 'string') {
+      await sendMessageToWorker<void>('addMediaDirectory', { directoryPath: directory });
+    } else {
+      await sendMessageToWorker<void>('addMediaDirectory', { directoryObj: directory });
+    }
   } catch (error) {
     console.error(
-      `[database.js] Error adding media directory '${directoryPath}':`,
+      `[database.js] Error adding media directory '${typeof directory === 'string' ? directory : directory.path}':`,
       error,
     );
     throw error;
