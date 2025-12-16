@@ -45,9 +45,6 @@ export async function loadSavedCredentialsIfExist(): Promise<boolean> {
 
 export async function saveCredentials(client: OAuth2Client): Promise<void> {
   const tokenPath = getTokenPath();
-  // const content = await fs.readFile(tokenPath, 'utf-8').catch(() => null);
-  // const keys = JSON.parse(content || '{}');
-  // const key = keys.installed || keys.web;
   // We actually just need to save client.credentials
   await fs.writeFile(tokenPath, JSON.stringify(client.credentials));
 }

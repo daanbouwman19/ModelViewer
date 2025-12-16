@@ -175,8 +175,23 @@ export async function serveTranscode(
       // Let's try to just pipe the stream. Browsers can handle range requests for seeking if we support it.
       // But the Drive stream might not support range requests easily via the API wrapper.
       const stream = await getDriveFileStream(fileId);
+
+      let mimeType = 'video/mp4'; // Default fallback
+      try {
+        // We import getDriveFileMetadata dynamically if needed, or rely on the import at top
+        const metadata = await getDriveFileMetadata(fileId);
+        if (metadata.mimeType) {
+          mimeType = metadata.mimeType;
+        }
+      } catch (e) {
+        console.warn(
+          '[Transcode] Failed to fetch Drive metadata for MIME type:',
+          e,
+        );
+      }
+
       res.writeHead(200, {
-        'Content-Type': 'video/mp4', // Naive assumption, really should get from metadata
+        'Content-Type': mimeType,
       });
       stream.pipe(res);
       return;

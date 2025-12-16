@@ -301,15 +301,12 @@ async function addMediaDirectory(
       },
 ): Promise<void> {
   try {
-    if (typeof directory === 'string') {
-      await sendMessageToWorker<void>('addMediaDirectory', {
-        directoryPath: directory,
-      });
-    } else {
-      await sendMessageToWorker<void>('addMediaDirectory', {
-        directoryObj: directory,
-      });
-    }
+    const payload =
+      typeof directory === 'string' ? { path: directory } : directory;
+
+    await sendMessageToWorker<void>('addMediaDirectory', {
+      directoryObj: payload,
+    });
   } catch (error) {
     console.error(
       `[database.js] Error adding media directory '${typeof directory === 'string' ? directory : directory.path}':`,

@@ -30,13 +30,23 @@ export async function listDriveFiles(folderId: string): Promise<Album> {
   const drive = await getDriveClient();
   const q = `'${folderId}' in parents and (mimeType contains 'image/' or mimeType contains 'video/') and trashed = false`;
 
-  const res = await drive.files.list({
-    q,
-    fields: 'files(id, name, mimeType, size, createdTime)',
-    pageSize: 1000,
-  });
+  let allFiles: drive_v3.Schema$File[] = [];
+  let pageToken: string | undefined = undefined;
 
-  const files = res.data.files || [];
+  do {
+    const res: { data: drive_v3.Schema$FileList } = await drive.files.list({
+      q,
+      fields: 'nextPageToken, files(id, name, mimeType, size, createdTime)',
+      pageSize: 1000,
+      pageToken,
+    });
+    if (res.data.files) {
+      allFiles = allFiles.concat(res.data.files);
+    }
+    pageToken = res.data.nextPageToken || undefined;
+  } while (pageToken);
+
+  const files = allFiles;
   const textures: MediaFile[] = files.map((f) => ({
     name: f.name || 'Untitled',
     path: `gdrive://${f.id}`,
@@ -139,18 +149,7 @@ export async function getDriveFileThumbnail(fileId: string): Promise<Readable> {
     // Readable.fromWeb is available in recent Node versions, or we can use a utility
     if (res.body) {
       // Node 18+ has Readable.fromWeb
-      // But to be safe with types if they are old:
-      const reader = res.body.getReader();
-      return new Readable({
-        async read() {
-          const { done, value } = await reader.read();
-          if (done) {
-            this.push(null);
-          } else {
-            this.push(Buffer.from(value));
-          }
-        },
-      });
+      return Readable.fromWeb(res.body as import('stream/web').ReadableStream);
     }
   }
 

@@ -261,7 +261,7 @@ describe('Database Worker', () => {
 
     it('should add a media directory (string path)', async () => {
       const result = await sendMessage('addMediaDirectory', {
-        directoryPath: '/test/directory',
+        directoryObj: { path: '/test/directory' },
       });
       expect(result.success).toBe(true);
     });
@@ -285,7 +285,7 @@ describe('Database Worker', () => {
 
     it('should get media directories', async () => {
       await sendMessage('addMediaDirectory', {
-        directoryPath: '/test/directory',
+        directoryObj: { path: '/test/directory' },
       });
       const result = await sendMessage('getMediaDirectories', {});
       expect(result.success).toBe(true);
@@ -300,8 +300,12 @@ describe('Database Worker', () => {
 
     it('should not duplicate directories', async () => {
       const dirPath = '/test/same-dir';
-      await sendMessage('addMediaDirectory', { directoryPath: dirPath });
-      await sendMessage('addMediaDirectory', { directoryPath: dirPath });
+      await sendMessage('addMediaDirectory', {
+        directoryObj: { path: dirPath },
+      });
+      await sendMessage('addMediaDirectory', {
+        directoryObj: { path: dirPath },
+      });
       const result = await sendMessage('getMediaDirectories', {});
       const dirs = (result.data as Directory[]).filter(
         (d) => d.path === dirPath,
@@ -311,12 +315,16 @@ describe('Database Worker', () => {
 
     it('should re-activate deactivated directories on add', async () => {
       const dirPath = '/test/reactivate';
-      await sendMessage('addMediaDirectory', { directoryPath: dirPath });
+      await sendMessage('addMediaDirectory', {
+        directoryObj: { path: dirPath },
+      });
       await sendMessage('setDirectoryActiveState', {
         directoryPath: dirPath,
         isActive: false,
       });
-      await sendMessage('addMediaDirectory', { directoryPath: dirPath });
+      await sendMessage('addMediaDirectory', {
+        directoryObj: { path: dirPath },
+      });
       const result = await sendMessage('getMediaDirectories', {});
       const dir = (result.data as Directory[]).find((d) => d.path === dirPath);
       expect(dir?.isActive).toBe(true);
@@ -324,7 +332,7 @@ describe('Database Worker', () => {
 
     it('should remove a media directory', async () => {
       await sendMessage('addMediaDirectory', {
-        directoryPath: '/test/directory',
+        directoryObj: { path: '/test/directory' },
       });
       const result = await sendMessage('removeMediaDirectory', {
         directoryPath: '/test/directory',
@@ -337,7 +345,7 @@ describe('Database Worker', () => {
     it('should set directory active state', async () => {
       const dirPath = '/test/directory';
       await sendMessage('addMediaDirectory', {
-        directoryPath: dirPath,
+        directoryObj: { path: dirPath },
       });
       const result = await sendMessage('setDirectoryActiveState', {
         directoryPath: dirPath,
@@ -491,7 +499,10 @@ describe('Database Worker', () => {
         { type: 'getMediaViewCounts', payload: { filePaths: [] } },
         { type: 'cacheAlbums', payload: { cacheKey: 'key', albums: [] } },
         { type: 'getCachedAlbums', payload: { cacheKey: 'key' } },
-        { type: 'addMediaDirectory', payload: { directoryPath: '/test' } },
+        {
+          type: 'addMediaDirectory',
+          payload: { directoryObj: { path: '/test' } },
+        },
         { type: 'getMediaDirectories', payload: {} },
         { type: 'removeMediaDirectory', payload: { directoryPath: '/test' } },
         {
@@ -531,7 +542,10 @@ describe('Database Worker', () => {
       const testCases = [
         { type: 'recordMediaView', payload: { filePath: '/test.png' } },
         { type: 'getMediaViewCounts', payload: { filePaths: [] } },
-        { type: 'addMediaDirectory', payload: { directoryPath: '/test' } },
+        {
+          type: 'addMediaDirectory',
+          payload: { directoryObj: { path: '/test' } },
+        },
       ];
 
       it.each(testCases)(

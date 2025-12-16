@@ -37,9 +37,14 @@ async function generateFileId(filePath: string): Promise<string> {
     const stats = await fs.stat(filePath);
     const uniqueString = `${stats.size}-${stats.mtime.getTime()}`;
     return crypto.createHash('md5').update(uniqueString).digest('hex');
-  } catch {
+  } catch (error: unknown) {
     // If we can't stat the file (e.g. invalid path), fallback to hashing the path string
-    // console.error(`[worker] Error generating file ID for ${filePath}:`, error);
+    if ((error as { code?: string }).code !== 'ENOENT') {
+      console.error(
+        `[worker] Error generating file ID for ${filePath}:`,
+        error,
+      );
+    }
     return crypto.createHash('md5').update(filePath).digest('hex');
   }
 }
@@ -695,11 +700,7 @@ if (parentPort) {
           break;
         case 'addMediaDirectory':
           // Accepts simple string or object now
-          if (typeof payload.directoryPath === 'string') {
-            result = addMediaDirectory({ path: payload.directoryPath });
-          } else {
-            result = addMediaDirectory(payload.directoryObj);
-          }
+          result = addMediaDirectory(payload.directoryObj);
           break;
         case 'getMediaDirectories':
           result = getMediaDirectories();

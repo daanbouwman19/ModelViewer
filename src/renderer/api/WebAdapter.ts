@@ -168,6 +168,10 @@ export class WebAdapter implements IMediaBackend {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ filePaths }),
     });
+    if (!res.ok) {
+      console.error('Failed to fetch metadata batch:', res.statusText);
+      return {};
+    }
     return res.json();
   }
 
@@ -193,6 +197,10 @@ export class WebAdapter implements IMediaBackend {
 
   async getSmartPlaylists(): Promise<SmartPlaylist[]> {
     const res = await fetch('/api/smart-playlists');
+    if (!res.ok) {
+      console.error('Failed to fetch smart playlists:', res.statusText);
+      return [];
+    }
     return res.json();
   }
 
