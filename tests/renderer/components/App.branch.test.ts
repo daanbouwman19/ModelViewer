@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
+import { ref } from 'vue';
 import App from '../../../src/renderer/App.vue';
 import * as useAppState from '../../../src/renderer/composables/useAppState';
 import * as useSlideshow from '../../../src/renderer/composables/useSlideshow';
@@ -51,15 +52,17 @@ describe('App.vue', () => {
       initializeApp: vi.fn(),
       loadAlbum: vi.fn(),
       toggleSlideshow: vi.fn(),
-      mainVideoElement: { value: null },
-      isScanning: { value: false },
-      viewMode: { value: 'grid' },
+      mainVideoElement: ref(null),
+      isScanning: ref(false),
+      viewMode: ref('grid'),
+      isSmartPlaylistModalVisible: ref(false),
+      smartPlaylists: ref([]),
     } as any);
 
     vi.mocked(useSlideshow.useSlideshow).mockReturnValue({
       navigateMedia: vi.fn(),
       toggleSlideshowTimer: vi.fn(),
-      slideshowTimer: { value: null },
+      slideshowTimer: ref(null),
     } as any);
 
     (api as any).on = vi.fn();

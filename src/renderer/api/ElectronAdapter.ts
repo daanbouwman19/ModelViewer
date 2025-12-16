@@ -32,12 +32,7 @@ export class ElectronAdapter implements IMediaBackend {
   }
 
   async addMediaDirectory(path?: string): Promise<string | null> {
-    if (path) {
-      return window.electronAPI.addMediaDirectory(path);
-    }
-    // Return null to signal the UI to use the custom File Explorer modal
-    // instead of the native Electron dialog.
-    return null;
+    return window.electronAPI.addMediaDirectory(path);
   }
 
   async removeMediaDirectory(directoryPath: string): Promise<void> {
@@ -52,8 +47,6 @@ export class ElectronAdapter implements IMediaBackend {
   }
 
   async getMediaDirectories(): Promise<MediaDirectory[]> {
-    // Adapter to match interface if types differ slightly, but they should match
-    // preload returns { path: string; isActive: boolean }[] which is MediaDirectory
     return window.electronAPI.getMediaDirectories();
   }
 
@@ -72,6 +65,9 @@ export class ElectronAdapter implements IMediaBackend {
   async getMediaUrlGenerator(): Promise<(filePath: string) => string> {
     const port = await window.electronAPI.getServerPort();
     return (filePath: string) => {
+      if (filePath.startsWith('gdrive://')) {
+        return `http://localhost:${port}/${encodeURIComponent(filePath)}`;
+      }
       let pathForUrl = filePath.replace(/\\/g, '/');
       pathForUrl = pathForUrl
         .split('/')
@@ -84,7 +80,7 @@ export class ElectronAdapter implements IMediaBackend {
   async getThumbnailUrlGenerator(): Promise<(filePath: string) => string> {
     const port = await window.electronAPI.getServerPort();
     return (filePath: string) => {
-      // Use standard encoding for query parameters
+      // For Drive files, thumbnails might not work yet, but we generate the URL anyway
       return `http://localhost:${port}/video/thumbnail?file=${encodeURIComponent(filePath)}`;
     };
   }
@@ -166,5 +162,19 @@ export class ElectronAdapter implements IMediaBackend {
 
   async extractMetadata(filePaths: string[]): Promise<void> {
     return window.electronAPI.extractMetadata(filePaths);
+  }
+
+  async startGoogleDriveAuth(): Promise<string> {
+    return window.electronAPI.startGoogleDriveAuth();
+  }
+
+  async submitGoogleDriveAuthCode(code: string): Promise<boolean> {
+    return window.electronAPI.submitGoogleDriveAuthCode(code);
+  }
+
+  async addGoogleDriveSource(
+    folderId: string,
+  ): Promise<{ success: boolean; name?: string; error?: string }> {
+    return window.electronAPI.addGoogleDriveSource(folderId);
   }
 }

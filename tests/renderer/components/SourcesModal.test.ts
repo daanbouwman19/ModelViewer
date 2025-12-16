@@ -17,6 +17,9 @@ vi.mock('@/api', () => ({
     setDirectoryActiveState: vi.fn(),
     getMediaDirectories: vi.fn(),
     reindexMediaLibrary: vi.fn(),
+    startGoogleDriveAuth: vi.fn(),
+    submitGoogleDriveAuthCode: vi.fn(),
+    addGoogleDriveSource: vi.fn(),
   },
 }));
 
@@ -38,8 +41,20 @@ describe('SourcesModal.vue', () => {
     mockRefs = {
       isSourcesModalVisible: ref(true),
       mediaDirectories: ref([
-        { path: '/path/to/dir1', isActive: true },
-        { path: '/path/to/dir2', isActive: false },
+        {
+          path: '/path/to/dir1',
+          isActive: true,
+          id: '1',
+          name: 'dir1',
+          type: 'local',
+        },
+        {
+          path: '/path/to/dir2',
+          isActive: false,
+          id: '2',
+          name: 'dir2',
+          type: 'local',
+        },
       ]),
       state: mockState,
       allAlbums: ref([]),
@@ -140,16 +155,34 @@ describe('SourcesModal.vue', () => {
   });
 
   it('should call addMediaDirectory when add button clicked', async () => {
+    // Note: addMediaDirectory now triggers a DB refresh via getMediaDirectories
     (api.addMediaDirectory as Mock).mockResolvedValue('/new/path');
+    (api.getMediaDirectories as Mock).mockResolvedValue([
+      {
+        path: '/new/path',
+        isActive: true,
+        id: '1',
+        name: 'new',
+        type: 'local',
+      },
+    ]);
+
     const wrapper = mount(SourcesModal);
     const buttons = wrapper.findAll('.modal-actions .action-button');
+    // Button 0: Add Local, 1: Add Google, 2: Apply
     const addButton = buttons[0];
+    expect(addButton.text()).toBe('Add Local Folder');
+
     await addButton.trigger('click');
     await flushPromises();
     expect(api.addMediaDirectory).toHaveBeenCalled();
+    expect(api.getMediaDirectories).toHaveBeenCalled();
     expect(mockRefs.mediaDirectories.value).toContainEqual({
       path: '/new/path',
       isActive: true,
+      id: '1',
+      name: 'new',
+      type: 'local',
     });
   });
 
@@ -163,7 +196,10 @@ describe('SourcesModal.vue', () => {
 
     const wrapper = mount(SourcesModal);
     const buttons = wrapper.findAll('.modal-actions .action-button');
-    const reindexButton = buttons[1];
+    // Button 2 is "Apply Changes & Re-index"
+    const reindexButton = buttons[2];
+    expect(reindexButton.text()).toBe('Apply Changes & Re-index');
+
     await reindexButton.trigger('click');
     await flushPromises();
 
@@ -183,7 +219,7 @@ describe('SourcesModal.vue', () => {
 
     const wrapper = mount(SourcesModal);
     const buttons = wrapper.findAll('.modal-actions .action-button');
-    const reindexButton = buttons[1]; // Apply Changes & Re-index
+    const reindexButton = buttons[2]; // Apply Changes & Re-index
 
     await reindexButton.trigger('click');
     await flushPromises();

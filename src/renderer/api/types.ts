@@ -61,4 +61,11 @@ export interface IMediaBackend {
 
   getAllMetadataAndStats(): Promise<MediaLibraryItem[]>;
   extractMetadata(filePaths: string[]): Promise<void>;
+
+  // Google Drive
+  startGoogleDriveAuth(): Promise<string>;
+  submitGoogleDriveAuthCode(code: string): Promise<boolean>;
+  addGoogleDriveSource(
+    folderId: string,
+  ): Promise<{ success: boolean; name?: string; error?: string }>;
 }

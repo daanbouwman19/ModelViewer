@@ -9,6 +9,7 @@ import { parentPort } from 'worker_threads';
 import Database from 'better-sqlite3';
 import crypto from 'crypto';
 import fs from 'fs/promises';
+import path from 'path';
 
 /**
  * The database instance for this worker thread.
@@ -30,11 +31,20 @@ const statements: { [key: string]: Database.Statement } = {};
  */
 async function generateFileId(filePath: string): Promise<string> {
   try {
+    if (filePath.startsWith('gdrive://')) {
+      return filePath.replace('gdrive://', '');
+    }
     const stats = await fs.stat(filePath);
     const uniqueString = `${stats.size}-${stats.mtime.getTime()}`;
     return crypto.createHash('md5').update(uniqueString).digest('hex');
-  } catch (error) {
-    console.error(`[worker] Error generating file ID for ${filePath}:`, error);
+  } catch (error: unknown) {
+    // If we can't stat the file (e.g. invalid path), fallback to hashing the path string
+    if ((error as { code?: string }).code !== 'ENOENT') {
+      console.error(
+        `[worker] Error generating file ID for ${filePath}:`,
+        error,
+      );
+    }
     return crypto.createHash('md5').update(filePath).digest('hex');
   }
 }
@@ -86,12 +96,62 @@ function initDatabase(dbPath: string): WorkerResult {
       )`,
     ).run();
 
-    db.prepare(
-      `CREATE TABLE IF NOT EXISTS media_directories (
-        path TEXT PRIMARY KEY,
-        is_active INTEGER DEFAULT 1
-      )`,
-    ).run();
+    // Check if media_directories exists and has the new schema
+    const dirTableInfo = db
+      .prepare('PRAGMA table_info(media_directories)')
+      .all() as { name: string }[];
+    const hasId = dirTableInfo.some((col) => col.name === 'id');
+    const tableExists = dirTableInfo.length > 0;
+
+    if (!tableExists) {
+      // Create new schema directly
+      db.prepare(
+        `CREATE TABLE media_directories (
+              id TEXT PRIMARY KEY,
+              path TEXT UNIQUE,
+              type TEXT DEFAULT 'local',
+              name TEXT,
+              is_active INTEGER DEFAULT 1
+            )`,
+      ).run();
+    } else if (!hasId) {
+      // Migration needed
+      console.log('[worker] Migrating media_directories table...');
+      // 1. Rename old table
+      db.prepare(
+        'ALTER TABLE media_directories RENAME TO media_directories_old',
+      ).run();
+
+      // 2. Create new table
+      db.prepare(
+        `CREATE TABLE media_directories (
+              id TEXT PRIMARY KEY,
+              path TEXT UNIQUE,
+              type TEXT DEFAULT 'local',
+              name TEXT,
+              is_active INTEGER DEFAULT 1
+            )`,
+      ).run();
+
+      // 3. Migrate data
+      // For existing rows, we generate a UUID for ID, use 'local' as type, and basename as name.
+      const oldRows = db
+        .prepare('SELECT path, is_active FROM media_directories_old')
+        .all() as { path: string; is_active: number }[];
+      const insertStmt = db.prepare(
+        'INSERT INTO media_directories (id, path, type, name, is_active) VALUES (?, ?, ?, ?, ?)',
+      );
+
+      for (const row of oldRows) {
+        const id = crypto.randomUUID();
+        const name = path.basename(row.path) || row.path;
+        insertStmt.run(id, row.path, 'local', name, row.is_active);
+      }
+
+      // 4. Drop old table
+      db.prepare('DROP TABLE media_directories_old').run();
+      console.log('[worker] Migration complete.');
+    }
 
     db.prepare(
       `CREATE TABLE IF NOT EXISTS media_metadata (
@@ -145,12 +205,12 @@ function initDatabase(dbPath: string): WorkerResult {
       `SELECT cache_value FROM app_cache WHERE cache_key = ?`,
     );
     statements.addMediaDirectory = db.prepare(`
-      INSERT INTO media_directories (path, is_active)
-      VALUES (?, 1)
+      INSERT INTO media_directories (id, path, type, name, is_active)
+      VALUES (?, ?, ?, ?, 1)
       ON CONFLICT(path) DO UPDATE SET is_active = 1;
     `);
     statements.getMediaDirectories = db.prepare(
-      'SELECT path, is_active FROM media_directories',
+      'SELECT id, path, type, name, is_active FROM media_directories',
     );
     statements.removeMediaDirectory = db.prepare(
       'DELETE FROM media_directories WHERE path = ?',
@@ -212,11 +272,6 @@ async function upsertMetadata(payload: MetadataPayload): Promise<WorkerResult> {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
     const fileId = await generateFileId(payload.filePath);
-    // We need to be careful not to overwrite existing rating if we are just updating duration, etc.
-    // The SQL query above replaces everything.
-    // Let's change strategy: fetch existing first or use specific update statements.
-    // Actually, distinct functions for "scan update" vs "user rating" is safer.
-
     statements.upsertMetadata.run(
       fileId,
       payload.filePath,
@@ -342,31 +397,10 @@ function updateSmartPlaylist(
 
 /**
  * Executes a smart playlist criteria to find matching files.
- * This is the complex part where we translate JSON criteria to SQL or JS filtering.
- * For now, let's fetch all metadata and join with view counts, then filter in JS/Worker.
- * This is safer than constructing dynamic SQL for now, although less performant for huge DBs.
  */
 async function executeSmartPlaylist(/* criteriaJson: string */): Promise<WorkerResult> {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
-    // 1. Fetch all files with their metadata and view stats
-    // We join media_metadata (optional) and media_views (optional)
-    // Actually media_metadata has the file_hash, but we need the file path.
-    // media_views has file_path.
-    // But we might have files in metadata that are not in views, and vice versa.
-    // The "source of truth" for ALL files is the file system scan (Albums).
-    // The DB only stores auxiliary data.
-    // SO: We cannot purely query the DB to get "all files matching criteria" because the DB doesn't know about all files yet
-    // unless we strictly enforce that all files are in metadata table.
-    //
-    // Strategy:
-    // The frontend sends criteria. The worker returns a list of file paths.
-    // BUT the worker doesn't know the full file list unless we sync it.
-    //
-    // Alternative: Return *all* metadata and view stats to the renderer, and let the renderer filter
-    // the list of known files (from AlbumTree) against this metadata.
-    //
-    // Let's implement `getAllMetadataAndStats()`
     const query = `
       SELECT
         m.file_path_hash,
@@ -391,12 +425,12 @@ async function executeSmartPlaylist(/* criteriaJson: string */): Promise<WorkerR
       LEFT JOIN media_metadata m ON v.file_path_hash = m.file_path_hash
     `;
     const rows = db.prepare(query).all();
-    // Return a map keyed by file_path or hash
     return { success: true, data: rows };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
   }
 }
+
 /**
  * Records a view for a media file.
  * @param filePath - The path of the file that was viewed.
@@ -438,7 +472,6 @@ async function getMediaViewCounts(filePaths: string[]): Promise<WorkerResult> {
     const pathIdMap = new Map<string, string>();
 
     // Optimization: Process file ID generation in parallel batches
-    // instead of sequentially to reduce I/O bottleneck.
     const BATCH_SIZE = 50;
     for (let i = 0; i < filePaths.length; i += BATCH_SIZE) {
       const batch = filePaths.slice(i, i + BATCH_SIZE);
@@ -541,17 +574,26 @@ function closeDatabase(): WorkerResult {
 
 /**
  * Adds a new media directory path to the database.
- * @param directoryPath - The path of the directory to add.
+ * @param payload - The directory object to add.
  * @returns The result of the operation.
  */
-function addMediaDirectory(directoryPath: string): WorkerResult {
+function addMediaDirectory(payload: {
+  id?: string;
+  path: string;
+  type?: string;
+  name?: string;
+}): WorkerResult {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
-    statements.addMediaDirectory.run(directoryPath);
+    const id = payload.id || crypto.randomUUID();
+    const type = payload.type || 'local';
+    const name = payload.name || path.basename(payload.path) || payload.path;
+
+    statements.addMediaDirectory.run(id, payload.path, type, name);
     return { success: true };
   } catch (error: unknown) {
     console.error(
-      `[worker] Error adding media directory ${directoryPath}:`,
+      `[worker] Error adding media directory ${payload.path}:`,
       error,
     );
     return { success: false, error: (error as Error).message };
@@ -566,11 +608,17 @@ function getMediaDirectories(): WorkerResult {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
     const rows = statements.getMediaDirectories.all() as {
+      id: string;
       path: string;
+      type: string;
+      name: string;
       is_active: number;
     }[];
     const directories = rows.map((row) => ({
+      id: row.id,
       path: row.path,
+      type: row.type as 'local' | 'google_drive',
+      name: row.name,
       isActive: !!row.is_active,
     }));
     return { success: true, data: directories };
@@ -622,95 +670,92 @@ function setDirectoryActiveState(
   }
 }
 
-// Color functions removed as deprecated
-
 if (parentPort) {
   /**
    * Listen for messages from the main thread.
-   * This is the entry point for all database operations requested by the main process.
-   * It dispatches the request to the appropriate function based on the message type
-   * and sends the result back to the main thread.
-   *
-   * @param message - The message object containing the operation ID, type, and payload.
    */
   parentPort.on('message', async (message) => {
     const { id, type, payload } = message;
     let result: WorkerResult;
 
-    // Note: Internal functions are now synchronous, but we keep the async handler
-    // structure in case we need async operations in the future or for consistency.
-    // The await keyword is not strictly necessary for sync functions but harmless.
-    switch (type) {
-      case 'init':
-        result = initDatabase(payload.dbPath);
-        break;
-      case 'recordMediaView':
-        result = await recordMediaView(payload.filePath);
-        break;
-      case 'getMediaViewCounts':
-        result = await getMediaViewCounts(payload.filePaths);
-        break;
-      case 'cacheAlbums':
-        result = cacheAlbums(payload.cacheKey, payload.albums);
-        break;
-      case 'getCachedAlbums':
-        result = getCachedAlbums(payload.cacheKey);
-        break;
-      case 'close':
-        result = closeDatabase();
-        break;
-      case 'addMediaDirectory':
-        result = addMediaDirectory(payload.directoryPath);
-        break;
-      case 'getMediaDirectories':
-        result = getMediaDirectories();
-        break;
-      case 'removeMediaDirectory':
-        result = removeMediaDirectory(payload.directoryPath);
-        break;
-      case 'setDirectoryActiveState':
-        result = setDirectoryActiveState(
-          payload.directoryPath,
-          payload.isActive,
-        );
-        break;
-      case 'upsertMetadata':
-        result = await upsertMetadata(payload);
-        break;
-      case 'setRating':
-        result = await setRating(payload.filePath, payload.rating);
-        break;
-      case 'getMetadata':
-        result = await getMetadata(payload.filePaths);
-        break;
-      case 'createSmartPlaylist':
-        result = createSmartPlaylist(payload.name, payload.criteria);
-        break;
-      case 'getSmartPlaylists':
-        result = getSmartPlaylists();
-        break;
-      case 'deleteSmartPlaylist':
-        result = deleteSmartPlaylist(payload.id);
-        break;
-      case 'updateSmartPlaylist':
-        result = updateSmartPlaylist(
-          payload.id,
-          payload.name,
-          payload.criteria,
-        );
-        break;
-      case 'executeSmartPlaylist':
-        result = await executeSmartPlaylist();
-        break;
-      default:
-        result = { success: false, error: `Unknown message type: ${type}` };
+    try {
+      switch (type) {
+        case 'init':
+          result = initDatabase(payload.dbPath);
+          break;
+        case 'recordMediaView':
+          result = await recordMediaView(payload.filePath);
+          break;
+        case 'getMediaViewCounts':
+          result = await getMediaViewCounts(payload.filePaths);
+          break;
+        case 'cacheAlbums':
+          result = cacheAlbums(payload.cacheKey, payload.albums);
+          break;
+        case 'getCachedAlbums':
+          result = getCachedAlbums(payload.cacheKey);
+          break;
+        case 'close':
+          result = closeDatabase();
+          break;
+        case 'addMediaDirectory':
+          // Accepts simple string or object now
+          result = addMediaDirectory(payload.directoryObj);
+          break;
+        case 'getMediaDirectories':
+          result = getMediaDirectories();
+          break;
+        case 'removeMediaDirectory':
+          result = removeMediaDirectory(payload.directoryPath);
+          break;
+        case 'setDirectoryActiveState':
+          result = setDirectoryActiveState(
+            payload.directoryPath,
+            payload.isActive,
+          );
+          break;
+        case 'upsertMetadata':
+          result = await upsertMetadata(payload);
+          break;
+        case 'setRating':
+          result = await setRating(payload.filePath, payload.rating);
+          break;
+        case 'getMetadata':
+          result = await getMetadata(payload.filePaths);
+          break;
+        case 'createSmartPlaylist':
+          result = createSmartPlaylist(payload.name, payload.criteria);
+          break;
+        case 'getSmartPlaylists':
+          result = getSmartPlaylists();
+          break;
+        case 'deleteSmartPlaylist':
+          result = deleteSmartPlaylist(payload.id);
+          break;
+        case 'updateSmartPlaylist':
+          result = updateSmartPlaylist(
+            payload.id,
+            payload.name,
+            payload.criteria,
+          );
+          break;
+        case 'executeSmartPlaylist':
+          result = await executeSmartPlaylist();
+          break;
+        default:
+          result = { success: false, error: `Unknown message type: ${type}` };
+      }
+    } catch (error: unknown) {
+      console.error(
+        `[worker] Error processing message id=${id}, type=${type}:`,
+        error,
+      );
+      result = { success: false, error: (error as Error).message };
     }
 
     parentPort!.postMessage({ id, result });
   });
 
   console.log('[database-worker.js] Worker thread started and ready.');
-
-  // Signal that the worker is ready, primarily for testing environments
   parentPort.postMessage({ type: 'ready' });
 }

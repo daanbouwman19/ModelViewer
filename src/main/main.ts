@@ -4,12 +4,18 @@
  * backend logic and communication with the renderer process via IPC.
  * This includes file system operations, database management, and running a local server.
  */
+
+// Load environment variables from .env file
+import dotenv from 'dotenv';
+dotenv.config();
+
 import {
   app,
   BrowserWindow,
   ipcMain,
   dialog,
   IpcMainInvokeEvent,
+  shell,
 } from 'electron';
 import path from 'path';
 import fs from 'fs/promises';
@@ -55,6 +61,12 @@ import {
   getMimeType as resolveMimeType,
 } from './local-server';
 import { listDirectory } from '../core/file-system';
+import { generateAuthUrl, authenticateWithCode } from './google-auth';
+import {
+  getDriveClient,
+  getDriveFileStream,
+  getDriveFileMetadata,
+} from './google-drive-service';
 const isDev = !app.isPackaged;
 
 /**
@@ -81,6 +93,47 @@ ipcMain.handle(
     options: { preferHttp?: boolean } = {},
   ) => {
     try {
+      // 1. Handle Google Drive Files
+      if (filePath.startsWith('gdrive://')) {
+        const fileId = filePath.replace('gdrive://', '');
+        const currentServerPort = getServerPort();
+
+        // For video, or preferHttp, return HTTP URL from local server which pipes Drive stream
+        const meta = await getDriveFileMetadata(fileId);
+        const isVideo = meta.mimeType?.startsWith('video/');
+
+        if (
+          options.preferHttp ||
+          (isVideo && Number(meta.size) > MAX_DATA_URL_SIZE_MB * 1024 * 1024)
+        ) {
+          if (currentServerPort === 0) {
+            return {
+              type: 'error',
+              message: 'Local server not ready to stream Drive video.',
+            };
+          }
+          // We need to encode the URI because the file path is now a gdrive:// URI
+          const encodedPath = encodeURIComponent(filePath);
+          return {
+            type: 'http-url',
+            url: `http://localhost:${currentServerPort}/${encodedPath}`,
+          };
+        }
+
+        // For small images, return Data URL
+        // Fetch buffer
+        const stream = await getDriveFileStream(fileId);
+        const chunks: Buffer[] = [];
+        for await (const chunk of stream) {
+          chunks.push(Buffer.from(chunk));
+        }
+        const buffer = Buffer.concat(chunks);
+        const mimeType = meta.mimeType || 'application/octet-stream';
+        const dataURL = `data:${mimeType};base64,${buffer.toString('base64')}`;
+        return { type: 'data-url', url: dataURL };
+      }
+
+      // 2. Handle Local Files
       const auth = await authorizeFilePath(filePath);
       if (!auth.isAllowed) {
         return { type: 'error', message: auth.message || 'Access denied' };
@@ -165,6 +218,16 @@ ipcMain.handle(
   'get-video-metadata',
   async (_event: IpcMainInvokeEvent, filePath: string) => {
     try {
+      if (filePath.startsWith('gdrive://')) {
+        const fileId = filePath.replace('gdrive://', '');
+        const meta = await getDriveFileMetadata(fileId);
+        if (meta.videoMediaMetadata?.durationMillis) {
+          return {
+            duration: Number(meta.videoMediaMetadata.durationMillis) / 1000,
+          };
+        }
+        return { error: 'Duration not available' };
+      }
       const auth = await authorizeFilePath(filePath);
       if (!auth.isAllowed) {
         return { error: auth.message || 'Access denied' };
@@ -215,7 +278,7 @@ ipcMain.handle(
         } catch {
           return null;
         }
-        await addMediaDirectory(targetPath);
+        await addMediaDirectory({ path: targetPath, type: 'local' });
         return targetPath;
       } catch (e) {
         console.error('Failed to add directory by path', e);
@@ -235,10 +298,57 @@ ipcMain.handle(
     }
 
     const newPath = filePaths[0];
-    await addMediaDirectory(newPath);
+    await addMediaDirectory({ path: newPath, type: 'local' });
     return newPath;
   },
 );
+
+/**
+ * Handles 'auth:google-drive-start'
+ */
+ipcMain.handle('auth:google-drive-start', async () => {
+  const url = generateAuthUrl();
+  await shell.openExternal(url);
+  // User needs to paste code, or we need a loopback server.
+  // For MVP, let's ask user to paste code in a prompt
+  // Ideally we spin up a temporary server or intercept protocol.
+  // The google-secrets.ts uses a localhost redirect. Let's assume we want to support code copy-paste or implement a loopback.
+  // For simplicity, let's return the URL to the frontend, frontend opens it, and asks user for code?
+  return url;
+  // Wait, typical desktop flow uses a loopback server listening on the redirect URI.
+  // I will implement a simpler 'manual copy paste' flow for the "Add Source" modal for now if the user agrees.
+  // But the user plan said "Use IPC handlers to trigger the login".
+  // I'll assume I should handle the loopback or manual code entry.
+  // Let's implement a manual code entry on the frontend for this MVP as it's most robust without complex networking issues.
+});
+
+/**
+ * Handles 'auth:google-drive-code'
+ */
+ipcMain.handle('auth:google-drive-code', async (_event, code: string) => {
+  await authenticateWithCode(code);
+  return true;
+});
+
+/**
+ * Handles 'add-google-drive-source'
+ */
+ipcMain.handle('add-google-drive-source', async (_event, folderId: string) => {
+  // Verify we can access it
+  try {
+    const drive = await getDriveClient();
+    const res = await drive.files.get({ fileId: folderId, fields: 'id, name' });
+    await addMediaDirectory({
+      path: `gdrive://${res.data.id}`,
+      type: 'google_drive',
+      name: res.data.name || 'Google Drive Folder',
+    });
+    return { success: true, name: res.data.name };
+  } catch (e) {
+    console.error('Failed to add Drive source', e);
+    return { success: false, error: (e as Error).message };
+  }
+});
 
 /**
  * Handles the 'reindex-media-library' IPC call.
@@ -310,13 +420,48 @@ ipcMain.handle('get-server-port', () => {
 ipcMain.handle(
   'open-in-vlc',
   async (_event: IpcMainInvokeEvent, filePath: string) => {
-    const auth = await authorizeFilePath(filePath);
-    if (!auth.isAllowed) {
-      return { success: false, message: auth.message || 'Access denied' };
+    // Drive check replaced by streaming logic below
+
+    if (filePath.startsWith('gdrive://')) {
+      // Create a local stream URL for VLC
+      const port = getServerPort();
+      if (port === 0) {
+        return {
+          success: false,
+          message: 'Local server is not running to stream Drive file.',
+        };
+      }
+      const encodedPath = encodeURIComponent(filePath);
+      const streamUrl = `http://localhost:${port}/video/stream?file=${encodedPath}`;
+      console.log(`[VLC] Streaming Drive file from: ${streamUrl}`);
+
+      // We still need to find VLC path (reusing logic below)
+      // We will duplicate the VLC finding logic or refactor.
+      // Refactoring is better but for minimal change let's flow down.
+      // But 'filePath' argument to spawn needs to be the URL.
+      // Let's change the variable passed to spawn.
     }
 
+    // Logic to resolve VLC path
     const platform = process.platform;
     let vlcPath: string | null = null;
+    let fileArg = filePath;
+
+    if (filePath.startsWith('gdrive://')) {
+      // We already checked port above
+      const port = getServerPort();
+      if (port > 0) {
+        fileArg = `http://localhost:${port}/video/stream?file=${encodeURIComponent(filePath)}`;
+      } else {
+        return { success: false, message: 'Server not ready for streaming' };
+      }
+    } else {
+      // Local file auth check
+      const auth = await authorizeFilePath(filePath);
+      if (!auth.isAllowed) {
+        return { success: false, message: auth.message || 'Access denied' };
+      }
+    }
 
     if (platform === 'win32') {
       const commonPaths = [
@@ -355,7 +500,7 @@ ipcMain.handle(
     }
 
     try {
-      const child = spawn(vlcPath, [filePath], {
+      const child = spawn(vlcPath, [fileArg], {
         detached: true,
         stdio: 'ignore',
       });

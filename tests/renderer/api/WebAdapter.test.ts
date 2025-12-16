@@ -343,4 +343,65 @@ describe('WebAdapter', () => {
       expect(fetchMock).toHaveBeenCalledWith('/api/media/all');
     });
   });
+  describe('Google Drive', () => {
+    it('startGoogleDriveAuth returns url', async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        text: () => Promise.resolve('http://auth.url'),
+      });
+      const url = await adapter.startGoogleDriveAuth();
+      expect(url).toBe('http://auth.url');
+      expect(fetchMock).toHaveBeenCalledWith('/api/auth/google-drive/start');
+    });
+
+    it('startGoogleDriveAuth throws on error', async () => {
+      fetchMock.mockResolvedValue({ ok: false });
+      await expect(adapter.startGoogleDriveAuth()).rejects.toThrow();
+    });
+
+    it('submitGoogleDriveAuthCode sends code', async () => {
+      fetchMock.mockResolvedValue({ ok: true });
+      const result = await adapter.submitGoogleDriveAuthCode('code123');
+      expect(result).toBe(true);
+      expect(fetchMock).toHaveBeenCalledWith('/api/auth/google-drive/code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: 'code123' }),
+      });
+    });
+
+    it('submitGoogleDriveAuthCode throws on error', async () => {
+      fetchMock.mockResolvedValue({ ok: false });
+      await expect(adapter.submitGoogleDriveAuthCode('c')).rejects.toThrow();
+    });
+
+    it('addGoogleDriveSource calls API', async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ success: true, name: 'Folder' }),
+      });
+      const result = await adapter.addGoogleDriveSource('folder123');
+      expect(result).toEqual({ success: true, name: 'Folder' });
+      expect(fetchMock).toHaveBeenCalledWith('/api/sources/google-drive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folderId: 'folder123' }),
+      });
+    });
+
+    it('addGoogleDriveSource handles API error', async () => {
+      fetchMock.mockResolvedValue({
+        ok: false,
+        json: () => Promise.resolve({ error: 'Fail' }),
+      });
+      const result = await adapter.addGoogleDriveSource('f');
+      expect(result).toEqual({ success: false, error: 'Fail' });
+    });
+
+    it('addGoogleDriveSource handles network error', async () => {
+      fetchMock.mockRejectedValue(new Error('Network'));
+      const result = await adapter.addGoogleDriveSource('f');
+      expect(result).toEqual({ success: false, error: 'Network' });
+    });
+  });
 });
