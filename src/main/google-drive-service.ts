@@ -31,13 +31,14 @@ async function callWithRetry<T>(
 ): Promise<T> {
   try {
     return await fn();
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const err = error as { code?: number; message?: string };
     if (
       retries > 0 &&
-      (error.code === 429 || (error.code >= 500 && error.code < 600))
+      (err.code === 429 || (err.code && err.code >= 500 && err.code < 600))
     ) {
       console.warn(
-        `[GoogleDrive] Rate limited or server error (${error.code}). Retrying in ${delay}ms...`,
+        `[GoogleDrive] Rate limited or server error (${err.code}). Retrying in ${delay}ms...`,
       );
       await new Promise((resolve) => setTimeout(resolve, delay));
       return callWithRetry(fn, retries - 1, delay * 2);

@@ -38,6 +38,9 @@ vi.mock('fs', () => {
     existsSync: vi.fn(),
     statSync: vi.fn(),
     createReadStream: vi.fn(),
+    promises: {
+      stat: vi.fn(),
+    },
   };
   return {
     default: mockFs,
@@ -165,7 +168,7 @@ describe('media-handler', () => {
 
     it('serves full file if no range', async () => {
       vi.mocked(fs.existsSync).mockReturnValue(true);
-      vi.mocked(fs.statSync).mockReturnValue({ size: 100 } as any);
+      vi.mocked(fs.promises.stat).mockResolvedValue({ size: 100 } as any);
       const mockStream = { pipe: vi.fn() };
       vi.mocked(fs.createReadStream).mockReturnValue(mockStream as any);
 
@@ -181,7 +184,7 @@ describe('media-handler', () => {
     it('serves partial content with Range', async () => {
       req.headers.range = 'bytes=0-49';
       vi.mocked(fs.existsSync).mockReturnValue(true);
-      vi.mocked(fs.statSync).mockReturnValue({ size: 100 } as any);
+      vi.mocked(fs.promises.stat).mockResolvedValue({ size: 100 } as any);
       const mockStream = { pipe: vi.fn() };
       vi.mocked(fs.createReadStream).mockReturnValue(mockStream as any);
 
@@ -331,7 +334,7 @@ describe('createMediaRequestHandler', () => {
     req.headers.host = 'localhost';
 
     vi.mocked(fs.existsSync).mockReturnValue(true);
-    vi.mocked(fs.statSync).mockReturnValue({ size: 10 } as any);
+    vi.mocked(fs.promises.stat).mockResolvedValue({ size: 10 } as any);
     vi.mocked(fs.createReadStream).mockReturnValue({ pipe: vi.fn() } as any);
 
     await handler(req, res);
