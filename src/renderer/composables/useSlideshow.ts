@@ -81,6 +81,7 @@ export function useSlideshow() {
 
   /**
    * Selects a random item from a list, weighted by view count (less viewed items are more likely).
+   * Optimized to avoid creating intermediate arrays (filter/map) for better performance and less GC.
    * @param items - Array of media items, each with a 'path' and optional 'viewCount'.
    * @param excludePaths - An array of paths to exclude from selection.
    * @returns The selected media item, or null if no item could be selected.
@@ -91,39 +92,69 @@ export function useSlideshow() {
   ): MediaFile | null => {
     if (!items || items.length === 0) return null;
 
-    let eligibleItems = items.filter(
-      (item) => !excludePaths.includes(item.path),
-    );
+    let totalWeight = 0;
+    let eligibleCount = 0;
 
-    if (eligibleItems.length === 0) {
-      eligibleItems = items;
-    }
-    if (eligibleItems.length === 0) return null;
-
-    const weightedItems = eligibleItems.map((item) => ({
-      ...item,
-      weight: 1 / ((item.viewCount || 0) + 1),
-    }));
-
-    const totalWeight = weightedItems.reduce(
-      (sum, item) => sum + item.weight,
-      0,
-    );
-
-    if (totalWeight <= 1e-9) {
-      if (eligibleItems.length > 0) {
-        return eligibleItems[Math.floor(Math.random() * eligibleItems.length)];
+    // First pass: Calculate total weight for eligible items
+    // Using simple loop to avoid array allocation
+    for (const item of items) {
+      if (!excludePaths.includes(item.path)) {
+        totalWeight += 1 / ((item.viewCount || 0) + 1);
+        eligibleCount++;
       }
-      return null;
+    }
+
+    // Fallback: If no items are eligible (all excluded), consider ALL items eligible
+    let usingFallback = false;
+    if (eligibleCount === 0) {
+      usingFallback = true;
+      totalWeight = 0;
+      for (const item of items) {
+        totalWeight += 1 / ((item.viewCount || 0) + 1);
+      }
+    }
+
+    // Handle edge case where totalWeight is effectively zero
+    // (Should be rare with 1/(count+1) unless count is infinite)
+    if (totalWeight <= 1e-9) {
+      const effectiveItemsCount = usingFallback ? items.length : eligibleCount;
+      if (effectiveItemsCount === 0) return null;
+
+      // Pick a random eligible item uniformly
+      let targetIndex = Math.floor(Math.random() * effectiveItemsCount);
+      for (const item of items) {
+        if (usingFallback || !excludePaths.includes(item.path)) {
+          if (targetIndex === 0) return item;
+          targetIndex--;
+        }
+      }
+      // Should effectively not be reached
+      return items[items.length - 1];
     }
 
     let random = Math.random() * totalWeight;
-    for (const item of weightedItems) {
-      random -= item.weight;
+
+    // Second pass: Find the selected item
+    for (const item of items) {
+      if (!usingFallback && excludePaths.includes(item.path)) {
+        continue;
+      }
+
+      const weight = 1 / ((item.viewCount || 0) + 1);
+      random -= weight;
       if (random <= 0) return item;
     }
 
-    return weightedItems[weightedItems.length - 1];
+    // Fallback for floating point rounding errors
+    // Search backwards to find the last eligible item
+    for (let i = items.length - 1; i >= 0; i--) {
+      const item = items[i];
+      if (usingFallback || !excludePaths.includes(item.path)) {
+        return item;
+      }
+    }
+
+    return null;
   };
 
   /**
