@@ -271,4 +271,20 @@ export class WebAdapter implements IMediaBackend {
       return { success: false, error: (e as Error).message };
     }
   }
+
+  async listGoogleDriveDirectory(folderId: string) {
+    const query = folderId ? `?folderId=${encodeURIComponent(folderId)}` : '';
+    const res = await fetch(`/api/drive/files${query}`);
+    if (!res.ok) throw new Error('Failed to list Drive directory');
+    return res.json();
+  }
+
+  async getGoogleDriveParent(folderId: string) {
+    const res = await fetch(
+      `/api/drive/parent?folderId=${encodeURIComponent(folderId)}`,
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.parent;
+  }
 }

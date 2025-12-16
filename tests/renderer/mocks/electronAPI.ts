@@ -35,4 +35,6 @@ export const createMockElectronAPI = (): ElectronAPI => ({
   startGoogleDriveAuth: vi.fn(),
   submitGoogleDriveAuthCode: vi.fn(),
   addGoogleDriveSource: vi.fn(),
+  listGoogleDriveDirectory: vi.fn().mockResolvedValue([]),
+  getGoogleDriveParent: vi.fn().mockResolvedValue(null),
 });

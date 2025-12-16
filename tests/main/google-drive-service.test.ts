@@ -234,4 +234,90 @@ describe('Google Drive Service', () => {
       ).rejects.toThrow('Failed to fetch thumbnail: Not Found');
     });
   });
+
+  describe('listDriveDirectory', () => {
+    it('should list files and folders flatly', async () => {
+      const driveService = await import('../../src/main/google-drive-service');
+      const googleAuth = await import('../../src/main/google-auth');
+
+      (googleAuth.getOAuth2Client as any).mockReturnValue({
+        credentials: { refresh_token: 'valid' },
+      });
+
+      const mockFiles = [
+        { id: 'f1', name: 'File.txt', mimeType: 'text/plain' },
+        {
+          id: 'd1',
+          name: 'Folder',
+          mimeType: 'application/vnd.google-apps.folder',
+        },
+      ];
+
+      (mockDrive.files.list as any).mockResolvedValue({
+        data: { files: mockFiles },
+      });
+
+      const result = await driveService.listDriveDirectory('root');
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toEqual({
+        name: 'File.txt',
+        path: 'f1',
+        isDirectory: false,
+      });
+      expect(result[1]).toEqual({
+        name: 'Folder',
+        path: 'd1',
+        isDirectory: true,
+      });
+      expect(mockDrive.files.list).toHaveBeenCalledWith(
+        expect.objectContaining({ q: "'root' in parents and trashed = false" }),
+      );
+    });
+
+    it('should handle errors', async () => {
+      const driveService = await import('../../src/main/google-drive-service');
+      (mockDrive.files.list as any).mockRejectedValue(new Error('API Error'));
+      await expect(driveService.listDriveDirectory('root')).rejects.toThrow(
+        'API Error',
+      );
+    });
+  });
+
+  describe('getDriveParent', () => {
+    it('should return parent id', async () => {
+      const driveService = await import('../../src/main/google-drive-service');
+      (mockDrive.files.get as any).mockResolvedValue({
+        data: { parents: ['parentId'] },
+      });
+
+      const parent = await driveService.getDriveParent('childId');
+      expect(parent).toBe('parentId');
+      expect(mockDrive.files.get).toHaveBeenCalledWith(
+        expect.objectContaining({ fileId: 'childId', fields: 'parents' }),
+      );
+    });
+
+    it('should return null if no parents', async () => {
+      const driveService = await import('../../src/main/google-drive-service');
+      (mockDrive.files.get as any).mockResolvedValue({
+        data: { parents: [] },
+      });
+      const parent = await driveService.getDriveParent('childId');
+      expect(parent).toBeNull();
+    });
+
+    it('should return null for root', async () => {
+      const driveService = await import('../../src/main/google-drive-service');
+      const parent = await driveService.getDriveParent('root');
+      expect(parent).toBeNull();
+    });
+
+    it('should return null on error', async () => {
+      const driveService = await import('../../src/main/google-drive-service');
+      (mockDrive.files.get as any).mockRejectedValue(new Error('API Error'));
+      const parent = await driveService.getDriveParent('childId');
+      expect(parent).toBeNull();
+    });
+  });
 });

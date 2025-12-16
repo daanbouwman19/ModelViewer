@@ -66,6 +66,8 @@ import {
   getDriveClient,
   getDriveFileStream,
   getDriveFileMetadata,
+  listDriveDirectory,
+  getDriveParent,
 } from './google-drive-service';
 const isDev = !app.isPackaged;
 
@@ -116,7 +118,7 @@ ipcMain.handle(
           const encodedPath = encodeURIComponent(filePath);
           return {
             type: 'http-url',
-            url: `http://localhost:${currentServerPort}/${encodedPath}`,
+            url: `http://localhost:${currentServerPort}/video/stream?file=${encodedPath}`,
           };
         }
 
@@ -306,8 +308,19 @@ ipcMain.handle(
 /**
  * Handles 'auth:google-drive-start'
  */
+import { startAuthServer, stopAuthServer } from './auth-server';
+
+// ...
+
 ipcMain.handle('auth:google-drive-start', async () => {
   const url = generateAuthUrl();
+
+  // Start temporary auth server on port 3000 to catch the callback
+  // This matches the default redirect URI in Google Console
+  startAuthServer(3000).catch((err) =>
+    console.error('Failed to start auth server', err),
+  );
+
   await shell.openExternal(url);
   // User needs to paste code, or we need a loopback server.
   // For MVP, let's ask user to paste code in a prompt
@@ -643,6 +656,30 @@ ipcMain.handle(
   },
 );
 
+/**
+ * Handles 'drive:list-directory'
+ */
+ipcMain.handle('drive:list-directory', async (_event, folderId: string) => {
+  try {
+    return await listDriveDirectory(folderId || 'root');
+  } catch (err) {
+    console.error('Failed to list drive directory', err);
+    throw err;
+  }
+});
+
+/**
+ * Handles 'drive:get-parent'
+ */
+ipcMain.handle('drive:get-parent', async (_event, folderId: string) => {
+  try {
+    return await getDriveParent(folderId);
+  } catch (err) {
+    console.error('Failed to get drive parent', err);
+    return null;
+  }
+});
+
 // --- Window Creation ---
 
 /**
@@ -729,5 +766,6 @@ app.on('will-quit', () => {
   stopLocalServer(() => {
     console.log('[main.js] Local server stopped during will-quit.');
   });
+  stopAuthServer(); // Ensure auth server is cleaned up
   closeDatabase();
 });

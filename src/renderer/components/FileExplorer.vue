@@ -17,8 +17,17 @@
       <div
         class="current-path flex-grow font-mono text-sm truncate bg-black/30 p-2 rounded"
       >
-        {{ currentPath || 'Loading...' }}
+        {{ displayPath }}
       </div>
+      <button
+        class="p-2 rounded hover:bg-gray-700"
+        :title="
+          viewMode === 'list' ? 'Switch to Grid View' : 'Switch to List View'
+        "
+        @click="toggleViewMode"
+      >
+        {{ viewMode === 'list' ? '📅' : 'list' }}
+      </button>
       <button
         class="p-2 rounded hover:bg-gray-700"
         title="Refresh"
@@ -41,6 +50,32 @@
       <div v-if="error" class="text-center p-4 text-red-400">
         {{ error }}
       </div>
+
+      <!-- Grid View -->
+      <div
+        v-else-if="viewMode === 'grid'"
+        class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2"
+      >
+        <div
+          v-for="entry in sortedEntries"
+          :key="entry.path"
+          class="flex flex-col items-center p-2 rounded cursor-pointer hover:bg-gray-800 transition-colors aspect-square justify-center border border-transparent hover:border-gray-600"
+          :class="{
+            'bg-blue-900/50 border-blue-500': entry.path === selectedPath,
+          }"
+          @click="handleEntryClick(entry)"
+          @dblclick="handleEntryDoubleClick(entry)"
+        >
+          <span class="text-4xl mb-2">{{
+            entry.isDirectory ? (isDriveRoot(entry.path) ? '💾' : '📁') : '📄'
+          }}</span>
+          <span class="text-xs text-center break-all line-clamp-2 w-full">{{
+            entry.name
+          }}</span>
+        </div>
+      </div>
+
+      <!-- List View -->
       <ul v-else class="space-y-1">
         <li
           v-for="entry in sortedEntries"
@@ -58,13 +93,14 @@
             isDriveRoot(entry.path) ? 'DRIVE' : 'DIR'
           }}</span>
         </li>
-        <li
-          v-if="entries.length === 0 && !isLoading"
-          class="text-gray-500 text-center p-4"
-        >
-          Empty directory
-        </li>
       </ul>
+
+      <div
+        v-if="entries.length === 0 && !isLoading"
+        class="text-gray-500 text-center p-4"
+      >
+        Empty directory
+      </div>
     </div>
 
     <!-- Footer: Selection Actions -->
@@ -93,9 +129,16 @@ import { ref, computed, onMounted } from 'vue';
 import { api } from '../api';
 import type { FileSystemEntry } from '../../core/file-system';
 
-const props = defineProps<{
-  initialPath?: string;
-}>();
+const props = withDefaults(
+  defineProps<{
+    initialPath?: string;
+    mode?: 'local' | 'google-drive';
+  }>(),
+  {
+    mode: 'local',
+    initialPath: '',
+  },
+);
 
 const emit = defineEmits<{
   (e: 'select', path: string): void;
@@ -107,8 +150,27 @@ const entries = ref<FileSystemEntry[]>([]);
 const isLoading = ref(false);
 const error = ref<string | null>(null);
 const selectedPath = ref<string | null>(null);
+const viewMode = ref<'list' | 'grid'>(
+  props.mode === 'google-drive' ? 'grid' : 'list',
+);
+
+const toggleViewMode = () => {
+  viewMode.value = viewMode.value === 'list' ? 'grid' : 'list';
+};
 
 const parentPath = ref<string | null>(null);
+
+// For Drive: map ID to Name for display if possible, or just show ID/Name
+// We might not have the name of the CURRENT folder unless we fetch metadata.
+// For now, in Drive mode, currentPath will show the ID or "Google Drive Root".
+const displayPath = computed(() => {
+  if (props.mode === 'google-drive') {
+    return currentPath.value === 'root' || !currentPath.value
+      ? 'Google Drive'
+      : `Folder ID: ${currentPath.value}`;
+  }
+  return currentPath.value || 'Loading...';
+});
 
 const sortedEntries = computed(() => {
   return [...entries.value].sort((a, b) => {
@@ -120,6 +182,9 @@ const sortedEntries = computed(() => {
 });
 
 const isDriveRoot = (path: string) => {
+  if (props.mode === 'google-drive') {
+    return path === 'root' || !path;
+  }
   // Simple check for windows drive root like "C:\" or unix root "/"
   return /^[A-Z]:\\?$/i.test(path) || path === '/';
 };
@@ -127,28 +192,44 @@ const isDriveRoot = (path: string) => {
 const loadDirectory = async (path: string) => {
   isLoading.value = true;
   error.value = null;
-  // Don't reset selection immediately on refresh so it doesn't jump,
-  // but if we navigate, we probably should.
-  // We'll reset if path changes distinctively.
 
   try {
-    // If path is empty, we load ROOT (Drives)
-    const targetPath = path || 'ROOT';
-    const result = await api.listDirectory(targetPath);
-    entries.value = result;
+    if (props.mode === 'google-drive') {
+      const targetId = path || 'root';
+      const result = await api.listGoogleDriveDirectory(targetId);
+      entries.value = result;
+      currentPath.value = targetId;
 
-    if (targetPath === 'ROOT') {
-      currentPath.value = 'My PC'; // Display name for root
-      parentPath.value = null;
+      if (targetId === 'root') {
+        parentPath.value = null;
+      } else {
+        try {
+          // Get parent
+          const parent = await api.getGoogleDriveParent(targetId);
+          parentPath.value = parent || 'root';
+        } catch {
+          parentPath.value = 'root';
+        }
+      }
     } else {
-      currentPath.value = path;
-      // Fetch parent path
-      try {
-        const parent = await api.getParentDirectory(path);
-        // If parent is null, it means we can go up to ROOT
-        parentPath.value = parent !== null ? parent : 'ROOT';
-      } catch {
-        parentPath.value = 'ROOT';
+      // Local Mode
+      const targetPath = path || 'ROOT';
+      const result = await api.listDirectory(targetPath);
+      entries.value = result;
+
+      if (targetPath === 'ROOT') {
+        currentPath.value = 'My PC'; // Display name for root
+        parentPath.value = null;
+      } else {
+        currentPath.value = path;
+        // Fetch parent path
+        try {
+          const parent = await api.getParentDirectory(path);
+          // If parent is null, it means we can go up to ROOT
+          parentPath.value = parent !== null ? parent : 'ROOT';
+        } catch {
+          parentPath.value = 'ROOT';
+        }
       }
     }
   } catch (err) {
@@ -161,7 +242,7 @@ const loadDirectory = async (path: string) => {
 
 const navigateUp = () => {
   if (parentPath.value) {
-    if (parentPath.value === 'ROOT') {
+    if (props.mode === 'local' && parentPath.value === 'ROOT') {
       loadDirectory('');
     } else {
       loadDirectory(parentPath.value);
@@ -170,6 +251,10 @@ const navigateUp = () => {
 };
 
 const refresh = () => {
+  if (props.mode === 'google-drive') {
+    loadDirectory(currentPath.value);
+    return;
+  }
   let path = currentPath.value;
   if (path === 'My PC') path = '';
   loadDirectory(path);
@@ -200,7 +285,7 @@ onMounted(async () => {
   if (props.initialPath) {
     await loadDirectory(props.initialPath);
   } else {
-    // Start at root/drives
+    // Start at root
     await loadDirectory('');
   }
 });

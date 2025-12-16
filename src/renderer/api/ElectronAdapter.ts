@@ -177,4 +177,12 @@ export class ElectronAdapter implements IMediaBackend {
   ): Promise<{ success: boolean; name?: string; error?: string }> {
     return window.electronAPI.addGoogleDriveSource(folderId);
   }
+
+  async listGoogleDriveDirectory(folderId: string): Promise<FileSystemEntry[]> {
+    return window.electronAPI.listGoogleDriveDirectory(folderId);
+  }
+
+  async getGoogleDriveParent(folderId: string): Promise<string | null> {
+    return window.electronAPI.getGoogleDriveParent(folderId);
+  }
 }

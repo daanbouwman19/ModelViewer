@@ -79,6 +79,8 @@ export interface ElectronAPI {
   addGoogleDriveSource: (
     folderId: string,
   ) => Promise<{ success: boolean; name?: string; error?: string }>;
+  listGoogleDriveDirectory: (folderId: string) => Promise<FileSystemEntry[]>;
+  getGoogleDriveParent: (folderId: string) => Promise<string | null>;
 }
 
 // Expose a controlled API to the renderer process via `window.electronAPI`.
@@ -228,6 +230,12 @@ const api: ElectronAPI = {
     ipcRenderer.invoke('auth:google-drive-code', code),
   addGoogleDriveSource: (folderId: string) =>
     ipcRenderer.invoke('add-google-drive-source', folderId),
+
+  listGoogleDriveDirectory: (folderId: string) =>
+    ipcRenderer.invoke('drive:list-directory', folderId),
+
+  getGoogleDriveParent: (folderId: string) =>
+    ipcRenderer.invoke('drive:get-parent', folderId),
 };
 
 contextBridge.exposeInMainWorld('electronAPI', api);

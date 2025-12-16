@@ -323,9 +323,16 @@ onMounted(async () => {
 const isImage = computed(() => {
   if (!currentMediaItem.value) return false;
   const imageExtensions = supportedExtensions.value.images;
-  const ext = currentMediaItem.value.path
-    .slice(currentMediaItem.value.path.lastIndexOf('.'))
-    .toLowerCase();
+
+  // For Google Drive (or paths without extension), rely on the name
+  const sourceString = currentMediaItem.value.path.startsWith('gdrive://')
+    ? currentMediaItem.value.name
+    : currentMediaItem.value.path;
+
+  const lastDotIndex = sourceString.lastIndexOf('.');
+  if (lastDotIndex === -1) return false; // No extension found
+
+  const ext = sourceString.slice(lastDotIndex).toLowerCase();
   return imageExtensions.includes(ext);
 });
 

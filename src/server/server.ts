@@ -367,6 +367,55 @@ export async function createApp() {
     }
   });
 
+  // Auth Callback Handler for browser flow
+  app.get('/auth/google/callback', (req, res) => {
+    const code = req.query.code as string;
+    if (!code) return res.status(400).send('Missing code parameter');
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Google Authentication</title>
+          <style>
+            body { font-family: sans-serif; background: #222; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+            .container { background: #333; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); text-align: center; max-width: 500px; width: 90%; }
+            h1 { margin-top: 0; color: #4ade80; }
+            p { margin-bottom: 1.5rem; color: #ccc; }
+            .code-box { background: #111; padding: 1rem; border: 1px solid #444; border-radius: 4px; font-family: monospace; font-size: 1.2rem; word-break: break-all; margin-bottom: 1.5rem; user-select: all; }
+            button { background: #3b82f6; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 4px; cursor: pointer; font-size: 1rem; transition: background 0.2s; }
+            button:hover { background: #2563eb; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h1>Authentication Successful</h1>
+            <p>Please copy the code below and paste it into the Media Player application.</p>
+            <div class="code-box" onclick="selectCode()">${code}</div>
+            <button onclick="copyCode()">Copy Code</button>
+          </div>
+          <script>
+            function selectCode() {
+              const range = document.createRange();
+              range.selectNode(document.querySelector('.code-box'));
+              window.getSelection().removeAllRanges();
+              window.getSelection().addRange(range);
+            }
+            function copyCode() {
+              const code = document.querySelector('.code-box').innerText;
+              navigator.clipboard.writeText(code).then(() => {
+                const btn = document.querySelector('button');
+                btn.innerText = 'Copied!';
+                setTimeout(() => btn.innerText = 'Copy Code', 2000);
+              });
+            }
+          </script>
+        </body>
+      </html>
+    `;
+    res.send(html);
+  });
+
   app.post('/api/sources/google-drive', async (req, res) => {
     const { folderId } = req.body;
     if (!folderId) return res.status(400).send('Missing folderId');
@@ -383,17 +432,38 @@ export async function createApp() {
 
       // Add to database
       await addMediaDirectory(`gdrive://${driveRes.data.id}`);
-      // Note: The addMediaDirectory core function only takes path, but we might want to store the friendly name?
-      // The current core DB structure for directories is just 'path'. The scanner usually figures out the name.
-      // For Drive paths, the scanner/lister needs to resolve the name.
-      // In `listDriveFiles` (service), it returns the structure with name.
-      // But `MediaDirectory` table might just be path.
-      // We will assume the frontend will re-fetch directories and see it.
 
       res.json({ success: true, name });
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: 'Failed to add Drive source' });
+    }
+  });
+
+  app.get('/api/drive/files', async (req, res) => {
+    const folderId = req.query.folderId as string;
+    // folderId is optional, defaults to root but usually we pass it
+    try {
+      const { listDriveDirectory } =
+        await import('../main/google-drive-service');
+      const files = await listDriveDirectory(folderId || 'root');
+      res.json(files);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'Failed to list Drive files' });
+    }
+  });
+
+  app.get('/api/drive/parent', async (req, res) => {
+    const folderId = req.query.folderId as string;
+    if (!folderId) return res.status(400).send('Missing folderId');
+    try {
+      const { getDriveParent } = await import('../main/google-drive-service');
+      const parent = await getDriveParent(folderId);
+      res.json({ parent });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'Failed to get Drive parent' });
     }
   });
 

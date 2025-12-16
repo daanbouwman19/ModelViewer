@@ -26,6 +26,7 @@ export async function getDriveClient(): Promise<drive_v3.Drive> {
  * Currently implements a flat list mapped to an Album structure for simplicity in the MVP.
  * For recursive structures, we might need a more complex traversal.
  */
+// ... existing code ...
 export async function listDriveFiles(folderId: string): Promise<Album> {
   const drive = await getDriveClient();
   const q = `'${folderId}' in parents and (mimeType contains 'image/' or mimeType contains 'video/') and trashed = false`;
@@ -84,6 +85,61 @@ export async function listDriveFiles(folderId: string): Promise<Album> {
     textures,
     children,
   };
+}
+
+/**
+ * Lists files and folders for browsing (File Explorer style).
+ * Returns FileSystemEntry[] compatible structure.
+ */
+export async function listDriveDirectory(
+  folderId: string,
+): Promise<{ name: string; path: string; isDirectory: boolean }[]> {
+  const drive = await getDriveClient();
+
+  // Handle 'root' explicitly if passed
+  const queryId = folderId === 'root' ? 'root' : folderId;
+
+  const q = `'${queryId}' in parents and trashed = false`;
+  try {
+    const res = await drive.files.list({
+      q,
+      fields: 'files(id, name, mimeType)',
+      pageSize: 100, // Pagination? For browsing we probably want more but let's start with 100
+      orderBy: 'folder,name',
+    });
+
+    const files = res.data.files || [];
+    return files.map((f) => ({
+      name: f.name || 'Untitled',
+      path: f.id || '', // We use ID as "path" for internal navigation in this mode
+      isDirectory: f.mimeType === 'application/vnd.google-apps.folder',
+    }));
+  } catch (err) {
+    console.error(
+      `[GoogleDriveService] Error listing files for query '${q}':`,
+      err,
+    );
+    throw err;
+  }
+}
+
+export async function getDriveParent(folderId: string): Promise<string | null> {
+  if (!folderId || folderId === 'root') return null;
+
+  const drive = await getDriveClient();
+  try {
+    const res = await drive.files.get({
+      fileId: folderId,
+      fields: 'parents',
+    });
+
+    if (res.data.parents && res.data.parents.length > 0) {
+      return res.data.parents[0];
+    }
+  } catch (e) {
+    console.warn('Failed to get parent for drive folder', folderId, e);
+  }
+  return null;
 }
 
 export async function getDriveFileStream(fileId: string): Promise<Readable> {

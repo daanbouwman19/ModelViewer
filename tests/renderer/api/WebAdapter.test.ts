@@ -403,5 +403,45 @@ describe('WebAdapter', () => {
       const result = await adapter.addGoogleDriveSource('f');
       expect(result).toEqual({ success: false, error: 'Network' });
     });
+
+    it('listGoogleDriveDirectory fetches files', async () => {
+      const mockFiles = [{ name: 'File', path: 'id' }];
+      fetchMock.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(mockFiles),
+      });
+      const result = await adapter.listGoogleDriveDirectory('folderId');
+      expect(result).toEqual(mockFiles);
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/drive/files?folderId=folderId',
+      );
+
+      // Test without folderId
+      await adapter.listGoogleDriveDirectory('');
+      expect(fetchMock).toHaveBeenCalledWith('/api/drive/files');
+    });
+
+    it('listGoogleDriveDirectory throws on error', async () => {
+      fetchMock.mockResolvedValue({ ok: false });
+      await expect(adapter.listGoogleDriveDirectory('id')).rejects.toThrow();
+    });
+
+    it('getGoogleDriveParent fetches parent', async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ parent: 'parentId' }),
+      });
+      const result = await adapter.getGoogleDriveParent('childId');
+      expect(result).toBe('parentId');
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/drive/parent?folderId=childId',
+      );
+    });
+
+    it('getGoogleDriveParent returns null on error', async () => {
+      fetchMock.mockResolvedValue({ ok: false });
+      const result = await adapter.getGoogleDriveParent('id');
+      expect(result).toBeNull();
+    });
   });
 });
