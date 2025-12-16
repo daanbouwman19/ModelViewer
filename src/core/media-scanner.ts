@@ -57,7 +57,9 @@ async function scanDirectoryRecursive(
     // Only wrap the readdir call to limit concurrent open file descriptors.
     // We do NOT wrap the recursive calls or the whole function, as that would cause a deadlock
     // (parent holding a slot while waiting for children).
-    const items = await scanLimiter.run(() => fs.readdir(directoryPath, { withFileTypes: true }));
+    const items = await scanLimiter.run(() =>
+      fs.readdir(directoryPath, { withFileTypes: true }),
+    );
 
     const textures: MediaFile[] = [];
     const childrenPromises: Promise<Album | null>[] = [];

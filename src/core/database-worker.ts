@@ -160,19 +160,30 @@ function initDatabase(dbPath: string): WorkerResult {
         duration REAL,
         size INTEGER,
         created_at TEXT,
-        rating INTEGER DEFAULT 0
+        rating INTEGER DEFAULT 0,
+        extraction_status TEXT DEFAULT 'pending'
       )`,
     ).run();
 
-    // Migration: Add file_path to media_metadata if it doesn't exist
+    // Migration: Add file_path or extraction_status to media_metadata if it doesn't exist
     try {
       const tableInfo = db
         .prepare('PRAGMA table_info(media_metadata)')
         .all() as { name: string }[];
+
       const hasFilePath = tableInfo.some((col) => col.name === 'file_path');
       if (!hasFilePath) {
         db.prepare(
           'ALTER TABLE media_metadata ADD COLUMN file_path TEXT',
+        ).run();
+      }
+
+      const hasStatus = tableInfo.some(
+        (col) => col.name === 'extraction_status',
+      );
+      if (!hasStatus) {
+        db.prepare(
+          "ALTER TABLE media_metadata ADD COLUMN extraction_status TEXT DEFAULT 'pending'",
         ).run();
       }
     } catch (err) {
@@ -219,14 +230,18 @@ function initDatabase(dbPath: string): WorkerResult {
       'UPDATE media_directories SET is_active = ? WHERE path = ?',
     );
     statements.upsertMetadata = db.prepare(
-      `INSERT INTO media_metadata (file_path_hash, file_path, duration, size, created_at, rating)
-       VALUES (?, ?, ?, ?, ?, ?)
+      `INSERT INTO media_metadata (file_path_hash, file_path, duration, size, created_at, rating, extraction_status)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(file_path_hash) DO UPDATE SET
        file_path = excluded.file_path,
        duration = COALESCE(excluded.duration, media_metadata.duration),
        size = COALESCE(excluded.size, media_metadata.size),
        created_at = COALESCE(excluded.created_at, media_metadata.created_at),
-       rating = COALESCE(excluded.rating, media_metadata.rating)`,
+       rating = COALESCE(excluded.rating, media_metadata.rating),
+       extraction_status = COALESCE(excluded.extraction_status, media_metadata.extraction_status)`,
+    );
+    statements.getPendingMetadata = db.prepare(
+      `SELECT file_path FROM media_metadata WHERE extraction_status = 'pending' OR extraction_status IS NULL LIMIT 100`,
     );
     statements.updateRating = db.prepare(
       // Only update rating if the row exists, or insert if capable?
@@ -263,6 +278,7 @@ interface MetadataPayload {
   size?: number;
   createdAt?: string; // ISO string
   rating?: number;
+  status?: string;
 }
 
 /**
@@ -279,6 +295,7 @@ async function upsertMetadata(payload: MetadataPayload): Promise<WorkerResult> {
       payload.size === undefined ? null : payload.size,
       payload.createdAt === undefined ? null : payload.createdAt,
       payload.rating === undefined ? null : payload.rating,
+      payload.status === undefined ? null : payload.status,
     );
     return { success: true };
   } catch (error: unknown) {
@@ -741,6 +758,16 @@ if (parentPort) {
           break;
         case 'executeSmartPlaylist':
           result = await executeSmartPlaylist();
+          break;
+        case 'getPendingMetadata':
+          if (!db) {
+            result = { success: false, error: 'DB not ready' };
+            break;
+          }
+          const pending = statements.getPendingMetadata.all() as {
+            file_path: string;
+          }[];
+          result = { success: true, data: pending.map((p) => p.file_path) };
           break;
         default:
           result = { success: false, error: `Unknown message type: ${type}` };

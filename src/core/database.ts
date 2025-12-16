@@ -150,6 +150,15 @@ async function initDatabase(
         console.error(
           `[database.js] Database worker exited unexpectedly with code ${code}`,
         );
+        // Attempt to restart worker logic
+        // We use a small delay to avoid rapid crash loops
+        console.log('[database.js] Attempting to restart worker in 1s...');
+        setTimeout(() => {
+          initDatabase(userDbPath, workerScriptPath, workerOptions).catch(
+            (err) =>
+              console.error('[database.js] Failed to restart worker:', err),
+          );
+        }, 1000);
       }
       for (const [id, pending] of pendingMessages.entries()) {
         clearTimeout(pending.timeoutId);
@@ -525,4 +534,17 @@ export {
   deleteSmartPlaylist,
   updateSmartPlaylist,
   getAllMetadataAndStats,
+  getPendingMetadata,
 };
+
+/**
+ * Retrieves a list of file paths that have pending metadata extraction.
+ */
+async function getPendingMetadata(): Promise<string[]> {
+  try {
+    return await sendMessageToWorker<string[]>('getPendingMetadata');
+  } catch (error) {
+    console.error('[database.js] Error getting pending metadata:', error);
+    return [];
+  }
+}
