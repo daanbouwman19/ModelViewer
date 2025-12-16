@@ -378,6 +378,11 @@ describe('media-handler', () => {
       await serveThumbnail(req, res, 'video.mp4', '/bin/ffmpeg', '/tmp');
       await new Promise((resolve) => setTimeout(resolve, 50)); // Wait for async event handlers
 
+      expect(mockSpawn).toHaveBeenCalledWith(
+        '/bin/ffmpeg',
+        expect.arrayContaining(['-update', '1']),
+      );
+
       expect(res.writeHead).toHaveBeenCalledWith(
         200,
         expect.objectContaining({ 'Content-Type': 'image/jpeg' }),
