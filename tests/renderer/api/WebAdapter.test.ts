@@ -199,7 +199,7 @@ describe('WebAdapter', () => {
 
   describe('openInVlc', () => {
     it('returns not supported', async () => {
-      const result = await adapter.openInVlc('test.mp4');
+      const result = await adapter.openInVlc();
       expect(result).toEqual({
         success: false,
         message: 'Not supported in Web version.',

@@ -1,0 +1,384 @@
+
+> mediaplayer-app@1.0.2 pretest
+> npm rebuild better-sqlite3
+
+rebuilt dependencies successfully
+
+> mediaplayer-app@1.0.2 test
+> vitest run tests/core/database-worker.test.ts --coverage
+
+
+[1m[46m RUN [49m[22m [36mv4.0.15 [39m[90m/home/daan/projects/MediaPlayer[39m
+      [2mCoverage enabled with [22m[33mistanbul[39m
+
+[90mstdout[2m | tests/core/database-worker.test.ts
+[22m[39m[database-worker.js] Worker thread started and ready.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mInitialization and Basic Operations[2m > [22m[2mshould initialize the database
+[22m[39m[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-I8cpyE/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mInitialization and Basic Operations[2m > [22m[2mshould initialize the database
+[22m[39m[worker] Database connection closed.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mInitialization and Basic Operations[2m > [22m[2mshould handle re-initialization
+[22m[39m[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-PMo1sX/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mInitialization and Basic Operations[2m > [22m[2mshould handle re-initialization
+[22m[39m[worker] Closed existing DB connection before re-init.
+[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-PMo1sX/new.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mInitialization and Basic Operations[2m > [22m[2mshould handle re-initialization
+[22m[39m[worker] Database connection closed.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mInitialization and Basic Operations[2m > [22m[2mshould close the database
+[22m[39m[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-EY7WyF/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mInitialization and Basic Operations[2m > [22m[2mshould close the database
+[22m[39m[worker] Database connection closed.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mInitialization and Basic Operations[2m > [22m[2mshould migrate old media_directories schema
+[22m[39m[worker] Migrating media_directories table...
+[worker] Migration complete.
+[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-obpeuH/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mInitialization and Basic Operations[2m > [22m[2mshould migrate old media_directories schema
+[22m[39m[worker] Database connection closed.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mMedia Views[2m > [22m[2mshould record a media view
+[22m[39m[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-rmAyqQ/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mMedia Views[2m > [22m[2mshould record a media view
+[22m[39m[worker] Database connection closed.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mMedia Views[2m > [22m[2mshould increment view count
+[22m[39m[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-P4CWTy/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mMedia Views[2m > [22m[2mshould increment view count
+[22m[39m[worker] Database connection closed.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mMedia Views[2m > [22m[2mshould return zero for files with no views
+[22m[39m[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-pTZCIR/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mMedia Views[2m > [22m[2mshould return zero for files with no views
+[22m[39m[worker] Database connection closed.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mMedia Views[2m > [22m[2mshould handle special characters in file paths
+[22m[39m[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-Xvswmh/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mMedia Views[2m > [22m[2mshould handle special characters in file paths
+[22m[39m[worker] Database connection closed.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mMedia Views[2m > [22m[2mshould handle non-existent files (fallback ID generation)
+[22m[39m[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-1SzP3K/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mMedia Views[2m > [22m[2mshould handle non-existent files (fallback ID generation)
+[22m[39m[worker] Database connection closed.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mMedia Views[2m > [22m[2mshould generate ID from path for GDrive files
+[22m[39m[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-n90V9K/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mMedia Views[2m > [22m[2mshould generate ID from path for GDrive files
+[22m[39m[worker] Database connection closed.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mAlbum Caching[2m > [22m[2mshould cache albums
+[22m[39m[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-0FVNcA/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mAlbum Caching[2m > [22m[2mshould cache albums
+[22m[39m[worker] Database connection closed.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mAlbum Caching[2m > [22m[2mshould get cached albums
+[22m[39m[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-r9Xv9U/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mAlbum Caching[2m > [22m[2mshould get cached albums
+[22m[39m[worker] Database connection closed.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mAlbum Caching[2m > [22m[2mshould return null for non-existent cache
+[22m[39m[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-Yfe9Y7/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mAlbum Caching[2m > [22m[2mshould return null for non-existent cache
+[22m[39m[worker] Database connection closed.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mAlbum Caching[2m > [22m[2mshould overwrite existing cache
+[22m[39m[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-cjkcka/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mAlbum Caching[2m > [22m[2mshould overwrite existing cache
+[22m[39m[worker] Database connection closed.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mMedia Directories[2m > [22m[2mshould add a media directory (string path)
+[22m[39m[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-N0qK48/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mMedia Directories[2m > [22m[2mshould add a media directory (string path)
+[22m[39m[worker] Database connection closed.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mMedia Directories[2m > [22m[2mshould add a media directory (object payload)
+[22m[39m[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-BdWmyq/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mMedia Directories[2m > [22m[2mshould add a media directory (object payload)
+[22m[39m[worker] Database connection closed.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mMedia Directories[2m > [22m[2mshould get media directories
+[22m[39m[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-dGT6oP/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mMedia Directories[2m > [22m[2mshould get media directories
+[22m[39m[worker] Database connection closed.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mMedia Directories[2m > [22m[2mshould not duplicate directories
+[22m[39m[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-j4Mj1R/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mMedia Directories[2m > [22m[2mshould not duplicate directories
+[22m[39m[worker] Database connection closed.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mMedia Directories[2m > [22m[2mshould re-activate deactivated directories on add
+[22m[39m[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-XO4EvO/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mMedia Directories[2m > [22m[2mshould re-activate deactivated directories on add
+[22m[39m[worker] Database connection closed.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mMedia Directories[2m > [22m[2mshould remove a media directory
+[22m[39m[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-HWdwY6/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mMedia Directories[2m > [22m[2mshould remove a media directory
+[22m[39m[worker] Database connection closed.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mMedia Directories[2m > [22m[2mshould set directory active state
+[22m[39m[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-XwEHU9/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mMedia Directories[2m > [22m[2mshould set directory active state
+[22m[39m[worker] Database connection closed.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mSmart Playlists & Metadata[2m > [22m[2mshould create and retrieve smart playlists
+[22m[39m[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-zI6thA/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mSmart Playlists & Metadata[2m > [22m[2mshould create and retrieve smart playlists
+[22m[39m[worker] Database connection closed.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mSmart Playlists & Metadata[2m > [22m[2mshould update and delete smart playlists
+[22m[39m[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-PxUCH2/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mSmart Playlists & Metadata[2m > [22m[2mshould update and delete smart playlists
+[22m[39m[worker] Database connection closed.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mSmart Playlists & Metadata[2m > [22m[2mshould handle metadata and ratings
+[22m[39m[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-aAKXBW/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mSmart Playlists & Metadata[2m > [22m[2mshould handle metadata and ratings
+[22m[39m[worker] Database connection closed.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mSmart Playlists & Metadata[2m > [22m[2mshould handle partial updates (COALESCE logic)
+[22m[39m[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-gypzJP/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mSmart Playlists & Metadata[2m > [22m[2mshould handle partial updates (COALESCE logic)
+[22m[39m[worker] Database connection closed.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mSmart Playlists & Metadata[2m > [22m[2mshould fail gracefully when upsertMetadata receives invalid payload
+[22m[39m[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-8wNx3t/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mSmart Playlists & Metadata[2m > [22m[2mshould fail gracefully when upsertMetadata receives invalid payload
+[22m[39m[worker] Database connection closed.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mSmart Playlists & Metadata[2m > [22m[2mshould handle setRating message
+[22m[39m[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-vq92Hw/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mSmart Playlists & Metadata[2m > [22m[2mshould handle setRating message
+[22m[39m[worker] Database connection closed.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mSmart Playlists & Metadata[2m > [22m[2mshould handle getMetadata message
+[22m[39m[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-IKp3gz/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mSmart Playlists & Metadata[2m > [22m[2mshould handle getMetadata message
+[22m[39m[worker] Database connection closed.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mSmart Playlists & Metadata[2m > [22m[2mshould handle executeSmartPlaylist message
+[22m[39m[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-NnKoTi/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mSmart Playlists & Metadata[2m > [22m[2mshould handle executeSmartPlaylist message
+[22m[39m[worker] Database connection closed.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mError Handling[2m > [22m[2mOperations after close[2m > [22m[2m'recordMediaView' should fail gracefully
+[22m[39m[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-Pw557j/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mError Handling[2m > [22m[2mOperations after close[2m > [22m[2m'recordMediaView' should fail gracefully
+[22m[39m[worker] Database connection closed.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mError Handling[2m > [22m[2mOperations after close[2m > [22m[2m'getMediaViewCounts' should fail gracefully
+[22m[39m[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-Ro0kMi/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mError Handling[2m > [22m[2mOperations after close[2m > [22m[2m'getMediaViewCounts' should fail gracefully
+[22m[39m[worker] Database connection closed.
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mError Handling[2m > [22m[2mOperations after close[2m > [22m[2m'addMediaDirectory' should fail gracefully
+[22m[39m[worker] SQLite database initialized at: /home/daan/projects/MediaPlayer/tests/temp/test-db-0CWK2a/test.sqlite
+
+[90mstdout[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mError Handling[2m > [22m[2mOperations after close[2m > [22m[2m'addMediaDirectory' should fail gracefully
+[22m[39m[worker] Database connection closed.
+
+[90mstderr[2m | tests/core/database-worker.test.ts[2m > [22m[2mDatabase Worker[2m > [22m[2mError Handling[2m > [22m[2mshould catch top-level errors in message processing
+[22m[39m[worker] Error processing message id=161, type=recordMediaView: TypeError: Cannot read properties of null (reading 'filePath')
+    at EventEmitter.<anonymous> [90m(/home/daan/projects/MediaPlayer/[39msrc/core/database-worker.ts:682:50[90m)[39m
+[90m    at EventEmitter.emit (node:events:508:28)[39m
+    at [90m/home/daan/projects/MediaPlayer/[39mtests/core/database-worker.test.ts:87:19
+    at new Promise (<anonymous>)
+    at sendMessage [90m(/home/daan/projects/MediaPlayer/[39mtests/core/database-worker.test.ts:65:12[90m)[39m
+    at [90m/home/daan/projects/MediaPlayer/[39mtests/core/database-worker.test.ts:537:28
+    at [90mfile:///home/daan/projects/MediaPlayer/[39mnode_modules/[4m@vitest/runner[24m/dist/index.js:145:11
+    at [90mfile:///home/daan/projects/MediaPlayer/[39mnode_modules/[4m@vitest/runner[24m/dist/index.js:915:26
+    at [90mfile:///home/daan/projects/MediaPlayer/[39mnode_modules/[4m@vitest/runner[24m/dist/index.js:1240:20
+    at new Promise (<anonymous>)
+
+ [32m✓[39m tests/core/database-worker.test.ts [2m([22m[2m50 tests[22m[2m)[22m[33m 3871[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m50 passed[39m[22m[90m (50)[39m
+[2m   Start at [22m 10:50:31
+[2m   Duration [22m 13.85s[2m (transform 1.29s, setup 0ms, import 1.41s, tests 3.87s, environment 847ms)[22m
+
+[34m % [39m[2mCoverage report from [22m[33mistanbul[39m
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   11.24 |     9.75 |    7.85 |   10.74 |                   
+ core              |   32.65 |    30.97 |   28.43 |   31.06 |                   
+  constants.ts     |       0 |      100 |     100 |       0 | 1-19              
+  ...ase-worker.ts |   88.27 |    88.46 |     100 |   87.25 | ...37-641,660-664 
+  database.ts      |       0 |        0 |       0 |       0 | 3-311             
+  file-system.ts   |       0 |        0 |       0 |       0 | 4-70              
+  media-handler.ts |       0 |        0 |       0 |       0 | 14-329            
+  media-scanner.ts |       0 |        0 |       0 |       0 | 6-95              
+  media-service.ts |       0 |        0 |       0 |       0 | 12-88             
+  security.ts      |       0 |        0 |       0 |       0 | 5-32              
+ main              |       0 |        0 |       0 |       0 |                   
+  database.ts      |       0 |        0 |       0 |       0 | 6-23              
+  google-auth.ts   |       0 |        0 |       0 |       0 | 10-51             
+  ...ve-service.ts |       0 |        0 |       0 |       0 | 4-100             
+  ...le-secrets.ts |       0 |      100 |     100 |       0 | 1-3               
+  local-server.ts  |       0 |        0 |       0 |       0 | 7-60              
+ renderer          |       0 |        0 |       0 |       0 |                   
+  App.vue          |       0 |        0 |       0 |       0 | 16-77             
+ renderer/api      |       0 |        0 |       0 |       0 |                   
+  ...ronAdapter.ts |       0 |        0 |       0 |       0 | 3-108             
+  WebAdapter.ts    |       0 |        0 |       0 |       0 | 3-196             
+  index.ts         |       0 |        0 |     100 |       0 | 3-4               
+ ...rer/components |       0 |        0 |       0 |       0 |                   
+  AlbumTree.vue    |       0 |        0 |       0 |       0 | 15-74             
+  AlbumsList.vue   |       0 |        0 |       0 |       0 | 27-177            
+  ...ackground.vue |       0 |        0 |       0 |       0 | 9-96              
+  FileExplorer.vue |       0 |        0 |       0 |       0 | 12-130            
+  MediaDisplay.vue |       0 |        0 |       0 |       0 | 24-408            
+  MediaGrid.vue    |       0 |        0 |       0 |       0 | 5-134             
+  ...listModal.vue |       0 |        0 |       0 |       0 | 13-88             
+  SourcesModal.vue |       0 |        0 |       0 |       0 | 11-201            
+ ...er/composables |       0 |        0 |       0 |       0 |                   
+  useAppState.ts   |       0 |        0 |       0 |       0 | 3-69              
+  useSlideshow.ts  |       0 |        0 |       0 |       0 | 9-222             
+ renderer/utils    |       0 |        0 |       0 |       0 |                   
+  albumUtils.ts    |       0 |        0 |       0 |       0 | 1-58              
+ server            |       0 |        0 |       0 |       0 |                   
+  server.ts        |       0 |        0 |       0 |       0 | 36-343            
+-------------------|---------|----------|---------|---------|-------------------
+ERROR: Coverage for lines (0%) does not meet global threshold (80%) for src/core/constants.ts
+ERROR: Coverage for statements (0%) does not meet global threshold (80%) for src/core/constants.ts
+ERROR: Coverage for lines (0%) does not meet global threshold (80%) for src/core/database.ts
+ERROR: Coverage for functions (0%) does not meet global threshold (80%) for src/core/database.ts
+ERROR: Coverage for statements (0%) does not meet global threshold (80%) for src/core/database.ts
+ERROR: Coverage for branches (0%) does not meet global threshold (80%) for src/core/database.ts
+ERROR: Coverage for lines (0%) does not meet global threshold (80%) for src/core/file-system.ts
+ERROR: Coverage for functions (0%) does not meet global threshold (80%) for src/core/file-system.ts
+ERROR: Coverage for statements (0%) does not meet global threshold (80%) for src/core/file-system.ts
+ERROR: Coverage for branches (0%) does not meet global threshold (80%) for src/core/file-system.ts
+ERROR: Coverage for lines (0%) does not meet global threshold (80%) for src/core/media-handler.ts
+ERROR: Coverage for functions (0%) does not meet global threshold (80%) for src/core/media-handler.ts
+ERROR: Coverage for statements (0%) does not meet global threshold (80%) for src/core/media-handler.ts
+ERROR: Coverage for branches (0%) does not meet global threshold (80%) for src/core/media-handler.ts
+ERROR: Coverage for lines (0%) does not meet global threshold (80%) for src/core/media-scanner.ts
+ERROR: Coverage for functions (0%) does not meet global threshold (80%) for src/core/media-scanner.ts
+ERROR: Coverage for statements (0%) does not meet global threshold (80%) for src/core/media-scanner.ts
+ERROR: Coverage for branches (0%) does not meet global threshold (80%) for src/core/media-scanner.ts
+ERROR: Coverage for lines (0%) does not meet global threshold (80%) for src/core/media-service.ts
+ERROR: Coverage for functions (0%) does not meet global threshold (80%) for src/core/media-service.ts
+ERROR: Coverage for statements (0%) does not meet global threshold (80%) for src/core/media-service.ts
+ERROR: Coverage for branches (0%) does not meet global threshold (80%) for src/core/media-service.ts
+ERROR: Coverage for lines (0%) does not meet global threshold (80%) for src/core/security.ts
+ERROR: Coverage for functions (0%) does not meet global threshold (80%) for src/core/security.ts
+ERROR: Coverage for statements (0%) does not meet global threshold (80%) for src/core/security.ts
+ERROR: Coverage for branches (0%) does not meet global threshold (80%) for src/core/security.ts
+ERROR: Coverage for lines (0%) does not meet global threshold (80%) for src/renderer/App.vue
+ERROR: Coverage for functions (0%) does not meet global threshold (80%) for src/renderer/App.vue
+ERROR: Coverage for statements (0%) does not meet global threshold (80%) for src/renderer/App.vue
+ERROR: Coverage for branches (0%) does not meet global threshold (80%) for src/renderer/App.vue
+ERROR: Coverage for lines (0%) does not meet global threshold (80%) for src/main/database.ts
+ERROR: Coverage for functions (0%) does not meet global threshold (80%) for src/main/database.ts
+ERROR: Coverage for statements (0%) does not meet global threshold (80%) for src/main/database.ts
+ERROR: Coverage for branches (0%) does not meet global threshold (80%) for src/main/database.ts
+ERROR: Coverage for lines (0%) does not meet global threshold (80%) for src/main/google-auth.ts
+ERROR: Coverage for functions (0%) does not meet global threshold (80%) for src/main/google-auth.ts
+ERROR: Coverage for statements (0%) does not meet global threshold (80%) for src/main/google-auth.ts
+ERROR: Coverage for branches (0%) does not meet global threshold (80%) for src/main/google-auth.ts
+ERROR: Coverage for lines (0%) does not meet global threshold (80%) for src/main/google-drive-service.ts
+ERROR: Coverage for functions (0%) does not meet global threshold (80%) for src/main/google-drive-service.ts
+ERROR: Coverage for statements (0%) does not meet global threshold (80%) for src/main/google-drive-service.ts
+ERROR: Coverage for branches (0%) does not meet global threshold (80%) for src/main/google-drive-service.ts
+ERROR: Coverage for lines (0%) does not meet global threshold (80%) for src/main/google-secrets.ts
+ERROR: Coverage for statements (0%) does not meet global threshold (80%) for src/main/google-secrets.ts
+ERROR: Coverage for lines (0%) does not meet global threshold (80%) for src/main/local-server.ts
+ERROR: Coverage for functions (0%) does not meet global threshold (80%) for src/main/local-server.ts
+ERROR: Coverage for statements (0%) does not meet global threshold (80%) for src/main/local-server.ts
+ERROR: Coverage for branches (0%) does not meet global threshold (80%) for src/main/local-server.ts
+ERROR: Coverage for lines (0%) does not meet global threshold (80%) for src/server/server.ts
+ERROR: Coverage for functions (0%) does not meet global threshold (80%) for src/server/server.ts
+ERROR: Coverage for statements (0%) does not meet global threshold (80%) for src/server/server.ts
+ERROR: Coverage for branches (0%) does not meet global threshold (80%) for src/server/server.ts
+ERROR: Coverage for lines (0%) does not meet global threshold (80%) for src/renderer/api/ElectronAdapter.ts
+ERROR: Coverage for functions (0%) does not meet global threshold (80%) for src/renderer/api/ElectronAdapter.ts
+ERROR: Coverage for statements (0%) does not meet global threshold (80%) for src/renderer/api/ElectronAdapter.ts
+ERROR: Coverage for branches (0%) does not meet global threshold (80%) for src/renderer/api/ElectronAdapter.ts
+ERROR: Coverage for lines (0%) does not meet global threshold (80%) for src/renderer/api/WebAdapter.ts
+ERROR: Coverage for functions (0%) does not meet global threshold (80%) for src/renderer/api/WebAdapter.ts
+ERROR: Coverage for statements (0%) does not meet global threshold (80%) for src/renderer/api/WebAdapter.ts
+ERROR: Coverage for branches (0%) does not meet global threshold (80%) for src/renderer/api/WebAdapter.ts
+ERROR: Coverage for lines (0%) does not meet global threshold (80%) for src/renderer/api/index.ts
+ERROR: Coverage for statements (0%) does not meet global threshold (80%) for src/renderer/api/index.ts
+ERROR: Coverage for branches (0%) does not meet global threshold (80%) for src/renderer/api/index.ts
+ERROR: Coverage for lines (0%) does not meet global threshold (80%) for src/renderer/composables/useAppState.ts
+ERROR: Coverage for functions (0%) does not meet global threshold (80%) for src/renderer/composables/useAppState.ts
+ERROR: Coverage for statements (0%) does not meet global threshold (80%) for src/renderer/composables/useAppState.ts
+ERROR: Coverage for branches (0%) does not meet global threshold (80%) for src/renderer/composables/useAppState.ts
+ERROR: Coverage for lines (0%) does not meet global threshold (80%) for src/renderer/composables/useSlideshow.ts
+ERROR: Coverage for functions (0%) does not meet global threshold (80%) for src/renderer/composables/useSlideshow.ts
+ERROR: Coverage for statements (0%) does not meet global threshold (80%) for src/renderer/composables/useSlideshow.ts
+ERROR: Coverage for branches (0%) does not meet global threshold (80%) for src/renderer/composables/useSlideshow.ts
+ERROR: Coverage for lines (0%) does not meet global threshold (80%) for src/renderer/components/AlbumTree.vue
+ERROR: Coverage for functions (0%) does not meet global threshold (80%) for src/renderer/components/AlbumTree.vue
+ERROR: Coverage for statements (0%) does not meet global threshold (80%) for src/renderer/components/AlbumTree.vue
+ERROR: Coverage for branches (0%) does not meet global threshold (80%) for src/renderer/components/AlbumTree.vue
+ERROR: Coverage for lines (0%) does not meet global threshold (80%) for src/renderer/components/AlbumsList.vue
+ERROR: Coverage for functions (0%) does not meet global threshold (80%) for src/renderer/components/AlbumsList.vue
+ERROR: Coverage for statements (0%) does not meet global threshold (80%) for src/renderer/components/AlbumsList.vue
+ERROR: Coverage for branches (0%) does not meet global threshold (80%) for src/renderer/components/AlbumsList.vue
+ERROR: Coverage for lines (0%) does not meet global threshold (80%) for src/renderer/components/AmbientBackground.vue
+ERROR: Coverage for functions (0%) does not meet global threshold (80%) for src/renderer/components/AmbientBackground.vue
+ERROR: Coverage for statements (0%) does not meet global threshold (80%) for src/renderer/components/AmbientBackground.vue
+ERROR: Coverage for branches (0%) does not meet global threshold (80%) for src/renderer/components/AmbientBackground.vue
+ERROR: Coverage for lines (0%) does not meet global threshold (80%) for src/renderer/components/FileExplorer.vue
+ERROR: Coverage for functions (0%) does not meet global threshold (80%) for src/renderer/components/FileExplorer.vue
+ERROR: Coverage for statements (0%) does not meet global threshold (80%) for src/renderer/components/FileExplorer.vue
+ERROR: Coverage for branches (0%) does not meet global threshold (80%) for src/renderer/components/FileExplorer.vue
+ERROR: Coverage for lines (0%) does not meet global threshold (80%) for src/renderer/components/MediaDisplay.vue
+ERROR: Coverage for functions (0%) does not meet global threshold (80%) for src/renderer/components/MediaDisplay.vue
+ERROR: Coverage for statements (0%) does not meet global threshold (80%) for src/renderer/components/MediaDisplay.vue
+ERROR: Coverage for branches (0%) does not meet global threshold (80%) for src/renderer/components/MediaDisplay.vue
+ERROR: Coverage for lines (0%) does not meet global threshold (80%) for src/renderer/components/MediaGrid.vue
+ERROR: Coverage for functions (0%) does not meet global threshold (80%) for src/renderer/components/MediaGrid.vue
+ERROR: Coverage for statements (0%) does not meet global threshold (80%) for src/renderer/components/MediaGrid.vue
+ERROR: Coverage for branches (0%) does not meet global threshold (80%) for src/renderer/components/MediaGrid.vue
+ERROR: Coverage for lines (0%) does not meet global threshold (80%) for src/renderer/components/SmartPlaylistModal.vue
+ERROR: Coverage for functions (0%) does not meet global threshold (80%) for src/renderer/components/SmartPlaylistModal.vue
+ERROR: Coverage for statements (0%) does not meet global threshold (80%) for src/renderer/components/SmartPlaylistModal.vue
+ERROR: Coverage for branches (0%) does not meet global threshold (80%) for src/renderer/components/SmartPlaylistModal.vue
+ERROR: Coverage for lines (0%) does not meet global threshold (80%) for src/renderer/components/SourcesModal.vue
+ERROR: Coverage for functions (0%) does not meet global threshold (80%) for src/renderer/components/SourcesModal.vue
+ERROR: Coverage for statements (0%) does not meet global threshold (80%) for src/renderer/components/SourcesModal.vue
+ERROR: Coverage for branches (0%) does not meet global threshold (80%) for src/renderer/components/SourcesModal.vue
+ERROR: Coverage for lines (0%) does not meet global threshold (80%) for src/renderer/utils/albumUtils.ts
+ERROR: Coverage for functions (0%) does not meet global threshold (80%) for src/renderer/utils/albumUtils.ts
+ERROR: Coverage for statements (0%) does not meet global threshold (80%) for src/renderer/utils/albumUtils.ts
+ERROR: Coverage for branches (0%) does not meet global threshold (80%) for src/renderer/utils/albumUtils.ts
