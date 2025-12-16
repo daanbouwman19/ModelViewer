@@ -230,7 +230,8 @@ describe('MediaGrid.vue Coverage', () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     (api.getMediaUrlGenerator as any).mockRejectedValue(new Error('API Fail'));
 
-    const wrapper = mount(MediaGrid);
+    // Mount component AFTER setting up the mock so onMounted triggers the error
+    mount(MediaGrid);
     await flushPromises();
 
     expect(consoleSpy).toHaveBeenCalledWith(

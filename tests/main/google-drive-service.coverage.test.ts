@@ -200,24 +200,17 @@ describe('Google Drive Service Coverage', () => {
     const getMock = mockDrive.files.get as any;
     getMock.mockResolvedValueOnce({ data: { thumbnailLink: 'http://thumb' } });
 
-    // Mock web stream
-    const mockStream = {
-      getReader: () => ({
-        read: () => Promise.resolve({ done: true, value: undefined }),
-        cancel: () => Promise.resolve(),
-        releaseLock: () => {},
-      }),
-    };
+    // Mock web stream - create a proper ReadableStream
+    const mockStream = new ReadableStream({
+      start(controller) {
+        controller.close();
+      },
+    });
 
     mockFetch.mockResolvedValueOnce({
       ok: true,
       body: mockStream,
     });
-
-    // Mock Readable.fromWeb because we can't easily pass a real fake stream that satisfies types
-    const fromWebSpy = vi
-      .spyOn(Readable, 'fromWeb')
-      .mockReturnValue(new Readable());
 
     const stream = await driveService.getDriveFileThumbnail('id');
     expect(stream).toBeInstanceOf(Readable);
