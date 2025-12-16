@@ -33,7 +33,7 @@
           :key="item.path"
           type="button"
           class="relative group grid-item cursor-pointer w-full h-full text-left bg-transparent border-0 p-0 block focus:outline-none focus:ring-2 focus:ring-pink-500 rounded"
-          :aria-label="`View ${getFileName(item.path)}`"
+          :aria-label="`View ${getDisplayName(item)}`"
           @click="handleItemClick(item)"
         >
           <template v-if="isImage(item)">
@@ -69,7 +69,7 @@
             class="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
           >
             <p class="text-white text-xs truncate">
-              {{ getFileName(item.path) }}
+              {{ getDisplayName(item) }}
             </p>
           </div>
         </button>
@@ -161,21 +161,21 @@ watch(allMediaFiles, () => {
 
 /**
  * Helper to extract file extension efficiently.
- * @param path - The file path.
+ * @param nameOrPath - The file path or name.
  * @returns The extension including the dot, or empty string if none.
  */
-const getExtension = (path: string) => {
-  const lastDotIndex = path.lastIndexOf('.');
+const getExtension = (nameOrPath: string) => {
+  const lastDotIndex = nameOrPath.lastIndexOf('.');
   if (lastDotIndex === -1) return '';
 
   const lastSlashIndex = Math.max(
-    path.lastIndexOf('/'),
-    path.lastIndexOf('\\'),
+    nameOrPath.lastIndexOf('/'),
+    nameOrPath.lastIndexOf('\\'),
   );
   if (lastDotIndex < lastSlashIndex) return ''; // Dot is in directory name
   if (lastDotIndex === lastSlashIndex + 1) return ''; // Dotfile (e.g. .gitignore)
 
-  return path.substring(lastDotIndex).toLowerCase();
+  return nameOrPath.substring(lastDotIndex).toLowerCase();
 };
 
 /**
@@ -184,7 +184,8 @@ const getExtension = (path: string) => {
  * @returns True if it is an image.
  */
 const isImage = (item: MediaFile) => {
-  const ext = getExtension(item.path);
+  // Use name if available as it's more reliable for non-filesystem paths (e.g. gdrive)
+  const ext = getExtension(item.name || item.path);
   return state.supportedExtensions.images.includes(ext);
 };
 
@@ -194,7 +195,7 @@ const isImage = (item: MediaFile) => {
  * @returns True if it is a video.
  */
 const isVideo = (item: MediaFile) => {
-  const ext = getExtension(item.path);
+  const ext = getExtension(item.name || item.path);
   return state.supportedExtensions.videos.includes(ext);
 };
 
@@ -233,8 +234,9 @@ const getPosterUrl = (item: MediaFile) => {
   return '';
 };
 
-const getFileName = (path: string) => {
-  return path.replace(/^.*[\\/]/, '');
+const getDisplayName = (item: MediaFile) => {
+  if (item.name) return item.name;
+  return item.path.replace(/^.*[\\/]/, '');
 };
 
 /**
