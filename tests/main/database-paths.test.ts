@@ -68,4 +68,30 @@ describe('Main Process Database Initialization Paths', () => {
       expect.any(URL),
     );
   });
+
+  it('should use correct worker path in test environment', async () => {
+    // Mock electron with isPackaged = false
+    vi.doMock('electron', () => ({
+      app: {
+        getPath: () => '/user/data',
+        isPackaged: false,
+      },
+    }));
+
+    // Mock environment to look like test
+    process.env.NODE_ENV = 'test';
+    process.env.VITEST = 'true';
+
+    // Import module under test
+    const { initDatabase } = await import('../../src/main/database');
+    const { initDatabase: initCore } = await import('../../src/core/database');
+
+    await initDatabase();
+
+    // Verify initCore was called with the TS worker path
+    expect(initCore).toHaveBeenCalledWith(
+      expect.stringContaining('media_slideshow_stats.sqlite'),
+      expect.stringContaining('src/core/database-worker.ts'),
+    );
+  });
 });
