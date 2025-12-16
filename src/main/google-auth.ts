@@ -4,9 +4,9 @@ import fs from 'fs/promises';
 import { OAuth2Client } from 'google-auth-library';
 import { google } from 'googleapis';
 import {
-  GOOGLE_CLIENT_ID,
-  GOOGLE_CLIENT_SECRET,
-  GOOGLE_REDIRECT_URI,
+  getGoogleClientId,
+  getGoogleClientSecret,
+  getGoogleRedirectUri,
 } from './google-secrets';
 
 const SCOPES = ['https://www.googleapis.com/auth/drive.readonly'];
@@ -22,11 +22,16 @@ function getTokenPath(): string {
 
 export function getOAuth2Client(): OAuth2Client {
   if (!oauth2Client) {
-    oauth2Client = new google.auth.OAuth2(
-      GOOGLE_CLIENT_ID,
-      GOOGLE_CLIENT_SECRET,
-      GOOGLE_REDIRECT_URI,
-    );
+    const clientId = getGoogleClientId();
+    const clientSecret = getGoogleClientSecret();
+    const redirectUri = getGoogleRedirectUri();
+
+    if (!clientId || !clientSecret) {
+      throw new Error(
+        'Google OAuth credentials not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in your .env file.',
+      );
+    }
+    oauth2Client = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
   }
   return oauth2Client;
 }

@@ -4,6 +4,11 @@
  * backend logic and communication with the renderer process via IPC.
  * This includes file system operations, database management, and running a local server.
  */
+
+// Load environment variables from .env file
+import dotenv from 'dotenv';
+dotenv.config();
+
 import {
   app,
   BrowserWindow,
