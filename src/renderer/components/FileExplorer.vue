@@ -59,7 +59,7 @@
         <div
           v-for="entry in sortedEntries"
           :key="entry.path"
-          class="flex flex-col items-center p-2 rounded cursor-pointer hover:bg-gray-800 transition-colors aspect-square justify-center border border-transparent hover:border-gray-600"
+          class="flex flex-col items-center p-2 rounded transition-colors aspect-square justify-center border border-transparent hover:border-gray-600 cursor-pointer hover:bg-gray-800"
           :class="{
             'bg-blue-900/50 border-blue-500': entry.path === selectedPath,
           }"
@@ -80,7 +80,7 @@
         <li
           v-for="entry in sortedEntries"
           :key="entry.path"
-          class="flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-gray-800 transition-colors"
+          class="flex items-center gap-2 p-2 rounded transition-colors cursor-pointer hover:bg-gray-800"
           :class="{ 'bg-blue-900/50': entry.path === selectedPath }"
           @click="handleEntryClick(entry)"
           @dblclick="handleEntryDoubleClick(entry)"
@@ -194,9 +194,15 @@ const loadDirectory = async (path: string) => {
   error.value = null;
 
   try {
+    console.log(
+      `[FileExplorer] loadDirectory mode=${props.mode} path='${path}'`,
+    );
     if (props.mode === 'google-drive') {
       const targetId = path || 'root';
       const result = await api.listGoogleDriveDirectory(targetId);
+      console.log(
+        `[FileExplorer] listGoogleDriveDirectory returned ${result.length} items`,
+      );
       entries.value = result;
       currentPath.value = targetId;
 

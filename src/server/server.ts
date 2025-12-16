@@ -4,6 +4,7 @@
  * It serves the frontend assets and provides the API endpoints mirroring IMediaBackend.
  */
 
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -325,7 +326,7 @@ export async function createApp() {
   });
 
   // Extensions
-  app.get('/api/extensions', (_req, res) => {
+  app.get('/api/config/extensions', (_req, res) => {
     res.json({
       images: SUPPORTED_IMAGE_EXTENSIONS,
       videos: SUPPORTED_VIDEO_EXTENSIONS,
@@ -361,8 +362,18 @@ export async function createApp() {
       const { authenticateWithCode } = await import('../main/google-auth');
       await authenticateWithCode(code);
       res.sendStatus(200);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      // Determine if it's a client error (invalid code)
+      // Google API throws errors with 'message' often containing 'invalid_grant'
+      // or we can assume most errors here are due to bad input if user is doing this manually.
+      if (
+        e.code === 400 ||
+        e.response?.status === 400 ||
+        e.message?.includes('invalid_grant')
+      ) {
+        return res.status(400).json({ error: 'Invalid code' });
+      }
       res.status(500).json({ error: 'Authentication failed' });
     }
   });

@@ -370,4 +370,78 @@ describe('FileExplorer.vue', () => {
 
     expect(api.listDirectory).toHaveBeenCalledWith('ROOT'); // loadDirectory('') calls listDirectory('ROOT')
   });
+
+  it('allows selection of directories in Google Drive grid view', async () => {
+    const driveEntries = [
+      {
+        name: 'My Folder',
+        path: 'folder-123',
+        isDirectory: true,
+        mimeType: 'application/vnd.google-apps.folder',
+      },
+      {
+        name: 'My File',
+        path: 'file-456',
+        isDirectory: false,
+        mimeType: 'image/jpeg',
+      },
+    ];
+    (api.listGoogleDriveDirectory as any).mockResolvedValue(driveEntries);
+    (api.getGoogleDriveParent as any).mockResolvedValue('root');
+
+    const wrapper = mount(FileExplorer, {
+      props: { mode: 'google-drive', initialPath: 'root' },
+    });
+    await flushPromises();
+
+    // Verify grid view is active
+    expect(wrapper.find('div.grid').exists()).toBe(true);
+
+    // Find the folder item
+    const folderItem = wrapper
+      .findAll('.grid > div')
+      .filter((w) => w.text().includes('My Folder'))
+      .at(0);
+    expect(folderItem?.exists()).toBe(true);
+
+    // Click the folder
+    await folderItem?.trigger('click');
+    await flushPromises();
+
+    // Check selection state
+    expect((wrapper.vm as any).selectedPath).toBe('folder-123');
+    expect(folderItem?.classes()).toContain('bg-blue-900/50');
+
+    // Find select button
+    const selectBtn = wrapper.find('button.bg-blue-600');
+    expect(selectBtn.attributes('disabled')).toBeUndefined();
+
+    // Click select button
+    await selectBtn.trigger('click');
+    expect(wrapper.emitted('select')?.[0]).toEqual(['folder-123']);
+  });
+
+  it('does not select files in Google Drive grid view', async () => {
+    const driveEntries = [
+      { name: 'My File', path: 'file-456', isDirectory: false },
+    ];
+    (api.listGoogleDriveDirectory as any).mockResolvedValue(driveEntries);
+    const wrapper = mount(FileExplorer, {
+      props: { mode: 'google-drive', initialPath: 'root' },
+    });
+    await flushPromises();
+
+    const fileItem = wrapper
+      .findAll('.grid > div')
+      .filter((w) => w.text().includes('My File'))
+      .at(0);
+
+    // Click the file
+    await fileItem?.trigger('click');
+    await flushPromises();
+
+    expect((wrapper.vm as any).selectedPath).toBeNull();
+    const selectBtn = wrapper.find('button.bg-blue-600');
+    expect(selectBtn.attributes()).toHaveProperty('disabled');
+  });
 });

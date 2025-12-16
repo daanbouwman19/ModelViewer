@@ -239,7 +239,9 @@ export class WebAdapter implements IMediaBackend {
   async startGoogleDriveAuth(): Promise<string> {
     const res = await fetch('/api/auth/google-drive/start');
     if (!res.ok) throw new Error('Failed to start auth');
-    return res.text();
+    const url = await res.text();
+    window.open(url, '_blank');
+    return url;
   }
 
   async submitGoogleDriveAuthCode(code: string): Promise<boolean> {

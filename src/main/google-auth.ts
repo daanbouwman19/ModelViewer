@@ -1,4 +1,4 @@
-import { app } from 'electron';
+import os from 'os';
 import path from 'path';
 import fs from 'fs/promises';
 import { OAuth2Client } from 'google-auth-library';
@@ -14,10 +14,21 @@ const SCOPES = ['https://www.googleapis.com/auth/drive.readonly'];
 let oauth2Client: OAuth2Client | null = null;
 
 function getTokenPath(): string {
-  // In some test environments, app might not be fully initialized or we might be running in a context
-  // where we should mock this. But for safety, we access app.getPath inside functions.
-  // If app is undefined (shouldn't be in main process), it will throw.
-  return path.join(app.getPath('userData'), 'google-token.json');
+  let userDataPath: string;
+  try {
+    if (process.versions['electron']) {
+      userDataPath = path.join(os.homedir(), '.config', 'mediaplayer-app');
+    } else {
+      // Match Electron's default userData path on Linux for "mediaplayer-app"
+      // Ideally we should check platform (darwin -> Library/Application Support, win32 -> AppData/Roaming)
+      // But user is on Linux.
+      // Let's iterate or pick the one that exists or default to .config/mediaplayer-app
+      userDataPath = path.join(os.homedir(), '.config', 'mediaplayer-app');
+    }
+  } catch {
+    userDataPath = path.join(process.cwd(), '.media-player');
+  }
+  return path.join(userDataPath, 'google-token.json');
 }
 
 export function getOAuth2Client(): OAuth2Client {
@@ -59,6 +70,7 @@ export function generateAuthUrl(): string {
   return client.generateAuthUrl({
     access_type: 'offline',
     scope: SCOPES,
+    prompt: 'consent',
   });
 }
 

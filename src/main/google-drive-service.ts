@@ -37,9 +37,12 @@ export async function listDriveFiles(folderId: string): Promise<Album> {
   do {
     const res: { data: drive_v3.Schema$FileList } = await drive.files.list({
       q,
-      fields: 'nextPageToken, files(id, name, mimeType, size, createdTime)',
+      fields:
+        'nextPageToken, files(id, name, mimeType, size, createdTime, shortcutDetails)',
       pageSize: 1000,
       pageToken,
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
     });
     if (res.data.files) {
       allFiles = allFiles.concat(res.data.files);
@@ -48,33 +51,70 @@ export async function listDriveFiles(folderId: string): Promise<Album> {
   } while (pageToken);
 
   const files = allFiles;
-  const textures: MediaFile[] = files.map((f) => ({
-    name: f.name || 'Untitled',
-    path: `gdrive://${f.id}`,
-    // we can add other metadata here if MediaFile supported it directly or via side-channel
-  }));
+  const textures: MediaFile[] = files
+    .filter((f) => {
+      // Filter out non-media unless it's a shortcut to media (future)
+      // For now, our query filters media items.
+      // But we need to handle shortcuts to media if we want them to show up as files.
+      if (f.mimeType === 'application/vnd.google-apps.shortcut') {
+        const targetMime = f.shortcutDetails?.targetMimeType || '';
+        return targetMime.includes('image/') || targetMime.includes('video/');
+      }
+      return true;
+    })
+    .map((f) => {
+      let path = `gdrive://${f.id}`;
+      // If shortcut, maybe we should point to targetId?
+      // Actually, for streaming, we might need the original ID or target ID depending on permission.
+      // Usually target ID is better if we have access.
+      if (
+        f.mimeType === 'application/vnd.google-apps.shortcut' &&
+        f.shortcutDetails?.targetId
+      ) {
+        path = `gdrive://${f.shortcutDetails.targetId}`;
+      }
+      return {
+        name: f.name || 'Untitled',
+        path,
+      };
+    });
 
   // For MVP, we are not recursively fetching subfolders yet, or we can add that logic.
   // The user requirement said: "List files in a specific Drive folder (recursively or flat)."
   // Let's stick to flat for the immediate folder for now, or implement simple recursion.
 
   // Let's try to find subfolders too to build the tree.
-  const folderQ = `'${folderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  // We need to include shortcuts to folders too.
+  const folderQ = `'${folderId}' in parents and (mimeType = 'application/vnd.google-apps.folder' or mimeType = 'application/vnd.google-apps.shortcut') and trashed = false`;
   const folderRes = await drive.files.list({
     q: folderQ,
-    fields: 'files(id, name)',
+    fields: 'files(id, name, mimeType, shortcutDetails)',
     pageSize: 100,
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
   });
 
   const subfolders = folderRes.data.files || [];
   const children: Album[] = [];
 
   for (const subfolder of subfolders) {
-    if (subfolder.id) {
+    let targetId = subfolder.id;
+    let isFolder = subfolder.mimeType === 'application/vnd.google-apps.folder';
+
+    if (
+      subfolder.mimeType === 'application/vnd.google-apps.shortcut' &&
+      subfolder.shortcutDetails?.targetMimeType ===
+        'application/vnd.google-apps.folder'
+    ) {
+      targetId = subfolder.shortcutDetails.targetId;
+      isFolder = true;
+    }
+
+    if (targetId && isFolder) {
       // Recursive call - be careful with depth/rate limits in production
       // For MVP we might want to lazy load, but the app architecture expects a full tree scan.
       // We will do a recursive scan.
-      const subAlbum = await listDriveFiles(subfolder.id);
+      const subAlbum = await listDriveFiles(targetId);
       subAlbum.name = subfolder.name || 'Untitled Folder';
       children.push(subAlbum);
     }
@@ -103,17 +143,41 @@ export async function listDriveDirectory(
   try {
     const res = await drive.files.list({
       q,
-      fields: 'files(id, name, mimeType)',
+      fields: 'files(id, name, mimeType, shortcutDetails)',
       pageSize: 100, // Pagination? For browsing we probably want more but let's start with 100
       orderBy: 'folder,name',
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
     });
 
     const files = res.data.files || [];
-    return files.map((f) => ({
-      name: f.name || 'Untitled',
-      path: f.id || '', // We use ID as "path" for internal navigation in this mode
-      isDirectory: f.mimeType === 'application/vnd.google-apps.folder',
-    }));
+    console.log(
+      `[GoogleDrive] listDriveDirectory '${queryId}' found ${files.length} items.`,
+    );
+    return files.map((f) => {
+      let isDir = f.mimeType === 'application/vnd.google-apps.folder';
+      let id = f.id;
+
+      if (
+        f.mimeType === 'application/vnd.google-apps.shortcut' &&
+        f.shortcutDetails
+      ) {
+        if (
+          f.shortcutDetails.targetMimeType ===
+          'application/vnd.google-apps.folder'
+        ) {
+          isDir = true;
+          // IMPORTANT: Navigate to the TARGET ID, not the shortcut ID
+          id = f.shortcutDetails.targetId;
+        }
+      }
+
+      return {
+        name: f.name || 'Untitled',
+        path: id || '', // We use ID as "path" for internal navigation in this mode
+        isDirectory: isDir,
+      };
+    });
   } catch (err) {
     console.error(
       `[GoogleDriveService] Error listing files for query '${q}':`,
@@ -131,6 +195,7 @@ export async function getDriveParent(folderId: string): Promise<string | null> {
     const res = await drive.files.get({
       fileId: folderId,
       fields: 'parents',
+      supportsAllDrives: true,
     });
 
     if (res.data.parents && res.data.parents.length > 0) {
@@ -159,6 +224,7 @@ export async function getDriveFileMetadata(
   const res = await drive.files.get({
     fileId,
     fields: 'id, name, mimeType, size, createdTime, videoMediaMetadata',
+    supportsAllDrives: true,
   });
   return res.data;
 }
@@ -183,6 +249,7 @@ export async function getDriveFileThumbnail(fileId: string): Promise<Readable> {
   const meta = await drive.files.get({
     fileId,
     fields: 'thumbnailLink, mimeType',
+    supportsAllDrives: true,
   });
 
   if (meta.data.thumbnailLink) {

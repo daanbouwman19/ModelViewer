@@ -349,9 +349,14 @@ describe('WebAdapter', () => {
         ok: true,
         text: () => Promise.resolve('http://auth.url'),
       });
+      const windowOpenSpy = vi
+        .spyOn(window, 'open')
+        .mockImplementation(() => null);
       const url = await adapter.startGoogleDriveAuth();
       expect(url).toBe('http://auth.url');
       expect(fetchMock).toHaveBeenCalledWith('/api/auth/google-drive/start');
+      expect(windowOpenSpy).toHaveBeenCalledWith('http://auth.url', '_blank');
+      windowOpenSpy.mockRestore();
     });
 
     it('startGoogleDriveAuth throws on error', async () => {

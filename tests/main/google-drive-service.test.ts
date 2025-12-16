@@ -112,6 +112,12 @@ describe('Google Drive Service', () => {
       expect(result.children[0].name).toBe('SubFolder');
       expect(result.children[0].textures).toHaveLength(1);
       expect(result.children[0].textures[0].path).toBe('gdrive://f2');
+      expect(mockDrive.files.list).toHaveBeenCalledWith(
+        expect.objectContaining({
+          supportsAllDrives: true,
+          includeItemsFromAllDrives: true,
+        }),
+      );
     });
   });
 
@@ -166,7 +172,6 @@ describe('Google Drive Service', () => {
       };
       (mockDrive.files.get as any).mockResolvedValue(mockMeta);
 
-      // Create a proper Web ReadableStream using the ReadableStream constructor
       const mockBody = new ReadableStream({
         start(controller) {
           controller.enqueue(new Uint8Array([1, 2, 3]));
@@ -182,6 +187,12 @@ describe('Google Drive Service', () => {
       global.fetch = vi.fn().mockResolvedValue(mockFetchResponse);
 
       const stream = await driveService.getDriveFileThumbnail('fileId');
+
+      expect(mockDrive.files.get).toHaveBeenCalledWith({
+        fileId: 'fileId',
+        fields: 'thumbnailLink, mimeType',
+        supportsAllDrives: true,
+      });
 
       const chunks: Buffer[] = [];
       for await (const chunk of stream) {
@@ -271,8 +282,73 @@ describe('Google Drive Service', () => {
         isDirectory: true,
       });
       expect(mockDrive.files.list).toHaveBeenCalledWith(
-        expect.objectContaining({ q: "'root' in parents and trashed = false" }),
+        expect.objectContaining({
+          q: "'root' in parents and trashed = false",
+          supportsAllDrives: true,
+          includeItemsFromAllDrives: true,
+        }),
       );
+    });
+
+    it('should handle shortcuts to folders', async () => {
+      const driveService = await import('../../src/main/google-drive-service');
+      const googleAuth = await import('../../src/main/google-auth');
+
+      (googleAuth.getOAuth2Client as any).mockReturnValue({
+        credentials: { refresh_token: 'valid' },
+      });
+
+      const mockFiles = [
+        {
+          id: 'shortcut1',
+          name: 'Shortcut to Folder',
+          mimeType: 'application/vnd.google-apps.shortcut',
+          shortcutDetails: {
+            targetId: 'folderTargetId',
+            targetMimeType: 'application/vnd.google-apps.folder',
+          },
+        },
+      ];
+
+      (mockDrive.files.list as any).mockResolvedValue({
+        data: { files: mockFiles },
+      });
+
+      const result = await driveService.listDriveDirectory('root');
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual({
+        name: 'Shortcut to Folder',
+        path: 'folderTargetId', // Should resolve to target ID
+        isDirectory: true,
+      });
+    });
+
+    it('should ignore shortcuts to non-folders (or treat as files if supported)', async () => {
+      const driveService = await import('../../src/main/google-drive-service');
+
+      const mockFiles = [
+        {
+          id: 'shortcut1',
+          name: 'Shortcut to File',
+          mimeType: 'application/vnd.google-apps.shortcut',
+          shortcutDetails: {
+            targetId: 'fileTargetId',
+            targetMimeType: 'application/pdf', // Unsupported for now or just file
+          },
+        },
+      ];
+
+      (mockDrive.files.list as any).mockResolvedValue({
+        data: { files: mockFiles },
+      });
+
+      const result = await driveService.listDriveDirectory('root');
+
+      // Our logic defaults isDirectory to false if not folder
+      expect(result).toHaveLength(1);
+      expect(result[0].isDirectory).toBe(false);
+      expect(result[0].path).toBe('shortcut1'); // Or targetId? Current logic keeps shortcut ID if not folder
     });
 
     it('should handle errors', async () => {
@@ -294,7 +370,11 @@ describe('Google Drive Service', () => {
       const parent = await driveService.getDriveParent('childId');
       expect(parent).toBe('parentId');
       expect(mockDrive.files.get).toHaveBeenCalledWith(
-        expect.objectContaining({ fileId: 'childId', fields: 'parents' }),
+        expect.objectContaining({
+          fileId: 'childId',
+          fields: 'parents',
+          supportsAllDrives: true,
+        }),
       );
     });
 

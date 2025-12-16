@@ -55,10 +55,12 @@ export function useSlideshow() {
       // Optimization: Avoid converting the entire path to lowercase.
       // Instead, find the extension and only lowercase that small substring.
       // This reduces memory allocation and CPU usage in large loops.
-      const lastDotIndex = file.path.lastIndexOf('.');
+      // Use name for extension detection as path might be an ID or URL (e.g. gdrive://)
+      const fileName = file.name || file.path;
+      const lastDotIndex = fileName.lastIndexOf('.');
       if (lastDotIndex === -1) return false;
 
-      const ext = file.path.slice(lastDotIndex).toLowerCase();
+      const ext = fileName.slice(lastDotIndex).toLowerCase();
 
       if (filter === 'Videos') {
         return videoExtensionsSet.value.has(ext);
