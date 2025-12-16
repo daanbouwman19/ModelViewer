@@ -1,13 +1,24 @@
 <template>
-  <div v-if="isSourcesModalVisible"
-    class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 modal-overlay" role="dialog"
-    aria-modal="true" aria-labelledby="modal-title" @click.self="closeModal">
-    <div class="bg-gray-800 rounded-lg shadow-2xl p-6 w-full max-w-2xl max-h-full overflow-y-auto modal-content">
+  <div
+    v-if="isSourcesModalVisible"
+    class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 modal-overlay"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="modal-title"
+    @click.self="closeModal"
+  >
+    <div
+      class="bg-gray-800 rounded-lg shadow-2xl p-6 w-full max-w-2xl max-h-full overflow-y-auto modal-content"
+    >
       <div class="flex justify-between items-center mb-4">
         <h2 id="modal-title" class="text-2xl font-semibold">
           Manage Media Sources
         </h2>
-        <button class="text-gray-400 hover:text-white text-3xl close-button" aria-label="Close" @click="closeModal">
+        <button
+          class="text-gray-400 hover:text-white text-3xl close-button"
+          aria-label="Close"
+          @click="closeModal"
+        >
           &times;
         </button>
       </div>
@@ -18,32 +29,54 @@
             <li v-if="mediaDirectories.length === 0" class="text-gray-400">
               No media sources configured.
             </li>
-            <li v-for="(dir, index) in mediaDirectories" :key="index"
-              class="flex items-center justify-between p-1 source-item">
+            <li
+              v-for="(dir, index) in mediaDirectories"
+              :key="index"
+              class="flex items-center justify-between p-1 source-item"
+            >
               <div class="flex items-center flex-grow">
-                <span v-if="dir.type === 'google_drive'" class="mr-2 text-blue-400" title="Google Drive">
+                <span
+                  v-if="dir.type === 'google_drive'"
+                  class="mr-2 text-blue-400"
+                  title="Google Drive"
+                >
                   <!-- Simple Cloud/Drive Icon -->
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M5.5 16a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.977A4.5 4.5 0 1113.5 16h-8z" />
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-5 w-5"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      d="M5.5 16a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.977A4.5 4.5 0 1113.5 16h-8z"
+                    />
                   </svg>
                 </span>
-                <input type="checkbox" :checked="dir.isActive" class="source-checkbox mr-2" @change="
-                  handleToggleActive(
-                    dir.path,
-                    ($event.target as HTMLInputElement).checked,
-                  )
-                  " />
+                <input
+                  type="checkbox"
+                  :checked="dir.isActive"
+                  class="source-checkbox mr-2"
+                  @change="
+                    handleToggleActive(
+                      dir.path,
+                      ($event.target as HTMLInputElement).checked,
+                    )
+                  "
+                />
                 <div class="flex flex-col">
                   <span class="source-name font-medium">{{
                     dir.name || dir.path
-                    }}</span>
+                  }}</span>
                   <span class="source-path text-xs text-gray-400">{{
                     dir.path
-                    }}</span>
+                  }}</span>
                 </div>
               </div>
-              <button class="ml-2 action-button remove-button" :aria-label="'Remove ' + dir.path"
-                @click="handleRemove(dir.path)">
+              <button
+                class="ml-2 action-button remove-button"
+                :aria-label="'Remove ' + dir.path"
+                @click="handleRemove(dir.path)"
+              >
                 Remove
               </button>
             </li>
@@ -54,7 +87,10 @@
           <button class="action-button" @click="handleAddDirectory">
             Add Local Folder
           </button>
-          <button class="action-button bg-blue-600 hover:bg-blue-700" @click="showDriveAuth = true">
+          <button
+            class="action-button bg-blue-600 hover:bg-blue-700"
+            @click="showDriveAuth = true"
+          >
             Add Google Drive
           </button>
           <button class="action-button" @click="closeModalAndReindex">
@@ -66,10 +102,15 @@
   </div>
 
   <!-- Google Drive Auth Modal -->
-  <div v-if="showDriveAuth"
-    class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 modal-overlay" role="dialog"
-    aria-modal="true">
-    <div class="bg-gray-800 rounded-lg shadow-2xl p-6 w-full max-w-lg modal-content">
+  <div
+    v-if="showDriveAuth"
+    class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 modal-overlay"
+    role="dialog"
+    aria-modal="true"
+  >
+    <div
+      class="bg-gray-800 rounded-lg shadow-2xl p-6 w-full max-w-lg modal-content"
+    >
       <h3 class="text-xl font-semibold mb-4">Add Google Drive Source</h3>
 
       <div v-if="!driveAuthUrl" class="space-y-4">
@@ -89,14 +130,24 @@
         </p>
         <p>2. Copy the authorization code provided by Google.</p>
         <p>3. Paste the code below:</p>
-        <input v-model="authCode" type="text"
+        <input
+          v-model="authCode"
+          type="text"
           class="w-full p-2 bg-gray-700 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-          placeholder="Paste authorization code here" />
+          placeholder="Paste authorization code here"
+        />
         <div class="flex gap-2">
-          <button class="action-button" :disabled="!authCode || isAuthenticating" @click="submitAuthCode">
+          <button
+            class="action-button"
+            :disabled="!authCode || isAuthenticating"
+            @click="submitAuthCode"
+          >
             {{ isAuthenticating ? 'Verifying...' : 'Submit Code' }}
           </button>
-          <button class="action-button bg-red-600 hover:bg-red-700" @click="cancelDriveAuth">
+          <button
+            class="action-button bg-red-600 hover:bg-red-700"
+            @click="cancelDriveAuth"
+          >
             Cancel
           </button>
         </div>
@@ -116,18 +167,31 @@
                 For MVP, asking for a folder ID is safer, or 'root' for root.
              -->
         <div class="flex gap-2">
-          <input v-model="driveFolderId" type="text"
+          <input
+            v-model="driveFolderId"
+            type="text"
             class="flex-grow p-2 bg-gray-700 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-            placeholder="Folder ID (e.g. 1A2B3C... or 'root')" />
-          <button class="action-button bg-gray-600 hover:bg-gray-500" @click="openDriveBrowser">
+            placeholder="Folder ID (e.g. 1A2B3C... or 'root')"
+          />
+          <button
+            class="action-button bg-gray-600 hover:bg-gray-500"
+            @click="openDriveBrowser"
+          >
             Browse
           </button>
         </div>
         <div class="flex gap-2">
-          <button class="action-button" :disabled="isAddingDrive" @click="addDriveSource">
+          <button
+            class="action-button"
+            :disabled="isAddingDrive"
+            @click="addDriveSource"
+          >
             {{ isAddingDrive ? 'Adding...' : 'Add Folder' }}
           </button>
-          <button class="action-button bg-gray-600 hover:bg-gray-500" @click="cancelDriveAuth">
+          <button
+            class="action-button bg-gray-600 hover:bg-gray-500"
+            @click="cancelDriveAuth"
+          >
             Close
           </button>
         </div>
@@ -139,11 +203,21 @@
   </div>
 
   <!-- File Explorer Modal -->
-  <div v-if="isFileExplorerOpen"
-    class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 modal-overlay" role="dialog"
-    aria-modal="true" @click.self="closeFileExplorer">
-    <div class="bg-gray-800 rounded-lg shadow-2xl w-full max-w-2xl overflow-hidden modal-content">
-      <FileExplorer :mode="fileExplorerMode" @select="handleFileExplorerSelect" @cancel="closeFileExplorer" />
+  <div
+    v-if="isFileExplorerOpen"
+    class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 modal-overlay"
+    role="dialog"
+    aria-modal="true"
+    @click.self="closeFileExplorer"
+  >
+    <div
+      class="bg-gray-800 rounded-lg shadow-2xl w-full max-w-2xl overflow-hidden modal-content"
+    >
+      <FileExplorer
+        :mode="fileExplorerMode"
+        @select="handleFileExplorerSelect"
+        @cancel="closeFileExplorer"
+      />
     </div>
   </div>
 </template>
