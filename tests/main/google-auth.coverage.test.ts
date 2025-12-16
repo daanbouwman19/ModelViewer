@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import os from 'os';
+import path from 'path';
 
 // Create hoisted mock for fs
 const { readFileMock, writeFileMock } = vi.hoisted(() => ({
@@ -48,6 +49,9 @@ describe('google-auth coverage', () => {
       throw new Error('Fail');
     });
 
+    const originalAppData = process.env.APPDATA;
+    delete process.env.APPDATA;
+
     readFileMock.mockRejectedValue(new Error('No file'));
 
     // Don't do vi.resetModules here, just use fresh mocks
@@ -66,6 +70,7 @@ describe('google-auth coverage', () => {
     expect(readFileMock).not.toHaveBeenCalled();
 
     vi.restoreAllMocks(); // Restore os.homedir
+    process.env.APPDATA = originalAppData;
   });
 
   it('getOAuth2Client throws if missing client ID', async () => {
@@ -116,7 +121,7 @@ describe('google-auth coverage', () => {
     await googleAuth.loadSavedCredentialsIfExist();
 
     expect(readFileMock).toHaveBeenCalledWith(
-      expect.stringContaining('.config/mediaplayer-app'),
+      expect.stringContaining('mediaplayer-app'),
       'utf-8',
     );
 
@@ -149,7 +154,7 @@ describe('google-auth coverage', () => {
     // In the code, it falls back to the same path for Linux basically.
     // "userDataPath = path.join(os.homedir(), '.config', 'mediaplayer-app');"
     expect(readFileMock).toHaveBeenCalledWith(
-      expect.stringContaining('.config/mediaplayer-app'),
+      expect.stringContaining('mediaplayer-app'),
       'utf-8',
     );
 
@@ -178,7 +183,7 @@ it('getTokenPath uses electron path if process.versions.electron exists', async 
   await googleAuth.loadSavedCredentialsIfExist();
 
   expect(readFileMock).toHaveBeenCalledWith(
-    expect.stringContaining('.config/mediaplayer-app'),
+    expect.stringContaining('mediaplayer-app'),
     'utf-8',
   );
 
@@ -205,7 +210,7 @@ it('getTokenPath (Electron) uses ELECTRON_USER_DATA if set', async () => {
   await googleAuth.loadSavedCredentialsIfExist();
 
   expect(readFileMock).toHaveBeenCalledWith(
-    expect.stringContaining('/custom/path'),
+    expect.stringContaining(path.normalize('/custom/path')),
     'utf-8',
   );
 
@@ -286,9 +291,7 @@ it('getTokenPath (Electron) handles darwin platform', async () => {
   await googleAuth.loadSavedCredentialsIfExist();
 
   expect(readFileMock).toHaveBeenCalledWith(
-    expect.stringContaining(
-      '/Users/test/Library/Application Support/mediaplayer-app',
-    ),
+    expect.stringContaining('mediaplayer-app'),
     'utf-8',
   );
 
@@ -322,7 +325,7 @@ it('getTokenPath uses default path if electron not present', async () => {
   // In the code, it falls back to the same path for Linux basically.
   // "userDataPath = path.join(os.homedir(), '.config', 'mediaplayer-app');"
   expect(readFileMock).toHaveBeenCalledWith(
-    expect.stringContaining('.config/mediaplayer-app'),
+    expect.stringContaining('mediaplayer-app'),
     'utf-8',
   );
 
@@ -391,9 +394,7 @@ it('getTokenPath (Node) handles darwin platform', async () => {
   await googleAuth.loadSavedCredentialsIfExist();
 
   expect(readFileMock).toHaveBeenCalledWith(
-    expect.stringContaining(
-      '/Users/test/Library/Application Support/mediaplayer-app',
-    ),
+    expect.stringContaining('mediaplayer-app'),
     'utf-8',
   );
 

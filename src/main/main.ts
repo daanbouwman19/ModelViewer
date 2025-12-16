@@ -69,6 +69,10 @@ import {
   getDriveParent,
 } from './google-drive-service';
 import { startAuthServer, stopAuthServer } from './auth-server';
+import {
+  cleanupDriveCacheManager,
+  initializeDriveCacheManager,
+} from './drive-cache-manager';
 const isDev = !app.isPackaged;
 
 /**
@@ -716,9 +720,15 @@ app.commandLine.appendSwitch(
 app.on('ready', () => {
   createWindow();
 
+  const driveCacheDir = path.join(app.getPath('userData'), 'drive-cache');
+  initializeDriveCacheManager(driveCacheDir);
+
   initDatabase()
-    .then(() => {
-      startLocalServer(() => {
+    .then(async () => {
+      const cacheDir = path.join(app.getPath('userData'), 'thumbnails');
+      await fs.mkdir(cacheDir, { recursive: true });
+
+      startLocalServer(cacheDir, () => {
         console.log('[main.js] Local server started in background.');
       });
     })
@@ -742,7 +752,8 @@ app.on('activate', () => {
     if (getServerPort() > 0) {
       createWindow();
     } else {
-      startLocalServer(createWindow);
+      const cacheDir = path.join(app.getPath('userData'), 'thumbnails');
+      startLocalServer(cacheDir, createWindow);
     }
   }
 });
@@ -753,4 +764,5 @@ app.on('will-quit', () => {
   });
   stopAuthServer(); // Ensure auth server is cleaned up
   closeDatabase();
+  cleanupDriveCacheManager();
 });

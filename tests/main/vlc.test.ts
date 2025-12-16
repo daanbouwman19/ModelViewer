@@ -11,8 +11,10 @@ const { mockSpawn, mockFsAccess, mockRealpath, mockGetMediaDirectories } =
   }));
 
 // Mock path module to be platform-aware based on process.platform
-vi.mock('path', async () => {
+vi.mock('path', async (importOriginal) => {
+  const actual = await importOriginal<any>();
   const win32 = {
+    ...actual.win32,
     relative: (from: string, to: string) => {
       if (to.startsWith(from)) {
         return to.slice(from.length).replace(/^\\/, '');
@@ -34,7 +36,14 @@ vi.mock('path', async () => {
   };
 
   const mocked = {
+    ...actual,
     ...posix,
+    join: (...args: string[]) =>
+      args.join(process.platform === 'win32' ? '\\' : '/'),
+    resolve: actual.resolve,
+    dirname: actual.dirname,
+    basename: actual.basename,
+    extname: actual.extname,
     win32,
     posix,
     relative: (from: string, to: string) => {

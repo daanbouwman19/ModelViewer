@@ -256,10 +256,22 @@ export async function getDriveFileStream(
 
   const res = await callWithRetry(() =>
     drive.files.get(
-      { fileId, alt: 'media' },
+      { fileId, alt: 'media', acknowledgeAbuse: true },
       { responseType: 'stream', headers },
     ),
   );
+
+  if (res.data) {
+    // Debug logging for stream
+    console.log(`[GoogleDrive] Stream started for ${fileId}`);
+    res.data.on('end', () =>
+      console.log(`[GoogleDrive] Stream ended for ${fileId}`),
+    );
+    res.data.on('error', (err) =>
+      console.error(`[GoogleDrive] Stream error for ${fileId}:`, err),
+    );
+  }
+
   return res.data;
 }
 

@@ -10,6 +10,7 @@ vi.mock('../../src/core/security');
 vi.mock('fs/promises', () => ({
   default: {
     stat: vi.fn(),
+    mkdir: vi.fn(),
   },
 }));
 

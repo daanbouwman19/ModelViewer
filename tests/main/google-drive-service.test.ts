@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { google } from 'googleapis';
+import { EventEmitter } from 'events';
 
 // We need to mock imports BEFORE importing the module under test
 vi.mock('../../src/main/google-auth');
@@ -129,7 +130,7 @@ describe('Google Drive Service', () => {
       (googleAuth.getOAuth2Client as any).mockReturnValue({
         credentials: { refresh_token: 'valid' },
       });
-      const mockStream = { pipe: vi.fn() };
+      const mockStream = { pipe: vi.fn(), on: vi.fn() };
       (mockDrive.files.get as any).mockResolvedValue({ data: mockStream });
 
       const stream = await driveService.getDriveFileStream('fileId');
@@ -138,6 +139,67 @@ describe('Google Drive Service', () => {
         expect.objectContaining({ fileId: 'fileId', alt: 'media' }),
         expect.objectContaining({ responseType: 'stream', headers: {} }),
       );
+    });
+
+    it('should use Range header if start/end provided', async () => {
+      const driveService = await import('../../src/main/google-drive-service');
+      const auth = await import('../../src/main/google-auth');
+      (auth.getOAuth2Client as any).mockReturnValue({
+        credentials: { refresh_token: 'valid' },
+      });
+
+      (mockDrive.files.get as any).mockResolvedValue({
+        data: new EventEmitter(),
+      });
+
+      await driveService.getDriveFileStream('fileId', { start: 0, end: 100 });
+
+      expect(mockDrive.files.get).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ headers: { Range: 'bytes=0-100' } }),
+      );
+    });
+
+    it('should log stream events', async () => {
+      const driveService = await import('../../src/main/google-drive-service');
+      const auth = await import('../../src/main/google-auth');
+      (auth.getOAuth2Client as any).mockReturnValue({
+        credentials: { refresh_token: 'valid' },
+      });
+
+      const mockStream = new EventEmitter();
+      (mockDrive.files.get as any).mockResolvedValue({ data: mockStream });
+      console.log = vi.fn();
+      console.error = vi.fn();
+
+      await driveService.getDriveFileStream('fileId');
+
+      mockStream.emit('end');
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('Stream ended'),
+      );
+
+      mockStream.emit('error', new Error('Fail'));
+      expect(console.error).toHaveBeenCalledWith(
+        expect.stringContaining('Stream error'),
+        expect.anything(),
+      );
+    });
+
+    it('should retry on 429', async () => {
+      const driveService = await import('../../src/main/google-drive-service');
+      const auth = await import('../../src/main/google-auth');
+      (auth.getOAuth2Client as any).mockReturnValue({
+        credentials: { refresh_token: 'valid' },
+      });
+
+      (mockDrive.files.get as any)
+        .mockRejectedValueOnce({ code: 429 })
+        .mockResolvedValueOnce({ data: new EventEmitter() });
+
+      await driveService.getDriveFileStream('fileId');
+
+      expect(mockDrive.files.get).toHaveBeenCalledTimes(2);
     });
   });
 

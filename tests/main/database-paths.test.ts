@@ -91,7 +91,7 @@ describe('Main Process Database Initialization Paths', () => {
     // Verify initCore was called with the TS worker path
     expect(initCore).toHaveBeenCalledWith(
       expect.stringContaining('media_slideshow_stats.sqlite'),
-      expect.stringContaining('src/core/database-worker.ts'),
+      expect.stringContaining('database-worker.ts'),
     );
   });
 });

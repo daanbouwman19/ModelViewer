@@ -5,7 +5,7 @@
     @mouseleave="handleMouseLeave"
   >
     <div
-      class="flex flex-wrap justify-center items-center mb-2 mt-4 flex-shrink-0 z-10 gap-4"
+      class="flex flex-wrap justify-center items-center mb-2 mt-4 shrink-0 z-10 gap-4"
     >
       <h2
         class="text-xl font-semibold text-center album-title whitespace-nowrap"
@@ -63,6 +63,9 @@
         @pause="handleVideoPause"
         @timeupdate="handleVideoTimeUpdate"
         @loadedmetadata="handleVideoLoadedMetadata"
+        @waiting="handleVideoWaiting"
+        @canplay="handleVideoCanPlay"
+        @progress="handleVideoProgress"
       />
       <div
         v-if="!isVideoSupported && !isImage && !isTranscodingMode"
@@ -87,18 +90,21 @@
         >
           Try Transcoding
         </button>
+
         <p v-if="isTranscodingLoading" class="text-accent mt-2 animate-pulse">
           Transcoding...
         </p>
       </div>
       <div
-        v-if="isTranscodingLoading"
+        v-if="isTranscodingLoading || isBuffering"
         class="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-10 pointer-events-none"
       >
         <div
           class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-accent mb-4"
         ></div>
-        <p class="text-white font-semibold">Transcoding...</p>
+        <p class="text-white font-semibold">
+          {{ isTranscodingLoading ? 'Transcoding...' : 'Buffering...' }}
+        </p>
       </div>
       <div
         v-if="currentMediaItem && !isImage"
@@ -114,6 +120,16 @@
         @click="handleProgressBarClick"
         @keydown="handleProgressBarKeydown"
       >
+        <!-- Buffered Ranges -->
+        <div
+          v-for="(range, index) in bufferedRanges"
+          :key="index"
+          class="absolute h-full bg-white/30 rounded-full pointer-events-none transition-all duration-300"
+          :style="{
+            left: `${range.start}%`,
+            width: `${range.end - range.start}%`,
+          }"
+        ></div>
         <div
           class="video-progress-bar"
           :style="{ width: `${videoProgress}%` }"
@@ -157,7 +173,7 @@
 
       <div class="media-info text-center">
         <p
-          class="text-lg font-bold drop-shadow-md text-white max-w-[300px] truncate"
+          class="text-lg font-bold drop-shadow-md text-white max-w-75 truncate"
           :title="currentMediaItem ? currentMediaItem.name : ''"
         >
           {{ currentMediaItem ? currentMediaItem.name : 'Select an album' }}
@@ -292,6 +308,8 @@ const videoElement = ref<HTMLVideoElement | null>(null);
 const isVideoSupported = ref(true);
 const isTranscodingMode = ref(false);
 const isTranscodingLoading = ref(false);
+const isBuffering = ref(false);
+const bufferedRanges = ref<{ start: number; end: number }[]>([]);
 const transcodedDuration = ref(0);
 const currentTranscodeStartTime = ref(0);
 const currentVideoTime = ref(0);
@@ -302,12 +320,38 @@ const videoStreamUrlGenerator = ref<
   ((filePath: string, startTime?: number) => string) | null
 >(null);
 
-onMounted(async () => {
-  try {
-    videoStreamUrlGenerator.value = await api.getVideoStreamUrlGenerator();
-  } catch (error) {
-    console.error('Failed to initialize video stream generator', error);
+let videoStreamGeneratorInitPromise: Promise<
+  (filePath: string, startTime?: number) => string
+> | null = null;
+
+const ensureVideoStreamGenerator = async (): Promise<
+  (filePath: string, startTime?: number) => string
+> => {
+  if (videoStreamUrlGenerator.value) {
+    return videoStreamUrlGenerator.value;
   }
+
+  if (!videoStreamGeneratorInitPromise) {
+    videoStreamGeneratorInitPromise = api
+      .getVideoStreamUrlGenerator()
+      .then((generator) => {
+        videoStreamUrlGenerator.value = generator;
+        return generator;
+      })
+      .catch((error) => {
+        console.error('Failed to initialize video stream generator', error);
+        videoStreamGeneratorInitPromise = null;
+        throw error;
+      });
+  }
+
+  return videoStreamGeneratorInitPromise;
+};
+
+onMounted(() => {
+  ensureVideoStreamGenerator().catch(() => {
+    // Already logged in ensureVideoStreamGenerator
+  });
 });
 
 /* Removed local ambient lighting logic */
@@ -367,6 +411,60 @@ const canNavigate = computed(() => {
 });
 
 /**
+ * Attempts to transcode the current video file starting from a specific time.
+ * @param startTime - The time to start transcoding from (in seconds).
+ */
+const tryTranscoding = async (startTime = 0) => {
+  if (!currentMediaItem.value) return;
+  isTranscodingMode.value = true;
+  isTranscodingLoading.value = true;
+  error.value = null; // Clear previous errors
+  currentTranscodeStartTime.value = startTime;
+
+  try {
+    const generator = await ensureVideoStreamGenerator();
+
+    const encodedPath = currentMediaItem.value.path; // API handles encoding? Generator logic encodes it.
+
+    // Fetch duration if not already known
+    if (transcodedDuration.value === 0) {
+      try {
+        const meta = await api.getVideoMetadata(encodedPath);
+        if (meta.duration) {
+          transcodedDuration.value = meta.duration;
+        }
+      } catch {
+        // Failed to fetch metadata
+      }
+    }
+
+    let transcodeUrl = generator(encodedPath, startTime);
+
+    // Force transcode flag for backend
+    if (transcodeUrl.includes('?')) {
+      transcodeUrl += '&transcode=true';
+    } else {
+      transcodeUrl += '?transcode=true';
+    }
+
+    console.log('Transcoding URL:', transcodeUrl);
+
+    // Update mediaUrl to point to the transcoding stream
+    mediaUrl.value = transcodeUrl;
+
+    // Reset flags to allow video element to try again
+    isVideoSupported.value = true;
+  } catch (e) {
+    console.error('Transcoding failed', e);
+    isTranscodingMode.value = false;
+    isTranscodingLoading.value = false;
+    if (!error.value) {
+      error.value = 'Local server not available';
+    }
+  }
+};
+
+/**
  * Asynchronously loads the URL for the current media item.
  */
 const loadMediaUrl = async () => {
@@ -376,14 +474,38 @@ const loadMediaUrl = async () => {
   }
 
   isLoading.value = true;
+
+  // Cleanup previous video stream explicitly to prevent pending requests
+  if (videoElement.value) {
+    videoElement.value.pause();
+    videoElement.value.removeAttribute('src'); // Remove src attribute directly
+    videoElement.value.load(); // Force browser to cancel pending download
+  }
+
   error.value = null;
   isVideoSupported.value = true;
   isTranscodingMode.value = false;
   isTranscodingLoading.value = false;
+  isBuffering.value = false;
+  bufferedRanges.value = [];
   transcodedDuration.value = 0;
   currentTranscodeStartTime.value = 0;
   currentVideoTime.value = 0;
   currentVideoDuration.value = 0;
+
+  // Proactively transcode formats that often fail in browsers or have poor performance (e.g. MOOV at end)
+  // Use .name because .path for Drive files is gdrive://ID which has no extension
+  const fileName = currentMediaItem.value.name
+    ? currentMediaItem.value.name.toLowerCase()
+    : '';
+  const legacyFormats = ['.mov', '.avi', '.wmv', '.mkv', '.flv'];
+  if (legacyFormats.some((ext) => fileName.endsWith(ext))) {
+    console.log('Proactively transcoding legacy format:', fileName);
+
+    await tryTranscoding(0);
+    isLoading.value = false;
+    return;
+  }
 
   try {
     const result = await api.loadFileAsDataURL(currentMediaItem.value.path);
@@ -406,7 +528,12 @@ const loadMediaUrl = async () => {
  * Handles errors from the <img> or <video> elements.
  */
 const handleMediaError = () => {
-  error.value = 'Failed to display media file.';
+  if (!isTranscodingMode.value) {
+    console.log('Media playback error, attempting auto-transcode...');
+    tryTranscoding(0);
+  } else {
+    error.value = 'Failed to display media file.';
+  }
 };
 
 /**
@@ -637,57 +764,36 @@ const handleVideoLoadedMetadata = (event: Event) => {
  */
 const handleVideoPlaying = () => {
   isTranscodingLoading.value = false;
+  isBuffering.value = false;
+};
+
+const handleVideoWaiting = () => {
+  if (!isTranscodingLoading.value) {
+    isBuffering.value = true;
+  }
+};
+
+const handleVideoCanPlay = () => {
+  isBuffering.value = false;
+};
+
+const handleVideoProgress = (event: Event) => {
+  const video = event.target as HTMLVideoElement;
+  if (!video.duration) return;
+
+  const ranges = [];
+  for (let i = 0; i < video.buffered.length; i++) {
+    const start = (video.buffered.start(i) / video.duration) * 100;
+    const end = (video.buffered.end(i) / video.duration) * 100;
+    ranges.push({ start, end });
+  }
+  bufferedRanges.value = ranges;
 };
 
 /**
  * Attempts to transcode the current video file starting from a specific time.
  * @param startTime - The time to start transcoding from (in seconds).
  */
-const tryTranscoding = async (startTime = 0) => {
-  if (!currentMediaItem.value) return;
-  isTranscodingMode.value = true;
-  isTranscodingLoading.value = true;
-  currentTranscodeStartTime.value = startTime;
-
-  try {
-    if (videoStreamUrlGenerator.value) {
-      const encodedPath = currentMediaItem.value.path; // API handles encoding? Generator logic encodes it.
-
-      // Fetch duration if not already known
-      if (transcodedDuration.value === 0) {
-        try {
-          const meta = await api.getVideoMetadata(encodedPath);
-          if (meta.duration) {
-            transcodedDuration.value = meta.duration;
-          }
-        } catch {
-          // Failed to fetch metadata
-        }
-      }
-
-      const transcodeUrl = videoStreamUrlGenerator.value(
-        encodedPath,
-        startTime,
-      );
-      console.log('Transcoding URL:', transcodeUrl);
-
-      // Update mediaUrl to point to the transcoding stream
-      mediaUrl.value = transcodeUrl;
-
-      // Reset flags to allow video element to try again
-      isVideoSupported.value = true;
-
-      // Wait for video to load
-    } else {
-      error.value = 'Local server not available';
-      isTranscodingLoading.value = false;
-    }
-  } catch (e) {
-    console.error('Transcoding failed', e);
-    isTranscodingMode.value = false;
-    isTranscodingLoading.value = false;
-  }
-};
 
 /**
  * Opens the current media file in VLC Media Player.
