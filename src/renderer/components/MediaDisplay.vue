@@ -5,7 +5,7 @@
     @mouseleave="handleMouseLeave"
   >
     <div
-      class="flex flex-wrap justify-center items-center mb-2 mt-4 flex-shrink-0 z-10 gap-4"
+      class="flex flex-wrap justify-center items-center mb-2 mt-4 shrink-0 z-10 gap-4"
     >
       <h2
         class="text-xl font-semibold text-center album-title whitespace-nowrap"
@@ -173,7 +173,7 @@
 
       <div class="media-info text-center">
         <p
-          class="text-lg font-bold drop-shadow-md text-white max-w-[300px] truncate"
+          class="text-lg font-bold drop-shadow-md text-white max-w-75 truncate"
           :title="currentMediaItem ? currentMediaItem.name : ''"
         >
           {{ currentMediaItem ? currentMediaItem.name : 'Select an album' }}
@@ -320,12 +320,38 @@ const videoStreamUrlGenerator = ref<
   ((filePath: string, startTime?: number) => string) | null
 >(null);
 
-onMounted(async () => {
-  try {
-    videoStreamUrlGenerator.value = await api.getVideoStreamUrlGenerator();
-  } catch (error) {
-    console.error('Failed to initialize video stream generator', error);
+let videoStreamGeneratorInitPromise: Promise<
+  (filePath: string, startTime?: number) => string
+> | null = null;
+
+const ensureVideoStreamGenerator = async (): Promise<
+  (filePath: string, startTime?: number) => string
+> => {
+  if (videoStreamUrlGenerator.value) {
+    return videoStreamUrlGenerator.value;
   }
+
+  if (!videoStreamGeneratorInitPromise) {
+    videoStreamGeneratorInitPromise = api
+      .getVideoStreamUrlGenerator()
+      .then((generator) => {
+        videoStreamUrlGenerator.value = generator;
+        return generator;
+      })
+      .catch((error) => {
+        console.error('Failed to initialize video stream generator', error);
+        videoStreamGeneratorInitPromise = null;
+        throw error;
+      });
+  }
+
+  return videoStreamGeneratorInitPromise;
+};
+
+onMounted(() => {
+  ensureVideoStreamGenerator().catch(() => {
+    // Already logged in ensureVideoStreamGenerator
+  });
 });
 
 /* Removed local ambient lighting logic */
@@ -396,47 +422,45 @@ const tryTranscoding = async (startTime = 0) => {
   currentTranscodeStartTime.value = startTime;
 
   try {
-    if (videoStreamUrlGenerator.value) {
-      const encodedPath = currentMediaItem.value.path; // API handles encoding? Generator logic encodes it.
+    const generator = await ensureVideoStreamGenerator();
 
-      // Fetch duration if not already known
-      if (transcodedDuration.value === 0) {
-        try {
-          const meta = await api.getVideoMetadata(encodedPath);
-          if (meta.duration) {
-            transcodedDuration.value = meta.duration;
-          }
-        } catch {
-          // Failed to fetch metadata
+    const encodedPath = currentMediaItem.value.path; // API handles encoding? Generator logic encodes it.
+
+    // Fetch duration if not already known
+    if (transcodedDuration.value === 0) {
+      try {
+        const meta = await api.getVideoMetadata(encodedPath);
+        if (meta.duration) {
+          transcodedDuration.value = meta.duration;
         }
+      } catch {
+        // Failed to fetch metadata
       }
-
-      let transcodeUrl = videoStreamUrlGenerator.value(encodedPath, startTime);
-
-      // Force transcode flag for backend
-      if (transcodeUrl.includes('?')) {
-        transcodeUrl += '&transcode=true';
-      } else {
-        transcodeUrl += '?transcode=true';
-      }
-
-      console.log('Transcoding URL:', transcodeUrl);
-
-      // Update mediaUrl to point to the transcoding stream
-      mediaUrl.value = transcodeUrl;
-
-      // Reset flags to allow video element to try again
-      isVideoSupported.value = true;
-
-      // Wait for video to load
-    } else {
-      error.value = 'Local server not available';
-      isTranscodingLoading.value = false;
     }
+
+    let transcodeUrl = generator(encodedPath, startTime);
+
+    // Force transcode flag for backend
+    if (transcodeUrl.includes('?')) {
+      transcodeUrl += '&transcode=true';
+    } else {
+      transcodeUrl += '?transcode=true';
+    }
+
+    console.log('Transcoding URL:', transcodeUrl);
+
+    // Update mediaUrl to point to the transcoding stream
+    mediaUrl.value = transcodeUrl;
+
+    // Reset flags to allow video element to try again
+    isVideoSupported.value = true;
   } catch (e) {
     console.error('Transcoding failed', e);
     isTranscodingMode.value = false;
     isTranscodingLoading.value = false;
+    if (!error.value) {
+      error.value = 'Local server not available';
+    }
   }
 };
 
@@ -478,17 +502,7 @@ const loadMediaUrl = async () => {
   if (legacyFormats.some((ext) => fileName.endsWith(ext))) {
     console.log('Proactively transcoding legacy format:', fileName);
 
-    // Wait for generator if not ready (race condition on mount)
-    if (!videoStreamUrlGenerator.value) {
-      // Simple polling wait
-      let retries = 0;
-      while (!videoStreamUrlGenerator.value && retries < 10) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        retries++;
-      }
-    }
-
-    tryTranscoding(0);
+    await tryTranscoding(0);
     isLoading.value = false;
     return;
   }

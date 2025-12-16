@@ -17,7 +17,7 @@ import {
   getDriveFileMetadata,
   getDriveFileThumbnail,
 } from '../main/google-drive-service';
-import { driveCacheManager } from '../main/drive-cache-manager';
+import { getDriveCacheManager } from '../main/drive-cache-manager';
 import { getThumbnailCachePath, checkThumbnailCache } from './media-utils';
 
 export interface MediaHandlerOptions {
@@ -176,7 +176,7 @@ export async function serveTranscode(
         path: cachedPath,
         totalSize,
         mimeType,
-      } = await driveCacheManager.getCachedFilePath(fileId);
+      } = await getDriveCacheManager().getCachedFilePath(fileId);
       const isTranscodeForced = req.url?.includes('transcode=true');
 
       if (isTranscodeForced) {
@@ -453,7 +453,6 @@ export async function serveThumbnail(
   const cacheFile = getThumbnailCachePath(filePath, cacheDir);
 
   const hit = await checkThumbnailCache(cacheFile);
-  console.error('DEBUG: checkThumbnailCache result:', hit);
   if (hit) {
     res.writeHead(200, {
       'Content-Type': 'image/jpeg',
@@ -579,7 +578,7 @@ export async function serveStaticFile(
         path: cachedPath,
         totalSize,
         mimeType,
-      } = await driveCacheManager.getCachedFilePath(fileId);
+      } = await getDriveCacheManager().getCachedFilePath(fileId);
 
       const rangeHeader = req.headers.range;
       const stats = await fs.promises

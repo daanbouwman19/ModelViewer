@@ -1,7 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import fs from 'fs';
 import { EventEmitter } from 'events';
-import { driveCacheManager } from '../../src/main/drive-cache-manager';
+import {
+  cleanupDriveCacheManager,
+  getDriveCacheManager,
+  initializeDriveCacheManager,
+} from '../../src/main/drive-cache-manager';
 
 // Mocks
 vi.mock('fs', () => {
@@ -30,17 +34,27 @@ vi.mock('../../src/main/google-drive-service', () => ({
 }));
 
 describe('DriveCacheManager', () => {
+  let driveCacheManager: ReturnType<typeof initializeDriveCacheManager>;
+  const statMock = () => fs.promises.stat as unknown as Mock;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    cleanupDriveCacheManager();
+    vi.mocked(fs.existsSync).mockReturnValue(false);
+    statMock().mockReset();
+    statMock().mockRejectedValue(
+      Object.assign(new Error('Not Found'), { code: 'ENOENT' }),
+    );
+    driveCacheManager = initializeDriveCacheManager('drive-cache-test');
     // Clear private maps if possible, but singleton persists.
     // We rely on mocks to control flow per test.
     // For activeDownloads we might need to be careful if previous tests left them hanging.
   });
 
   it('initializes cache directory', async () => {
-    vi.resetModules();
-    await import('../../src/main/drive-cache-manager');
-    expect(fs.mkdirSync).toHaveBeenCalled();
+    expect(fs.mkdirSync).toHaveBeenCalledWith('drive-cache-test', {
+      recursive: true,
+    });
   });
 
   it('getCachedFilePath returns existing cache', async () => {
@@ -51,8 +65,7 @@ describe('DriveCacheManager', () => {
       mimeType: 'video/mp4',
     } as any);
 
-    vi.mocked(fs.existsSync).mockReturnValue(true);
-    vi.mocked(fs.statSync).mockReturnValue({ size: 1000 } as any);
+    statMock().mockResolvedValue({ size: 1000 } as any);
 
     const result = await driveCacheManager.getCachedFilePath(fileId);
 
@@ -68,14 +81,30 @@ describe('DriveCacheManager', () => {
       new Error('Meta Fail'),
     );
 
-    vi.mocked(fs.existsSync).mockReturnValue(true);
-    vi.mocked(fs.statSync).mockReturnValue({ size: 1000 } as any);
+    statMock().mockResolvedValue({ size: 1000 } as any);
 
     const result = await driveCacheManager.getCachedFilePath(fileId);
 
     // Should fallback to defaults
     expect(result.totalSize).toBe(0);
     expect(result.mimeType).toBe('video/mp4');
+  });
+
+  it('reuses cached metadata on subsequent calls', async () => {
+    const fileId = 'cached-file';
+    const driveService = await import('../../src/main/google-drive-service');
+    vi.mocked(driveService.getDriveFileMetadata).mockResolvedValue({
+      size: '1500',
+      mimeType: 'video/mp4',
+    } as any);
+
+    statMock().mockResolvedValue({ size: 1500 } as any);
+
+    await driveCacheManager.getCachedFilePath(fileId);
+    expect(driveService.getDriveFileMetadata).toHaveBeenCalledTimes(1);
+
+    await driveCacheManager.getCachedFilePath(fileId);
+    expect(driveService.getDriveFileMetadata).toHaveBeenCalledTimes(1);
   });
 
   it('getCachedFilePath resumes partial download', async () => {
@@ -86,8 +115,7 @@ describe('DriveCacheManager', () => {
       mimeType: 'video/mp4',
     } as any);
 
-    vi.mocked(fs.existsSync).mockReturnValue(true);
-    vi.mocked(fs.statSync).mockReturnValue({ size: 500 } as any);
+    statMock().mockResolvedValue({ size: 500 } as any);
 
     const writeStream = new EventEmitter();
     (writeStream as any).path = '/tmp/cache/partial';
@@ -117,8 +145,9 @@ describe('DriveCacheManager', () => {
       mimeType: 'video/mp4',
     } as any);
 
-    vi.mocked(fs.existsSync).mockReturnValue(false);
-    vi.mocked(fs.mkdirSync).mockImplementation(() => undefined);
+    statMock().mockRejectedValue(
+      Object.assign(new Error('Not Found'), { code: 'ENOENT' }),
+    );
 
     const mockStream = { pipe: vi.fn(), on: vi.fn() };
     vi.mocked(driveService.getDriveFileStream).mockResolvedValue(
@@ -147,7 +176,9 @@ describe('DriveCacheManager', () => {
 
   it('getCachedFilePath handles download error (start fail)', async () => {
     const fileId = 'error-file';
-    vi.mocked(fs.existsSync).mockReturnValue(false);
+    statMock().mockRejectedValue(
+      Object.assign(new Error('Not Found'), { code: 'ENOENT' }),
+    );
 
     const driveService = await import('../../src/main/google-drive-service');
     vi.mocked(driveService.getDriveFileStream).mockRejectedValue(
@@ -165,7 +196,9 @@ describe('DriveCacheManager', () => {
 
   it('handles stream error properly', async () => {
     const fileId = 'stream-error-file';
-    vi.mocked(fs.existsSync).mockReturnValue(false);
+    statMock().mockRejectedValue(
+      Object.assign(new Error('Not Found'), { code: 'ENOENT' }),
+    );
     const driveService = await import('../../src/main/google-drive-service');
     vi.mocked(driveService.getDriveFileMetadata).mockResolvedValue({
       size: '100',
@@ -194,7 +227,9 @@ describe('DriveCacheManager', () => {
 
   it('active download handles concurrent requests', async () => {
     const fileId = 'concurrent-file';
-    vi.mocked(fs.existsSync).mockReturnValue(false);
+    statMock().mockRejectedValue(
+      Object.assign(new Error('Not Found'), { code: 'ENOENT' }),
+    );
     const driveService = await import('../../src/main/google-drive-service');
     vi.mocked(driveService.getDriveFileMetadata).mockResolvedValue({
       size: '100',
@@ -236,5 +271,51 @@ describe('DriveCacheManager', () => {
       expect.stringContaining('Cleanup failed'),
       expect.anything(),
     );
+  });
+
+  it('logs stat errors that are not ENOENT', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    statMock().mockRejectedValueOnce(
+      Object.assign(new Error('Permission denied'), { code: 'EPERM' }),
+    );
+
+    const fileId = 'missing-but-error';
+    const driveService = await import('../../src/main/google-drive-service');
+    vi.mocked(driveService.getDriveFileMetadata).mockResolvedValue({
+      size: '100',
+      mimeType: 'video/mp4',
+    } as any);
+
+    const mockStream = { pipe: vi.fn(), on: vi.fn() };
+    vi.mocked(driveService.getDriveFileStream).mockResolvedValue(
+      mockStream as any,
+    );
+
+    const writeStream = new EventEmitter();
+    vi.mocked(fs.createWriteStream).mockReturnValue(writeStream as any);
+    setTimeout(() => writeStream.emit('ready'), 0);
+
+    await driveCacheManager.getCachedFilePath(fileId);
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to stat cache file'),
+      expect.anything(),
+    );
+    consoleSpy.mockRestore();
+  });
+
+  it('throws when getting manager before initialization', () => {
+    cleanupDriveCacheManager();
+    expect(() => getDriveCacheManager()).toThrow(
+      'DriveCacheManager has not been initialized.',
+    );
+  });
+
+  it('cleanupDriveCacheManager is safe when no instance exists', () => {
+    cleanupDriveCacheManager();
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    cleanupDriveCacheManager();
+    expect(consoleSpy).not.toHaveBeenCalled();
+    consoleSpy.mockRestore();
   });
 });

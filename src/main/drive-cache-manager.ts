@@ -1,6 +1,6 @@
 import fs from 'fs';
+import { promises as fsPromises } from 'fs';
 import path from 'path';
-import os from 'os';
 import { EventEmitter } from 'events';
 import {
   getDriveFileStream,
@@ -12,9 +12,9 @@ class DriveCacheManager extends EventEmitter {
   private activeDownloads: Map<string, Promise<string>>;
   private metadataCache: Map<string, { size: number; mimeType: string }>;
 
-  constructor() {
+  constructor(cacheDir: string) {
     super();
-    this.cacheDir = path.join(os.tmpdir(), 'model-viewer-drive-cache');
+    this.cacheDir = cacheDir;
     this.activeDownloads = new Map();
     this.metadataCache = new Map();
     this.ensureCacheDir();
@@ -47,16 +47,22 @@ class DriveCacheManager extends EventEmitter {
       }
     }
 
-    if (fs.existsSync(filePath)) {
-      // Check if it's fully downloaded?
-      // For now, we assume if it exists it's usable.
-      // In a real robust system we'd check against totalSize or a .done flag.
-      // But even partial files are fine for our "Active Caching" strategy.
-      const stats = fs.statSync(filePath);
+    let stats: fs.Stats | null = null;
+    try {
+      stats = await fsPromises.stat(filePath);
+    } catch (error) {
+      const nodeError = error as NodeJS.ErrnoException;
+      if (nodeError.code !== 'ENOENT') {
+        console.error(
+          `[DriveCache] Failed to stat cache file for ${fileId}:`,
+          error,
+        );
+      }
+    }
+
+    if (stats) {
       // If active download is running, we trust it.
       // If no active download and size < totalSize, maybe resume?
-      // For this "Radical Change" MVP, we'll start a download if not active and incomplete.
-
       if (!this.activeDownloads.has(fileId) && stats.size < metadata.size) {
         this.startDownload(fileId, filePath, stats.size).catch((err) =>
           console.error('[DriveCache] Download failed:', err),
@@ -157,4 +163,26 @@ class DriveCacheManager extends EventEmitter {
   }
 }
 
-export const driveCacheManager = new DriveCacheManager();
+let driveCacheManagerInstance: DriveCacheManager | null = null;
+
+export const initializeDriveCacheManager = (cacheDir: string) => {
+  if (!driveCacheManagerInstance) {
+    driveCacheManagerInstance = new DriveCacheManager(cacheDir);
+  }
+  return driveCacheManagerInstance;
+};
+
+export const getDriveCacheManager = () => {
+  if (!driveCacheManagerInstance) {
+    throw new Error('DriveCacheManager has not been initialized.');
+  }
+  return driveCacheManagerInstance;
+};
+
+export const cleanupDriveCacheManager = () => {
+  if (!driveCacheManagerInstance) {
+    return;
+  }
+  driveCacheManagerInstance.cleanup();
+  driveCacheManagerInstance = null;
+};

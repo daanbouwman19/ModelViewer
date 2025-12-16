@@ -12,7 +12,6 @@ import * as security from '../../src/core/security';
 import fs from 'fs';
 import { spawn } from 'child_process';
 import { EventEmitter } from 'events';
-import { driveCacheManager } from '../../src/main/drive-cache-manager';
 import * as mediaUtils from '../../src/core/media-utils';
 import {
   getDriveFileStream,
@@ -29,10 +28,14 @@ vi.mock('../../src/main/google-drive-service', () => ({
   listDriveFiles: vi.fn(),
 }));
 
+const driveCacheManager = {
+  getCachedFilePath: vi.fn(),
+};
+
 vi.mock('../../src/main/drive-cache-manager', () => ({
-  driveCacheManager: {
-    getCachedFilePath: vi.fn(),
-  },
+  getDriveCacheManager: vi.fn(() => driveCacheManager),
+  initializeDriveCacheManager: vi.fn(),
+  cleanupDriveCacheManager: vi.fn(),
 }));
 
 vi.mock('../../src/core/media-utils', () => ({

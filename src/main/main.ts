@@ -69,6 +69,10 @@ import {
   getDriveParent,
 } from './google-drive-service';
 import { startAuthServer, stopAuthServer } from './auth-server';
+import {
+  cleanupDriveCacheManager,
+  initializeDriveCacheManager,
+} from './drive-cache-manager';
 const isDev = !app.isPackaged;
 
 /**
@@ -716,6 +720,9 @@ app.commandLine.appendSwitch(
 app.on('ready', () => {
   createWindow();
 
+  const driveCacheDir = path.join(app.getPath('userData'), 'drive-cache');
+  initializeDriveCacheManager(driveCacheDir);
+
   initDatabase()
     .then(async () => {
       const cacheDir = path.join(app.getPath('userData'), 'thumbnails');
@@ -757,4 +764,5 @@ app.on('will-quit', () => {
   });
   stopAuthServer(); // Ensure auth server is cleaned up
   closeDatabase();
+  cleanupDriveCacheManager();
 });

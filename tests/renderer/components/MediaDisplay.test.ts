@@ -670,21 +670,22 @@ describe('MediaDisplay.vue', () => {
     });
 
     it('handles keyboard navigation on progress bar', async () => {
+      const genMock = vi.fn().mockReturnValue('url');
+      (api.getVideoStreamUrlGenerator as Mock).mockResolvedValueOnce(genMock);
+
       const wrapper = mount(MediaDisplay);
       mockRefs.currentMediaItem.value = { name: 't.mp4', path: '/t.mp4' };
+      await flushPromises();
 
       // Transcoding Mode
       (wrapper.vm as any).isTranscodingMode = true;
       (wrapper.vm as any).transcodedDuration = 100;
       (wrapper.vm as any).currentVideoTime = 10;
 
-      const genMock = vi.fn().mockReturnValue('url');
-      (wrapper.vm as any).videoStreamUrlGenerator = genMock;
-
       const event = { key: 'ArrowRight', preventDefault: vi.fn() };
       (wrapper.vm as any).handleProgressBarKeydown(event);
 
-      await wrapper.vm.$nextTick();
+      await flushPromises();
       expect(genMock).toHaveBeenCalledWith(expect.anything(), 15);
       expect(event.preventDefault).toHaveBeenCalled();
 
@@ -812,9 +813,6 @@ describe('MediaDisplay.vue', () => {
 
       const wrapper = mount(MediaDisplay);
       await flushPromises();
-
-      // Manually set generator to null just in case component logic set it differently
-      (wrapper.vm as any).videoStreamUrlGenerator = null;
 
       await (wrapper.vm as any).tryTranscoding(0);
 
