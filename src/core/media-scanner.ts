@@ -12,6 +12,37 @@ import { ALL_SUPPORTED_EXTENSIONS } from './constants';
 import type { Album, MediaFile } from './types';
 import { listDriveFiles } from '../main/google-drive-service';
 
+// Concurrency limiter logic
+class ConcurrencyLimiter {
+  private queue: (() => void)[] = [];
+  private activeCount = 0;
+  private readonly maxConcurrency: number;
+
+  constructor(maxConcurrency: number) {
+    this.maxConcurrency = maxConcurrency;
+  }
+
+  async run<T>(fn: () => Promise<T>): Promise<T> {
+    if (this.activeCount >= this.maxConcurrency) {
+      await new Promise<void>((resolve) => this.queue.push(resolve));
+    }
+    this.activeCount++;
+    try {
+      return await fn();
+    } finally {
+      this.activeCount--;
+      if (this.queue.length > 0) {
+        const next = this.queue.shift();
+        if (next) next();
+      }
+    }
+  }
+}
+
+// Limit concurrent file system scans to avoid EMFILE errors
+// Note: This limit applies only to the `readdir` call itself, not the whole recursion.
+const scanLimiter = new ConcurrencyLimiter(10);
+
 /**
  * Asynchronously and recursively scans a directory to build a hierarchical album structure.
  * An album is created for any directory that contains media files or has subdirectories
@@ -23,7 +54,13 @@ async function scanDirectoryRecursive(
   directoryPath: string,
 ): Promise<Album | null> {
   try {
-    const items = await fs.readdir(directoryPath, { withFileTypes: true });
+    // Only wrap the readdir call to limit concurrent open file descriptors.
+    // We do NOT wrap the recursive calls or the whole function, as that would cause a deadlock
+    // (parent holding a slot while waiting for children).
+    const items = await scanLimiter.run(() =>
+      fs.readdir(directoryPath, { withFileTypes: true }),
+    );
+
     const textures: MediaFile[] = [];
     const childrenPromises: Promise<Album | null>[] = [];
 

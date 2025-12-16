@@ -136,7 +136,7 @@ describe('Google Drive Service', () => {
       expect(stream).toBe(mockStream);
       expect(mockDrive.files.get).toHaveBeenCalledWith(
         expect.objectContaining({ fileId: 'fileId', alt: 'media' }),
-        { responseType: 'stream' },
+        expect.objectContaining({ responseType: 'stream', headers: {} }),
       );
     });
   });

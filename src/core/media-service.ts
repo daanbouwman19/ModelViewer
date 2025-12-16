@@ -9,6 +9,7 @@ import {
   getCachedAlbums,
   getMediaViewCounts,
   upsertMetadata,
+  getPendingMetadata,
 } from './database';
 import { performFullMediaScan } from './media-scanner';
 import { getVideoDuration } from './media-handler';
@@ -38,16 +39,36 @@ export async function scanDiskForAlbumsAndCache(
 
   // Trigger metadata extraction in background if ffmpegPath is provided
   if (ffmpegPath && albums && albums.length > 0) {
+    // 1. Process pending items from DB
+    // 2. Process new items
+
+    // For simplicity, we just trigger a check for all new items + pending items
     const allFilePaths = albums.flatMap((album) =>
       album.textures.map((texture) => texture.path),
     );
-    // Fire and forget
-    extractAndSaveMetadata(allFilePaths, ffmpegPath).catch((err) =>
-      console.error(
-        '[media-service] Background metadata extraction failed:',
-        err,
-      ),
-    );
+
+    // Fire and forget, but also include checking for previously pending items
+    // We combine them or run them.
+    // Ideally we should prioritize pending items?
+
+    // Let's first fetch pending items from DB to ensure they are covered
+    // Note: extractAndSaveMetadata checks existence or overwrites.
+    // To properly resume, we should merge.
+
+    // We launch async process:
+    (async () => {
+      try {
+        const pending = await getPendingMetadata();
+        // Merge unique paths
+        const uniquePaths = new Set([...pending, ...allFilePaths]);
+        await extractAndSaveMetadata(Array.from(uniquePaths), ffmpegPath);
+      } catch (e) {
+        console.error(
+          '[media-service] Background metadata extraction failed:',
+          e,
+        );
+      }
+    })();
   }
 
   return albums || [];
@@ -133,30 +154,38 @@ export async function extractAndSaveMetadata(
   for (const filePath of filePaths) {
     try {
       if (filePath.startsWith('gdrive://')) {
-        // Skip metadata extraction for Google Drive files for now
-        // TODO: Implement Drive-specific metadata fetching via Google Drive API
         continue;
       }
+
+      // Mark as processing (optional, or we just rely on pending default)
+      // await upsertMetadata(filePath, { status: 'processing' });
 
       const stats = await fs.stat(filePath);
       const metadata: MediaMetadata = {
         size: stats.size,
         createdAt: stats.birthtime.toISOString(),
+        status: 'processing',
       };
 
-      // Only get duration for video/audio
-      // We can check extension or try ffmpeg
       const result = await getVideoDuration(filePath, ffmpegPath);
       if ('duration' in result) {
         metadata.duration = result.duration;
       }
 
+      // Mark success
+      metadata.status = 'success';
       await upsertMetadata(filePath, metadata);
     } catch (error) {
       console.warn(
         `[media-service] Error extracting metadata for ${filePath}:`,
         error,
       );
+      // Mark failed
+      try {
+        await upsertMetadata(filePath, { status: 'failed' });
+      } catch {
+        /* ignore */
+      }
     }
   }
 }

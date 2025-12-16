@@ -22,7 +22,7 @@ import { spawn } from 'child_process';
 import ffmpegPath from 'ffmpeg-static';
 
 import {
-  MAX_DATA_URL_SIZE_MB,
+  DATA_URL_THRESHOLD_MB,
   SUPPORTED_VIDEO_EXTENSIONS,
   SUPPORTED_IMAGE_EXTENSIONS,
   ALL_SUPPORTED_EXTENSIONS,
@@ -102,16 +102,16 @@ ipcMain.handle(
 
         // For video, or preferHttp, return HTTP URL from local server which pipes Drive stream
         const meta = await getDriveFileMetadata(fileId);
-        const isVideo = meta.mimeType?.startsWith('video/');
 
-        if (
-          options.preferHttp ||
-          (isVideo && Number(meta.size) > MAX_DATA_URL_SIZE_MB * 1024 * 1024)
-        ) {
+        // Use threshold for ALL files (images or video)
+        // Note: For Drive files, streaming logic is slightly different, but we should use HTTP URL if large
+        const isLarge = Number(meta.size) > DATA_URL_THRESHOLD_MB * 1024 * 1024;
+
+        if (options.preferHttp || isLarge) {
           if (currentServerPort === 0) {
             return {
               type: 'error',
-              message: 'Local server not ready to stream Drive video.',
+              message: 'Local server not ready to stream Drive file.',
             };
           }
           // We need to encode the URI because the file path is now a gdrive:// URI
@@ -122,7 +122,7 @@ ipcMain.handle(
           };
         }
 
-        // For small images, return Data URL
+        // For small files, return Data URL
         // Fetch buffer
         const stream = await getDriveFileStream(fileId);
         const chunks: Buffer[] = [];
@@ -153,15 +153,14 @@ ipcMain.handle(
       }
 
       const stats = await fs.stat(filePath);
-      const isVideo = SUPPORTED_VIDEO_EXTENSIONS.includes(
-        path.extname(filePath).toLowerCase(),
-      );
 
-      if (isVideo && stats.size > MAX_DATA_URL_SIZE_MB * 1024 * 1024) {
+      // Check if file is larger than threshold (1MB)
+      // Note: This logic now applies to images too, not just videos
+      if (stats.size > DATA_URL_THRESHOLD_MB * 1024 * 1024) {
         if (currentServerPort === 0) {
           return {
             type: 'error',
-            message: 'Local server not ready to stream large video.',
+            message: 'Local server not ready to stream large file.',
           };
         }
         const pathForUrl = filePath.replace(/\\/g, '/');

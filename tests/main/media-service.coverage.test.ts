@@ -32,7 +32,10 @@ describe('media-service coverage', () => {
       expect.stringContaining('Error extracting metadata'),
       expect.any(Error),
     );
-    expect(db.upsertMetadata).not.toHaveBeenCalled();
+    expect(db.upsertMetadata).toHaveBeenCalledWith(
+      testFile,
+      expect.objectContaining({ status: 'failed' }),
+    );
   });
 
   it('extractAndSaveMetadata handles upsertMetadata errors', async () => {

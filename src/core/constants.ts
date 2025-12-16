@@ -11,6 +11,11 @@
 const MAX_DATA_URL_SIZE_MB: number = 50;
 
 /**
+ * Threshold for switching to HTTP serving instead of Data URL to avoid memory pressure.
+ */
+const DATA_URL_THRESHOLD_MB: number = 1;
+
+/**
  * The key used for storing and retrieving the file index cache
  * in the application's SQLite database.
  */
@@ -53,6 +58,7 @@ const ALL_SUPPORTED_EXTENSIONS: string[] = [
 
 export {
   MAX_DATA_URL_SIZE_MB,
+  DATA_URL_THRESHOLD_MB,
   FILE_INDEX_CACHE_KEY,
   SUPPORTED_IMAGE_EXTENSIONS,
   SUPPORTED_VIDEO_EXTENSIONS,

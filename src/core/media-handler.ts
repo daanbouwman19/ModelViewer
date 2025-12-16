@@ -174,7 +174,27 @@ export async function serveTranscode(
 
       // Let's try to just pipe the stream. Browsers can handle range requests for seeking if we support it.
       // But the Drive stream might not support range requests easily via the API wrapper.
-      const stream = await getDriveFileStream(fileId);
+      // We parse Range header or startTime query param.
+      // Note: startTime query param is usually seconds for transcoding, but for direct stream we use bytes.
+      // However, the caller usually sends Range header for direct stream seeking.
+
+      let startByte: number | undefined;
+      let endByte: number | undefined;
+
+      const rangeHeader = req.headers.range;
+      if (rangeHeader) {
+        const parts = rangeHeader.replace(/bytes=/, '').split('-');
+        startByte = parseInt(parts[0], 10);
+        endByte = parts[1] ? parseInt(parts[1], 10) : undefined;
+      }
+
+      // If startTime is provided (legacy or transcoding param), we might need to convert it to bytes if we knew bitrate,
+      // but for direct stream we rely on Range header.
+
+      const stream = await getDriveFileStream(fileId, {
+        start: startByte,
+        end: endByte,
+      });
 
       let mimeType = 'video/mp4'; // Default fallback
       try {
@@ -190,15 +210,44 @@ export async function serveTranscode(
         );
       }
 
-      res.writeHead(200, {
-        'Content-Type': mimeType,
-      });
+      if (startByte !== undefined) {
+        // Partial content response
+        // We need total size to send Content-Range.
+        // For performance, we might skip getting metadata if we don't have it, but standard requires it.
+        try {
+          const metadata = await getDriveFileMetadata(fileId);
+          const totalSize = Number(metadata.size);
+          const finalEnd = endByte !== undefined ? endByte : totalSize - 1;
+
+          res.writeHead(206, {
+            'Content-Type': mimeType,
+            'Content-Range': `bytes ${startByte}-${finalEnd}/${totalSize}`,
+            'Accept-Ranges': 'bytes',
+            'Content-Length': finalEnd - startByte + 1,
+          });
+        } catch {
+          // Fallback if metadata fails
+          res.writeHead(206, {
+            'Content-Type': mimeType,
+            'Accept-Ranges': 'bytes',
+          });
+        }
+      } else {
+        res.writeHead(200, {
+          'Content-Type': mimeType,
+          'Accept-Ranges': 'bytes',
+        });
+      }
+
       stream.pipe(res);
       return;
     } catch (err) {
       console.error('[Transcode] Drive Stream Error:', err);
-      res.writeHead(500);
-      return res.end('Drive Stream Error');
+      if (!res.headersSent) {
+        res.writeHead(500);
+        res.end('Drive Stream Error');
+      }
+      return;
     }
   }
 
@@ -367,7 +416,7 @@ export async function serveStaticFile(
   }
 
   try {
-    const stat = fs.statSync(normalizedFilePath);
+    const stat = await fs.promises.stat(normalizedFilePath);
     const totalSize = stat.size;
     const range = req.headers.range;
 
