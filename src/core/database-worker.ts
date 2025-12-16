@@ -37,7 +37,7 @@ async function generateFileId(filePath: string): Promise<string> {
     const stats = await fs.stat(filePath);
     const uniqueString = `${stats.size}-${stats.mtime.getTime()}`;
     return crypto.createHash('md5').update(uniqueString).digest('hex');
-  } catch (error) {
+  } catch {
     // If we can't stat the file (e.g. invalid path), fallback to hashing the path string
     // console.error(`[worker] Error generating file ID for ${filePath}:`, error);
     return crypto.createHash('md5').update(filePath).digest('hex');
