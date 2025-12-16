@@ -128,4 +128,28 @@ describe('Media Scanner', () => {
     expect(result).toEqual([]);
     consoleSpy.mockRestore();
   });
+
+  it('should ignore special files (sockets/symlinks)', async () => {
+    mockFs.access.mockResolvedValue(undefined);
+    mockFs.readdir.mockResolvedValue([
+      { name: 'socket', isDirectory: () => false, isFile: () => false },
+    ]);
+
+    const result = await performFullMediaScan(['/test']);
+    expect(result).toEqual([]);
+  });
+
+  it('should return null for empty drive folders', async () => {
+    const drivePath = 'gdrive://empty-id';
+    const mockAlbum = {
+      name: 'Empty Folder',
+      textures: [],
+      children: [],
+    };
+
+    (driveService.listDriveFiles as any).mockResolvedValue(mockAlbum);
+
+    const result = await performFullMediaScan([drivePath]);
+    expect(result).toEqual([]);
+  });
 });
