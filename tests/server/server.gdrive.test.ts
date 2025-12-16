@@ -3,11 +3,19 @@ import request from 'supertest';
 
 // Mock dependencies
 const mockFs = {
-  promises: {
-    stat: vi.fn(),
-    access: vi.fn(),
-  },
+  stat: vi.fn(),
+  access: vi.fn(),
+  mkdir: vi.fn(),
 };
+vi.mock('fs', () => ({
+  default: {
+    existsSync: vi.fn(),
+    mkdirSync: vi.fn(),
+  },
+  existsSync: vi.fn(),
+  mkdirSync: vi.fn(),
+}));
+
 vi.mock('fs/promises', () => ({ default: mockFs }));
 
 // Mock core modules

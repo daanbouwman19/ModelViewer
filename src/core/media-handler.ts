@@ -15,10 +15,14 @@ import { authorizeFilePath } from './security';
 import {
   getDriveFileStream,
   getDriveFileMetadata,
+  getDriveFileThumbnail,
 } from '../main/google-drive-service';
+import { driveCacheManager } from '../main/drive-cache-manager';
+import { getThumbnailCachePath, checkThumbnailCache } from './media-utils';
 
 export interface MediaHandlerOptions {
   ffmpegPath: string | null;
+  cacheDir: string;
 }
 
 /**
@@ -166,89 +170,152 @@ export async function serveTranscode(
 ) {
   if (filePath.startsWith('gdrive://')) {
     const fileId = filePath.replace('gdrive://', '');
+
     try {
-      // Direct stream from Google Drive.
-      // Note: We are NOT transcoding here (ffmpeg is bypassed), so startTime won't work unless we implement range requests or ffmpeg piping from a URL.
-      // For MVP, we will pipe the raw file. If the browser supports the codec (mp4/webm), it will play.
-      // If it needs transcoding, we'd need to pipe the stream INTO ffmpeg.
+      const {
+        path: cachedPath,
+        totalSize,
+        mimeType,
+      } = await driveCacheManager.getCachedFilePath(fileId);
+      const isTranscodeForced = req.url?.includes('transcode=true');
 
-      // Let's try to just pipe the stream. Browsers can handle range requests for seeking if we support it.
-      // But the Drive stream might not support range requests easily via the API wrapper.
-      // We parse Range header or startTime query param.
-      // Note: startTime query param is usually seconds for transcoding, but for direct stream we use bytes.
-      // However, the caller usually sends Range header for direct stream seeking.
+      if (isTranscodeForced) {
+        if (!ffmpegPath) {
+          res.writeHead(500);
+          return res.end('FFmpeg binary not found');
+        }
 
-      let startByte: number | undefined;
-      let endByte: number | undefined;
+        // USE LOCALHOST LOOPBACK PROXY
+        // This allows FFmpeg to seek (Range requests) via serveStaticFile -> Drive API
+        const host = req.headers.host || 'localhost';
+        // Construct base URL. req.url includes query params.
+        // We need to remove 'transcode=true' to get the raw stream URL.
+        // e.g. /video/stream?file=gdrive://ID&transcode=true -> /video/stream?file=gdrive://ID
+        let inputUrl = `http://${host}${req.url}`;
+        inputUrl = inputUrl.replace(/[?&]transcode=true/, '');
 
+        res.writeHead(200, { 'Content-Type': 'video/mp4' });
+
+        const ffmpegArgs = [
+          '-analyzeduration',
+          '100M',
+          '-probesize',
+          '100M',
+          '-i',
+          inputUrl,
+          '-f',
+          'mp4',
+          '-vcodec',
+          'libx264',
+          '-acodec',
+          'aac',
+          '-movflags',
+          'frag_keyframe+empty_moov',
+          '-preset',
+          'ultrafast',
+          '-crf',
+          '23',
+          '-pix_fmt',
+          'yuv420p',
+          'pipe:1',
+        ];
+
+        if (startTime) {
+          // Forward start time to FFmpeg (input seeking works nicely with http)
+          // Actually for HTTP input, -ss before -i is faster (seeks tcp stream)
+          ffmpegArgs.splice(0, 0, '-ss', startTime);
+        }
+
+        const ffmpegProcess = spawn(ffmpegPath, ffmpegArgs);
+
+        // No piping to stdin anymore!
+        // FFmpeg reads from URL.
+
+        ffmpegProcess.stdout.pipe(res);
+        ffmpegProcess.stderr.on('data', (d) =>
+          console.log('[Transcode] FFmpeg stderr:', d.toString()),
+        );
+
+        req.on('close', () => {
+          ffmpegProcess.kill('SIGKILL');
+        });
+        return;
+      }
+
+      // Direct Play with Hybrid Caching
       const rangeHeader = req.headers.range;
+      const stats = await fs.promises
+        .stat(cachedPath)
+        .catch(() => ({ size: 0 }));
+      const currentSize = stats.size;
+
+      let startByte = 0;
+      let endByte = totalSize - 1;
+
       if (rangeHeader) {
         const parts = rangeHeader.replace(/bytes=/, '').split('-');
         startByte = parseInt(parts[0], 10);
-        endByte = parts[1] ? parseInt(parts[1], 10) : undefined;
+        if (parts[1]) endByte = parseInt(parts[1], 10);
       }
 
-      // If startTime is provided (legacy or transcoding param), we might need to convert it to bytes if we knew bitrate,
-      // but for direct stream we rely on Range header.
+      // Headers based on TOTAL expected size
+      // Headers based on TOTAL expected size
+      const chunksize = endByte - startByte + 1;
+      const headers: Record<string, string | number> = {
+        'Content-Type': mimeType,
+        'Accept-Ranges': 'bytes',
+        'Content-Range': `bytes ${startByte}-${endByte}/${totalSize}`,
+        'Content-Length': chunksize,
+      };
+      // REMOVED unconditional writeHead here
 
-      const stream = await getDriveFileStream(fileId, {
-        start: startByte,
-        end: endByte,
-      });
+      // HYBRID SERVING LOGIC
+      if (startByte < currentSize) {
+        // We have the start data on disk!
 
-      let mimeType = 'video/mp4'; // Default fallback
-      try {
-        // We import getDriveFileMetadata dynamically if needed, or rely on the import at top
-        const metadata = await getDriveFileMetadata(fileId);
-        if (metadata.mimeType) {
-          mimeType = metadata.mimeType;
-        }
-      } catch (e) {
-        console.warn(
-          '[Transcode] Failed to fetch Drive metadata for MIME type:',
-          e,
-        );
-      }
+        const safeEnd = Math.min(endByte, currentSize - 1);
 
-      if (startByte !== undefined) {
-        // Partial content response
-        // We need total size to send Content-Range.
-        // For performance, we might skip getting metadata if we don't have it, but standard requires it.
-        try {
-          const metadata = await getDriveFileMetadata(fileId);
-          const totalSize = Number(metadata.size);
-          const finalEnd = endByte !== undefined ? endByte : totalSize - 1;
-
-          res.writeHead(206, {
-            'Content-Type': mimeType,
-            'Content-Range': `bytes ${startByte}-${finalEnd}/${totalSize}`,
-            'Accept-Ranges': 'bytes',
-            'Content-Length': finalEnd - startByte + 1,
-          });
-        } catch {
-          // Fallback if metadata fails
-          res.writeHead(206, {
-            'Content-Type': mimeType,
-            'Accept-Ranges': 'bytes',
-          });
-        }
-      } else {
-        res.writeHead(200, {
+        // Update Headers for the partial chunk
+        res.writeHead(206, {
           'Content-Type': mimeType,
           'Accept-Ranges': 'bytes',
+          'Content-Range': `bytes ${startByte}-${safeEnd}/${totalSize}`,
+          'Content-Length': safeEnd - startByte + 1,
         });
-      }
 
-      stream.pipe(res);
-      return;
+        const fileStream = fs.createReadStream(cachedPath, {
+          start: startByte,
+          end: safeEnd,
+        });
+        fileStream.pipe(res);
+        return;
+      } else {
+        // Fallback to Drive Pipe
+
+        const stream = await getDriveFileStream(fileId, {
+          start: startByte,
+          end: endByte,
+        });
+
+        // Write headers for the pipe response
+        res.writeHead(206, headers);
+
+        stream.pipe(res);
+        stream.on('error', (err) =>
+          console.error('[DriveHandler] Stream Error:', err),
+        );
+        req.on('close', () => stream.destroy());
+        return;
+      }
     } catch (err) {
-      console.error('[Transcode] Drive Stream Error:', err);
+      console.error('[DriveHandler] Error:', err);
       if (!res.headersSent) {
         res.writeHead(500);
-        res.end('Drive Stream Error');
+        res.end('Drive Handler Error');
       }
-      return;
     }
+    // STOP FALLTHROUGH
+    return;
   }
 
   try {
@@ -261,6 +328,71 @@ export async function serveTranscode(
     console.error('[Transcode] Path validation error:', e);
     res.writeHead(500);
     return res.end('Internal Error');
+  }
+
+  const isTranscodeForced = req.url?.includes('transcode=true');
+  if (isTranscodeForced) {
+    if (!ffmpegPath) {
+      res.writeHead(500);
+      return res.end('FFmpeg binary not found');
+    }
+
+    try {
+      res.writeHead(200, {
+        'Content-Type': 'video/mp4',
+      });
+
+      // Local file specific args
+      const ffmpegArgs = [
+        '-analyzeduration',
+        '100M',
+        '-probesize',
+        '100M',
+        '-i',
+        filePath,
+        '-f',
+        'mp4',
+        '-vcodec',
+        'libx264',
+        '-acodec',
+        'aac',
+        '-movflags',
+        'frag_keyframe+empty_moov',
+        '-preset',
+        'ultrafast',
+        '-crf',
+        '23',
+        '-pix_fmt',
+        'yuv420p',
+        'pipe:1',
+      ];
+
+      if (startTime) {
+        // For local files, input seeking is fast and supported
+        ffmpegArgs.splice(0, 0, '-ss', startTime);
+      }
+
+      const ffmpegProcess = spawn(ffmpegPath, ffmpegArgs);
+
+      // Pipe FFmpeg -> Response
+      ffmpegProcess.stdout.pipe(res);
+
+      ffmpegProcess.stderr.on('data', () => {
+        // console.log('[Transcode] FFmpeg stderr:', d.toString())
+      });
+
+      req.on('close', () => {
+        ffmpegProcess.kill('SIGKILL');
+      });
+      return;
+    } catch (err) {
+      console.error('[Transcode] Local Transcode Error:', err);
+      if (!res.headersSent) {
+        res.writeHead(500);
+        res.end('Transcode Error');
+      }
+      return;
+    }
   }
 
   if (!ffmpegPath) {
@@ -315,23 +447,37 @@ export async function serveThumbnail(
   res: http.ServerResponse,
   filePath: string,
   ffmpegPath: string | null,
+  cacheDir: string,
 ) {
+  // 1. Check Cache
+  const cacheFile = getThumbnailCachePath(filePath, cacheDir);
+
+  const hit = await checkThumbnailCache(cacheFile);
+  console.error('DEBUG: checkThumbnailCache result:', hit);
+  if (hit) {
+    res.writeHead(200, {
+      'Content-Type': 'image/jpeg',
+      'Cache-Control': 'public, max-age=31536000',
+    });
+    fs.createReadStream(cacheFile).pipe(res);
+    return;
+  }
+
   if (filePath.startsWith('gdrive://')) {
     const fileId = filePath.replace('gdrive://', '');
     try {
-      const { getDriveFileThumbnail } =
-        await import('../main/google-drive-service');
       const stream = await getDriveFileThumbnail(fileId);
-      res.writeHead(200, {
-        'Content-Type': 'image/jpeg',
-        'Cache-Control': 'public, max-age=3600',
-      });
+      const writeStream = fs.createWriteStream(cacheFile);
+      stream.pipe(writeStream);
       stream.pipe(res);
       return;
     } catch (e) {
-      console.error('[Thumbnail] Drive fetch failed:', e);
-      res.writeHead(404);
-      return res.end('Thumbnail not available');
+      console.warn('[Thumbnail] Drive fetch failed, fallback disabled:', e);
+      if (!res.headersSent) {
+        res.writeHead(404);
+        res.end();
+      }
+      return;
     }
   }
 
@@ -351,27 +497,71 @@ export async function serveThumbnail(
     return res.end('FFmpeg binary not found');
   }
 
-  res.writeHead(200, {
-    'Content-Type': 'image/jpeg',
-    'Cache-Control': 'public, max-age=31536000',
-  });
+  // 3. Local File Logic (Cache check already done)
 
-  const ffmpegArgs = [
+  // Let's change approach: Output to cacheFile directly, then stream cacheFile to res.
+  // FFMPEG overwrite (-y)
+  const generateArgs = [
+    '-y',
     '-ss',
     '1',
     '-i',
     filePath,
     '-frames:v',
     '1',
-    '-f',
-    'image2',
     '-q:v',
     '5',
-    'pipe:1',
+    cacheFile,
   ];
 
-  const ffmpegProcess = spawn(ffmpegPath, ffmpegArgs);
-  ffmpegProcess.stdout.pipe(res);
+  const genProcess = spawn(ffmpegPath, generateArgs);
+
+  // Capture stderr for debugging
+  let stderr = '';
+  if (genProcess.stderr) {
+    genProcess.stderr.on('data', (d) => (stderr += d.toString()));
+  }
+
+  genProcess.on('close', (code) => {
+    if (code === 0) {
+      fs.promises
+        .stat(cacheFile)
+        .then(() => {
+          res.writeHead(200, {
+            'Content-Type': 'image/jpeg',
+            'Cache-Control': 'public, max-age=31536000',
+          });
+          fs.createReadStream(cacheFile).pipe(res);
+        })
+        .catch((err) => {
+          console.error(
+            '[Thumbnail] Local FFmpeg success but no file:',
+            err,
+            '\nStderr:',
+            stderr,
+          );
+          if (!res.headersSent) res.writeHead(500);
+          res.end();
+        });
+    } else {
+      console.error(
+        '[Thumbnail] FFmpeg failed with code',
+        code,
+        '\nStderr:',
+        stderr,
+      );
+      if (!res.headersSent) res.writeHead(500);
+      res.end();
+    }
+  });
+
+  genProcess.on('error', (err) => {
+    console.error('[Thumbnail] Spawn failed', err);
+    if (!res.headersSent) {
+      res.writeHead(500);
+      res.end('Generation failed');
+    }
+  });
 }
 
 /**
@@ -385,17 +575,73 @@ export async function serveStaticFile(
   if (filePath.startsWith('gdrive://')) {
     const fileId = filePath.replace('gdrive://', '');
     try {
-      const stream = await getDriveFileStream(fileId);
-      const metadata = await getDriveFileMetadata(fileId);
-      res.writeHead(200, {
-        'Content-Type': metadata.mimeType || 'application/octet-stream',
-        'Content-Length': Number(metadata.size),
-      });
-      stream.pipe(res);
+      const {
+        path: cachedPath,
+        totalSize,
+        mimeType,
+      } = await driveCacheManager.getCachedFilePath(fileId);
+
+      const rangeHeader = req.headers.range;
+      const stats = await fs.promises
+        .stat(cachedPath)
+        .catch(() => ({ size: 0 }));
+      const currentSize = stats.size;
+
+      // Default to full range if no header
+      let startByte = 0;
+      let endByte = totalSize - 1;
+
+      if (rangeHeader) {
+        const parts = rangeHeader.replace(/bytes=/, '').split('-');
+        startByte = parseInt(parts[0], 10);
+        if (parts[1]) endByte = parseInt(parts[1], 10);
+      }
+
+      const headers: Record<string, string | number> = {
+        'Content-Type': mimeType,
+        'Accept-Ranges': 'bytes',
+      };
+
+      if (startByte < currentSize) {
+        // Serve from Cache (Partial)
+        const safeEnd = Math.min(endByte, currentSize - 1);
+        headers['Content-Range'] = `bytes ${startByte}-${safeEnd}/${totalSize}`;
+        headers['Content-Length'] = safeEnd - startByte + 1;
+        res.writeHead(206, headers);
+
+        const fileStream = fs.createReadStream(cachedPath, {
+          start: startByte,
+          end: safeEnd,
+        });
+        fileStream.pipe(res);
+        return;
+      } else {
+        // Cache miss (fallback to pipe)
+        // Note: If we fall back to pipe, we send the FULL range/content info for the requested chunk?
+        // getDriveFileStream handles this? No, it returns a stream.
+        // We need to set headers correctly for the pipe.
+
+        const stream = await getDriveFileStream(fileId, {
+          start: startByte,
+          end: endByte,
+        });
+
+        const chunksize = endByte - startByte + 1;
+        headers['Content-Range'] = `bytes ${startByte}-${endByte}/${totalSize}`;
+        headers['Content-Length'] = chunksize;
+        res.writeHead(206, headers);
+
+        stream.pipe(res);
+        req.on('close', () => stream.destroy());
+        return;
+      }
     } catch (err) {
-      console.error('[ServeStatic] Drive Error:', err);
-      res.writeHead(500);
-      res.end('Drive Error');
+      console.error('[StaticServe] Drive Error:', err);
+      if (!res.headersSent) {
+        res.writeHead(500);
+        res.end('Drive Error');
+      }
+      return;
     }
     return;
   }
@@ -471,7 +717,7 @@ export async function serveStaticFile(
  * @returns An async function to handle http requests.
  */
 export function createMediaRequestHandler(options: MediaHandlerOptions) {
-  const { ffmpegPath } = options;
+  const { ffmpegPath, cacheDir } = options;
 
   return async (
     req: http.IncomingMessage,
@@ -518,7 +764,7 @@ export function createMediaRequestHandler(options: MediaHandlerOptions) {
         res.writeHead(400);
         return res.end('Missing file parameter');
       }
-      return serveThumbnail(req, res, filePath, ffmpegPath);
+      return serveThumbnail(req, res, filePath, ffmpegPath, cacheDir);
     }
 
     // Static File Serving (with Range support)

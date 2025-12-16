@@ -30,7 +30,10 @@ export const getMimeType = coreGetMimeType;
  * Starts the local HTTP server if it is not already running.
  * @param onReadyCallback - A callback function executed once the server has started and the port is assigned.
  */
-function startLocalServer(onReadyCallback?: () => void): void {
+function startLocalServer(
+  cacheDir: string,
+  onReadyCallback?: () => void,
+): void {
   if (serverInstance) {
     console.warn('[local-server.js] Server already started. Ignoring request.');
     if (onReadyCallback && typeof onReadyCallback === 'function') {
@@ -41,6 +44,7 @@ function startLocalServer(onReadyCallback?: () => void): void {
 
   const requestHandler = createMediaRequestHandler({
     ffmpegPath: ffmpegPath || null,
+    cacheDir,
   });
 
   serverInstance = http.createServer(requestHandler);

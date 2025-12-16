@@ -13,10 +13,12 @@ vi.mock('fs', () => {
   return {
     default: {
       existsSync: vi.fn(),
+      mkdirSync: vi.fn(),
       statSync: vi.fn(),
       createReadStream: vi.fn(),
     },
     existsSync: vi.fn(),
+    mkdirSync: vi.fn(),
     statSync: vi.fn(),
     createReadStream: vi.fn(),
   };
@@ -141,6 +143,7 @@ describe('media-handler security', () => {
       res as any,
       '/forbidden/exists.txt',
       '/bin/ffmpeg',
+      '/tmp',
     );
     const body1 = res.end.mock.calls[0][0];
     res.end.mockClear();
@@ -150,7 +153,13 @@ describe('media-handler security', () => {
       isAllowed: false,
       message: 'File does not exist: /missing.txt',
     });
-    await serveThumbnail(req as any, res as any, '/missing.txt', '/bin/ffmpeg');
+    await serveThumbnail(
+      req as any,
+      res as any,
+      '/missing.txt',
+      '/bin/ffmpeg',
+      '/tmp',
+    );
     const body2 = res.end.mock.calls[0][0];
 
     expect(body1).toBe('Access denied.');

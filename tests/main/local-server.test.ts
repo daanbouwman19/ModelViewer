@@ -20,7 +20,7 @@ import { getMediaDirectories } from '../../src/core/database';
 // Helper to promisify callback-based functions
 const startServer = () =>
   new Promise<void>((resolve) => {
-    startLocalServer(() => resolve());
+    startLocalServer('/tmp', () => resolve());
   });
 
 const stopServer = () =>
@@ -86,13 +86,13 @@ describe('Local Server', () => {
 
     it('should ignore start request if server is already running (callback)', async () => {
       await new Promise<void>((resolve) => {
-        startLocalServer(() => {
+        startLocalServer('/tmp', () => {
           const originalPort = getServerPort();
           const consoleSpy = vi
             .spyOn(console, 'warn')
             .mockImplementation(() => {});
 
-          startLocalServer(() => {
+          startLocalServer('/tmp', () => {
             expect(getServerPort()).toBe(originalPort);
             expect(consoleSpy).toHaveBeenCalledWith(
               expect.stringContaining('Server already started'),
@@ -107,7 +107,7 @@ describe('Local Server', () => {
     it('should handle start without callback when running', async () => {
       await startServer();
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      startLocalServer(); // No callback
+      startLocalServer('/tmp'); // No callback
       expect(consoleSpy).toHaveBeenCalled();
       consoleSpy.mockRestore();
     });

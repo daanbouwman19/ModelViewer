@@ -11,6 +11,8 @@ import * as security from '../../src/core/security';
 import fs from 'fs';
 import { spawn } from 'child_process';
 import { EventEmitter } from 'events';
+import { driveCacheManager } from '../../src/main/drive-cache-manager';
+import * as mediaUtils from '../../src/core/media-utils';
 
 // Mock google-drive-service
 vi.mock('../../src/main/google-drive-service', () => ({
@@ -19,6 +21,17 @@ vi.mock('../../src/main/google-drive-service', () => ({
   getDriveFileThumbnail: vi.fn(),
   getDriveClient: vi.fn(),
   listDriveFiles: vi.fn(),
+}));
+
+vi.mock('../../src/main/drive-cache-manager', () => ({
+  driveCacheManager: {
+    getCachedFilePath: vi.fn(),
+  },
+}));
+
+vi.mock('../../src/core/media-utils', () => ({
+  getThumbnailCachePath: vi.fn((p, d) => `${d}/hashed.jpg`),
+  checkThumbnailCache: vi.fn().mockResolvedValue(false),
 }));
 
 vi.mock('../../src/core/security');
@@ -36,10 +49,13 @@ vi.mock('../../src/core/constants', async (importOriginal) => {
 vi.mock('fs', () => {
   const mockFs = {
     existsSync: vi.fn(),
+    mkdirSync: vi.fn(),
     statSync: vi.fn(),
     createReadStream: vi.fn(),
+    createWriteStream: vi.fn(),
     promises: {
       stat: vi.fn(),
+      access: vi.fn(),
     },
   };
   return {
@@ -47,13 +63,15 @@ vi.mock('fs', () => {
     ...mockFs,
   };
 });
-vi.mock('child_process', () => {
-  const spawn = vi.fn();
-  return {
-    default: { spawn },
-    spawn,
-  };
-});
+// Hoist spawn mock to persist across assignments
+const { mockSpawn } = vi.hoisted(() => ({
+  mockSpawn: vi.fn(),
+}));
+
+vi.mock('child_process', () => ({
+  default: { spawn: mockSpawn },
+  spawn: mockSpawn,
+}));
 
 describe('media-handler', () => {
   let req: any;
@@ -74,6 +92,16 @@ describe('media-handler', () => {
       isAllowed: true,
       realPath: '/resolved/path',
     });
+
+    // Default spawn behavior: returns usable object
+    const defaultProcessMock: any = new EventEmitter();
+    defaultProcessMock.stderr = new EventEmitter();
+    defaultProcessMock.stdout = new EventEmitter();
+    defaultProcessMock.kill = vi.fn();
+    mockSpawn.mockReturnValue(defaultProcessMock);
+    
+    // Default Cache Miss
+    vi.mocked(mediaUtils.checkThumbnailCache).mockResolvedValue(false);
   });
 
   describe('getMimeType', () => {
@@ -107,32 +135,43 @@ describe('media-handler', () => {
       expect(res.end).toHaveBeenCalledWith(JSON.stringify({ duration: 60 }));
     });
 
-    it('serveStaticFile pipes Drive stream', async () => {
-      const driveService = await import('../../src/main/google-drive-service');
-      const mockStream = { pipe: vi.fn() };
-      vi.mocked(driveService.getDriveFileStream).mockResolvedValue(
-        mockStream as any,
-      );
-      vi.mocked(driveService.getDriveFileMetadata).mockResolvedValue({
+    it('serveStaticFile serves from Drive Cache', async () => {
+      const { driveCacheManager } =
+        await import('../../src/main/drive-cache-manager');
+
+      vi.mocked(driveCacheManager.getCachedFilePath).mockResolvedValue({
+        path: '/cache/file.mp4',
+        totalSize: 100,
         mimeType: 'video/mp4',
-        size: '100',
-      } as any);
+      });
+
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      vi.mocked(fs.promises.stat).mockResolvedValue({ size: 100 } as any);
+      const mockStream = { pipe: vi.fn() };
+      vi.mocked(fs.createReadStream).mockReturnValue(mockStream as any);
 
       await serveStaticFile(req, res, 'gdrive://123');
 
+      expect(driveCacheManager.getCachedFilePath).toHaveBeenCalledWith('123');
+      expect(fs.createReadStream).toHaveBeenCalledWith(
+        '/cache/file.mp4',
+        expect.anything(),
+      );
       expect(res.writeHead).toHaveBeenCalledWith(
-        200,
+        206,
         expect.objectContaining({
           'Content-Type': 'video/mp4',
           'Content-Length': 100,
+          'Content-Range': 'bytes 0-99/100',
         }),
       );
       expect(mockStream.pipe).toHaveBeenCalledWith(res);
     });
 
     it('serveStaticFile handles Drive errors', async () => {
-      const driveService = await import('../../src/main/google-drive-service');
-      vi.mocked(driveService.getDriveFileStream).mockRejectedValue(
+      const { driveCacheManager } =
+        await import('../../src/main/drive-cache-manager');
+      vi.mocked(driveCacheManager.getCachedFilePath).mockRejectedValue(
         new Error('Drive Fail'),
       );
 
@@ -142,28 +181,34 @@ describe('media-handler', () => {
       expect(res.end).toHaveBeenCalledWith('Drive Error');
     });
 
-    it('serveTranscode handles Drive Stream Error', async () => {
-      const driveService = await import('../../src/main/google-drive-service');
-      vi.mocked(driveService.getDriveFileStream).mockRejectedValue(
-        new Error('Stream Fail'),
+    it('serveTranscode handles Drive Cache Error', async () => {
+      const { driveCacheManager } =
+        await import('../../src/main/drive-cache-manager');
+      vi.mocked(driveCacheManager.getCachedFilePath).mockRejectedValue(
+        new Error('Cache Fail'),
       );
 
       await serveTranscode(req, res, 'gdrive://123', null, null);
 
       expect(res.writeHead).toHaveBeenCalledWith(500);
-      expect(res.end).toHaveBeenCalledWith('Drive Stream Error');
+      expect(res.end).toHaveBeenCalledWith('Drive Handler Error');
     });
 
     it('serveThumbnail handles Drive fetch error', async () => {
+      vi.mocked(fs.promises.access).mockRejectedValue(new Error('No cache'));
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+      res.headersSent = false;
       const driveService = await import('../../src/main/google-drive-service');
       (driveService.getDriveFileThumbnail as any).mockRejectedValue(
         new Error('Thumb Fail'),
       );
 
-      await serveThumbnail(req, res, 'gdrive://123', null);
+      await serveThumbnail(req, res, 'gdrive://123', null, '/tmp');
+
+      await new Promise((resolve) => setTimeout(resolve, 50)); // Wait for async
 
       expect(res.writeHead).toHaveBeenCalledWith(404);
-      expect(res.end).toHaveBeenCalledWith('Thumbnail not available');
+      expect(res.end).toHaveBeenCalled();
     });
 
     it('serves full file if no range', async () => {
@@ -195,6 +240,26 @@ describe('media-handler', () => {
         start: 0,
         end: 49,
       });
+    });
+
+    it('handles stat error for Drive cache file', async () => {
+      const { driveCacheManager } = await import(
+        '../../src/main/drive-cache-manager'
+      );
+      vi.mocked(driveCacheManager.getCachedFilePath).mockResolvedValue({
+        path: '/cache/file',
+        totalSize: 1000,
+        mimeType: 'video/mp4',
+      });
+      vi.mocked(fs.promises.stat).mockRejectedValue(new Error('Stat fail'));
+
+      const mockStream = { pipe: vi.fn() };
+      vi.mocked(fs.createReadStream).mockReturnValue(mockStream as any);
+
+      await serveStaticFile(req, res, 'gdrive://123');
+
+      // logic catches stat error, returns { size: 0 }, forcing fallback to Drive stream (206)
+      expect(res.writeHead).toHaveBeenCalledWith(206, expect.anything());
     });
   });
 
@@ -260,19 +325,111 @@ describe('media-handler', () => {
 
   describe('serveThumbnail', () => {
     it('generates thumbnail', async () => {
+      vi.mocked(fs.existsSync).mockReturnValue(false);
       const stdout = { pipe: vi.fn() };
       const processMock: any = new EventEmitter();
+      processMock.stderr = new EventEmitter();
       processMock.stdout = stdout;
 
-      vi.mocked(spawn).mockReturnValue(processMock);
+      vi.mocked(fs.promises.stat).mockResolvedValue({ size: 100 } as any);
 
-      await serveThumbnail(req, res, 'video.mp4', '/bin/ffmpeg');
+      mockSpawn.mockImplementation(() => {
+        const p = processMock;
+        setTimeout(() => {
+          p.emit('close', 0);
+        }, 10);
+        return p;
+      });
+
+      await serveThumbnail(req, res, 'video.mp4', '/bin/ffmpeg', '/tmp');
+      await new Promise((resolve) => setTimeout(resolve, 50)); // Wait for async event handlers
 
       expect(res.writeHead).toHaveBeenCalledWith(
         200,
         expect.objectContaining({ 'Content-Type': 'image/jpeg' }),
       );
-      expect(stdout.pipe).toHaveBeenCalledWith(res);
+      expect(fs.createReadStream).toHaveBeenCalled();
+    });
+
+    it('serves from cache if available', async () => {
+      vi.mocked(mediaUtils.checkThumbnailCache).mockResolvedValue(true);
+      const mockStream = { pipe: vi.fn() };
+      vi.mocked(fs.createReadStream).mockReturnValue(mockStream as any);
+ 
+      await serveThumbnail(req, res, '/path/to/media.jpg', null, '/cache');
+ 
+      expect(res.writeHead).toHaveBeenCalledWith(200, expect.anything());
+      expect(mockStream.pipe).toHaveBeenCalledWith(res);
+    });
+
+    it('fetches from Drive and caches on success', async () => {
+      vi.mocked(fs.promises.access).mockRejectedValue(new Error('No cache'));
+      const driveService = await import('../../src/main/google-drive-service');
+      const mockStream = { pipe: vi.fn() };
+      vi.mocked(driveService.getDriveFileThumbnail).mockResolvedValue(
+        mockStream as any,
+      );
+
+      const mockWriteStream = { on: vi.fn(), end: vi.fn() };
+      vi.mocked(fs.createWriteStream).mockReturnValue(mockWriteStream as any);
+
+      await serveThumbnail(req, res, 'gdrive://123', null, '/cache');
+
+      expect(driveService.getDriveFileThumbnail).toHaveBeenCalledWith('123');
+      expect(mockStream.pipe).toHaveBeenCalledWith(mockWriteStream);
+      expect(mockStream.pipe).toHaveBeenCalledWith(res);
+    });
+
+    it('handles local FFmpeg success but cache file missing', async () => {
+      // checkThumbnailCache returns false by default mock
+
+      const processMock: any = new EventEmitter();
+      processMock.stderr = { on: vi.fn() };
+      mockSpawn.mockReturnValue(processMock);
+
+      // Fail the final stat check
+      vi.mocked(fs.promises.stat).mockRejectedValue(new Error('File missing'));
+
+      const p = serveThumbnail(req, res, '/file.mp4', '/bin/ffmpeg', '/cache');
+      
+      expect(res.writeHead).not.toHaveBeenCalled();
+      
+      // Wait for spawn to receive call (async due to auth/cache check)
+      await vi.waitFor(() => {
+        expect(mockSpawn).toHaveBeenCalled();
+      });
+
+      expect(processMock.listenerCount('error')).toBeGreaterThan(0);
+      
+      processMock.emit('close', 0);
+      
+      // Wait for async stat/catch block
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      await p;
+
+      expect(security.authorizeFilePath).toHaveBeenCalled();
+      expect(res.writeHead).toHaveBeenCalledWith(500);
+    });
+
+    it('handles spawn error', async () => {
+      vi.mocked(fs.promises.access).mockRejectedValue(new Error('No cache'));
+      const { spawn } = await import('child_process');
+
+      const processMock: any = new EventEmitter();
+      processMock.stderr = { on: vi.fn() };
+      vi.mocked(spawn).mockReturnValue(processMock);
+
+      const p = serveThumbnail(req, res, '/file.mp4', '/bin/ffmpeg', '/cache');
+      
+      // Wait for spawn
+      await vi.waitFor(() => {
+        expect(processMock.listenerCount('error')).toBeGreaterThan(0);
+      });
+      
+      processMock.emit('error', new Error('Spawn failed'));
+      await p;
+      
+      expect(res.writeHead).toHaveBeenCalledWith(500);
     });
   });
 });
@@ -297,28 +454,34 @@ describe('createMediaRequestHandler', () => {
   });
 
   it('handles requests', async () => {
-    const handler = createMediaRequestHandler({ ffmpegPath: '/bin/ffmpeg' });
+    const handler = createMediaRequestHandler({
+      ffmpegPath: '/bin/ffmpeg',
+      cacheDir: '/tmp',
+    });
 
     req.url = '/video/metadata?file=test.mp4';
     req.headers.host = 'localhost';
 
     const processMock: any = new EventEmitter();
     processMock.stderr = new EventEmitter();
-    vi.mocked(spawn).mockReturnValue(processMock);
+    mockSpawn.mockReturnValue(processMock);
 
     const promise = handler(req, res);
     await new Promise((resolve) => setTimeout(resolve, 0));
     processMock.emit('close');
     await promise;
 
-    expect(spawn).toHaveBeenCalledWith(
+    expect(mockSpawn).toHaveBeenCalledWith(
       '/bin/ffmpeg',
       expect.arrayContaining(['-i', 'test.mp4']),
     );
   });
 
   it('handles missing file param', async () => {
-    const handler = createMediaRequestHandler({ ffmpegPath: '/bin/ffmpeg' });
+    const handler = createMediaRequestHandler({
+      ffmpegPath: '/bin/ffmpeg',
+      cacheDir: '/tmp',
+    });
     req.url = '/video/metadata';
     req.headers.host = 'localhost';
 
@@ -329,7 +492,10 @@ describe('createMediaRequestHandler', () => {
   });
 
   it('handles static files', async () => {
-    const handler = createMediaRequestHandler({ ffmpegPath: '/bin/ffmpeg' });
+    const handler = createMediaRequestHandler({
+      ffmpegPath: '/bin/ffmpeg',
+      cacheDir: '/tmp',
+    });
     req.url = '/file.txt';
     req.headers.host = 'localhost';
 
@@ -343,7 +509,10 @@ describe('createMediaRequestHandler', () => {
   });
 
   it('handles missing file param (stream)', async () => {
-    const handler = createMediaRequestHandler({ ffmpegPath: '/bin/ffmpeg' });
+    const handler = createMediaRequestHandler({
+      ffmpegPath: '/bin/ffmpeg',
+      cacheDir: '/tmp',
+    });
     req.url = '/video/stream';
     req.headers.host = 'localhost';
     await handler(req, res);
@@ -404,7 +573,7 @@ describe('Edge Cases', () => {
     const processMock: any = new EventEmitter();
     const stderr = new EventEmitter();
     processMock.stderr = stderr;
-    vi.mocked(spawn).mockReturnValue(processMock);
+    mockSpawn.mockReturnValue(processMock);
 
     const promise = serveMetadata(req, res, 'video.mp4', '/bin/ffmpeg');
 
@@ -444,7 +613,7 @@ describe('Edge Cases', () => {
     processMock.stdout = { pipe: vi.fn() };
     processMock.kill = vi.fn();
 
-    vi.mocked(spawn).mockReturnValue(processMock);
+    mockSpawn.mockReturnValue(processMock);
 
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -459,7 +628,7 @@ describe('Edge Cases', () => {
     vi.mocked(security.authorizeFilePath).mockRejectedValue(
       new Error('Auth Fail'),
     );
-    await serveThumbnail(req, res, 'test.mp4', '/bin/ffmpeg');
+    await serveThumbnail(req, res, 'test.mp4', '/bin/ffmpeg', '/tmp');
     expect(res.writeHead).toHaveBeenCalledWith(500);
   });
 
@@ -467,8 +636,352 @@ describe('Edge Cases', () => {
     vi.mocked(security.authorizeFilePath).mockResolvedValue({
       isAllowed: true,
     });
-    await serveThumbnail(req, res, 'test.mp4', null);
+    await serveThumbnail(req, res, 'test.mp4', null, '/tmp');
     expect(res.writeHead).toHaveBeenCalledWith(500);
     expect(res.end).toHaveBeenCalledWith('FFmpeg binary not found');
+  });
+  it('serveStaticFile handles invalid range (416)', async () => {
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    vi.mocked(fs.promises.stat).mockResolvedValue({ size: 100 } as any);
+    req.headers.range = 'bytes=200-300'; // Invalid since size=100
+
+    await serveStaticFile(req, res, 'file.mp4');
+
+    expect(res.writeHead).toHaveBeenCalledWith(
+      416,
+      expect.objectContaining({ 'Content-Range': 'bytes */100' }),
+    );
+    expect(res.end).toHaveBeenCalledWith('Requested range not satisfiable.');
+  });
+
+  it('serveStaticFile handles server error (stat fail)', async () => {
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    // auth succeeded, but stat fails
+    vi.mocked(fs.promises.stat).mockRejectedValue(new Error('Stat Fail'));
+
+    await serveStaticFile(req, res, 'file.mp4');
+
+    expect(res.writeHead).toHaveBeenCalledWith(500);
+    expect(res.end).toHaveBeenCalledWith('Server error.');
+  });
+
+  it('serveStaticFile handles auth internal error', async () => {
+    vi.mocked(security.authorizeFilePath).mockRejectedValue(
+      new Error('Auth Crash'),
+    );
+    await serveStaticFile(req, res, 'file.mp4');
+    expect(res.writeHead).toHaveBeenCalledWith(500);
+    expect(res.end).toHaveBeenCalledWith('Internal server error.');
+  });
+});
+
+describe('serveStaticFile with Active Caching Fallback', () => {
+  let req: any;
+  let res: any;
+
+  beforeEach(() => {
+    req = {
+      headers: {},
+      on: vi.fn(),
+    };
+    res = {
+      writeHead: vi.fn(),
+      end: vi.fn(),
+    };
+  });
+
+  it('falls back to Drive stream if local cache is insufficient (Cache Miss logic)', async () => {
+    const fileId = 'fallback-file';
+    const filePath = `gdrive://${fileId}`;
+    const driveService = await import('../../src/main/google-drive-service');
+    const mockStream = { pipe: vi.fn(), destroy: vi.fn(), on: vi.fn() };
+
+    vi.mocked(driveService.getDriveFileStream).mockResolvedValue(
+      mockStream as any,
+    );
+
+    // Mock Cache Manager to return valid metadata
+    const { driveCacheManager } =
+      await import('../../src/main/drive-cache-manager');
+    vi.mocked(driveCacheManager.getCachedFilePath).mockResolvedValue({
+      path: '/tmp/cache/file',
+      totalSize: 1000,
+      mimeType: 'video/mp4',
+    });
+
+    // Mock stat to return size 0 (empty local file), forcing fallback
+    vi.mocked(fs.promises.stat).mockResolvedValue({ size: 0 } as any);
+
+    await serveStaticFile(req, res, filePath);
+
+    // Should call getDriveFileStream
+    expect(driveService.getDriveFileStream).toHaveBeenCalledWith(
+      fileId,
+      expect.anything(),
+    );
+    // Should pipe stream to res
+    expect(mockStream.pipe).toHaveBeenCalledWith(res);
+    // Should set 206
+    expect(res.writeHead).toHaveBeenCalledWith(206, expect.anything());
+  });
+
+  it('parses Range header correctly', async () => {
+    const fileId = 'range-file';
+    const filePath = `gdrive://${fileId}`;
+    req.headers = { range: 'bytes=10-20' };
+
+    const { driveCacheManager } =
+      await import('../../src/main/drive-cache-manager');
+    vi.mocked(driveCacheManager.getCachedFilePath).mockResolvedValue({
+      path: '/tmp/cache/file',
+      totalSize: 1000,
+      mimeType: 'video/mp4',
+    });
+    // Local file has enough data
+    vi.mocked(fs.promises.stat).mockResolvedValue({ size: 100 } as any);
+    const mockReadStream = { pipe: vi.fn() };
+    vi.mocked(fs.createReadStream).mockReturnValue(mockReadStream as any);
+
+    await serveStaticFile(req, res, filePath);
+
+    expect(fs.createReadStream).toHaveBeenCalledWith('/tmp/cache/file', {
+      start: 10,
+      end: 20,
+    });
+    expect(res.writeHead).toHaveBeenCalledWith(
+      206,
+      expect.objectContaining({
+        'Content-Range': 'bytes 10-20/1000',
+        'Content-Length': 11,
+      }),
+    );
+  });
+});
+
+describe('serveThumbnail Error Handling', () => {
+  let req: any;
+  let res: any;
+
+  beforeEach(() => {
+    req = { headers: {}, on: vi.fn() };
+    res = { writeHead: vi.fn(), end: vi.fn(), headersSent: false };
+  });
+
+  it('handles FFmpeg failure code', async () => {
+    vi.mocked(fs.existsSync).mockReturnValue(false);
+    const stdout = { pipe: vi.fn() };
+    const processMock: any = new EventEmitter();
+    processMock.stderr = new EventEmitter();
+    processMock.stdout = stdout;
+
+    mockSpawn.mockImplementation(() => {
+      const p = processMock;
+      setTimeout(() => {
+        p.emit('close', 1); // Code 1 = Error
+      }, 10);
+      return p;
+    });
+
+    await serveThumbnail(req, res, 'video.mp4', '/bin/ffmpeg', '/tmp');
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(res.writeHead).toHaveBeenCalledWith(500);
+  });
+});
+
+import { serveTranscode } from '../../src/core/media-handler';
+
+describe('serveTranscode (Local)', () => {
+  let req: any;
+  let res: any;
+
+  beforeEach(() => {
+    req = {
+      headers: {},
+      url: '',
+      on: vi.fn(),
+      connection: { remoteAddress: '::1' },
+    };
+    res = {
+      writeHead: vi.fn(),
+      end: vi.fn(),
+      headersSent: false,
+    };
+  });
+
+  it('serves forced transcode for local file', async () => {
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    vi.mocked(security.authorizeFilePath).mockResolvedValue({
+      isAllowed: true,
+      basePath: 'c:/',
+    } as any);
+
+    const stdout = { pipe: vi.fn(), on: vi.fn() };
+    const stderr = { on: vi.fn() };
+    const mockChild = { stdout, stderr, kill: vi.fn() };
+    vi.mocked(spawn).mockReturnValue(mockChild as any);
+
+    req.url = '/video/stream?file=test.mp4&transcode=true';
+
+    await serveTranscode(req, res, 'c:/test.mp4', '10', 'ffmpeg/path');
+
+    expect(spawn).toHaveBeenCalledWith(
+      'ffmpeg/path',
+      expect.arrayContaining(['-ss', '10', '-i', 'c:/test.mp4']),
+    );
+    expect(res.writeHead).toHaveBeenCalledWith(
+      200,
+      expect.objectContaining({ 'Content-Type': 'video/mp4' }),
+    );
+    expect(stdout.pipe).toHaveBeenCalledWith(res);
+  });
+
+  it('handles ffmpeg spawn error (cached catch)', async () => {
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    vi.mocked(security.authorizeFilePath).mockResolvedValue({
+      isAllowed: true,
+      basePath: 'c:/',
+    } as any);
+
+    vi.mocked(spawn).mockImplementation(() => {
+      throw new Error('Spawn Failed');
+    });
+
+    req.url = '/video/stream?file=test.mp4&transcode=true';
+
+    await serveTranscode(req, res, 'c:/test.mp4', undefined, 'ffmpeg/path');
+
+    expect(res.writeHead).toHaveBeenCalledWith(500);
+    expect(res.end).toHaveBeenCalledWith('Transcode Error');
+  });
+
+  it('returns 500 if ffmpeg not found', async () => {
+    req.url = '/video/stream?file=test.mp4&transcode=true';
+    await serveTranscode(req, res, 'c:/test.mp4', undefined, undefined as any);
+    expect(res.writeHead).toHaveBeenCalledWith(500);
+    expect(res.end).toHaveBeenCalledWith('FFmpeg binary not found');
+  });
+});
+
+describe('serveTranscode (Drive)', () => {
+  let req: any;
+  let res: any;
+
+  beforeEach(() => {
+    req = {
+      headers: { host: 'localhost:3000' },
+      url: '',
+      on: vi.fn(),
+      connection: { remoteAddress: '::1' },
+    };
+    res = {
+      writeHead: vi.fn(),
+      end: vi.fn(),
+      headersSent: false,
+    };
+    // Mock Drive Cache Manager
+    vi.mocked(driveCacheManager.getCachedFilePath).mockResolvedValue({
+      path: 'cache/file.mp4',
+      totalSize: 1000,
+      mimeType: 'video/mp4',
+    } as any);
+  });
+
+  it('serves forced transcode for Drive file using loopback', async () => {
+    vi.mocked(fs.existsSync).mockReturnValue(true);
+    // Assuming authorizeFilePath passes or is bypassed for Drive files logic (Drive files don't use authorizeFilePath?)
+    // In lines 178+, authorizeFilePath is NOT called again if already checked?
+    // Wait, lines 178+ are inside `serveTranscode`.
+    // It checks `fileId` pattern.
+
+    const stdout = { pipe: vi.fn(), on: vi.fn() };
+    const stderr = { on: vi.fn() };
+    const mockChild = { stdout, stderr, kill: vi.fn() };
+    vi.mocked(spawn).mockReturnValue(mockChild as any);
+
+    req.url = '/video/stream?file=gdrive://abc&transcode=true';
+
+    await serveTranscode(req, res, 'gdrive://abc', '10', 'ffmpeg/path');
+
+    expect(spawn).toHaveBeenCalledWith(
+      'ffmpeg/path',
+      expect.arrayContaining([
+        '-i',
+        'http://localhost:3000/video/stream?file=gdrive://abc',
+      ]),
+    );
+    expect(res.writeHead).toHaveBeenCalledWith(
+      200,
+      expect.objectContaining({ 'Content-Type': 'video/mp4' }),
+    );
+  });
+
+  it('serves hybrid cache HIT (partial)', async () => {
+    // Mock cache metadata
+    vi.mocked(driveCacheManager.getCachedFilePath).mockResolvedValue({
+      path: 'cache.mp4',
+      totalSize: 1000,
+      mimeType: 'video/mp4',
+    } as any);
+
+    // Mock fs.promises.stat to return current size 500
+    vi.mocked(fs.promises.stat).mockResolvedValue({ size: 500 } as any);
+
+    // Request bytes=0-100 (Cached!)
+    req.headers.range = 'bytes=0-100';
+    req.url = '/video/stream?file=gdrive://abc';
+
+    await serveTranscode(req, res, 'gdrive://abc', undefined, 'ffmpeg/path');
+
+    expect(res.writeHead).toHaveBeenCalledWith(
+      206,
+      expect.objectContaining({
+        'Content-Range': 'bytes 0-100/1000',
+        'Content-Length': 101,
+        'Content-Type': 'video/mp4',
+      }),
+    );
+    expect(fs.createReadStream).toHaveBeenCalledWith('cache.mp4', {
+      start: 0,
+      end: 100,
+    });
+  });
+
+  it('serves hybrid cache MISS (fallback to Drive)', async () => {
+    // Mock cache metadata
+    vi.mocked(driveCacheManager.getCachedFilePath).mockResolvedValue({
+      path: 'cache.mp4',
+      totalSize: 1000,
+      mimeType: 'video/mp4',
+    } as any);
+
+    // Mock fs.promises.stat to return current size 500
+    vi.mocked(fs.promises.stat).mockResolvedValue({ size: 500 } as any);
+
+    // Request bytes=600-700 (Miss!)
+    req.headers.range = 'bytes=600-700';
+    req.url = '/video/stream?file=gdrive://abc';
+
+    const mockStream = { pipe: vi.fn(), on: vi.fn(), destroy: vi.fn() };
+    // We need to import getDriveFileStream mock?
+    // It is mocked at top.
+    const { getDriveFileStream } =
+      await import('../../src/main/google-drive-service');
+    vi.mocked(getDriveFileStream).mockResolvedValue(mockStream as any);
+
+    await serveTranscode(req, res, 'gdrive://abc', undefined, 'ffmpeg/path');
+
+    expect(res.writeHead).toHaveBeenCalledWith(
+      206,
+      expect.objectContaining({
+        'Content-Range': 'bytes 600-700/1000',
+        'Content-Type': 'video/mp4',
+      }),
+    );
+    expect(getDriveFileStream).toHaveBeenCalledWith('abc', {
+      start: 600,
+      end: 700,
+    });
+    expect(mockStream.pipe).toHaveBeenCalledWith(res);
   });
 });

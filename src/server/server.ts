@@ -57,6 +57,7 @@ const WORKER_PATH = isDev
   : path.join(__dirname, 'worker.js');
 
 const PORT = 3000;
+const CACHE_DIR = path.join(process.cwd(), 'cache', 'thumbnails');
 
 export async function createApp() {
   const app = express();
@@ -94,6 +95,7 @@ export async function createApp() {
 
   try {
     await initDatabase(DB_PATH, WORKER_PATH, workerOptions);
+    await fs.mkdir(CACHE_DIR, { recursive: true });
   } catch (e) {
     console.error('Failed to initialize database:', e);
     process.exit(1);
@@ -499,7 +501,7 @@ export async function createApp() {
   app.get('/api/thumbnail', (req, res) => {
     const filePath = req.query.file as string;
     if (!filePath) return res.status(400).send('Missing file');
-    serveThumbnail(req, res, filePath, ffmpegStatic);
+    serveThumbnail(req, res, filePath, ffmpegStatic, CACHE_DIR);
   });
 
   app.get('/api/serve', (req, res) => {

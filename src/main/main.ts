@@ -717,8 +717,11 @@ app.on('ready', () => {
   createWindow();
 
   initDatabase()
-    .then(() => {
-      startLocalServer(() => {
+    .then(async () => {
+      const cacheDir = path.join(app.getPath('userData'), 'thumbnails');
+      await fs.mkdir(cacheDir, { recursive: true });
+
+      startLocalServer(cacheDir, () => {
         console.log('[main.js] Local server started in background.');
       });
     })
@@ -742,7 +745,8 @@ app.on('activate', () => {
     if (getServerPort() > 0) {
       createWindow();
     } else {
-      startLocalServer(createWindow);
+      const cacheDir = path.join(app.getPath('userData'), 'thumbnails');
+      startLocalServer(cacheDir, createWindow);
     }
   }
 });

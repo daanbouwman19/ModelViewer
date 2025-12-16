@@ -282,6 +282,8 @@ describe('MediaDisplay.vue', () => {
     await flushPromises();
 
     // Call error handler
+    // Set transcoding mode to true to trigger error message instead of auto-transcode
+    (wrapper.vm as any).isTranscodingMode = true;
     (wrapper.vm as any).handleMediaError();
     await wrapper.vm.$nextTick();
     expect(wrapper.text()).toContain('Failed to display media file');
@@ -479,7 +481,9 @@ describe('MediaDisplay.vue', () => {
 
       await (wrapper.vm as any).tryTranscoding(10);
 
-      expect((wrapper.vm as any).mediaUrl).toBe('stream//test.mp4');
+      expect((wrapper.vm as any).mediaUrl).toBe(
+        'stream//test.mp4?transcode=true',
+      );
       expect((wrapper.vm as any).isTranscodingMode).toBe(true);
     });
 
@@ -644,6 +648,191 @@ describe('MediaDisplay.vue', () => {
       await starButtons[2].trigger('click'); // Click 3rd star again
       expect(api.setRating).toHaveBeenCalledWith('/test.jpg', 0);
       expect(mockRefs.currentMediaItem.value.rating).toBe(0);
+    });
+  });
+
+  describe('Extended Video Interactions', () => {
+    it('handles video progress buffering events', () => {
+      const wrapper = mount(MediaDisplay);
+      const video = {
+        duration: 100,
+        buffered: { length: 1, start: () => 0, end: () => 50 },
+      };
+      (wrapper.vm as any).handleVideoProgress({ target: video });
+      expect((wrapper.vm as any).bufferedRanges).toEqual([
+        { start: 0, end: 50 },
+      ]);
+
+      // No duration case
+      const videoNoDur = { duration: 0, buffered: { length: 0 } };
+      (wrapper.vm as any).handleVideoProgress({ target: videoNoDur });
+      // Should return early
+    });
+
+    it('handles keyboard navigation on progress bar', async () => {
+      const wrapper = mount(MediaDisplay);
+      mockRefs.currentMediaItem.value = { name: 't.mp4', path: '/t.mp4' };
+
+      // Transcoding Mode
+      (wrapper.vm as any).isTranscodingMode = true;
+      (wrapper.vm as any).transcodedDuration = 100;
+      (wrapper.vm as any).currentVideoTime = 10;
+
+      const genMock = vi.fn().mockReturnValue('url');
+      (wrapper.vm as any).videoStreamUrlGenerator = genMock;
+
+      const event = { key: 'ArrowRight', preventDefault: vi.fn() };
+      (wrapper.vm as any).handleProgressBarKeydown(event);
+
+      await wrapper.vm.$nextTick();
+      expect(genMock).toHaveBeenCalledWith(expect.anything(), 15);
+      expect(event.preventDefault).toHaveBeenCalled();
+
+      // Normal Mode
+      (wrapper.vm as any).isTranscodingMode = false;
+      const videoElement = { duration: 100, currentTime: 50 };
+      (wrapper.vm as any).videoElement = videoElement;
+
+      event.key = 'ArrowRight';
+      (wrapper.vm as any).handleProgressBarKeydown(event);
+      expect(videoElement.currentTime).toBe(55);
+    });
+
+    it('handles time update for normal video', () => {
+      const wrapper = mount(MediaDisplay);
+      (wrapper.vm as any).isTranscodingMode = false;
+      const video = { duration: 100, currentTime: 25 };
+      (wrapper.vm as any).handleVideoTimeUpdate({ target: video });
+
+      expect((wrapper.vm as any).videoProgress).toBe(25);
+      expect((wrapper.vm as any).currentVideoTime).toBe(25);
+    });
+
+    it('handles time update for transcoding video', () => {
+      const wrapper = mount(MediaDisplay);
+      (wrapper.vm as any).isTranscodingMode = true;
+      (wrapper.vm as any).transcodedDuration = 200;
+      (wrapper.vm as any).currentTranscodeStartTime = 50;
+      const video = { duration: 100, currentTime: 10 }; // 10s into chunk starting at 50s
+      (wrapper.vm as any).handleVideoTimeUpdate({ target: video });
+
+      // Real time = 50 + 10 = 60. Progress = 60/200 = 30%
+      expect((wrapper.vm as any).videoProgress).toBe(30);
+      expect((wrapper.vm as any).currentVideoTime).toBe(60);
+    });
+
+    it('handles waiting and canplay events', () => {
+      const wrapper = mount(MediaDisplay);
+      (wrapper.vm as any).isTranscodingLoading = false;
+      (wrapper.vm as any).handleVideoWaiting();
+      expect((wrapper.vm as any).isBuffering).toBe(true);
+
+      (wrapper.vm as any).handleVideoCanPlay();
+      expect((wrapper.vm as any).isBuffering).toBe(false);
+    });
+  });
+  describe('Additional Coverage', () => {
+    it('should auto-transcode legacy formats', async () => {
+      vi.useFakeTimers();
+      mockRefs.currentMediaItem.value = { name: 'test.mkv', path: '/test.mkv' };
+      (api.getVideoStreamUrlGenerator as Mock).mockResolvedValue(
+        () => 'stream/url',
+      );
+
+      const wrapper = mount(MediaDisplay);
+      
+      // Allow onMounted to run and generator logic to retry
+      await wrapper.vm.$nextTick(); 
+      await vi.advanceTimersByTimeAsync(200); 
+      await flushPromises();
+
+      // Check if transcoding mode is active or url is set
+      expect((wrapper.vm as any).isTranscodingMode).toBe(true);
+      vi.useRealTimers();
+    });
+
+    it('should handle setRating errors', async () => {
+      mockRefs.currentMediaItem.value = {
+        name: 'test.jpg',
+        path: '/test.jpg',
+        rating: 0,
+      };
+      (api.setRating as Mock).mockRejectedValue(new Error('Fail'));
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      const wrapper = mount(MediaDisplay);
+      await (wrapper.vm as any).setRating(5);
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to set rating',
+        expect.anything(),
+      );
+      consoleSpy.mockRestore();
+    });
+
+    it('should try transcoding if video dimensions are 0 (HEVC check)', async () => {
+      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
+      (api.loadFileAsDataURL as Mock).mockResolvedValue({
+        type: 'video',
+        url: 'blob:...',
+      });
+
+      // Ensure generator is present so tryTranscoding works
+      (api.getVideoStreamUrlGenerator as Mock).mockResolvedValue(
+        () => 'stream/url',
+      );
+
+      const wrapper = mount(MediaDisplay);
+      await flushPromises(); // Loaded
+
+      (wrapper.vm as any).isTranscodingMode = false;
+      await wrapper.vm.$nextTick();
+
+      const video = {
+        target: {
+          videoWidth: 0,
+          videoHeight: 0,
+        },
+      };
+
+      await (wrapper.vm as any).handleVideoLoadedMetadata(video);
+
+      // isVideoSupported is reset to true by tryTranscoding
+      expect((wrapper.vm as any).isTranscodingMode).toBe(true);
+    });
+
+    it('should handle transcoding options failure', async () => {
+      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
+
+      // Re-mount with null generator simulation
+      // We return null from the api mock
+      (api.getVideoStreamUrlGenerator as Mock).mockResolvedValue(null);
+
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      // Manually set generator to null just in case component logic set it differently
+      (wrapper.vm as any).videoStreamUrlGenerator = null;
+
+      await (wrapper.vm as any).tryTranscoding(0);
+
+      expect((wrapper.vm as any).error).toBe('Local server not available');
+      expect((wrapper.vm as any).isTranscodingLoading).toBe(false);
+    });
+
+    it('should try transcoding on media error if not already transcoding', async () => {
+      const wrapper = mount(MediaDisplay);
+      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
+      (wrapper.vm as any).isTranscodingMode = false;
+      // Ensure generator exists so it succeeds setting mode
+      (api.getVideoStreamUrlGenerator as Mock).mockResolvedValue(
+        () => 'stream/url',
+      );
+      // Wait for mount to initialize generator
+      await flushPromises();
+
+      await (wrapper.vm as any).handleMediaError();
+      expect((wrapper.vm as any).isTranscodingMode).toBe(true);
     });
   });
 });
