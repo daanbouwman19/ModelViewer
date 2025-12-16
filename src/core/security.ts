@@ -25,10 +25,14 @@ export async function authorizeFilePath(
   let realPath: string;
   try {
     realPath = await fs.realpath(filePath);
-  } catch {
+  } catch (error) {
+    console.warn(
+      `[Security] File existence check failed for ${filePath}:`,
+      error,
+    );
     return {
       isAllowed: false,
-      message: `File does not exist: ${filePath}`,
+      message: 'Access denied',
     };
   }
 
@@ -44,7 +48,7 @@ export async function authorizeFilePath(
     );
     return {
       isAllowed: false,
-      message: `Access denied: File is not in a configured media directory.`,
+      message: 'Access denied',
     };
   }
 
