@@ -115,7 +115,8 @@ export class WebAdapter implements IMediaBackend {
       `/api/stream?file=${encodeURIComponent(filePath)}&startTime=${startTime}`;
   }
 
-  async openInVlc(): Promise<{ success: boolean; message?: string }> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async openInVlc(_filePath: string): Promise<{ success: boolean; message?: string }> {
     return { success: false, message: 'Not supported in Web version.' };
   }
 
@@ -227,18 +228,40 @@ export class WebAdapter implements IMediaBackend {
     });
   }
 
-  // Google Drive (Not implemented for Web in this scope)
+  // Google Drive
   async startGoogleDriveAuth(): Promise<string> {
-    return '';
+    const res = await fetch('/api/auth/google-drive/start');
+    if (!res.ok) throw new Error('Failed to start auth');
+    return res.text();
   }
-  async submitGoogleDriveAuthCode(): Promise<boolean> {
-    return false;
+
+  async submitGoogleDriveAuthCode(code: string): Promise<boolean> {
+    const res = await fetch('/api/auth/google-drive/code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    if (!res.ok) throw new Error('Failed to submit code');
+    return true;
   }
-  async addGoogleDriveSource(): Promise<{
-    success: boolean;
-    name?: string;
-    error?: string;
-  }> {
-    return { success: false, error: 'Not supported in Web version' };
+
+  async addGoogleDriveSource(
+    folderId: string,
+  ): Promise<{ success: boolean; name?: string; error?: string }> {
+    try {
+      const res = await fetch('/api/sources/google-drive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folderId }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        return { success: false, error: err.error || 'Failed to add source' };
+      }
+      const data = await res.json();
+      return { success: true, name: data.name };
+    } catch (e) {
+      return { success: false, error: (e as Error).message };
+    }
   }
 }

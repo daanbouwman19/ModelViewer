@@ -85,6 +85,7 @@ export async function getDriveFileStream(fileId: string): Promise<Readable> {
   return res.data;
 }
 
+// ... existing code ...
 export async function getDriveFileMetadata(
   fileId: string,
 ): Promise<drive_v3.Schema$File> {
@@ -95,3 +96,67 @@ export async function getDriveFileMetadata(
   });
   return res.data;
 }
+
+export async function getDriveFileThumbnail(fileId: string): Promise<Readable> {
+  const drive = await getDriveClient();
+  // We can try to get the thumbnail link, but that's a public URL (sometimes).
+  // A better way for private app access is 'files.get' with 'alt=media' if it's an image.
+  // But for videos, 'alt=media' downloads the VIDEO.
+  // The Drive API 'thumbnailLink' field is often short-lived or requires cookies.
+  // However, for MVP, if the file is an image, we can just download it (alt=media).
+  // If it's a video, Drive doesn't provide a direct "thumbnail download" stream easily via API
+  // without using the thumbnailLink which might need auth headers.
+  // Let's first check if we can get the thumbnailLink and pipe it.
+
+  // Actually, for a robust backend implementation:
+  // 1. Get metadata to see 'thumbnailLink'.
+  // 2. Fetch 'thumbnailLink' using the auth token.
+  // Note: thumbnailLink often allows unauthenticated access if the file is public,
+  // but for private files, we need to pass the token.
+
+  const meta = await drive.files.get({
+    fileId,
+    fields: 'thumbnailLink, mimeType',
+  });
+
+  if (meta.data.thumbnailLink) {
+    // We need to fetch this URL. The googleapis library doesn't have a helper for arbitrary URLs.
+    // We can use the global fetch (Node 18+) or axios if available.
+    // We need to attach the Auth header.
+    const auth = await getOAuth2Client();
+    const token = await auth.getAccessToken(); // ensuring we have a token
+
+    const res = await fetch(meta.data.thumbnailLink, {
+      headers: {
+        Authorization: `Bearer ${token.token}`,
+      },
+    });
+
+    if (!res.ok) {
+      throw new Error(`Failed to fetch thumbnail: ${res.statusText}`);
+    }
+    // Convert Web ReadableStream to Node Readable
+    // Readable.fromWeb is available in recent Node versions, or we can use a utility
+    if (res.body) {
+      // Node 18+ has Readable.fromWeb
+      // But to be safe with types if they are old:
+      const reader = res.body.getReader();
+      return new Readable({
+        async read() {
+          const { done, value } = await reader.read();
+          if (done) {
+            this.push(null);
+          } else {
+            this.push(Buffer.from(value));
+          }
+        },
+      });
+    }
+  }
+
+  // Fallback: If no thumbnail link (e.g. not generated yet), and it is an image,
+  // we can download the file itself (if small?).
+  // For now, throw if no thumbnail link.
+  throw new Error('No thumbnail available');
+}
+

@@ -340,6 +340,63 @@ export async function createApp() {
   const { serveMetadata, serveTranscode, serveThumbnail, serveStaticFile } =
     await import('../core/media-handler');
 
+  // Google Drive Auth & Source Management
+  // Typically these would be in a separate controller, but keeping inline for consistency with this file.
+
+  app.get('/api/auth/google-drive/start', async (_req, res) => {
+    try {
+      const { generateAuthUrl } = await import('../main/google-auth');
+      const url = generateAuthUrl();
+      res.send(url); // Send raw string
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'Failed to generate auth URL' });
+    }
+  });
+
+  app.post('/api/auth/google-drive/code', async (req, res) => {
+    const { code } = req.body;
+    if (!code) return res.status(400).send('Missing code');
+    try {
+      const { authenticateWithCode } = await import('../main/google-auth');
+      await authenticateWithCode(code);
+      res.sendStatus(200);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'Authentication failed' });
+    }
+  });
+
+  app.post('/api/sources/google-drive', async (req, res) => {
+    const { folderId } = req.body;
+    if (!folderId) return res.status(400).send('Missing folderId');
+    try {
+      // Lazy load to avoid loading Google SDK unless needed
+      const { getDriveClient } = await import('../main/google-drive-service');
+      const drive = await getDriveClient();
+      // Verify access and get name
+      const driveRes = await drive.files.get({
+        fileId: folderId,
+        fields: 'id, name',
+      });
+      const name = driveRes.data.name || 'Google Drive Folder';
+
+      // Add to database
+      await addMediaDirectory(`gdrive://${driveRes.data.id}`);
+      // Note: The addMediaDirectory core function only takes path, but we might want to store the friendly name?
+      // The current core DB structure for directories is just 'path'. The scanner usually figures out the name.
+      // For Drive paths, the scanner/lister needs to resolve the name.
+      // In `listDriveFiles` (service), it returns the structure with name.
+      // But `MediaDirectory` table might just be path.
+      // We will assume the frontend will re-fetch directories and see it.
+
+      res.json({ success: true, name });
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'Failed to add Drive source' });
+    }
+  });
+
   app.get('/api/metadata', (req, res) => {
     const filePath = req.query.file as string;
     if (!filePath) return res.status(400).send('Missing file');

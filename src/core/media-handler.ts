@@ -253,9 +253,23 @@ export async function serveThumbnail(
   ffmpegPath: string | null,
 ) {
   if (filePath.startsWith('gdrive://')) {
-    // For MVP, skip thumbnails or return a placeholder
-    res.writeHead(404);
-    return res.end('Thumbnails not supported for Drive yet');
+    const fileId = filePath.replace('gdrive://', '');
+    try {
+      const { getDriveFileThumbnail } = await import(
+        '../main/google-drive-service'
+      );
+      const stream = await getDriveFileThumbnail(fileId);
+      res.writeHead(200, {
+        'Content-Type': 'image/jpeg',
+        'Cache-Control': 'public, max-age=3600',
+      });
+      stream.pipe(res);
+      return;
+    } catch (e) {
+      console.error('[Thumbnail] Drive fetch failed:', e);
+      res.writeHead(404);
+      return res.end('Thumbnail not available');
+    }
   }
 
   try {

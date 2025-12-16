@@ -415,20 +415,48 @@ ipcMain.handle('get-server-port', () => {
 ipcMain.handle(
   'open-in-vlc',
   async (_event: IpcMainInvokeEvent, filePath: string) => {
+    // Drive check replaced by streaming logic below
+
     if (filePath.startsWith('gdrive://')) {
-      return {
-        success: false,
-        message: 'Opening Google Drive files in VLC is not yet supported.',
-      };
+      // Create a local stream URL for VLC
+      const port = getServerPort();
+      if (port === 0) {
+        return {
+          success: false,
+          message: 'Local server is not running to stream Drive file.',
+        };
+      }
+      const encodedPath = encodeURIComponent(filePath);
+      const streamUrl = `http://localhost:${port}/video/stream?file=${encodedPath}`;
+      console.log(`[VLC] Streaming Drive file from: ${streamUrl}`);
+
+      // We still need to find VLC path (reusing logic below)
+      // We will duplicate the VLC finding logic or refactor.
+      // Refactoring is better but for minimal change let's flow down.
+      // But 'filePath' argument to spawn needs to be the URL.
+      // Let's change the variable passed to spawn.
     }
 
-    const auth = await authorizeFilePath(filePath);
-    if (!auth.isAllowed) {
-      return { success: false, message: auth.message || 'Access denied' };
-    }
-
+    // Logic to resolve VLC path
     const platform = process.platform;
     let vlcPath: string | null = null;
+    let fileArg = filePath;
+
+    if (filePath.startsWith('gdrive://')) {
+       // We already checked port above
+       const port = getServerPort();
+       if (port > 0) {
+          fileArg = `http://localhost:${port}/video/stream?file=${encodeURIComponent(filePath)}`;
+       } else {
+         return { success: false, message: 'Server not ready for streaming' };
+       }
+    } else {
+       // Local file auth check
+       const auth = await authorizeFilePath(filePath);
+       if (!auth.isAllowed) {
+         return { success: false, message: auth.message || 'Access denied' };
+       }
+    }
 
     if (platform === 'win32') {
       const commonPaths = [
@@ -467,7 +495,7 @@ ipcMain.handle(
     }
 
     try {
-      const child = spawn(vlcPath, [filePath], {
+      const child = spawn(vlcPath, [fileArg], {
         detached: true,
         stdio: 'ignore',
       });

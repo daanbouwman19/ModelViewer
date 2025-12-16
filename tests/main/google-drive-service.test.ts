@@ -150,4 +150,92 @@ describe('Google Drive Service', () => {
       expect(meta).toBe(mockMeta);
     });
   });
+
+  describe('getDriveFileThumbnail', () => {
+    it('should return thumbnail stream if link exists', async () => {
+      const driveService = await import('../../src/main/google-drive-service');
+      const googleAuth = await import('../../src/main/google-auth');
+
+      (googleAuth.getOAuth2Client as any).mockReturnValue({
+        credentials: { refresh_token: 'valid' },
+        getAccessToken: vi.fn().mockResolvedValue({ token: 'access_token' }),
+      });
+
+      const mockMeta = {
+        data: { thumbnailLink: 'http://thumb.link', mimeType: 'image/jpeg' },
+      };
+      (mockDrive.files.get as any).mockResolvedValue(mockMeta);
+
+      const mockBody = {
+        getReader: () => ({
+          read: vi
+            .fn()
+            .mockResolvedValueOnce({
+              done: false,
+              value: new Uint8Array([1, 2, 3]),
+            })
+            .mockResolvedValueOnce({ done: true }),
+        }),
+      };
+
+      const mockFetchResponse = {
+        ok: true,
+        body: mockBody,
+      };
+
+      global.fetch = vi.fn().mockResolvedValue(mockFetchResponse);
+
+      const stream = await driveService.getDriveFileThumbnail('fileId');
+
+      const chunks: Buffer[] = [];
+      for await (const chunk of stream) {
+        chunks.push(chunk);
+      }
+      expect(chunks.length).toBe(1);
+      expect(chunks[0]).toEqual(Buffer.from([1, 2, 3]));
+      expect(global.fetch).toHaveBeenCalledWith('http://thumb.link', {
+        headers: { Authorization: 'Bearer access_token' },
+      });
+    });
+
+    it('should throw if no thumbnail link', async () => {
+      const driveService = await import('../../src/main/google-drive-service');
+      const googleAuth = await import('../../src/main/google-auth');
+
+      (googleAuth.getOAuth2Client as any).mockReturnValue({
+        credentials: { refresh_token: 'valid' },
+      });
+
+      const mockMeta = { data: { thumbnailLink: null } }; // No link
+      (mockDrive.files.get as any).mockResolvedValue(mockMeta);
+
+      await expect(
+        driveService.getDriveFileThumbnail('fileId'),
+      ).rejects.toThrow('No thumbnail available');
+    });
+
+    it('should throw if fetch fails', async () => {
+      const driveService = await import('../../src/main/google-drive-service');
+      const googleAuth = await import('../../src/main/google-auth');
+
+      (googleAuth.getOAuth2Client as any).mockReturnValue({
+        credentials: { refresh_token: 'valid' },
+        getAccessToken: vi.fn().mockResolvedValue({ token: 'access_token' }),
+      });
+
+      const mockMeta = {
+        data: { thumbnailLink: 'http://thumb.link' },
+      };
+      (mockDrive.files.get as any).mockResolvedValue(mockMeta);
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        statusText: 'Not Found',
+      });
+
+      await expect(
+        driveService.getDriveFileThumbnail('fileId'),
+      ).rejects.toThrow('Failed to fetch thumbnail: Not Found');
+    });
+  });
 });
