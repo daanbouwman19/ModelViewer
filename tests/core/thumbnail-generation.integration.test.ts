@@ -8,16 +8,20 @@ import os from 'os';
 
 describe('Thumbnail Generation Integration', () => {
   it('should generate a thumbnail using valid ffmpeg args', async () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mediaplayer-repro-'));
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'mediaplayer-repro-'),
+    );
     const videoFile = path.join(tempDir, 'test_video.mp4');
     const cacheFile = path.join(tempDir, 'thumbnail.jpg');
 
     // 1. Generate a 5-second dummy video
     const createArgs = [
       '-y',
-      '-f', 'lavfi',
-      '-i', 'testsrc=duration=5:size=1280x720:rate=30',
-      videoFile
+      '-f',
+      'lavfi',
+      '-i',
+      'testsrc=duration=5:size=1280x720:rate=30',
+      videoFile,
     ];
 
     const createChild = spawn(ffmpegPath!, createArgs);
@@ -41,7 +45,8 @@ describe('Thumbnail Generation Integration', () => {
       '1',
       '-q:v',
       '5',
-      '-update', '1',
+      '-update',
+      '1',
       cacheFile,
     ];
 
