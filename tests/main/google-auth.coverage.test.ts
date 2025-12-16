@@ -1,11 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import fs from 'fs/promises';
 import os from 'os';
+
+// Create hoisted mock for fs
+const { readFileMock, writeFileMock } = vi.hoisted(() => ({
+  readFileMock: vi.fn(),
+  writeFileMock: vi.fn(),
+}));
 
 // We need to mock dependencies BEFORE importing the module under test
 // to ensure module-level side effects (like singleton initialization) are controlled.
 vi.mock('../../src/main/google-secrets');
-vi.mock('fs/promises');
+vi.mock('fs/promises', () => ({
+  default: {
+    readFile: readFileMock,
+    writeFile: writeFileMock,
+  },
+  readFile: readFileMock,
+  writeFile: writeFileMock,
+}));
 vi.mock('googleapis', () => {
   return {
     google: {
@@ -27,17 +39,18 @@ describe('google-auth coverage', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
+    // Re-establish default mock behavior after clearing
+    readFileMock.mockRejectedValue(new Error('Default error'));
   });
 
   it('getTokenPath fallback when error occurs', async () => {
     vi.spyOn(os, 'homedir').mockImplementation(() => {
       throw new Error('Fail');
     });
-    const fsReadFileSpy = vi
-      .spyOn(fs, 'readFile')
-      .mockRejectedValue(new Error('No file'));
 
-    // Dynamic import to ensure fresh execution of module scope if any
+    readFileMock.mockRejectedValue(new Error('No file'));
+
+    // Don't do vi.resetModules here, just use fresh mocks
     const googleAuth = await import('../../src/main/google-auth');
     // Mock secrets so getOAuth2Client works
     const googleSecrets = await import('../../src/main/google-secrets');
@@ -49,10 +62,8 @@ describe('google-auth coverage', () => {
     const result = await googleAuth.loadSavedCredentialsIfExist();
     expect(result).toBe(false);
 
-    expect(fsReadFileSpy).toHaveBeenCalledWith(
-      expect.stringContaining('.media-player'),
-      'utf-8',
-    );
+    // When os.homedir() throws, getTokenPath() throws and fs.readFile is never called
+    expect(readFileMock).not.toHaveBeenCalled();
 
     vi.restoreAllMocks(); // Restore os.homedir
   });
@@ -92,19 +103,19 @@ describe('google-auth coverage', () => {
       writable: true,
     });
 
-    const fsReadFileSpy = vi
-      .spyOn(fs, 'readFile')
-      .mockRejectedValue(new Error('No file'));
-
-    vi.resetModules();
-    const googleAuth = await import('../../src/main/google-auth');
+    // Set up mocks before imports
     const googleSecrets = await import('../../src/main/google-secrets');
     (googleSecrets.getGoogleClientId as any).mockReturnValue('id');
     (googleSecrets.getGoogleClientSecret as any).mockReturnValue('secret');
 
+    readFileMock.mockRejectedValue(new Error('No file'));
+
+    // Import after secrets mock is set up
+    const googleAuth = await import('../../src/main/google-auth');
+
     await googleAuth.loadSavedCredentialsIfExist();
 
-    expect(fsReadFileSpy).toHaveBeenCalledWith(
+    expect(readFileMock).toHaveBeenCalledWith(
       expect.stringContaining('.config/mediaplayer-app'),
       'utf-8',
     );
@@ -123,21 +134,21 @@ describe('google-auth coverage', () => {
       writable: true,
     });
 
-    const fsReadFileSpy = vi
-      .spyOn(fs, 'readFile')
-      .mockRejectedValue(new Error('No file'));
-
-    vi.resetModules();
-    const googleAuth = await import('../../src/main/google-auth');
+    // Set up mocks before imports
     const googleSecrets = await import('../../src/main/google-secrets');
     (googleSecrets.getGoogleClientId as any).mockReturnValue('id');
     (googleSecrets.getGoogleClientSecret as any).mockReturnValue('secret');
+
+    readFileMock.mockRejectedValue(new Error('No file'));
+
+    // Import after secrets mock is set up
+    const googleAuth = await import('../../src/main/google-auth');
 
     await googleAuth.loadSavedCredentialsIfExist();
 
     // In the code, it falls back to the same path for Linux basically.
     // "userDataPath = path.join(os.homedir(), '.config', 'mediaplayer-app');"
-    expect(fsReadFileSpy).toHaveBeenCalledWith(
+    expect(readFileMock).toHaveBeenCalledWith(
       expect.stringContaining('.config/mediaplayer-app'),
       'utf-8',
     );

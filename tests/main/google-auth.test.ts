@@ -57,7 +57,6 @@ vi.mock('googleapis', () => {
 
 describe('Google Auth Service', () => {
   beforeEach(() => {
-    vi.resetModules();
     vi.clearAllMocks();
     process.env.GOOGLE_CLIENT_ID = 'mock-client-id';
     process.env.GOOGLE_CLIENT_SECRET = 'mock-client-secret';
