@@ -34,6 +34,11 @@ describe('FileExplorer.vue', () => {
     await flushPromises();
 
     expect(wrapper.find('.current-path').text()).toBe('/');
+    // Switch to List View for testing list logic
+    const toggleBtn = wrapper.find('button[title="Switch to List View"]');
+    await toggleBtn.trigger('click');
+    await flushPromises();
+
     const items = wrapper.findAll('li.cursor-pointer');
     expect(items).toHaveLength(2);
     expect(items[0].text()).toContain('Folder1');
@@ -51,8 +56,8 @@ describe('FileExplorer.vue', () => {
     });
     await flushPromises();
 
-    // Find the directory item
-    const items = wrapper.findAll('li.cursor-pointer');
+    // Default Grid View: Find grid items
+    const items = wrapper.findAll('.grid > div');
     const folderItem = items[0]; // Assuming it's sorted first
 
     await folderItem.trigger('dblclick');
@@ -78,7 +83,8 @@ describe('FileExplorer.vue', () => {
     });
     await flushPromises();
 
-    const items = wrapper.findAll('li.cursor-pointer');
+    // Default Grid View
+    const items = wrapper.findAll('.grid > div');
     const fileItem = items[0];
 
     // Reset mock to check for calls
@@ -101,7 +107,7 @@ describe('FileExplorer.vue', () => {
     });
     await flushPromises();
 
-    const items = wrapper.findAll('li.cursor-pointer');
+    const items = wrapper.findAll('.grid > div');
     await items[0].trigger('click');
 
     // Check if Select Directory button is enabled
@@ -120,7 +126,7 @@ describe('FileExplorer.vue', () => {
     });
     await flushPromises();
 
-    const items = wrapper.findAll('li.cursor-pointer');
+    const items = wrapper.findAll('.grid > div');
     await items[0].trigger('click');
 
     const selectBtn = wrapper.find('button.bg-blue-600');
@@ -142,7 +148,7 @@ describe('FileExplorer.vue', () => {
     });
     await flushPromises();
 
-    const items = wrapper.findAll('li.cursor-pointer');
+    const items = wrapper.findAll('.grid > div');
     // Click folder to select
     await items[0].trigger('click');
     expect((wrapper.vm as any).selectedPath).toBe('/Folder1');
@@ -230,11 +236,12 @@ describe('FileExplorer.vue', () => {
     const wrapper = mount(FileExplorer, { props: { initialPath: '/' } });
     await flushPromises();
 
-    const items = wrapper.findAll('li.cursor-pointer');
+    const items = wrapper.findAll('.grid > div');
     expect(items[0].text()).toContain('a_folder');
     expect(items[1].text()).toContain('c_folder');
     expect(items[2].text()).toContain('b_file.txt');
   });
+
   it('correctly identifies drive roots with different cases', async () => {
     (api.listDirectory as any).mockResolvedValue([
       { name: 'C:', path: 'C:\\', isDirectory: true },
@@ -247,15 +254,15 @@ describe('FileExplorer.vue', () => {
     });
     await flushPromises();
 
-    // Check if icons are displayed correctly (Floppy disk 💾 for drives)
-    const items = wrapper.findAll('li.cursor-pointer');
+    // In Grid view, icons are displayed as text content 💾, no .icon class
+    // Structure: <span class="text-4xl ...">💾</span>
+    const items = wrapper.findAll('.grid > div');
 
-    // First item: C:\
-    expect(items[0].find('.icon').text()).toBe('💾');
-    expect(items[0].find('.text-xs').text()).toBe('DRIVE');
+    expect(items[0].text()).toContain('💾');
+    expect(items[0].text()).toContain('C:');
 
-    expect(items[1].find('.icon').text()).toBe('💾');
-    expect(items[1].find('.text-xs').text()).toBe('DRIVE');
+    expect(items[1].text()).toContain('💾');
+    expect(items[1].text()).toContain('d:');
   });
 
   it('correctly identifies unix root / as drive', async () => {
@@ -269,10 +276,10 @@ describe('FileExplorer.vue', () => {
     });
     await flushPromises();
 
-    const items = wrapper.findAll('li.cursor-pointer');
+    const items = wrapper.findAll('.grid > div');
     // First item: /
-    expect(items[0].find('.icon').text()).toBe('💾');
-    expect(items[0].find('.text-xs').text()).toBe('DRIVE');
+    expect(items[0].text()).toContain('💾');
+    expect(items[0].text()).toContain('Root');
   });
 
   it('toggles view mode between list and grid', async () => {
@@ -280,21 +287,22 @@ describe('FileExplorer.vue', () => {
     const wrapper = mount(FileExplorer, { props: { initialPath: '/' } });
     await flushPromises();
 
-    const toggleBtn = wrapper.find('button[title="Switch to Grid View"]');
-
-    // Default is list, so button title is "Switch to Grid View" which means icon is grid?
-    // Actually in code: viewMode === 'list' ? 'Switch to Grid View' : 'Switch to List View'
-    // And icon: viewMode === 'list' ? '📅' : 'list' (Wait, '📅' is calendar?? Maybe supposed to be grid?)
-
+    // Default is Grid now. Button should be "Switch to List View"
+    const toggleBtn = wrapper.find('button[title="Switch to List View"]');
     expect(toggleBtn.exists()).toBe(true);
 
-    await toggleBtn.trigger('click');
-    expect(wrapper.find('div.grid').exists()).toBe(true);
-    expect(wrapper.find('ul.space-y-1').exists()).toBe(false); // List view hidden
+    expect(wrapper.find('div.grid').exists()).toBe(true); // Initially grid
+    expect(wrapper.find('ul.space-y-1').exists()).toBe(false);
 
-    await toggleBtn.trigger('click');
-    expect(wrapper.find('ul.space-y-1').exists()).toBe(true);
+    await toggleBtn.trigger('click'); // Switch to List
+
     expect(wrapper.find('div.grid').exists()).toBe(false);
+    expect(wrapper.find('ul.space-y-1').exists()).toBe(true); // Now list
+
+    const toGridBtn = wrapper.find('button[title="Switch to Grid View"]');
+    await toGridBtn.trigger('click'); // Switch back to Grid
+
+    expect(wrapper.find('div.grid').exists()).toBe(true);
   });
 
   it('handles Google Drive mode initial load', async () => {

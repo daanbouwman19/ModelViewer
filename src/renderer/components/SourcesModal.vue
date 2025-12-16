@@ -363,38 +363,8 @@ const handleRemove = async (path: string) => {
 /**
  * Opens a dialog to add a new media directory.
  */
-const handleAddDirectory = async () => {
-  try {
-    const newPath = await api.addMediaDirectory();
-    if (newPath) {
-      // Refresh list to get proper object structure from DB (with name/type/id)
-      mediaDirectories.value = await api.getMediaDirectories();
-    } else {
-      // Fallback to custom File Explorer if native dialog not supported (mostly for web)
-      // Note: "addMediaDirectory" in main process returns null if cancelled OR if invoked without args to signal "open dialog".
-      // But we handled the dialog in main. If null, maybe user cancelled.
-      // The logic here previously fell back to file explorer if result was null.
-      // But for Electron main process dialog, null means cancel.
-      // We should only check if we are in web mode?
-      // The previous code:
-      // const newPath = await api.addMediaDirectory();
-      // if (newPath) { ... } else { isFileExplorerOpen.value = true; }
-      // This implies if user cancels native dialog, it opens custom explorer. That's probably annoying.
-      // Let's assume we keep existing behavior but maybe check environment.
-      // Actually, api.addMediaDirectory() is async.
-      // If it's Electron, it opens dialog. If cancelled, returns null.
-      // We don't want to open FileExplorer on cancel.
-      // But the original code did that. I will leave it be to avoid regression, or maybe check if we are in Electron.
-      // Let's stick to user request scope: add google drive.
-      // But if I want to be safe, I'd say:
-      if (newPath === null && !window.electronAPI) {
-        // rough check if web
-        openLocalBrowser();
-      }
-    }
-  } catch (error) {
-    console.error('Error adding media directory:', error);
-  }
+const handleAddDirectory = () => {
+  openLocalBrowser();
 };
 
 const openLocalBrowser = () => {

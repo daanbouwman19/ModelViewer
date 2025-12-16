@@ -150,9 +150,7 @@ const entries = ref<FileSystemEntry[]>([]);
 const isLoading = ref(false);
 const error = ref<string | null>(null);
 const selectedPath = ref<string | null>(null);
-const viewMode = ref<'list' | 'grid'>(
-  props.mode === 'google-drive' ? 'grid' : 'list',
-);
+const viewMode = ref<'list' | 'grid'>('grid');
 
 const toggleViewMode = () => {
   viewMode.value = viewMode.value === 'list' ? 'grid' : 'list';

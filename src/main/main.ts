@@ -13,7 +13,6 @@ import {
   app,
   BrowserWindow,
   ipcMain,
-  dialog,
   IpcMainInvokeEvent,
   shell,
 } from 'electron';
@@ -289,20 +288,7 @@ ipcMain.handle(
       }
     }
 
-    if (!mainWindow) return null;
-
-    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
-      properties: ['openDirectory'],
-      title: 'Select Media Directory',
-    });
-
-    if (canceled || !filePaths || filePaths.length === 0) {
-      return null;
-    }
-
-    const newPath = filePaths[0];
-    await addMediaDirectory({ path: newPath, type: 'local' });
-    return newPath;
+    return null;
   },
 );
 

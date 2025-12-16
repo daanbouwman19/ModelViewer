@@ -158,12 +158,25 @@ describe('SourcesModal.vue', () => {
     expect(api.removeMediaDirectory).toHaveBeenCalledWith('/path/to/dir1');
   });
 
-  it('should call addMediaDirectory when add button clicked', async () => {
-    // Note: addMediaDirectory now triggers a DB refresh via getMediaDirectories
-    (api.addMediaDirectory as Mock).mockResolvedValue('/new/path');
+  it('should open FileExplorer when add button clicked', async () => {
+    const wrapper = mount(SourcesModal);
+    const buttons = wrapper.findAll('.modal-actions .action-button');
+    const addButton = buttons[0];
+    expect(addButton.text()).toBe('Add Local Folder');
+
+    await addButton.trigger('click');
+    await flushPromises();
+
+    // Verify explorer is open
+    expect((wrapper.vm as any).isFileExplorerOpen).toBe(true);
+    expect((wrapper.vm as any).fileExplorerMode).toBe('local');
+  });
+
+  it('should call addMediaDirectory when FileExplorer selects a path', async () => {
+    (api.addMediaDirectory as Mock).mockResolvedValue('/selected/path');
     (api.getMediaDirectories as Mock).mockResolvedValue([
       {
-        path: '/new/path',
+        path: '/selected/path',
         isActive: true,
         id: '1',
         name: 'new',
@@ -172,22 +185,24 @@ describe('SourcesModal.vue', () => {
     ]);
 
     const wrapper = mount(SourcesModal);
-    const buttons = wrapper.findAll('.modal-actions .action-button');
-    // Button 0: Add Local, 1: Add Google, 2: Apply
-    const addButton = buttons[0];
-    expect(addButton.text()).toBe('Add Local Folder');
+    // Simulate opening explorer
+    await (wrapper.vm as any).openLocalBrowser();
+    expect((wrapper.vm as any).isFileExplorerOpen).toBe(true);
 
-    await addButton.trigger('click');
+    // Simulate selection event from FileExplorer
+    await (wrapper.vm as any).handleFileExplorerSelect('/selected/path');
     await flushPromises();
-    expect(api.addMediaDirectory).toHaveBeenCalled();
+
+    expect(api.addMediaDirectory).toHaveBeenCalledWith('/selected/path');
     expect(api.getMediaDirectories).toHaveBeenCalled();
     expect(mockRefs.mediaDirectories.value).toContainEqual({
-      path: '/new/path',
+      path: '/selected/path',
       isActive: true,
       id: '1',
       name: 'new',
       type: 'local',
     });
+    expect((wrapper.vm as any).isFileExplorerOpen).toBe(false);
   });
 
   it('should call reindexMediaLibrary and select all albums when reindex button clicked', async () => {
@@ -238,36 +253,18 @@ describe('SourcesModal.vue', () => {
     consoleSpy.mockRestore();
   });
 
-  it('should handle user cancelling directory selection', async () => {
-    // Return null to simulate cancellation
-    (api.addMediaDirectory as Mock).mockResolvedValue(null);
-
-    const wrapper = mount(SourcesModal);
-    const buttons = wrapper.findAll('.modal-actions .action-button');
-    const addButton = buttons[0]; // Add Media Directory
-
-    await addButton.trigger('click');
-    await flushPromises();
-
-    expect(api.addMediaDirectory).toHaveBeenCalled();
-    // No new directory should be added
-    expect(mockRefs.mediaDirectories.value).toHaveLength(2);
-  });
-
   it('should handle error when adding directory fails', async () => {
     const error = new Error('Add failed');
     (api.addMediaDirectory as Mock).mockRejectedValue(error);
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const wrapper = mount(SourcesModal);
-    const buttons = wrapper.findAll('.modal-actions .action-button');
-    const addButton = buttons[0];
-
-    await addButton.trigger('click');
+    // Simulate FileExplorer selection to trigger the API call that fails
+    await (wrapper.vm as any).handleFileExplorerSelect('/fail/path');
     await flushPromises();
 
     expect(consoleSpy).toHaveBeenCalledWith(
-      'Error adding media directory:',
+      'Error adding media directory via explorer:',
       error,
     );
 
