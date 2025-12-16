@@ -159,4 +159,3 @@ export async function getDriveFileThumbnail(fileId: string): Promise<Readable> {
   // For now, throw if no thumbnail link.
   throw new Error('No thumbnail available');
 }
-

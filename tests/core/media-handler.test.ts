@@ -12,6 +12,15 @@ import fs from 'fs';
 import { spawn } from 'child_process';
 import { EventEmitter } from 'events';
 
+// Mock google-drive-service
+vi.mock('../../src/main/google-drive-service', () => ({
+  getDriveFileMetadata: vi.fn(),
+  getDriveFileStream: vi.fn(),
+  getDriveFileThumbnail: vi.fn(),
+  getDriveClient: vi.fn(),
+  listDriveFiles: vi.fn(),
+}));
+
 vi.mock('../../src/core/security');
 vi.mock('../../src/core/constants', async (importOriginal) => {
   const actual = await importOriginal<any>();
@@ -98,7 +107,9 @@ describe('media-handler', () => {
     it('serveStaticFile pipes Drive stream', async () => {
       const driveService = await import('../../src/main/google-drive-service');
       const mockStream = { pipe: vi.fn() };
-      vi.mocked(driveService.getDriveFileStream).mockResolvedValue(mockStream as any);
+      vi.mocked(driveService.getDriveFileStream).mockResolvedValue(
+        mockStream as any,
+      );
       vi.mocked(driveService.getDriveFileMetadata).mockResolvedValue({
         mimeType: 'video/mp4',
         size: '100',
@@ -106,26 +117,33 @@ describe('media-handler', () => {
 
       await serveStaticFile(req, res, 'gdrive://123');
 
-      expect(res.writeHead).toHaveBeenCalledWith(200, expect.objectContaining({
-        'Content-Type': 'video/mp4',
-        'Content-Length': 100
-      }));
+      expect(res.writeHead).toHaveBeenCalledWith(
+        200,
+        expect.objectContaining({
+          'Content-Type': 'video/mp4',
+          'Content-Length': 100,
+        }),
+      );
       expect(mockStream.pipe).toHaveBeenCalledWith(res);
     });
 
     it('serveStaticFile handles Drive errors', async () => {
-       const driveService = await import('../../src/main/google-drive-service');
-       vi.mocked(driveService.getDriveFileStream).mockRejectedValue(new Error('Drive Fail'));
+      const driveService = await import('../../src/main/google-drive-service');
+      vi.mocked(driveService.getDriveFileStream).mockRejectedValue(
+        new Error('Drive Fail'),
+      );
 
-       await serveStaticFile(req, res, 'gdrive://123');
+      await serveStaticFile(req, res, 'gdrive://123');
 
-       expect(res.writeHead).toHaveBeenCalledWith(500);
-       expect(res.end).toHaveBeenCalledWith('Drive Error');
+      expect(res.writeHead).toHaveBeenCalledWith(500);
+      expect(res.end).toHaveBeenCalledWith('Drive Error');
     });
 
     it('serveTranscode handles Drive Stream Error', async () => {
       const driveService = await import('../../src/main/google-drive-service');
-      vi.mocked(driveService.getDriveFileStream).mockRejectedValue(new Error('Stream Fail'));
+      vi.mocked(driveService.getDriveFileStream).mockRejectedValue(
+        new Error('Stream Fail'),
+      );
 
       await serveTranscode(req, res, 'gdrive://123', null, null);
 
@@ -135,14 +153,15 @@ describe('media-handler', () => {
 
     it('serveThumbnail handles Drive fetch error', async () => {
       const driveService = await import('../../src/main/google-drive-service');
-      (driveService.getDriveFileThumbnail as any).mockRejectedValue(new Error('Thumb Fail'));
+      (driveService.getDriveFileThumbnail as any).mockRejectedValue(
+        new Error('Thumb Fail'),
+      );
 
       await serveThumbnail(req, res, 'gdrive://123', null);
 
       expect(res.writeHead).toHaveBeenCalledWith(404);
       expect(res.end).toHaveBeenCalledWith('Thumbnail not available');
     });
-
 
     it('serves full file if no range', async () => {
       vi.mocked(fs.existsSync).mockReturnValue(true);

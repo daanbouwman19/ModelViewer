@@ -7,7 +7,7 @@ import { parentPort } from 'worker_threads';
 vi.mock('worker_threads');
 
 // Import the worker once. It will attach the listener to the mocked parentPort.
-import '../../src/main/database-worker.js';
+import '../../src/core/database-worker';
 
 interface WorkerMessage {
   id: number;
@@ -159,6 +159,12 @@ describe('Database Worker', () => {
         filePaths: [filePath],
       });
       expect((counts.data as any)[filePath]).toBe(1);
+    });
+
+    it('should generate ID from path for GDrive files', async () => {
+      const filePath = 'gdrive://12345';
+      const result = await sendMessage('recordMediaView', { filePath });
+      expect(result.success).toBe(true);
     });
   });
 
@@ -473,6 +479,14 @@ describe('Database Worker', () => {
           expect(result.error).toBe('Database not initialized');
         },
       );
+    });
+
+    it('should catch top-level errors in message processing', async () => {
+      // Trigger a TypeError by sending missing payload for a handler that expects it
+      // 'recordMediaView' accesses payload.filePath immediately
+      const result = await sendMessage('recordMediaView', null);
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
     });
   });
 });
