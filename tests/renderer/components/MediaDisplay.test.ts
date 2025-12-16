@@ -740,10 +740,10 @@ describe('MediaDisplay.vue', () => {
       );
 
       const wrapper = mount(MediaDisplay);
-      
+
       // Allow onMounted to run and generator logic to retry
-      await wrapper.vm.$nextTick(); 
-      await vi.advanceTimersByTimeAsync(200); 
+      await wrapper.vm.$nextTick();
+      await vi.advanceTimersByTimeAsync(200);
       await flushPromises();
 
       // Check if transcoding mode is active or url is set
@@ -758,7 +758,9 @@ describe('MediaDisplay.vue', () => {
         rating: 0,
       };
       (api.setRating as Mock).mockRejectedValue(new Error('Fail'));
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
 
       const wrapper = mount(MediaDisplay);
       await (wrapper.vm as any).setRating(5);
