@@ -115,8 +115,7 @@ export class WebAdapter implements IMediaBackend {
       `/api/stream?file=${encodeURIComponent(filePath)}&startTime=${startTime}`;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async openInVlc(_filePath: string): Promise<{ success: boolean; message?: string }> {
+  async openInVlc(): Promise<{ success: boolean; message?: string }> {
     return { success: false, message: 'Not supported in Web version.' };
   }
 

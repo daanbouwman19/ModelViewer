@@ -255,9 +255,8 @@ export async function serveThumbnail(
   if (filePath.startsWith('gdrive://')) {
     const fileId = filePath.replace('gdrive://', '');
     try {
-      const { getDriveFileThumbnail } = await import(
-        '../main/google-drive-service'
-      );
+      const { getDriveFileThumbnail } =
+        await import('../main/google-drive-service');
       const stream = await getDriveFileThumbnail(fileId);
       res.writeHead(200, {
         'Content-Type': 'image/jpeg',

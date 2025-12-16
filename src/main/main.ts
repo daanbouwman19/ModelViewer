@@ -443,19 +443,19 @@ ipcMain.handle(
     let fileArg = filePath;
 
     if (filePath.startsWith('gdrive://')) {
-       // We already checked port above
-       const port = getServerPort();
-       if (port > 0) {
-          fileArg = `http://localhost:${port}/video/stream?file=${encodeURIComponent(filePath)}`;
-       } else {
-         return { success: false, message: 'Server not ready for streaming' };
-       }
+      // We already checked port above
+      const port = getServerPort();
+      if (port > 0) {
+        fileArg = `http://localhost:${port}/video/stream?file=${encodeURIComponent(filePath)}`;
+      } else {
+        return { success: false, message: 'Server not ready for streaming' };
+      }
     } else {
-       // Local file auth check
-       const auth = await authorizeFilePath(filePath);
-       if (!auth.isAllowed) {
-         return { success: false, message: auth.message || 'Access denied' };
-       }
+      // Local file auth check
+      const auth = await authorizeFilePath(filePath);
+      if (!auth.isAllowed) {
+        return { success: false, message: auth.message || 'Access denied' };
+      }
     }
 
     if (platform === 'win32') {

@@ -2,12 +2,13 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import path from 'path';
 import fs from 'fs';
 import { parentPort } from 'worker_threads';
+import Database from 'better-sqlite3';
 
 // Mock worker_threads using the __mocks__ file
 vi.mock('worker_threads');
 
 // Import the worker once. It will attach the listener to the mocked parentPort.
-import '../../src/main/database-worker.js';
+import '../../src/core/database-worker';
 
 interface WorkerMessage {
   id: number;
@@ -105,6 +106,40 @@ describe('Database Worker', () => {
       const result = await sendMessage('close', {});
       expect(result.success).toBe(true);
     });
+
+    it('should migrate old media_directories schema', async () => {
+      // 1. Setup old schema manually
+      // 1. Setup old schema manually
+      const tempDb = new Database(dbPath);
+      tempDb
+        .prepare(
+          `
+        CREATE TABLE media_directories (
+          path TEXT UNIQUE,
+          is_active INTEGER DEFAULT 1
+        )
+      `,
+        )
+        .run();
+      tempDb
+        .prepare(
+          'INSERT INTO media_directories (path, is_active) VALUES (?, ?)',
+        )
+        .run('/old/path', 1);
+      tempDb.close();
+
+      // 2. Initialize via worker (triggers migration)
+      const result = await sendMessage('init', { dbPath });
+      expect(result.success).toBe(true);
+
+      // 3. Verify migration
+      const dirsResult = await sendMessage('getMediaDirectories', {});
+      expect(dirsResult.success).toBe(true);
+      const dirs = dirsResult.data as Directory[];
+      expect(dirs).toHaveLength(1);
+      expect(dirs[0].path).toBe('/old/path');
+      expect(dirs[0].id).toBeDefined();
+    });
   });
 
   describe('Media Views', () => {
@@ -159,6 +194,12 @@ describe('Database Worker', () => {
         filePaths: [filePath],
       });
       expect((counts.data as any)[filePath]).toBe(1);
+    });
+
+    it('should generate ID from path for GDrive files', async () => {
+      const filePath = 'gdrive://12345';
+      const result = await sendMessage('recordMediaView', { filePath });
+      expect(result.success).toBe(true);
     });
   });
 
@@ -218,11 +259,28 @@ describe('Database Worker', () => {
       await sendMessage('init', { dbPath });
     });
 
-    it('should add a media directory', async () => {
+    it('should add a media directory (string path)', async () => {
       const result = await sendMessage('addMediaDirectory', {
         directoryPath: '/test/directory',
       });
       expect(result.success).toBe(true);
+    });
+
+    it('should add a media directory (object payload)', async () => {
+      const result = await sendMessage('addMediaDirectory', {
+        directoryObj: {
+          path: '/test/obj-dir',
+          name: 'Custom Name',
+        },
+      });
+      expect(result.success).toBe(true);
+
+      const listRes = await sendMessage('getMediaDirectories', {});
+      const dir = (listRes.data as Directory[]).find(
+        (d) => d.path === '/test/obj-dir',
+      );
+      expect(dir).toBeDefined();
+      expect(dir!.name).toBe('Custom Name');
     });
 
     it('should get media directories', async () => {
@@ -440,6 +498,17 @@ describe('Database Worker', () => {
           type: 'setDirectoryActiveState',
           payload: { directoryPath: '/test', isActive: true },
         },
+        { type: 'upsertMetadata', payload: { filePath: '/t' } },
+        { type: 'setRating', payload: { filePath: '/t', rating: 5 } },
+        { type: 'getMetadata', payload: { filePaths: [] } },
+        { type: 'createSmartPlaylist', payload: { name: 'n', criteria: '' } },
+        { type: 'getSmartPlaylists', payload: {} },
+        { type: 'deleteSmartPlaylist', payload: { id: 1 } },
+        {
+          type: 'updateSmartPlaylist',
+          payload: { id: 1, name: 'n', criteria: '' },
+        },
+        { type: 'executeSmartPlaylist', payload: {} },
       ];
 
       it.each(testCases)(
@@ -473,6 +542,14 @@ describe('Database Worker', () => {
           expect(result.error).toBe('Database not initialized');
         },
       );
+    });
+
+    it('should catch top-level errors in message processing', async () => {
+      // Trigger a TypeError by sending missing payload for a handler that expects it
+      // 'recordMediaView' accesses payload.filePath immediately
+      const result = await sendMessage('recordMediaView', null);
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
     });
   });
 });

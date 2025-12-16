@@ -63,6 +63,8 @@ describe('App.vue', () => {
       mediaDirectories: ref([]),
       isScanning: ref(false),
       viewMode: ref('player'),
+      isSmartPlaylistModalVisible: ref(false),
+      smartPlaylists: ref([]),
       state: {},
       initializeApp,
       resetState: vi.fn(),
