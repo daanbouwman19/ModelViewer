@@ -11,12 +11,12 @@ import fs from 'fs';
 // Mock dependencies
 vi.mock('../../src/core/security');
 vi.mock('../../src/core/media-source', async () => {
-    const actual = await vi.importActual('../../src/core/media-source');
-    return {
-        ...actual as any,
-        createMediaSource: vi.fn(),
-        IMediaSource: class {},
-    };
+  const actual = await vi.importActual('../../src/core/media-source');
+  return {
+    ...(actual as any),
+    createMediaSource: vi.fn(),
+    IMediaSource: class {},
+  };
 });
 import { createMediaSource } from '../../src/core/media-source';
 
@@ -29,20 +29,23 @@ vi.mock('fs', () => {
       createReadStream: vi.fn(),
       promises: {
         stat: vi.fn(),
-      }
+      },
     },
     existsSync: vi.fn(),
     mkdirSync: vi.fn(),
     statSync: vi.fn(),
     createReadStream: vi.fn(),
     promises: {
-        stat: vi.fn(),
-    }
+      stat: vi.fn(),
+    },
   };
 });
 
 describe('media-handler security', () => {
-  let req: { headers: Record<string, string | string[] | undefined>, url?: string };
+  let req: {
+    headers: Record<string, string | string[] | undefined>;
+    url?: string;
+  };
   let res: { writeHead: vi.Mock; end: vi.Mock; headersSent: boolean };
 
   beforeEach(() => {
@@ -56,12 +59,17 @@ describe('media-handler security', () => {
   });
 
   // Integration-style tests for the request handler
-  const handler = createMediaRequestHandler({ ffmpegPath: '/bin/ffmpeg', cacheDir: '/tmp' });
+  const handler = createMediaRequestHandler({
+    ffmpegPath: '/bin/ffmpeg',
+    cacheDir: '/tmp',
+  });
 
   it('prevents file enumeration in serveStaticFile via handler', async () => {
     // Scenario: createMediaSource throws "Access denied"
     vi.mocked(createMediaSource).mockImplementation(() => {
-        throw new Error('Access denied: File is not in a configured media directory.');
+      throw new Error(
+        'Access denied: File is not in a configured media directory.',
+      );
     });
 
     req.url = '/path/to/forbidden.txt';
@@ -76,7 +84,7 @@ describe('media-handler security', () => {
 
     // Scenario 2: File missing (same error from security point of view)
     vi.mocked(createMediaSource).mockImplementation(() => {
-         throw new Error('Access denied: File does not exist.');
+      throw new Error('Access denied: File does not exist.');
     });
 
     await handler(req as any, res as any);
@@ -85,23 +93,23 @@ describe('media-handler security', () => {
   });
 
   it('prevents file enumeration in serveMetadata', async () => {
-     req.url = '/video/metadata?file=/forbidden.txt';
+    req.url = '/video/metadata?file=/forbidden.txt';
 
-     vi.mocked(security.authorizeFilePath).mockResolvedValueOnce({
-        isAllowed: false,
-        message: 'Access denied: Forbidden',
-     });
+    vi.mocked(security.authorizeFilePath).mockResolvedValueOnce({
+      isAllowed: false,
+      message: 'Access denied: Forbidden',
+    });
 
-     await handler(req as any, res as any);
+    await handler(req as any, res as any);
 
-     expect(res.end).toHaveBeenCalledWith('Access denied.');
+    expect(res.end).toHaveBeenCalledWith('Access denied.');
   });
 
   it('prevents file enumeration in serveTranscodedStream (video/stream)', async () => {
     req.url = '/video/stream?file=/forbidden.txt&transcode=true';
 
     vi.mocked(createMediaSource).mockImplementation(() => {
-        throw new Error('Access denied.');
+      throw new Error('Access denied.');
     });
 
     await handler(req as any, res as any);
@@ -114,9 +122,9 @@ describe('media-handler security', () => {
     req.url = '/video/thumbnail?file=/forbidden.txt';
 
     vi.mocked(security.authorizeFilePath).mockResolvedValueOnce({
-        isAllowed: false,
-        message: 'Access denied: Forbidden',
-     });
+      isAllowed: false,
+      message: 'Access denied: Forbidden',
+    });
 
     await handler(req as any, res as any);
 

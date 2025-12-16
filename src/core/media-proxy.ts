@@ -72,20 +72,19 @@ export class InternalMediaProxy {
         stream.on('error', (err) => {
           console.error('[InternalProxy] Stream Error:', err);
           if (!res.headersSent) {
-             res.writeHead(500);
-             res.end();
+            res.writeHead(500);
+            res.end();
           }
         });
 
         req.on('close', () => {
-             stream.destroy();
+          stream.destroy();
         });
-
       } catch (err) {
         console.error('[InternalProxy] Request Error:', err);
         if (!res.headersSent) {
-            res.writeHead(500);
-            res.end();
+          res.writeHead(500);
+          res.end();
         }
       }
     });
@@ -111,7 +110,7 @@ export class InternalMediaProxy {
       });
 
       this.server.on('error', (err) => {
-         reject(err);
+        reject(err);
       });
     });
   }
@@ -119,14 +118,14 @@ export class InternalMediaProxy {
   public getUrlForFile(fileId: string): Promise<string> {
     if (!this.isListening) {
       // Lazy start
-       return this.start().then(() => {
-          return `http://127.0.0.1:${this.port}/stream/${fileId}`;
-       });
+      return this.start().then(() => {
+        return `http://127.0.0.1:${this.port}/stream/${fileId}`;
+      });
     }
     return Promise.resolve(`http://127.0.0.1:${this.port}/stream/${fileId}`);
   }
 
   public getPort(): number {
-      return this.port;
+    return this.port;
   }
 }

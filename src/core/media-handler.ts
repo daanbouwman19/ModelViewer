@@ -155,42 +155,42 @@ export async function serveRawStream(
   res: http.ServerResponse,
   source: IMediaSource,
 ) {
-    const totalSize = await source.getSize();
-    const mimeType = await source.getMimeType();
-    const rangeHeader = req.headers.range;
+  const totalSize = await source.getSize();
+  const mimeType = await source.getMimeType();
+  const rangeHeader = req.headers.range;
 
-    let start = 0;
-    let end = totalSize - 1;
+  let start = 0;
+  let end = totalSize - 1;
 
-    if (rangeHeader) {
-      const parts = rangeHeader.replace(/bytes=/, '').split('-');
-      start = parseInt(parts[0], 10);
-      if (parts[1]) end = parseInt(parts[1], 10);
+  if (rangeHeader) {
+    const parts = rangeHeader.replace(/bytes=/, '').split('-');
+    start = parseInt(parts[0], 10);
+    if (parts[1]) end = parseInt(parts[1], 10);
+  }
+
+  const { stream, length } = await source.getStream({ start, end });
+  const actualEnd = start + length - 1;
+
+  res.writeHead(206, {
+    'Content-Range': `bytes ${start}-${actualEnd}/${totalSize}`,
+    'Accept-Ranges': 'bytes',
+    'Content-Length': length,
+    'Content-Type': mimeType,
+  });
+
+  stream.pipe(res);
+
+  stream.on('error', (err) => {
+    console.error('[RawStream] Stream error:', err);
+    if (!res.headersSent) {
+      res.writeHead(500);
+      res.end();
     }
+  });
 
-    const { stream, length } = await source.getStream({ start, end });
-    const actualEnd = start + length - 1;
-
-    res.writeHead(206, {
-      'Content-Range': `bytes ${start}-${actualEnd}/${totalSize}`,
-      'Accept-Ranges': 'bytes',
-      'Content-Length': length,
-      'Content-Type': mimeType,
-    });
-
-    stream.pipe(res);
-
-    stream.on('error', (err) => {
-      console.error('[RawStream] Stream error:', err);
-      if (!res.headersSent) {
-        res.writeHead(500);
-        res.end();
-      }
-    });
-
-    req.on('close', () => {
-      stream.destroy();
-    });
+  req.on('close', () => {
+    stream.destroy();
+  });
 }
 
 /**
@@ -204,47 +204,57 @@ export async function serveTranscodedStream(
   ffmpegPath: string,
   startTime: string | null,
 ) {
-    const inputPath = await source.getFFmpegInput();
+  const inputPath = await source.getFFmpegInput();
 
-    res.writeHead(200, {
-      'Content-Type': 'video/mp4',
-    });
+  res.writeHead(200, {
+    'Content-Type': 'video/mp4',
+  });
 
-    const ffmpegArgs = [];
+  const ffmpegArgs = [];
 
-    if (startTime) {
-      ffmpegArgs.push('-ss', startTime);
-    }
+  if (startTime) {
+    ffmpegArgs.push('-ss', startTime);
+  }
 
-    ffmpegArgs.push(
-      '-analyzeduration', '100M',
-      '-probesize', '100M',
-      '-i', inputPath,
-      '-f', 'mp4',
-      '-vcodec', 'libx264',
-      '-acodec', 'aac',
-      '-movflags', 'frag_keyframe+empty_moov',
-      '-preset', 'ultrafast',
-      '-crf', '23',
-      '-pix_fmt', 'yuv420p',
-      'pipe:1'
-    );
+  ffmpegArgs.push(
+    '-analyzeduration',
+    '100M',
+    '-probesize',
+    '100M',
+    '-i',
+    inputPath,
+    '-f',
+    'mp4',
+    '-vcodec',
+    'libx264',
+    '-acodec',
+    'aac',
+    '-movflags',
+    'frag_keyframe+empty_moov',
+    '-preset',
+    'ultrafast',
+    '-crf',
+    '23',
+    '-pix_fmt',
+    'yuv420p',
+    'pipe:1',
+  );
 
-    const ffmpegProcess = spawn(ffmpegPath, ffmpegArgs);
+  const ffmpegProcess = spawn(ffmpegPath, ffmpegArgs);
 
-    ffmpegProcess.stdout.pipe(res);
+  ffmpegProcess.stdout.pipe(res);
 
-    ffmpegProcess.stderr.on('data', () => {
-       // Optional: verbose logging
-    });
+  ffmpegProcess.stderr.on('data', () => {
+    // Optional: verbose logging
+  });
 
-    ffmpegProcess.on('error', (err) => {
-      console.error('[Transcode] Spawn Error:', err);
-    });
+  ffmpegProcess.on('error', (err) => {
+    console.error('[Transcode] Spawn Error:', err);
+  });
 
-    req.on('close', () => {
-      ffmpegProcess.kill('SIGKILL');
-    });
+  req.on('close', () => {
+    ffmpegProcess.kill('SIGKILL');
+  });
 }
 
 /**
@@ -377,21 +387,21 @@ export async function serveStaticFile(
   filePath: string,
 ) {
   try {
-      const source = createMediaSource(filePath);
-      return await serveRawStream(req, res, source);
+    const source = createMediaSource(filePath);
+    return await serveRawStream(req, res, source);
   } catch (err: unknown) {
-      console.error('[ServeStatic] Error:', err);
-      if (!res.headersSent) {
-         // Check for specific auth error messages
-         const msg = (err as Error).message || '';
-         if (msg.includes('Access denied')) {
-             res.writeHead(403);
-             res.end('Access denied.');
-         } else {
-             res.writeHead(500);
-             res.end('Internal server error.');
-         }
+    console.error('[ServeStatic] Error:', err);
+    if (!res.headersSent) {
+      // Check for specific auth error messages
+      const msg = (err as Error).message || '';
+      if (msg.includes('Access denied')) {
+        res.writeHead(403);
+        res.end('Access denied.');
+      } else {
+        res.writeHead(500);
+        res.end('Internal server error.');
       }
+    }
   }
 }
 
@@ -403,10 +413,7 @@ export async function serveStaticFile(
 export function createMediaRequestHandler(options: MediaHandlerOptions) {
   const { ffmpegPath, cacheDir } = options;
 
-  return async (
-    req: http.IncomingMessage,
-    res: http.ServerResponse,
-  ) => {
+  return async (req: http.IncomingMessage, res: http.ServerResponse) => {
     if (!req.url) {
       res.writeHead(400);
       res.end();
@@ -431,7 +438,8 @@ export function createMediaRequestHandler(options: MediaHandlerOptions) {
     if (pathname === '/video/stream') {
       const filePath = parsedUrl.searchParams.get('file');
       const startTime = parsedUrl.searchParams.get('startTime');
-      const isTranscodeForced = parsedUrl.searchParams.get('transcode') === 'true';
+      const isTranscodeForced =
+        parsedUrl.searchParams.get('transcode') === 'true';
 
       if (!filePath) {
         res.writeHead(400);
@@ -442,27 +450,33 @@ export function createMediaRequestHandler(options: MediaHandlerOptions) {
         const source = createMediaSource(filePath);
 
         if (isTranscodeForced) {
-             if (!ffmpegPath) {
-                 res.writeHead(500);
-                 return res.end('FFmpeg binary not found');
-             }
-             return await serveTranscodedStream(req, res, source, ffmpegPath, startTime);
+          if (!ffmpegPath) {
+            res.writeHead(500);
+            return res.end('FFmpeg binary not found');
+          }
+          return await serveTranscodedStream(
+            req,
+            res,
+            source,
+            ffmpegPath,
+            startTime,
+          );
         } else {
-             return await serveRawStream(req, res, source);
+          return await serveRawStream(req, res, source);
         }
       } catch (e: unknown) {
-         console.error('[Handler] Stream failed:', e);
-         if (!res.headersSent) {
-             const msg = (e as Error).message || '';
-             if (msg.includes('Access denied')) {
-                 res.writeHead(403);
-                 res.end('Access denied.');
-             } else {
-                res.writeHead(500);
-                res.end('Error initializing source');
-             }
-         }
-         return;
+        console.error('[Handler] Stream failed:', e);
+        if (!res.headersSent) {
+          const msg = (e as Error).message || '';
+          if (msg.includes('Access denied')) {
+            res.writeHead(403);
+            res.end('Access denied.');
+          } else {
+            res.writeHead(500);
+            res.end('Error initializing source');
+          }
+        }
+        return;
       }
     }
 

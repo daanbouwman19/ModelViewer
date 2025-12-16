@@ -2,7 +2,10 @@ import fs from 'fs';
 import path from 'path';
 import { Readable } from 'stream';
 import { getDriveCacheManager } from '../main/drive-cache-manager';
-import { getDriveFileStream, getDriveFileMetadata } from '../main/google-drive-service';
+import {
+  getDriveFileStream,
+  getDriveFileMetadata,
+} from '../main/google-drive-service';
 import { authorizeFilePath } from './security';
 import { InternalMediaProxy } from './media-proxy';
 import { IMediaSource } from './media-source-types';
@@ -18,7 +21,10 @@ export class LocalMediaSource implements IMediaSource {
     return this.filePath;
   }
 
-  async getStream(range?: { start: number; end: number }): Promise<{ stream: Readable, length: number }> {
+  async getStream(range?: {
+    start: number;
+    end: number;
+  }): Promise<{ stream: Readable; length: number }> {
     const auth = await authorizeFilePath(this.filePath);
     if (!auth.isAllowed) {
       throw new Error(auth.message || 'Access denied');
@@ -37,7 +43,7 @@ export class LocalMediaSource implements IMediaSource {
 
     // Validate range
     if (start > end || start >= stats.size) {
-        // Typically fs might handle this, but let's be safe
+      // Typically fs might handle this, but let's be safe
     }
 
     const length = end - start + 1;
@@ -62,13 +68,13 @@ export class LocalMediaSource implements IMediaSource {
   }
 
   async getSize(): Promise<number> {
-     const auth = await authorizeFilePath(this.filePath);
-     if (!auth.isAllowed) {
-       throw new Error(auth.message || 'Access denied');
-     }
+    const auth = await authorizeFilePath(this.filePath);
+    if (!auth.isAllowed) {
+      throw new Error(auth.message || 'Access denied');
+    }
 
-     const stats = await fs.promises.stat(this.filePath);
-     return stats.size;
+    const stats = await fs.promises.stat(this.filePath);
+    return stats.size;
   }
 }
 
@@ -80,17 +86,25 @@ export class DriveMediaSource implements IMediaSource {
   }
 
   async getFFmpegInput(): Promise<string> {
-    const proxyUrl = await InternalMediaProxy.getInstance().getUrlForFile(this.fileId);
+    const proxyUrl = await InternalMediaProxy.getInstance().getUrlForFile(
+      this.fileId,
+    );
     return proxyUrl;
   }
 
-  async getStream(range?: { start: number; end: number }): Promise<{ stream: Readable, length: number }> {
+  async getStream(range?: {
+    start: number;
+    end: number;
+  }): Promise<{ stream: Readable; length: number }> {
     const cacheManager = getDriveCacheManager();
 
     try {
-      const { path: cachedPath, totalSize } = await cacheManager.getCachedFilePath(this.fileId);
+      const { path: cachedPath, totalSize } =
+        await cacheManager.getCachedFilePath(this.fileId);
 
-      const stats = await fs.promises.stat(cachedPath).catch(() => ({ size: 0 }));
+      const stats = await fs.promises
+        .stat(cachedPath)
+        .catch(() => ({ size: 0 }));
       const cachedSize = stats.size;
 
       const start = range?.start || 0;
@@ -125,16 +139,16 @@ export class DriveMediaSource implements IMediaSource {
 
   async getMimeType(): Promise<string> {
     try {
-        const meta = await getDriveFileMetadata(this.fileId);
-        return meta.mimeType || 'application/octet-stream';
+      const meta = await getDriveFileMetadata(this.fileId);
+      return meta.mimeType || 'application/octet-stream';
     } catch {
-        return 'application/octet-stream';
+      return 'application/octet-stream';
     }
   }
 
   async getSize(): Promise<number> {
-      const meta = await getDriveFileMetadata(this.fileId);
-      return Number(meta.size);
+    const meta = await getDriveFileMetadata(this.fileId);
+    return Number(meta.size);
   }
 }
 

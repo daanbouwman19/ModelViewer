@@ -18,7 +18,10 @@ export interface IMediaSource {
    * @param range Optional byte range.
    * @returns An object containing the stream and the length of the content being served.
    */
-  getStream(range?: { start: number; end: number }): Promise<{ stream: Readable, length: number }>;
+  getStream(range?: {
+    start: number;
+    end: number;
+  }): Promise<{ stream: Readable; length: number }>;
 
   /**
    * Returns the MIME type of the file.

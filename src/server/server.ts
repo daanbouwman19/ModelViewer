@@ -349,8 +349,12 @@ export async function createApp() {
   // We define specific routes for granular control.
 
   // Imports for granular functions
-  const { serveMetadata, serveTranscodedStream, serveRawStream, serveThumbnail } =
-    await import('../core/media-handler');
+  const {
+    serveMetadata,
+    serveTranscodedStream,
+    serveRawStream,
+    serveThumbnail,
+  } = await import('../core/media-handler');
   const { createMediaSource } = await import('../core/media-source');
 
   // Google Drive Auth & Source Management
@@ -511,17 +515,24 @@ export async function createApp() {
     try {
       const source = createMediaSource(filePath);
       if (isTranscode) {
-         if (!ffmpegStatic) return res.status(500).send('FFmpeg not found');
-         await serveTranscodedStream(req, res, source, ffmpegStatic, startTime || null);
+        if (!ffmpegStatic) return res.status(500).send('FFmpeg not found');
+        await serveTranscodedStream(
+          req,
+          res,
+          source,
+          ffmpegStatic,
+          startTime || null,
+        );
       } else {
-         await serveRawStream(req, res, source);
+        await serveRawStream(req, res, source);
       }
     } catch (e: unknown) {
       console.error('Stream error:', e);
       if (!res.headersSent) {
-         const msg = (e as Error).message || '';
-         if (msg.includes('Access denied')) res.status(403).send('Access denied');
-         else res.status(500).send('Stream error');
+        const msg = (e as Error).message || '';
+        if (msg.includes('Access denied'))
+          res.status(403).send('Access denied');
+        else res.status(500).send('Stream error');
       }
     }
   });
@@ -536,15 +547,16 @@ export async function createApp() {
     const filePath = req.query.path as string;
     if (!filePath) return res.status(400).send('Missing path');
     try {
-        const source = createMediaSource(filePath);
-        await serveRawStream(req, res, source);
+      const source = createMediaSource(filePath);
+      await serveRawStream(req, res, source);
     } catch (e: unknown) {
-        console.error('Serve error:', e);
-        if (!res.headersSent) {
-            const msg = (e as Error).message || '';
-            if (msg.includes('Access denied')) res.status(403).send('Access denied');
-            else res.status(500).send('Serve error');
-        }
+      console.error('Serve error:', e);
+      if (!res.headersSent) {
+        const msg = (e as Error).message || '';
+        if (msg.includes('Access denied'))
+          res.status(403).send('Access denied');
+        else res.status(500).send('Serve error');
+      }
     }
   });
 
