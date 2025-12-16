@@ -182,7 +182,7 @@ export async function extractAndSaveMetadata(
       );
       // Mark failed
       try {
-        await upsertMetadata(filePath, { filePath, status: 'failed' });
+        await upsertMetadata(filePath, { status: 'failed' });
       } catch {
         /* ignore */
       }

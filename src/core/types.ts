@@ -38,6 +38,7 @@ export interface MediaMetadata {
   size?: number;
   rating?: number;
   createdAt?: string; // ISO date
+  status?: string; // 'pending' | 'processing' | 'success' | 'failed'
 }
 
 export interface MediaLibraryItem {
