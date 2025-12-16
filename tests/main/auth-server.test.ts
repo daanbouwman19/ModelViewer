@@ -204,4 +204,72 @@ describe('Auth Server', () => {
   it('stopAuthServer handles null server', () => {
     stopAuthServer(); // Should not throw
   });
+
+  it('escapes HTML in the code parameter', async () => {
+    // This indirectly tests escapeHtml and getSuccessHtml
+    const listenMock = vi.fn((_port, cb) => cb && cb());
+    server = {
+      listen: listenMock,
+      close: vi.fn(),
+      on: vi.fn(),
+      address: () => ({ port: 3000 }),
+    };
+    (http.createServer as any).mockImplementation((handler: any) => {
+      requestHandler = handler;
+      return server;
+    });
+
+    await startAuthServer(3000);
+
+    const dangerousCode = '<script>alert("xss")</script>';
+    const req = {
+      url: `http://localhost:3000/auth/google/callback?code=${encodeURIComponent(dangerousCode)}`,
+      headers: { host: 'localhost:3000' },
+    };
+    const res = {
+      writeHead: vi.fn(),
+      end: vi.fn(),
+    };
+
+    requestHandler(req, res);
+
+    expect(res.end).toHaveBeenCalledWith(
+      expect.stringContaining(
+        '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;',
+      ),
+    );
+    expect(res.end).toHaveBeenCalledWith(
+      expect.stringContaining('Authentication Successful'),
+    );
+    expect(res.end).toHaveBeenCalledWith(expect.stringContaining('Copied!')); // Check for some JS part
+  });
+
+  it('handles request with undefined url', async () => {
+    const listenMock = vi.fn((_port, cb) => cb && cb());
+    server = {
+      listen: listenMock,
+      close: vi.fn(),
+      on: vi.fn(),
+      address: () => ({ port: 3000 }),
+    };
+    (http.createServer as any).mockImplementation((handler: any) => {
+      requestHandler = handler;
+      return server;
+    });
+
+    await startAuthServer(3000);
+
+    const req = {
+      url: undefined,
+      headers: { host: 'localhost:3000' },
+    };
+    const res = {
+      writeHead: vi.fn(),
+      end: vi.fn(),
+    };
+
+    requestHandler(req, res);
+
+    expect(res.writeHead).toHaveBeenCalledWith(404);
+  });
 });

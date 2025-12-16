@@ -55,7 +55,6 @@ export function stopAuthServer() {
 }
 
 function escapeHtml(text: string): string {
-  if (!text) return text;
   return text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
