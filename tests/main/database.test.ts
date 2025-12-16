@@ -62,8 +62,10 @@ class MockWorker extends EventEmitter {
           // Return the actual array (even if empty) if cacheAlbums was called
           resultData = mockDb.albumsCached ? mockDb.albums : null;
         } else if (type === 'addMediaDirectory') {
+          const dirObj = payload.directoryObj;
+          const dirPath = typeof dirObj === 'string' ? dirObj : dirObj.path;
           mockDb.directories.push({
-            path: payload.directoryPath,
+            path: dirPath,
             isActive: true,
           });
         } else if (type === 'getMediaDirectories') {

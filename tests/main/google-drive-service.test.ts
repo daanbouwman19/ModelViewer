@@ -166,17 +166,13 @@ describe('Google Drive Service', () => {
       };
       (mockDrive.files.get as any).mockResolvedValue(mockMeta);
 
-      const mockBody = {
-        getReader: () => ({
-          read: vi
-            .fn()
-            .mockResolvedValueOnce({
-              done: false,
-              value: new Uint8Array([1, 2, 3]),
-            })
-            .mockResolvedValueOnce({ done: true }),
-        }),
-      };
+      // Create a proper Web ReadableStream using the ReadableStream constructor
+      const mockBody = new ReadableStream({
+        start(controller) {
+          controller.enqueue(new Uint8Array([1, 2, 3]));
+          controller.close();
+        },
+      });
 
       const mockFetchResponse = {
         ok: true,
