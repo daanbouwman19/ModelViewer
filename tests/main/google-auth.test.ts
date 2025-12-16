@@ -10,6 +10,13 @@ vi.mock('electron', () => ({
   },
 }));
 
+// Mock google-secrets
+vi.mock('../../src/main/google-secrets', () => ({
+  getGoogleClientId: vi.fn(() => 'mock-client-id'),
+  getGoogleClientSecret: vi.fn(() => 'mock-client-secret'),
+  getGoogleRedirectUri: vi.fn(() => 'http://localhost:12345/auth/callback'),
+}));
+
 // Hoist mock variables
 const { readFileMock, writeFileMock, mockOAuth2Client, MockOAuth2 } =
   vi.hoisted(() => {
