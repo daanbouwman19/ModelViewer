@@ -105,7 +105,16 @@ jobs:
         run: npm ci
 
       - name: Run tests with coverage
-        run: npm run test:coverage
+        shell: bash
+        env:
+          FORCE_COLOR: 1
+        run: |
+          if npm run test:coverage > test_output.log 2>&1; then
+            echo "Tests passed!"
+          else
+            cat test_output.log
+            exit 1
+          fi
 
   build:
     name: Build (${{ matrix.os }})
