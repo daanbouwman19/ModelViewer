@@ -39,6 +39,7 @@ import {
 } from '../core/constants';
 import { listDirectory } from '../core/file-system';
 import { authorizeFilePath } from '../core/security';
+import { initializeDriveCacheManager } from '../main/drive-cache-manager';
 import ffmpegStatic from 'ffmpeg-static';
 
 // Check if we are running in dev mode or production
@@ -58,6 +59,7 @@ const WORKER_PATH = isDev
 
 const PORT = 3000;
 const CACHE_DIR = path.join(process.cwd(), 'cache', 'thumbnails');
+const DRIVE_CACHE_DIR = path.join(process.cwd(), 'cache', 'drive');
 
 export async function createApp() {
   const app = express();
@@ -96,6 +98,13 @@ export async function createApp() {
   try {
     await initDatabase(DB_PATH, WORKER_PATH, workerOptions);
     await fs.mkdir(CACHE_DIR, { recursive: true });
+    await fs.mkdir(DRIVE_CACHE_DIR, { recursive: true });
+
+    // Initialize Drive Cache Manager
+    initializeDriveCacheManager(DRIVE_CACHE_DIR);
+    console.log(
+      `Initialized DriveCacheManager with cache dir: ${DRIVE_CACHE_DIR}`,
+    );
   } catch (e) {
     console.error('Failed to initialize database:', e);
     process.exit(1);
