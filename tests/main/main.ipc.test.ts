@@ -70,7 +70,7 @@ describe('main.js IPC Handlers', () => {
     }
   });
 
-  it('should return a descriptive error for a non-existent file', async () => {
+  it('should return a generic error for a non-existent file (security)', async () => {
     const nonExistentPath = '/path/to/nothing.txt';
     const fsPromises = await import('fs/promises');
     (fsPromises.default.realpath as unknown as Mock).mockRejectedValue(
@@ -81,7 +81,7 @@ describe('main.js IPC Handlers', () => {
 
     expect(result).toEqual({
       type: 'error',
-      message: `File does not exist: ${nonExistentPath}`,
+      message: 'Access denied',
     });
     expect(fsPromises.default.realpath).toHaveBeenCalledWith(nonExistentPath);
   });
