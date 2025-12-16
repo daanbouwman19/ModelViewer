@@ -116,7 +116,8 @@ describe('google-auth coverage', () => {
   it('getTokenPath uses default path if electron not present', async () => {
     // Mock process.versions to NOT have electron
     const originalVersions = process.versions;
-    const { electron, ...others } = originalVersions as any;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { electron: _electron, ...others } = originalVersions as any;
     Object.defineProperty(process, 'versions', {
       value: others,
       writable: true,

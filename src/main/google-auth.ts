@@ -15,19 +15,63 @@ let oauth2Client: OAuth2Client | null = null;
 
 function getTokenPath(): string {
   let userDataPath: string;
-  try {
-    if (process.versions['electron']) {
-      userDataPath = path.join(os.homedir(), '.config', 'mediaplayer-app');
-    } else {
-      // Match Electron's default userData path on Linux for "mediaplayer-app"
-      // Ideally we should check platform (darwin -> Library/Application Support, win32 -> AppData/Roaming)
-      // But user is on Linux.
-      // Let's iterate or pick the one that exists or default to .config/mediaplayer-app
-      userDataPath = path.join(os.homedir(), '.config', 'mediaplayer-app');
+
+  // In Electron, the userData path is often set via environment or we can detect it
+  // For non-Electron environments, use platform-specific paths
+  const appName = 'mediaplayer-app';
+
+  // Check if we're in Electron by looking for ELECTRON_RUN_AS_NODE or other indicators
+  // If app.getPath was already called, it might be in process.env or we use platform defaults
+  if (process.versions['electron'] && process.env.ELECTRON_USER_DATA) {
+    // If Electron set this env var (custom setup), use it
+    userDataPath = process.env.ELECTRON_USER_DATA;
+  } else if (process.versions['electron']) {
+    // Electron environment but no env var - use platform-specific default that matches Electron's behavior
+    // Electron uses platform-specific paths, so we replicate that logic
+    switch (process.platform) {
+      case 'win32':
+        userDataPath = path.join(
+          process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'),
+          appName,
+        );
+        break;
+      case 'darwin':
+        userDataPath = path.join(
+          os.homedir(),
+          'Library',
+          'Application Support',
+          appName,
+        );
+        break;
+      default:
+        // Linux
+        userDataPath = path.join(os.homedir(), '.config', appName);
+        break;
     }
-  } catch {
-    userDataPath = path.join(process.cwd(), '.media-player');
+  } else {
+    // Non-Electron environment (e.g., web server)
+    switch (process.platform) {
+      case 'win32':
+        userDataPath = path.join(
+          process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'),
+          appName,
+        );
+        break;
+      case 'darwin':
+        userDataPath = path.join(
+          os.homedir(),
+          'Library',
+          'Application Support',
+          appName,
+        );
+        break;
+      default:
+        // Linux and others
+        userDataPath = path.join(os.homedir(), '.config', appName);
+        break;
+    }
   }
+
   return path.join(userDataPath, 'google-token.json');
 }
 

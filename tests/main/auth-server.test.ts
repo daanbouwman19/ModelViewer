@@ -116,13 +116,10 @@ describe('Auth Server', () => {
 
     requestHandler(req, res);
 
-    expect(res.writeHead).toHaveBeenCalledWith(
-      200,
-      expect.objectContaining({ 'Content-Type': 'text/html' }),
-    );
-    expect(res.end).toHaveBeenCalledWith(
-      expect.stringContaining('No code found'),
-    );
+    expect(res.writeHead).toHaveBeenCalledWith(400, {
+      'Content-Type': 'text/plain',
+    });
+    expect(res.end).toHaveBeenCalledWith('Missing code parameter');
   });
 
   it('returns 404 for other routes', async () => {

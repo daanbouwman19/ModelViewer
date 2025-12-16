@@ -362,15 +362,20 @@ export async function createApp() {
       const { authenticateWithCode } = await import('../main/google-auth');
       await authenticateWithCode(code);
       res.sendStatus(200);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(e);
       // Determine if it's a client error (invalid code)
       // Google API throws errors with 'message' often containing 'invalid_grant'
       // or we can assume most errors here are due to bad input if user is doing this manually.
+      const error = e as {
+        code?: number;
+        response?: { status?: number };
+        message?: string;
+      };
       if (
-        e.code === 400 ||
-        e.response?.status === 400 ||
-        e.message?.includes('invalid_grant')
+        error.code === 400 ||
+        error.response?.status === 400 ||
+        error.message?.includes('invalid_grant')
       ) {
         return res.status(400).json({ error: 'Invalid code' });
       }

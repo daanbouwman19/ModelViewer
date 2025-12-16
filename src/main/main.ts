@@ -69,6 +69,7 @@ import {
   listDriveDirectory,
   getDriveParent,
 } from './google-drive-service';
+import { startAuthServer, stopAuthServer } from './auth-server';
 const isDev = !app.isPackaged;
 
 /**
@@ -308,7 +309,6 @@ ipcMain.handle(
 /**
  * Handles 'auth:google-drive-start'
  */
-import { startAuthServer, stopAuthServer } from './auth-server';
 
 // ...
 
