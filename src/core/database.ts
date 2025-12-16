@@ -30,16 +30,14 @@ let messageIdCounter = 0;
 
 interface PendingMessage<T = unknown> {
   resolve: (value: T) => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  reject: (reason?: any) => void;
+  reject: (reason?: unknown) => void;
   timeoutId: NodeJS.Timeout;
 }
 
 /**
  * A map of pending promises waiting for worker responses, keyed by message ID.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const pendingMessages = new Map<number, PendingMessage<any>>();
+const pendingMessages = new Map<number, PendingMessage<unknown>>();
 
 /**
  * The timeout duration for database operations in milliseconds.
@@ -71,7 +69,11 @@ function sendMessageToWorker<T = unknown>(
       }
     }, operationTimeout);
 
-    pendingMessages.set(id, { resolve, reject, timeoutId });
+    pendingMessages.set(id, {
+      resolve: resolve as (value: unknown) => void,
+      reject,
+      timeoutId,
+    });
 
     try {
       dbWorker.postMessage({ id, type, payload });
@@ -288,12 +290,25 @@ function setOperationTimeout(timeout: number): void {
  * @returns A promise that resolves on success or rejects on failure.
  * @throws {Error} If the database operation fails.
  */
-async function addMediaDirectory(directory: string | { id?: string; path: string; type?: 'local' | 'google_drive'; name?: string }): Promise<void> {
+async function addMediaDirectory(
+  directory:
+    | string
+    | {
+        id?: string;
+        path: string;
+        type?: 'local' | 'google_drive';
+        name?: string;
+      },
+): Promise<void> {
   try {
     if (typeof directory === 'string') {
-      await sendMessageToWorker<void>('addMediaDirectory', { directoryPath: directory });
+      await sendMessageToWorker<void>('addMediaDirectory', {
+        directoryPath: directory,
+      });
     } else {
-      await sendMessageToWorker<void>('addMediaDirectory', { directoryObj: directory });
+      await sendMessageToWorker<void>('addMediaDirectory', {
+        directoryObj: directory,
+      });
     }
   } catch (error) {
     console.error(

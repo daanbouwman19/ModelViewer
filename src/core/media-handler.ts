@@ -12,7 +12,10 @@ import {
   SUPPORTED_VIDEO_EXTENSIONS,
 } from './constants';
 import { authorizeFilePath } from './security';
-import { getDriveFileStream, getDriveFileMetadata } from '../main/google-drive-service';
+import {
+  getDriveFileStream,
+  getDriveFileMetadata,
+} from '../main/google-drive-service';
 
 export interface MediaHandlerOptions {
   ffmpegPath: string | null;
@@ -23,13 +26,13 @@ export interface MediaHandlerOptions {
  */
 export function getMimeType(filePath: string): string {
   if (filePath.startsWith('gdrive://')) {
-      // For Google Drive, we might not have the extension in the path (it's an ID).
-      // Ideally we should have stored the MIME type or name in the DB.
-      // For MVP, we'll try to guess or default, but wait!
-      // The scanner puts extensions in the name property of the MediaFile, but here we just have a path/ID.
-      // We will rely on getDriveFileMetadata or a generic type.
-      // Or we can return 'video/mp4' as a safe default for videos if we know it's being streamed.
-      return 'application/octet-stream';
+    // For Google Drive, we might not have the extension in the path (it's an ID).
+    // Ideally we should have stored the MIME type or name in the DB.
+    // For MVP, we'll try to guess or default, but wait!
+    // The scanner puts extensions in the name property of the MediaFile, but here we just have a path/ID.
+    // We will rely on getDriveFileMetadata or a generic type.
+    // Or we can return 'video/mp4' as a safe default for videos if we know it's being streamed.
+    return 'application/octet-stream';
   }
 
   const extension = path.extname(filePath).substring(1).toLowerCase();
@@ -69,13 +72,18 @@ export async function getVideoDuration(
     // We could try to use Drive API metadata if available.
     const fileId = filePath.replace('gdrive://', '');
     try {
-        const metadata = await getDriveFileMetadata(fileId);
-        if (metadata.videoMediaMetadata && metadata.videoMediaMetadata.durationMillis) {
-            return { duration: Number(metadata.videoMediaMetadata.durationMillis) / 1000 };
-        }
-        return { error: 'Duration not available from Drive API' };
-    } catch (e) {
-        return { error: 'Failed to fetch Drive metadata' };
+      const metadata = await getDriveFileMetadata(fileId);
+      if (
+        metadata.videoMediaMetadata &&
+        metadata.videoMediaMetadata.durationMillis
+      ) {
+        return {
+          duration: Number(metadata.videoMediaMetadata.durationMillis) / 1000,
+        };
+      }
+      return { error: 'Duration not available from Drive API' };
+    } catch {
+      return { error: 'Failed to fetch Drive metadata' };
     }
   }
 
@@ -120,17 +128,17 @@ export async function serveMetadata(
   // For now, let's assume if we have a token we can try.
 
   if (!filePath.startsWith('gdrive://')) {
-      try {
-        const auth = await authorizeFilePath(filePath);
-        if (!auth.isAllowed) {
-          res.writeHead(403);
-          return res.end('Access denied.');
-        }
-      } catch (e) {
-        console.error('[Metadata] Path validation error:', e);
-        res.writeHead(500);
-        return res.end('Internal Error');
+    try {
+      const auth = await authorizeFilePath(filePath);
+      if (!auth.isAllowed) {
+        res.writeHead(403);
+        return res.end('Access denied.');
       }
+    } catch (error) {
+      console.error('[Metadata] Path validation error:', error);
+      res.writeHead(500);
+      return res.end('Internal Error');
+    }
   }
 
   if (!ffmpegPath && !filePath.startsWith('gdrive://')) {
@@ -156,28 +164,27 @@ export async function serveTranscode(
   startTime: string | null,
   ffmpegPath: string | null,
 ) {
-
   if (filePath.startsWith('gdrive://')) {
-     const fileId = filePath.replace('gdrive://', '');
-     try {
-         // Direct stream from Google Drive.
-         // Note: We are NOT transcoding here (ffmpeg is bypassed), so startTime won't work unless we implement range requests or ffmpeg piping from a URL.
-         // For MVP, we will pipe the raw file. If the browser supports the codec (mp4/webm), it will play.
-         // If it needs transcoding, we'd need to pipe the stream INTO ffmpeg.
+    const fileId = filePath.replace('gdrive://', '');
+    try {
+      // Direct stream from Google Drive.
+      // Note: We are NOT transcoding here (ffmpeg is bypassed), so startTime won't work unless we implement range requests or ffmpeg piping from a URL.
+      // For MVP, we will pipe the raw file. If the browser supports the codec (mp4/webm), it will play.
+      // If it needs transcoding, we'd need to pipe the stream INTO ffmpeg.
 
-         // Let's try to just pipe the stream. Browsers can handle range requests for seeking if we support it.
-         // But the Drive stream might not support range requests easily via the API wrapper.
-         const stream = await getDriveFileStream(fileId);
-         res.writeHead(200, {
-             'Content-Type': 'video/mp4', // Naive assumption, really should get from metadata
-         });
-         stream.pipe(res);
-         return;
-     } catch (err) {
-         console.error('[Transcode] Drive Stream Error:', err);
-         res.writeHead(500);
-         return res.end('Drive Stream Error');
-     }
+      // Let's try to just pipe the stream. Browsers can handle range requests for seeking if we support it.
+      // But the Drive stream might not support range requests easily via the API wrapper.
+      const stream = await getDriveFileStream(fileId);
+      res.writeHead(200, {
+        'Content-Type': 'video/mp4', // Naive assumption, really should get from metadata
+      });
+      stream.pipe(res);
+      return;
+    } catch (err) {
+      console.error('[Transcode] Drive Stream Error:', err);
+      res.writeHead(500);
+      return res.end('Drive Stream Error');
+    }
   }
 
   try {
@@ -246,9 +253,9 @@ export async function serveThumbnail(
   ffmpegPath: string | null,
 ) {
   if (filePath.startsWith('gdrive://')) {
-      // For MVP, skip thumbnails or return a placeholder
-      res.writeHead(404);
-      return res.end('Thumbnails not supported for Drive yet');
+    // For MVP, skip thumbnails or return a placeholder
+    res.writeHead(404);
+    return res.end('Thumbnails not supported for Drive yet');
   }
 
   try {
@@ -299,21 +306,21 @@ export async function serveStaticFile(
   filePath: string,
 ) {
   if (filePath.startsWith('gdrive://')) {
-       const fileId = filePath.replace('gdrive://', '');
-       try {
-           const stream = await getDriveFileStream(fileId);
-           const metadata = await getDriveFileMetadata(fileId);
-           res.writeHead(200, {
-               'Content-Type': metadata.mimeType || 'application/octet-stream',
-               'Content-Length': Number(metadata.size),
-           });
-           stream.pipe(res);
-       } catch (err) {
-           console.error('[ServeStatic] Drive Error:', err);
-           res.writeHead(500);
-           res.end('Drive Error');
-       }
-       return;
+    const fileId = filePath.replace('gdrive://', '');
+    try {
+      const stream = await getDriveFileStream(fileId);
+      const metadata = await getDriveFileMetadata(fileId);
+      res.writeHead(200, {
+        'Content-Type': metadata.mimeType || 'application/octet-stream',
+        'Content-Length': Number(metadata.size),
+      });
+      stream.pipe(res);
+    } catch (err) {
+      console.error('[ServeStatic] Drive Error:', err);
+      res.writeHead(500);
+      res.end('Drive Error');
+    }
+    return;
   }
 
   const normalizedFilePath = path.normalize(filePath);

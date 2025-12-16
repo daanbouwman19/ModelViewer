@@ -287,7 +287,7 @@ describe('Database Worker', () => {
       });
       expect(result.success).toBe(true);
       const result2 = await sendMessage('getMediaDirectories', {});
-      const dir = (result2.data as Directory[]).find(d => d.path === dirPath);
+      const dir = (result2.data as Directory[]).find((d) => d.path === dirPath);
       expect(dir).toBeDefined();
       expect(dir!.isActive).toBe(false);
     });

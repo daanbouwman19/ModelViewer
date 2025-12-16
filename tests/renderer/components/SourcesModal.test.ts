@@ -41,8 +41,20 @@ describe('SourcesModal.vue', () => {
     mockRefs = {
       isSourcesModalVisible: ref(true),
       mediaDirectories: ref([
-        { path: '/path/to/dir1', isActive: true },
-        { path: '/path/to/dir2', isActive: false },
+        {
+          path: '/path/to/dir1',
+          isActive: true,
+          id: '1',
+          name: 'dir1',
+          type: 'local',
+        },
+        {
+          path: '/path/to/dir2',
+          isActive: false,
+          id: '2',
+          name: 'dir2',
+          type: 'local',
+        },
       ]),
       state: mockState,
       allAlbums: ref([]),
@@ -145,13 +157,15 @@ describe('SourcesModal.vue', () => {
   it('should call addMediaDirectory when add button clicked', async () => {
     // Note: addMediaDirectory now triggers a DB refresh via getMediaDirectories
     (api.addMediaDirectory as Mock).mockResolvedValue('/new/path');
-    (api.getMediaDirectories as Mock).mockResolvedValue([{
-       path: '/new/path',
-       isActive: true,
-       id: '1',
-       name: 'new',
-       type: 'local'
-    }]);
+    (api.getMediaDirectories as Mock).mockResolvedValue([
+      {
+        path: '/new/path',
+        isActive: true,
+        id: '1',
+        name: 'new',
+        type: 'local',
+      },
+    ]);
 
     const wrapper = mount(SourcesModal);
     const buttons = wrapper.findAll('.modal-actions .action-button');
@@ -168,7 +182,7 @@ describe('SourcesModal.vue', () => {
       isActive: true,
       id: '1',
       name: 'new',
-      type: 'local'
+      type: 'local',
     });
   });
 

@@ -99,11 +99,13 @@ export class WebAdapter implements IMediaBackend {
   }
 
   async getMediaUrlGenerator(): Promise<(filePath: string) => string> {
-    return (filePath: string) => `/api/serve?path=${encodeURIComponent(filePath)}`;
+    return (filePath: string) =>
+      `/api/serve?path=${encodeURIComponent(filePath)}`;
   }
 
   async getThumbnailUrlGenerator(): Promise<(filePath: string) => string> {
-    return (filePath: string) => `/api/thumbnail?file=${encodeURIComponent(filePath)}`;
+    return (filePath: string) =>
+      `/api/thumbnail?file=${encodeURIComponent(filePath)}`;
   }
 
   async getVideoStreamUrlGenerator(): Promise<
@@ -113,19 +115,23 @@ export class WebAdapter implements IMediaBackend {
       `/api/stream?file=${encodeURIComponent(filePath)}&startTime=${startTime}`;
   }
 
-  async openInVlc(
-    filePath: string,
-  ): Promise<{ success: boolean; message?: string }> {
+  async openInVlc(): Promise<{ success: boolean; message?: string }> {
     return { success: false, message: 'Not supported in Web version.' };
   }
 
-  async getVideoMetadata(
-    filePath: string,
-  ): Promise<{ duration?: number; error?: string }> {
-    const res = await fetch(
-      `/api/metadata?file=${encodeURIComponent(filePath)}`,
-    );
-    return res.json();
+  async getVideoMetadata(filePath: string): Promise<{ duration: number }> {
+    try {
+      const res = await fetch(
+        `/api/metadata?file=${encodeURIComponent(filePath)}`,
+      );
+      const data = await res.json();
+      if (typeof data.duration === 'number') {
+        return { duration: data.duration };
+      }
+      return { duration: 0 };
+    } catch {
+      return { duration: 0 };
+    }
   }
 
   async listDirectory(directoryPath: string): Promise<FileSystemEntry[]> {
@@ -215,9 +221,9 @@ export class WebAdapter implements IMediaBackend {
 
   async extractMetadata(filePaths: string[]): Promise<void> {
     await fetch('/api/media/extract-metadata', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filePaths }),
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ filePaths }),
     });
   }
 
@@ -225,10 +231,14 @@ export class WebAdapter implements IMediaBackend {
   async startGoogleDriveAuth(): Promise<string> {
     return '';
   }
-  async submitGoogleDriveAuthCode(code: string): Promise<boolean> {
+  async submitGoogleDriveAuthCode(): Promise<boolean> {
     return false;
   }
-  async addGoogleDriveSource(folderId: string): Promise<{ success: boolean; name?: string; error?: string }> {
+  async addGoogleDriveSource(): Promise<{
+    success: boolean;
+    name?: string;
+    error?: string;
+  }> {
     return { success: false, error: 'Not supported in Web version' };
   }
 }

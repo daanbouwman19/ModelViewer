@@ -11,10 +11,10 @@ export async function getDriveClient(): Promise<drive_v3.Drive> {
   const auth = getOAuth2Client();
   // Ensure credentials are loaded
   if (!auth.credentials || !auth.credentials.refresh_token) {
-     const loaded = await loadSavedCredentialsIfExist();
-     if (!loaded) {
-       throw new Error('User not authenticated with Google Drive');
-     }
+    const loaded = await loadSavedCredentialsIfExist();
+    if (!loaded) {
+      throw new Error('User not authenticated with Google Drive');
+    }
   }
 
   driveClient = google.drive({ version: 'v3', auth });
@@ -37,7 +37,7 @@ export async function listDriveFiles(folderId: string): Promise<Album> {
   });
 
   const files = res.data.files || [];
-  const textures: MediaFile[] = files.map(f => ({
+  const textures: MediaFile[] = files.map((f) => ({
     name: f.name || 'Untitled',
     path: `gdrive://${f.id}`,
     // we can add other metadata here if MediaFile supported it directly or via side-channel
@@ -72,7 +72,7 @@ export async function listDriveFiles(folderId: string): Promise<Album> {
   return {
     name: 'Google Drive Folder', // Caller should overwrite this with actual root name
     textures,
-    children
+    children,
   };
 }
 
@@ -80,16 +80,18 @@ export async function getDriveFileStream(fileId: string): Promise<Readable> {
   const drive = await getDriveClient();
   const res = await drive.files.get(
     { fileId, alt: 'media' },
-    { responseType: 'stream' }
+    { responseType: 'stream' },
   );
   return res.data;
 }
 
-export async function getDriveFileMetadata(fileId: string): Promise<drive_v3.Schema$File> {
+export async function getDriveFileMetadata(
+  fileId: string,
+): Promise<drive_v3.Schema$File> {
   const drive = await getDriveClient();
   const res = await drive.files.get({
     fileId,
-    fields: 'id, name, mimeType, size, createdTime, videoMediaMetadata'
+    fields: 'id, name, mimeType, size, createdTime, videoMediaMetadata',
   });
   return res.data;
 }

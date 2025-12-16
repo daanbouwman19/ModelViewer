@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import path from 'path';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
 // Import dependencies to mock
-import fs from 'fs/promises';
+
 import { performFullMediaScan } from '../../src/core/media-scanner';
 import * as driveService from '../../src/main/google-drive-service';
 
@@ -33,7 +33,6 @@ describe('Media Scanner', () => {
 
   it('should scan local directories recursively', async () => {
     const rootDir = '/test/media';
-    const subDir = path.join(rootDir, 'subdir');
     const imageFile = 'image.jpg';
     const videoFile = 'video.mp4';
 
@@ -90,13 +89,18 @@ describe('Media Scanner', () => {
   });
 
   it('should handle drive scan errors gracefully', async () => {
-    (driveService.listDriveFiles as any).mockRejectedValue(new Error('Network error'));
+    (driveService.listDriveFiles as any).mockRejectedValue(
+      new Error('Network error'),
+    );
 
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const result = await performFullMediaScan(['gdrive://bad-id']);
 
     expect(result).toEqual([]);
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Error scanning Google Drive folder'), expect.anything());
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Error scanning Google Drive folder'),
+      expect.anything(),
+    );
     consoleSpy.mockRestore();
   });
 

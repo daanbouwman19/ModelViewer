@@ -42,7 +42,22 @@ describe('useAppState', () => {
         { name: 'Album1', textures: [], totalViews: 0, children: [] },
         { name: 'Album2', textures: [], totalViews: 5, children: [] },
       ];
-      const mockDirectories = [{ path: '/test/dir', isActive: true }];
+      const mockDirectories = [
+        {
+          path: '/dir1',
+          isActive: true,
+          id: '1',
+          name: 'dir1',
+          type: 'local' as const,
+        },
+        {
+          path: '/dir2',
+          isActive: false,
+          id: '2',
+          name: 'dir2',
+          type: 'local' as const,
+        },
+      ];
       const mockExtensions = {
         images: ['.jpg', '.png'],
         videos: ['.mp4'],

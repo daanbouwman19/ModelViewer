@@ -35,26 +35,41 @@
               class="flex items-center justify-between p-1 source-item"
             >
               <div class="flex items-center flex-grow">
-                 <span v-if="dir.type === 'google_drive'" class="mr-2 text-blue-400" title="Google Drive">
-                    <!-- Simple Cloud/Drive Icon -->
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M5.5 16a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.977A4.5 4.5 0 1113.5 16h-8z" />
-                    </svg>
-                 </span>
-                 <input
-                    type="checkbox"
-                    :checked="dir.isActive"
-                    class="source-checkbox mr-2"
-                    @change="
+                <span
+                  v-if="dir.type === 'google_drive'"
+                  class="mr-2 text-blue-400"
+                  title="Google Drive"
+                >
+                  <!-- Simple Cloud/Drive Icon -->
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-5 w-5"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      d="M5.5 16a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.977A4.5 4.5 0 1113.5 16h-8z"
+                    />
+                  </svg>
+                </span>
+                <input
+                  type="checkbox"
+                  :checked="dir.isActive"
+                  class="source-checkbox mr-2"
+                  @change="
                     handleToggleActive(
-                        dir.path,
-                        ($event.target as HTMLInputElement).checked,
+                      dir.path,
+                      ($event.target as HTMLInputElement).checked,
                     )
-                    "
+                  "
                 />
                 <div class="flex flex-col">
-                    <span class="source-name font-medium">{{ dir.name || dir.path }}</span>
-                    <span class="source-path text-xs text-gray-400">{{ dir.path }}</span>
+                  <span class="source-name font-medium">{{
+                    dir.name || dir.path
+                  }}</span>
+                  <span class="source-path text-xs text-gray-400">{{
+                    dir.path
+                  }}</span>
                 </div>
               </div>
               <button
@@ -72,7 +87,10 @@
           <button class="action-button" @click="handleAddDirectory">
             Add Local Folder
           </button>
-          <button class="action-button bg-blue-600 hover:bg-blue-700" @click="showDriveAuth = true">
+          <button
+            class="action-button bg-blue-600 hover:bg-blue-700"
+            @click="showDriveAuth = true"
+          >
             Add Google Drive
           </button>
           <button class="action-button" @click="closeModalAndReindex">
@@ -90,57 +108,90 @@
     role="dialog"
     aria-modal="true"
   >
-     <div class="bg-gray-800 rounded-lg shadow-2xl p-6 w-full max-w-lg modal-content">
-         <h3 class="text-xl font-semibold mb-4">Add Google Drive Source</h3>
+    <div
+      class="bg-gray-800 rounded-lg shadow-2xl p-6 w-full max-w-lg modal-content"
+    >
+      <h3 class="text-xl font-semibold mb-4">Add Google Drive Source</h3>
 
-         <div v-if="!driveAuthUrl" class="space-y-4">
-             <p>To access your Google Drive files, you need to authorize this application.</p>
-             <button class="action-button w-full" @click="startDriveAuth">
-                 Start Authorization
-             </button>
-         </div>
+      <div v-if="!driveAuthUrl" class="space-y-4">
+        <p>
+          To access your Google Drive files, you need to authorize this
+          application.
+        </p>
+        <button class="action-button w-full" @click="startDriveAuth">
+          Start Authorization
+        </button>
+      </div>
 
-         <div v-else-if="!authSuccess" class="space-y-4">
-             <p>1. A browser window should have opened. Please log in and allow access.</p>
-             <p>2. Copy the authorization code provided by Google.</p>
-             <p>3. Paste the code below:</p>
-             <input
-                v-model="authCode"
-                type="text"
-                class="w-full p-2 bg-gray-700 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-                placeholder="Paste authorization code here"
-             />
-             <div class="flex gap-2">
-                 <button class="action-button" @click="submitAuthCode" :disabled="!authCode || isAuthenticating">
-                     {{ isAuthenticating ? 'Verifying...' : 'Submit Code' }}
-                 </button>
-                 <button class="action-button bg-red-600 hover:bg-red-700" @click="cancelDriveAuth">Cancel</button>
-             </div>
-             <p v-if="authError" class="text-red-400 text-sm mt-2">{{ authError }}</p>
-         </div>
+      <div v-else-if="!authSuccess" class="space-y-4">
+        <p>
+          1. A browser window should have opened. Please log in and allow
+          access.
+        </p>
+        <p>2. Copy the authorization code provided by Google.</p>
+        <p>3. Paste the code below:</p>
+        <input
+          v-model="authCode"
+          type="text"
+          class="w-full p-2 bg-gray-700 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+          placeholder="Paste authorization code here"
+        />
+        <div class="flex gap-2">
+          <button
+            class="action-button"
+            :disabled="!authCode || isAuthenticating"
+            @click="submitAuthCode"
+          >
+            {{ isAuthenticating ? 'Verifying...' : 'Submit Code' }}
+          </button>
+          <button
+            class="action-button bg-red-600 hover:bg-red-700"
+            @click="cancelDriveAuth"
+          >
+            Cancel
+          </button>
+        </div>
+        <p v-if="authError" class="text-red-400 text-sm mt-2">
+          {{ authError }}
+        </p>
+      </div>
 
-         <div v-else class="space-y-4">
-             <p class="text-green-400">Authentication successful!</p>
-             <p>Enter the Folder ID you want to add (or leave empty for 'My Drive' root):</p>
-             <!--
+      <div v-else class="space-y-4">
+        <p class="text-green-400">Authentication successful!</p>
+        <p>
+          Enter the Folder ID you want to add (or leave empty for 'My Drive'
+          root):
+        </p>
+        <!--
                 Actually listing root can be huge.
                 For MVP, asking for a folder ID is safer, or 'root' for root.
              -->
-             <input
-                v-model="driveFolderId"
-                type="text"
-                class="w-full p-2 bg-gray-700 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-                placeholder="Folder ID (e.g. 1A2B3C... or 'root')"
-             />
-             <div class="flex gap-2">
-                  <button class="action-button" @click="addDriveSource" :disabled="isAddingDrive">
-                     {{ isAddingDrive ? 'Adding...' : 'Add Folder' }}
-                 </button>
-                  <button class="action-button bg-gray-600 hover:bg-gray-500" @click="cancelDriveAuth">Close</button>
-             </div>
-             <p v-if="addDriveError" class="text-red-400 text-sm mt-2">{{ addDriveError }}</p>
-         </div>
-     </div>
+        <input
+          v-model="driveFolderId"
+          type="text"
+          class="w-full p-2 bg-gray-700 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+          placeholder="Folder ID (e.g. 1A2B3C... or 'root')"
+        />
+        <div class="flex gap-2">
+          <button
+            class="action-button"
+            :disabled="isAddingDrive"
+            @click="addDriveSource"
+          >
+            {{ isAddingDrive ? 'Adding...' : 'Add Folder' }}
+          </button>
+          <button
+            class="action-button bg-gray-600 hover:bg-gray-500"
+            @click="cancelDriveAuth"
+          >
+            Close
+          </button>
+        </div>
+        <p v-if="addDriveError" class="text-red-400 text-sm mt-2">
+          {{ addDriveError }}
+        </p>
+      </div>
+    </div>
   </div>
 
   <!-- File Explorer Modal -->
@@ -188,7 +239,6 @@ const driveFolderId = ref('root');
 const isAddingDrive = ref(false);
 const addDriveError = ref('');
 
-
 /**
  * Closes the modal.
  */
@@ -199,62 +249,61 @@ const closeModal = () => {
 };
 
 const cancelDriveAuth = () => {
-    showDriveAuth.value = false;
-    driveAuthUrl.value = '';
-    authCode.value = '';
-    authSuccess.value = false;
-    authError.value = '';
-    isAddingDrive.value = false;
-    addDriveError.value = '';
+  showDriveAuth.value = false;
+  driveAuthUrl.value = '';
+  authCode.value = '';
+  authSuccess.value = false;
+  authError.value = '';
+  isAddingDrive.value = false;
+  addDriveError.value = '';
 };
 
 const startDriveAuth = async () => {
-    try {
-        const url = await api.startGoogleDriveAuth();
-        driveAuthUrl.value = url;
-    } catch (e) {
-        console.error(e);
-        authError.value = 'Failed to start auth process';
-    }
+  try {
+    const url = await api.startGoogleDriveAuth();
+    driveAuthUrl.value = url;
+  } catch (e) {
+    console.error(e);
+    authError.value = 'Failed to start auth process';
+  }
 };
 
 const submitAuthCode = async () => {
-    isAuthenticating.value = true;
-    authError.value = '';
-    try {
-        const success = await api.submitGoogleDriveAuthCode(authCode.value);
-        if (success) {
-            authSuccess.value = true;
-        } else {
-            authError.value = 'Invalid code or authentication failed.';
-        }
-    } catch (e) {
-        authError.value = (e as Error).message || 'Auth failed';
-    } finally {
-        isAuthenticating.value = false;
+  isAuthenticating.value = true;
+  authError.value = '';
+  try {
+    const success = await api.submitGoogleDriveAuthCode(authCode.value);
+    if (success) {
+      authSuccess.value = true;
+    } else {
+      authError.value = 'Invalid code or authentication failed.';
     }
+  } catch (e) {
+    authError.value = (e as Error).message || 'Auth failed';
+  } finally {
+    isAuthenticating.value = false;
+  }
 };
 
 const addDriveSource = async () => {
-    isAddingDrive.value = true;
-    addDriveError.value = '';
-    try {
-        const fid = driveFolderId.value || 'root';
-        const res = await api.addGoogleDriveSource(fid);
-        if (res.success) {
-            // Update local list
-            mediaDirectories.value = await api.getMediaDirectories();
-            cancelDriveAuth();
-        } else {
-            addDriveError.value = res.error || 'Failed to add source';
-        }
-    } catch (e) {
-         addDriveError.value = (e as Error).message;
-    } finally {
-        isAddingDrive.value = false;
+  isAddingDrive.value = true;
+  addDriveError.value = '';
+  try {
+    const fid = driveFolderId.value || 'root';
+    const res = await api.addGoogleDriveSource(fid);
+    if (res.success) {
+      // Update local list
+      mediaDirectories.value = await api.getMediaDirectories();
+      cancelDriveAuth();
+    } else {
+      addDriveError.value = res.error || 'Failed to add source';
     }
-}
-
+  } catch (e) {
+    addDriveError.value = (e as Error).message;
+  } finally {
+    isAddingDrive.value = false;
+  }
+};
 
 /**
  * Resets the current slideshow state. This is called after any major change
@@ -328,8 +377,9 @@ const handleAddDirectory = async () => {
       // But the original code did that. I will leave it be to avoid regression, or maybe check if we are in Electron.
       // Let's stick to user request scope: add google drive.
       // But if I want to be safe, I'd say:
-      if (newPath === null && !window.electronAPI) { // rough check if web
-          isFileExplorerOpen.value = true;
+      if (newPath === null && !window.electronAPI) {
+        // rough check if web
+        isFileExplorerOpen.value = true;
       }
     }
   } catch (error) {
@@ -346,7 +396,7 @@ const handleFileExplorerSelect = async (path: string) => {
   try {
     const result = await api.addMediaDirectory(path);
     if (result) {
-       mediaDirectories.value = await api.getMediaDirectories();
+      mediaDirectories.value = await api.getMediaDirectories();
     }
   } catch (error) {
     console.error('Error adding media directory via explorer:', error);

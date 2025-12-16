@@ -92,52 +92,60 @@ function initDatabase(dbPath: string): WorkerResult {
     ).run();
 
     // Check if media_directories exists and has the new schema
-    const dirTableInfo = db.prepare('PRAGMA table_info(media_directories)').all() as { name: string }[];
+    const dirTableInfo = db
+      .prepare('PRAGMA table_info(media_directories)')
+      .all() as { name: string }[];
     const hasId = dirTableInfo.some((col) => col.name === 'id');
     const tableExists = dirTableInfo.length > 0;
 
     if (!tableExists) {
-        // Create new schema directly
-        db.prepare(
-            `CREATE TABLE media_directories (
+      // Create new schema directly
+      db.prepare(
+        `CREATE TABLE media_directories (
               id TEXT PRIMARY KEY,
               path TEXT UNIQUE,
               type TEXT DEFAULT 'local',
               name TEXT,
               is_active INTEGER DEFAULT 1
-            )`
-        ).run();
+            )`,
+      ).run();
     } else if (!hasId) {
-        // Migration needed
-        console.log('[worker] Migrating media_directories table...');
-        // 1. Rename old table
-        db.prepare('ALTER TABLE media_directories RENAME TO media_directories_old').run();
+      // Migration needed
+      console.log('[worker] Migrating media_directories table...');
+      // 1. Rename old table
+      db.prepare(
+        'ALTER TABLE media_directories RENAME TO media_directories_old',
+      ).run();
 
-        // 2. Create new table
-        db.prepare(
-            `CREATE TABLE media_directories (
+      // 2. Create new table
+      db.prepare(
+        `CREATE TABLE media_directories (
               id TEXT PRIMARY KEY,
               path TEXT UNIQUE,
               type TEXT DEFAULT 'local',
               name TEXT,
               is_active INTEGER DEFAULT 1
-            )`
-        ).run();
+            )`,
+      ).run();
 
-        // 3. Migrate data
-        // For existing rows, we generate a UUID for ID, use 'local' as type, and basename as name.
-        const oldRows = db.prepare('SELECT path, is_active FROM media_directories_old').all() as { path: string, is_active: number }[];
-        const insertStmt = db.prepare('INSERT INTO media_directories (id, path, type, name, is_active) VALUES (?, ?, ?, ?, ?)');
+      // 3. Migrate data
+      // For existing rows, we generate a UUID for ID, use 'local' as type, and basename as name.
+      const oldRows = db
+        .prepare('SELECT path, is_active FROM media_directories_old')
+        .all() as { path: string; is_active: number }[];
+      const insertStmt = db.prepare(
+        'INSERT INTO media_directories (id, path, type, name, is_active) VALUES (?, ?, ?, ?, ?)',
+      );
 
-        for (const row of oldRows) {
-            const id = crypto.randomUUID();
-            const name = path.basename(row.path) || row.path;
-            insertStmt.run(id, row.path, 'local', name, row.is_active);
-        }
+      for (const row of oldRows) {
+        const id = crypto.randomUUID();
+        const name = path.basename(row.path) || row.path;
+        insertStmt.run(id, row.path, 'local', name, row.is_active);
+      }
 
-        // 4. Drop old table
-        db.prepare('DROP TABLE media_directories_old').run();
-        console.log('[worker] Migration complete.');
+      // 4. Drop old table
+      db.prepare('DROP TABLE media_directories_old').run();
+      console.log('[worker] Migration complete.');
     }
 
     db.prepare(
@@ -564,7 +572,12 @@ function closeDatabase(): WorkerResult {
  * @param payload - The directory object to add.
  * @returns The result of the operation.
  */
-function addMediaDirectory(payload: { id?: string; path: string; type?: string; name?: string }): WorkerResult {
+function addMediaDirectory(payload: {
+  id?: string;
+  path: string;
+  type?: string;
+  name?: string;
+}): WorkerResult {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
     const id = payload.id || crypto.randomUUID();
@@ -652,7 +665,6 @@ function setDirectoryActiveState(
   }
 }
 
-
 if (parentPort) {
   /**
    * Listen for messages from the main thread.
@@ -684,9 +696,9 @@ if (parentPort) {
         case 'addMediaDirectory':
           // Accepts simple string or object now
           if (typeof payload.directoryPath === 'string') {
-             result = addMediaDirectory({ path: payload.directoryPath });
+            result = addMediaDirectory({ path: payload.directoryPath });
           } else {
-             result = addMediaDirectory(payload.directoryObj);
+            result = addMediaDirectory(payload.directoryObj);
           }
           break;
         case 'getMediaDirectories':

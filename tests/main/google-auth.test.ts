@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { app } from 'electron';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
 // Don't import fs directly, import the mock target or use the mock object
 import * as googleAuth from '../../src/main/google-auth';
 
@@ -11,19 +11,22 @@ vi.mock('electron', () => ({
 }));
 
 // Hoist mock variables
-const { readFileMock, writeFileMock, mockOAuth2Client, MockOAuth2 } = vi.hoisted(() => {
-  const readFileMock = vi.fn();
-  const writeFileMock = vi.fn();
-  const mockOAuth2Client = {
-    setCredentials: vi.fn(),
-    generateAuthUrl: vi.fn(),
-    getToken: vi.fn(),
-    credentials: { refresh_token: 'mock-refresh-token' },
-  };
-  // Ensure constructible
-  const MockOAuth2 = vi.fn(function() { return mockOAuth2Client; });
-  return { readFileMock, writeFileMock, mockOAuth2Client, MockOAuth2 };
-});
+const { readFileMock, writeFileMock, mockOAuth2Client, MockOAuth2 } =
+  vi.hoisted(() => {
+    const readFileMock = vi.fn();
+    const writeFileMock = vi.fn();
+    const mockOAuth2Client = {
+      setCredentials: vi.fn(),
+      generateAuthUrl: vi.fn(),
+      getToken: vi.fn(),
+      credentials: { refresh_token: 'mock-refresh-token' },
+    };
+    // Ensure constructible
+    const MockOAuth2 = vi.fn(function () {
+      return mockOAuth2Client;
+    });
+    return { readFileMock, writeFileMock, mockOAuth2Client, MockOAuth2 };
+  });
 
 // Mock fs/promises
 vi.mock('fs/promises', () => ({
@@ -68,7 +71,10 @@ describe('Google Auth Service', () => {
       const result = await googleAuth.loadSavedCredentialsIfExist();
 
       expect(result).toBe(true);
-      expect(readFileMock).toHaveBeenCalledWith(expect.stringContaining('google-token.json'), 'utf-8');
+      expect(readFileMock).toHaveBeenCalledWith(
+        expect.stringContaining('google-token.json'),
+        'utf-8',
+      );
       expect(mockOAuth2Client.setCredentials).toHaveBeenCalledWith(mockCreds);
     });
 
@@ -90,7 +96,7 @@ describe('Google Auth Service', () => {
 
       expect(writeFileMock).toHaveBeenCalledWith(
         expect.stringContaining('google-token.json'),
-        JSON.stringify(mockOAuth2Client.credentials)
+        JSON.stringify(mockOAuth2Client.credentials),
       );
     });
   });
@@ -100,10 +106,12 @@ describe('Google Auth Service', () => {
       mockOAuth2Client.generateAuthUrl.mockReturnValue('http://auth-url');
       const url = googleAuth.generateAuthUrl();
       expect(url).toBe('http://auth-url');
-      expect(mockOAuth2Client.generateAuthUrl).toHaveBeenCalledWith(expect.objectContaining({
-        access_type: 'offline',
-        scope: expect.any(Array),
-      }));
+      expect(mockOAuth2Client.generateAuthUrl).toHaveBeenCalledWith(
+        expect.objectContaining({
+          access_type: 'offline',
+          scope: expect.any(Array),
+        }),
+      );
     });
   });
 

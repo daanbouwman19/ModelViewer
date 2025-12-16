@@ -55,7 +55,9 @@ describe('Google Drive Integration in SourcesModal', () => {
     const authHeader = wrapper.find('h3');
     expect(authHeader.text()).toBe('Add Google Drive Source');
 
-    const startAuthBtn = wrapper.findAll('button.action-button').filter(b => b.text() === 'Start Authorization')[0];
+    const startAuthBtn = wrapper
+      .findAll('button.action-button')
+      .filter((b) => b.text() === 'Start Authorization')[0];
     expect(startAuthBtn.exists()).toBe(true);
 
     await startAuthBtn.trigger('click');
@@ -75,14 +77,19 @@ describe('Google Drive Integration in SourcesModal', () => {
     // Trigger showDriveAuth = true
     await wrapper.findAll('.modal-actions .action-button')[1].trigger('click');
     // Trigger start auth
-    await wrapper.findAll('button.action-button').filter(b => b.text() === 'Start Authorization')[0].trigger('click');
+    await wrapper
+      .findAll('button.action-button')
+      .filter((b) => b.text() === 'Start Authorization')[0]
+      .trigger('click');
     await flushPromises();
 
     // Input code
     const input = wrapper.find('input[type="text"]');
     await input.setValue('test-code');
 
-    const submitBtn = wrapper.findAll('button.action-button').filter(b => b.text() === 'Submit Code')[0];
+    const submitBtn = wrapper
+      .findAll('button.action-button')
+      .filter((b) => b.text() === 'Submit Code')[0];
     await submitBtn.trigger('click');
     await flushPromises();
 
@@ -95,22 +102,32 @@ describe('Google Drive Integration in SourcesModal', () => {
     (api.startGoogleDriveAuth as any).mockResolvedValue('http://url');
     (api.submitGoogleDriveAuthCode as any).mockResolvedValue(true);
     (api.addGoogleDriveSource as any).mockResolvedValue({ success: true });
-    (api.getMediaDirectories as any).mockResolvedValue([{ path: 'gdrive://123', type: 'google_drive' }]);
+    (api.getMediaDirectories as any).mockResolvedValue([
+      { path: 'gdrive://123', type: 'google_drive' },
+    ]);
 
     const wrapper = mount(SourcesModal);
     // Navigate to add source state
     await wrapper.findAll('.modal-actions .action-button')[1].trigger('click');
-    await wrapper.findAll('button.action-button').filter(b => b.text() === 'Start Authorization')[0].trigger('click');
+    await wrapper
+      .findAll('button.action-button')
+      .filter((b) => b.text() === 'Start Authorization')[0]
+      .trigger('click');
     await flushPromises();
     await wrapper.find('input[type="text"]').setValue('code');
-    await wrapper.findAll('button.action-button').filter(b => b.text() === 'Submit Code')[0].trigger('click');
+    await wrapper
+      .findAll('button.action-button')
+      .filter((b) => b.text() === 'Submit Code')[0]
+      .trigger('click');
     await flushPromises();
 
     // Now we can add folder. Input defaults to empty/root or user types it.
     const folderInput = wrapper.findAll('input[type="text"]').at(0); // The visible input
     await folderInput?.setValue('folder-id');
 
-    const addBtn = wrapper.findAll('button.action-button').filter(b => b.text() === 'Add Folder')[0];
+    const addBtn = wrapper
+      .findAll('button.action-button')
+      .filter((b) => b.text() === 'Add Folder')[0];
     await addBtn.trigger('click');
     await flushPromises();
 

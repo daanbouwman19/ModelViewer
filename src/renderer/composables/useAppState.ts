@@ -1,5 +1,10 @@
 import { reactive, toRefs, computed } from 'vue';
-import type { Album, MediaFile, SmartPlaylist } from '../../core/types';
+import type {
+  Album,
+  MediaFile,
+  SmartPlaylist,
+  MediaDirectory,
+} from '../../core/types';
 import { api } from '../api';
 
 /**
@@ -51,7 +56,7 @@ export interface AppState {
   /** Playlist currently being edited, or null if creating new. */
   playlistToEdit: SmartPlaylist | null;
   /** List of configured media source directories. */
-  mediaDirectories: { path: string; isActive: boolean }[];
+  mediaDirectories: MediaDirectory[];
   /** Supported file extensions grouped by type. */
   supportedExtensions: { images: string[]; videos: string[]; all: string[] };
   /** Reference to the main video DOM element for control purposes. */

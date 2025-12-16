@@ -3,7 +3,11 @@ import path from 'path';
 import fs from 'fs/promises';
 import { OAuth2Client } from 'google-auth-library';
 import { google } from 'googleapis';
-import { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI } from './google-secrets';
+import {
+  GOOGLE_CLIENT_ID,
+  GOOGLE_CLIENT_SECRET,
+  GOOGLE_REDIRECT_URI,
+} from './google-secrets';
 
 const SCOPES = ['https://www.googleapis.com/auth/drive.readonly'];
 
@@ -21,7 +25,7 @@ export function getOAuth2Client(): OAuth2Client {
     oauth2Client = new google.auth.OAuth2(
       GOOGLE_CLIENT_ID,
       GOOGLE_CLIENT_SECRET,
-      GOOGLE_REDIRECT_URI
+      GOOGLE_REDIRECT_URI,
     );
   }
   return oauth2Client;
@@ -34,15 +38,15 @@ export async function loadSavedCredentialsIfExist(): Promise<boolean> {
     const client = getOAuth2Client();
     client.setCredentials(credentials);
     return true;
-  } catch (err) {
+  } catch {
     return false;
   }
 }
 
 export async function saveCredentials(client: OAuth2Client): Promise<void> {
   const tokenPath = getTokenPath();
-  const content = await fs.readFile(tokenPath, 'utf-8').catch(() => null);
-  const keys = JSON.parse(content || '{}');
+  // const content = await fs.readFile(tokenPath, 'utf-8').catch(() => null);
+  // const keys = JSON.parse(content || '{}');
   // const key = keys.installed || keys.web;
   // We actually just need to save client.credentials
   await fs.writeFile(tokenPath, JSON.stringify(client.credentials));

@@ -75,7 +75,10 @@ async function scanGoogleDrive(folderId: string): Promise<Album | null> {
     }
     return null;
   } catch (err) {
-    console.error(`[media-scanner.js] Error scanning Google Drive folder ${folderId}:`, err);
+    console.error(
+      `[media-scanner.js] Error scanning Google Drive folder ${folderId}:`,
+      err,
+    );
     return null;
   }
 }

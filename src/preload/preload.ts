@@ -76,7 +76,9 @@ export interface ElectronAPI {
   // Google Drive
   startGoogleDriveAuth: () => Promise<string>;
   submitGoogleDriveAuthCode: (code: string) => Promise<boolean>;
-  addGoogleDriveSource: (folderId: string) => Promise<{ success: boolean; name?: string; error?: string }>;
+  addGoogleDriveSource: (
+    folderId: string,
+  ) => Promise<{ success: boolean; name?: string; error?: string }>;
 }
 
 // Expose a controlled API to the renderer process via `window.electronAPI`.
@@ -222,8 +224,10 @@ const api: ElectronAPI = {
 
   // Google Drive
   startGoogleDriveAuth: () => ipcRenderer.invoke('auth:google-drive-start'),
-  submitGoogleDriveAuthCode: (code: string) => ipcRenderer.invoke('auth:google-drive-code', code),
-  addGoogleDriveSource: (folderId: string) => ipcRenderer.invoke('add-google-drive-source', folderId),
+  submitGoogleDriveAuthCode: (code: string) =>
+    ipcRenderer.invoke('auth:google-drive-code', code),
+  addGoogleDriveSource: (folderId: string) =>
+    ipcRenderer.invoke('add-google-drive-source', folderId),
 };
 
 contextBridge.exposeInMainWorld('electronAPI', api);

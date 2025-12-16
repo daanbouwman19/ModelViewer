@@ -66,7 +66,7 @@ export class ElectronAdapter implements IMediaBackend {
     const port = await window.electronAPI.getServerPort();
     return (filePath: string) => {
       if (filePath.startsWith('gdrive://')) {
-          return `http://localhost:${port}/${encodeURIComponent(filePath)}`;
+        return `http://localhost:${port}/${encodeURIComponent(filePath)}`;
       }
       let pathForUrl = filePath.replace(/\\/g, '/');
       pathForUrl = pathForUrl
@@ -172,7 +172,9 @@ export class ElectronAdapter implements IMediaBackend {
     return window.electronAPI.submitGoogleDriveAuthCode(code);
   }
 
-  async addGoogleDriveSource(folderId: string): Promise<{ success: boolean; name?: string; error?: string }> {
+  async addGoogleDriveSource(
+    folderId: string,
+  ): Promise<{ success: boolean; name?: string; error?: string }> {
     return window.electronAPI.addGoogleDriveSource(folderId);
   }
 }

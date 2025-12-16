@@ -6,7 +6,6 @@ vi.mock('../../src/main/google-auth');
 vi.mock('googleapis');
 
 // Import the module under test dynamically to support resetting
-import * as googleAuth from '../../src/main/google-auth';
 
 const mockDrive = {
   files: {
@@ -30,7 +29,7 @@ describe('Google Drive Service', () => {
       const googleAuth = await import('../../src/main/google-auth');
 
       (googleAuth.getOAuth2Client as any).mockReturnValue({
-        credentials: { refresh_token: 'valid' }
+        credentials: { refresh_token: 'valid' },
       });
 
       const client = await driveService.getDriveClient();
@@ -43,7 +42,7 @@ describe('Google Drive Service', () => {
       const googleAuth = await import('../../src/main/google-auth');
 
       (googleAuth.getOAuth2Client as any).mockReturnValue({
-        credentials: {} // empty
+        credentials: {}, // empty
       });
       (googleAuth.loadSavedCredentialsIfExist as any).mockResolvedValue(true);
 
@@ -57,11 +56,13 @@ describe('Google Drive Service', () => {
       const googleAuth = await import('../../src/main/google-auth');
 
       (googleAuth.getOAuth2Client as any).mockReturnValue({
-        credentials: {}
+        credentials: {},
       });
       (googleAuth.loadSavedCredentialsIfExist as any).mockResolvedValue(false);
 
-      await expect(driveService.getDriveClient()).rejects.toThrow('User not authenticated');
+      await expect(driveService.getDriveClient()).rejects.toThrow(
+        'User not authenticated',
+      );
     });
   });
 
@@ -70,17 +71,23 @@ describe('Google Drive Service', () => {
       const driveService = await import('../../src/main/google-drive-service');
       const googleAuth = await import('../../src/main/google-auth');
 
-      (googleAuth.getOAuth2Client as any).mockReturnValue({ credentials: { refresh_token: 'valid' } });
+      (googleAuth.getOAuth2Client as any).mockReturnValue({
+        credentials: { refresh_token: 'valid' },
+      });
 
       const mockFilesRoot = [
         { id: 'f1', name: 'image.jpg', mimeType: 'image/jpeg' },
       ];
       const mockFoldersRoot = [
-        { id: 'subfolder_id', name: 'SubFolder', mimeType: 'application/vnd.google-apps.folder' },
+        {
+          id: 'subfolder_id',
+          name: 'SubFolder',
+          mimeType: 'application/vnd.google-apps.folder',
+        },
       ];
 
       const mockFilesSub = [
-        { id: 'f2', name: 'subimage.jpg', mimeType: 'image/jpeg' }
+        { id: 'f2', name: 'subimage.jpg', mimeType: 'image/jpeg' },
       ];
 
       const listMock = mockDrive.files.list as any;
@@ -113,7 +120,9 @@ describe('Google Drive Service', () => {
       const driveService = await import('../../src/main/google-drive-service');
       const googleAuth = await import('../../src/main/google-auth');
 
-      (googleAuth.getOAuth2Client as any).mockReturnValue({ credentials: { refresh_token: 'valid' } });
+      (googleAuth.getOAuth2Client as any).mockReturnValue({
+        credentials: { refresh_token: 'valid' },
+      });
       const mockStream = { pipe: vi.fn() };
       (mockDrive.files.get as any).mockResolvedValue({ data: mockStream });
 
@@ -121,7 +130,7 @@ describe('Google Drive Service', () => {
       expect(stream).toBe(mockStream);
       expect(mockDrive.files.get).toHaveBeenCalledWith(
         expect.objectContaining({ fileId: 'fileId', alt: 'media' }),
-        { responseType: 'stream' }
+        { responseType: 'stream' },
       );
     });
   });
@@ -131,7 +140,9 @@ describe('Google Drive Service', () => {
       const driveService = await import('../../src/main/google-drive-service');
       const googleAuth = await import('../../src/main/google-auth');
 
-      (googleAuth.getOAuth2Client as any).mockReturnValue({ credentials: { refresh_token: 'valid' } });
+      (googleAuth.getOAuth2Client as any).mockReturnValue({
+        credentials: { refresh_token: 'valid' },
+      });
       const mockMeta = { id: 'fileId', size: '100' };
       (mockDrive.files.get as any).mockResolvedValue({ data: mockMeta });
 
