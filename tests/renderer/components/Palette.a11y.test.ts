@@ -330,4 +330,32 @@ describe('Palette Accessibility Improvements', () => {
       expect(checkbox.attributes('aria-label')).toBe('Select Test Album');
     });
   });
+
+  describe('Rating System', () => {
+    it('rating buttons should have accessible labels', async () => {
+      // Setup media item with existing rating
+      mockRefs.currentMediaItem.value = {
+        name: 'photo.jpg',
+        path: '/photo.jpg',
+        rating: 3,
+      };
+
+      const wrapper = mount(MediaDisplay);
+      await wrapper.vm.$nextTick();
+
+      // The star buttons are inside a div in .media-info
+      const starsContainer = wrapper.find(
+        '.media-info .flex.justify-center.gap-1',
+      );
+      expect(starsContainer.exists()).toBe(true);
+
+      const stars = starsContainer.findAll('button');
+      expect(stars.length).toBe(5);
+
+      // Check labels
+      expect(stars[0].attributes('aria-label')).toBe('Rate 1 star');
+      expect(stars[1].attributes('aria-label')).toBe('Rate 2 stars');
+      expect(stars[4].attributes('aria-label')).toBe('Rate 5 stars');
+    });
+  });
 });

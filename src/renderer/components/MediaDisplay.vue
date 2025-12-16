@@ -169,6 +169,7 @@
             v-for="star in 5"
             :key="star"
             class="focus:outline-none transition-transform hover:scale-110"
+            :aria-label="'Rate ' + star + ' star' + (star > 1 ? 's' : '')"
             @click.stop="setRating(star)"
           >
             <StarIcon
