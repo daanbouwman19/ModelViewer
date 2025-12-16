@@ -166,12 +166,20 @@
                 Actually listing root can be huge.
                 For MVP, asking for a folder ID is safer, or 'root' for root.
              -->
-        <input
-          v-model="driveFolderId"
-          type="text"
-          class="w-full p-2 bg-gray-700 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-          placeholder="Folder ID (e.g. 1A2B3C... or 'root')"
-        />
+        <div class="flex gap-2">
+          <input
+            v-model="driveFolderId"
+            type="text"
+            class="flex-grow p-2 bg-gray-700 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+            placeholder="Folder ID (e.g. 1A2B3C... or 'root')"
+          />
+          <button
+            class="action-button bg-gray-600 hover:bg-gray-500"
+            @click="openDriveBrowser"
+          >
+            Browse
+          </button>
+        </div>
         <div class="flex gap-2">
           <button
             class="action-button"
@@ -206,6 +214,7 @@
       class="bg-gray-800 rounded-lg shadow-2xl w-full max-w-2xl overflow-hidden modal-content"
     >
       <FileExplorer
+        :mode="fileExplorerMode"
         @select="handleFileExplorerSelect"
         @cancel="closeFileExplorer"
       />
@@ -227,6 +236,7 @@ import FileExplorer from './FileExplorer.vue';
 
 const { isSourcesModalVisible, mediaDirectories, state } = useAppState();
 const isFileExplorerOpen = ref(false);
+const fileExplorerMode = ref<'local' | 'google-drive'>('local');
 
 // Google Drive State
 const showDriveAuth = ref(false);
@@ -379,12 +389,22 @@ const handleAddDirectory = async () => {
       // But if I want to be safe, I'd say:
       if (newPath === null && !window.electronAPI) {
         // rough check if web
-        isFileExplorerOpen.value = true;
+        openLocalBrowser();
       }
     }
   } catch (error) {
     console.error('Error adding media directory:', error);
   }
+};
+
+const openLocalBrowser = () => {
+  fileExplorerMode.value = 'local';
+  isFileExplorerOpen.value = true;
+};
+
+const openDriveBrowser = () => {
+  fileExplorerMode.value = 'google-drive';
+  isFileExplorerOpen.value = true;
 };
 
 const closeFileExplorer = () => {
@@ -393,13 +413,17 @@ const closeFileExplorer = () => {
 
 const handleFileExplorerSelect = async (path: string) => {
   closeFileExplorer();
-  try {
-    const result = await api.addMediaDirectory(path);
-    if (result) {
-      mediaDirectories.value = await api.getMediaDirectories();
+  if (fileExplorerMode.value === 'google-drive') {
+    driveFolderId.value = path;
+  } else {
+    try {
+      const result = await api.addMediaDirectory(path);
+      if (result) {
+        mediaDirectories.value = await api.getMediaDirectories();
+      }
+    } catch (error) {
+      console.error('Error adding media directory via explorer:', error);
     }
-  } catch (error) {
-    console.error('Error adding media directory via explorer:', error);
   }
 };
 

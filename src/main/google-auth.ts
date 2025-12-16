@@ -1,4 +1,4 @@
-import { app } from 'electron';
+import os from 'os';
 import path from 'path';
 import fs from 'fs/promises';
 import { OAuth2Client } from 'google-auth-library';
@@ -14,10 +14,65 @@ const SCOPES = ['https://www.googleapis.com/auth/drive.readonly'];
 let oauth2Client: OAuth2Client | null = null;
 
 function getTokenPath(): string {
-  // In some test environments, app might not be fully initialized or we might be running in a context
-  // where we should mock this. But for safety, we access app.getPath inside functions.
-  // If app is undefined (shouldn't be in main process), it will throw.
-  return path.join(app.getPath('userData'), 'google-token.json');
+  let userDataPath: string;
+
+  // In Electron, the userData path is often set via environment or we can detect it
+  // For non-Electron environments, use platform-specific paths
+  const appName = 'mediaplayer-app';
+
+  // Check if we're in Electron by looking for ELECTRON_RUN_AS_NODE or other indicators
+  // If app.getPath was already called, it might be in process.env or we use platform defaults
+  if (process.versions['electron'] && process.env.ELECTRON_USER_DATA) {
+    // If Electron set this env var (custom setup), use it
+    userDataPath = process.env.ELECTRON_USER_DATA;
+  } else if (process.versions['electron']) {
+    // Electron environment but no env var - use platform-specific default that matches Electron's behavior
+    // Electron uses platform-specific paths, so we replicate that logic
+    switch (process.platform) {
+      case 'win32':
+        userDataPath = path.join(
+          process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'),
+          appName,
+        );
+        break;
+      case 'darwin':
+        userDataPath = path.join(
+          os.homedir(),
+          'Library',
+          'Application Support',
+          appName,
+        );
+        break;
+      default:
+        // Linux
+        userDataPath = path.join(os.homedir(), '.config', appName);
+        break;
+    }
+  } else {
+    // Non-Electron environment (e.g., web server)
+    switch (process.platform) {
+      case 'win32':
+        userDataPath = path.join(
+          process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'),
+          appName,
+        );
+        break;
+      case 'darwin':
+        userDataPath = path.join(
+          os.homedir(),
+          'Library',
+          'Application Support',
+          appName,
+        );
+        break;
+      default:
+        // Linux and others
+        userDataPath = path.join(os.homedir(), '.config', appName);
+        break;
+    }
+  }
+
+  return path.join(userDataPath, 'google-token.json');
 }
 
 export function getOAuth2Client(): OAuth2Client {
@@ -59,6 +114,7 @@ export function generateAuthUrl(): string {
   return client.generateAuthUrl({
     access_type: 'offline',
     scope: SCOPES,
+    prompt: 'consent',
   });
 }
 

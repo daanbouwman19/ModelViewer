@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Don't import fs directly, import the mock target or use the mock object
 import * as googleAuth from '../../src/main/google-auth';
@@ -58,6 +58,15 @@ vi.mock('googleapis', () => {
 describe('Google Auth Service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.GOOGLE_CLIENT_ID = 'mock-client-id';
+    process.env.GOOGLE_CLIENT_SECRET = 'mock-client-secret';
+    process.env.GOOGLE_REDIRECT_URI = 'http://localhost:3000/callback';
+  });
+
+  afterEach(() => {
+    delete process.env.GOOGLE_CLIENT_ID;
+    delete process.env.GOOGLE_CLIENT_SECRET;
+    delete process.env.GOOGLE_REDIRECT_URI;
   });
 
   describe('getOAuth2Client', () => {

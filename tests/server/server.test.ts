@@ -27,6 +27,8 @@ vi.mock('../../src/core/media-handler', () => ({
   serveStaticFile: vi.fn((req, res) => res.end()),
 }));
 
+vi.mock('../../src/main/google-auth');
+
 describe('Server', () => {
   let app: any;
 
@@ -361,9 +363,53 @@ describe('Server', () => {
     });
   });
 
+  describe('Auth Routes', () => {
+    it('POST /api/auth/google-drive/code should return 200 on success', async () => {
+      const { authenticateWithCode } =
+        await import('../../src/main/google-auth');
+      vi.mocked(authenticateWithCode).mockResolvedValue();
+
+      const response = await request(app)
+        .post('/api/auth/google-drive/code')
+        .send({ code: 'valid-code' });
+
+      expect(response.status).toBe(200);
+    });
+
+    it('POST /api/auth/google-drive/code should return 400 on invalid code', async () => {
+      const { authenticateWithCode } =
+        await import('../../src/main/google-auth');
+      // Mock an error that looks like a Google API 400 error
+      const error: any = new Error('invalid_grant');
+      error.response = { status: 400 };
+      vi.mocked(authenticateWithCode).mockRejectedValue(error);
+
+      const response = await request(app)
+        .post('/api/auth/google-drive/code')
+        .send({ code: 'invalid-code' });
+
+      expect(response.status).toBe(400);
+      expect(response.body).toEqual({ error: 'Invalid code' });
+    });
+
+    it('POST /api/auth/google-drive/code should return 500 on other errors', async () => {
+      const { authenticateWithCode } =
+        await import('../../src/main/google-auth');
+      vi.mocked(authenticateWithCode).mockRejectedValue(
+        new Error('Server error'),
+      );
+
+      const response = await request(app)
+        .post('/api/auth/google-drive/code')
+        .send({ code: 'valid-code' });
+
+      expect(response.status).toBe(500);
+    });
+  });
+
   describe('Security Headers', () => {
     it('should set security headers', async () => {
-      const response = await request(app).get('/api/extensions');
+      const response = await request(app).get('/api/config/extensions');
       // Helmet adds these headers by default
       expect(response.headers['x-content-type-options']).toBe('nosniff');
       expect(response.headers['x-dns-prefetch-control']).toBe('off');
@@ -373,8 +419,8 @@ describe('Server', () => {
   });
 
   describe('Other Routes', () => {
-    it('GET /api/extensions should return extensions', async () => {
-      const response = await request(app).get('/api/extensions');
+    it('GET /api/config/extensions should return extensions', async () => {
+      const response = await request(app).get('/api/config/extensions');
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('images');
       expect(response.body).toHaveProperty('videos');

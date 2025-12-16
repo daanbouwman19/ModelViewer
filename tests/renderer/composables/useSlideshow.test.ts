@@ -199,6 +199,19 @@ describe('useSlideshow', () => {
       const filtered = filterMedia(mediaFiles);
       expect(filtered.length).toBe(6);
     });
+
+    it('should correctly filter Google Drive files (gdrive://) using the name property', () => {
+      mockState.mediaFilter = 'Images';
+      const { filterMedia } = useSlideshow();
+      const driveFiles = [
+        { path: 'gdrive://123', name: 'photo.jpg' },
+        { path: 'gdrive://456', name: 'video.mp4' },
+      ];
+      // Cast to any because we are mocking parts of MediaFile
+      const filtered = filterMedia(driveFiles as any);
+      expect(filtered.length).toBe(1);
+      expect(filtered[0].name).toBe('photo.jpg');
+    });
   });
 
   describe('selectWeightedRandom', () => {

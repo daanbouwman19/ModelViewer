@@ -68,4 +68,6 @@ export interface IMediaBackend {
   addGoogleDriveSource(
     folderId: string,
   ): Promise<{ success: boolean; name?: string; error?: string }>;
+  listGoogleDriveDirectory(folderId: string): Promise<FileSystemEntry[]>;
+  getGoogleDriveParent(folderId: string): Promise<string | null>;
 }

@@ -239,7 +239,9 @@ export class WebAdapter implements IMediaBackend {
   async startGoogleDriveAuth(): Promise<string> {
     const res = await fetch('/api/auth/google-drive/start');
     if (!res.ok) throw new Error('Failed to start auth');
-    return res.text();
+    const url = await res.text();
+    window.open(url, '_blank');
+    return url;
   }
 
   async submitGoogleDriveAuthCode(code: string): Promise<boolean> {
@@ -270,5 +272,21 @@ export class WebAdapter implements IMediaBackend {
     } catch (e) {
       return { success: false, error: (e as Error).message };
     }
+  }
+
+  async listGoogleDriveDirectory(folderId: string): Promise<FileSystemEntry[]> {
+    const query = folderId ? `?folderId=${encodeURIComponent(folderId)}` : '';
+    const res = await fetch(`/api/drive/files${query}`);
+    if (!res.ok) throw new Error('Failed to list Drive directory');
+    return res.json();
+  }
+
+  async getGoogleDriveParent(folderId: string): Promise<string | null> {
+    const res = await fetch(
+      `/api/drive/parent?folderId=${encodeURIComponent(folderId)}`,
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.parent;
   }
 }

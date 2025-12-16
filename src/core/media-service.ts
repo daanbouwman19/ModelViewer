@@ -132,6 +132,12 @@ export async function extractAndSaveMetadata(
   // For now simple loop
   for (const filePath of filePaths) {
     try {
+      if (filePath.startsWith('gdrive://')) {
+        // Skip metadata extraction for Google Drive files for now
+        // TODO: Implement Drive-specific metadata fetching via Google Drive API
+        continue;
+      }
+
       const stats = await fs.stat(filePath);
       const metadata: MediaMetadata = {
         size: stats.size,

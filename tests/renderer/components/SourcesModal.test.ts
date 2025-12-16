@@ -20,6 +20,10 @@ vi.mock('@/api', () => ({
     startGoogleDriveAuth: vi.fn(),
     submitGoogleDriveAuthCode: vi.fn(),
     addGoogleDriveSource: vi.fn(),
+    listDirectory: vi.fn().mockResolvedValue([]),
+    getParentDirectory: vi.fn().mockResolvedValue(''),
+    listGoogleDriveDirectory: vi.fn().mockResolvedValue([]),
+    getGoogleDriveParent: vi.fn().mockResolvedValue('root'),
   },
 }));
 
@@ -316,5 +320,131 @@ describe('SourcesModal.vue', () => {
     const wrapper = mount(SourcesModal);
     await (wrapper.vm as any).handleRemove('/non-existent/path');
     expect(mockRefs.mediaDirectories.value).toHaveLength(2);
+  });
+
+  describe('Google Drive Auth', () => {
+    it('starts drive auth flow', async () => {
+      (api.startGoogleDriveAuth as Mock).mockResolvedValue('http://auth-url');
+      const wrapper = mount(SourcesModal);
+
+      // Click "Add Google Drive"
+      const buttons = wrapper.findAll('.action-button');
+      const addDriveBtn = buttons.find((b) =>
+        b.text().includes('Add Google Drive'),
+      );
+      expect(addDriveBtn?.exists()).toBe(true);
+      await addDriveBtn?.trigger('click');
+      await flushPromises();
+
+      expect(wrapper.text()).toContain('Add Google Drive Source');
+
+      // Click "Start Authorization"
+      const startAuthBtn = wrapper
+        .findAll('.action-button')
+        .find((b) => b.text().includes('Start Authorization'));
+      expect(startAuthBtn?.exists()).toBe(true);
+      await startAuthBtn?.trigger('click');
+      await flushPromises();
+
+      expect(api.startGoogleDriveAuth).toHaveBeenCalled();
+
+      expect((wrapper.vm as any).driveAuthUrl).toBe('http://auth-url');
+
+      // Check for next step UI
+      expect(wrapper.text()).toContain('Paste the code below');
+      expect(
+        wrapper
+          .find('input[placeholder="Paste authorization code here"]')
+          .exists(),
+      ).toBe(true);
+    });
+
+    it('submits auth code successfully', async () => {
+      (api.submitGoogleDriveAuthCode as Mock).mockResolvedValue(true);
+      const wrapper = mount(SourcesModal);
+
+      // Set state to code entry step
+      (wrapper.vm as any).showDriveAuth = true;
+      (wrapper.vm as any).driveAuthUrl = 'http://url';
+      await flushPromises();
+
+      const input = wrapper.find('input[type="text"]');
+      await input.setValue('auth-code');
+
+      await wrapper.find('button[class="action-button"]').trigger('click'); // Submit Code matches first button in this view?
+      // Actually "Submit Code" button
+      const submitBtn = wrapper
+        .findAll('.action-button')
+        .find((b) => b.text() === 'Submit Code');
+      await submitBtn?.trigger('click');
+
+      await flushPromises();
+
+      expect(api.submitGoogleDriveAuthCode).toHaveBeenCalledWith('auth-code');
+      expect((wrapper.vm as any).authSuccess).toBe(true);
+      expect(wrapper.text()).toContain('Authentication successful!');
+    });
+
+    it('handles auth code failure', async () => {
+      (api.submitGoogleDriveAuthCode as Mock).mockResolvedValue(false);
+      const wrapper = mount(SourcesModal);
+      (wrapper.vm as any).showDriveAuth = true;
+      (wrapper.vm as any).driveAuthUrl = 'http://url';
+      await flushPromises();
+
+      const input = wrapper.find('input[type="text"]');
+      await input.setValue('bad-code');
+
+      const submitBtn = wrapper
+        .findAll('.action-button')
+        .find((b) => b.text() === 'Submit Code');
+      await submitBtn?.trigger('click');
+      await flushPromises();
+
+      expect(api.submitGoogleDriveAuthCode).toHaveBeenCalledWith('bad-code');
+      expect(wrapper.text()).toContain('Invalid code or authentication failed');
+    });
+
+    it('adds drive source successfully', async () => {
+      (api.addGoogleDriveSource as Mock).mockResolvedValue({ success: true });
+      const wrapper = mount(SourcesModal);
+
+      // Set state to authenticated
+      (wrapper.vm as any).showDriveAuth = true;
+      (wrapper.vm as any).driveAuthUrl = 'http://url';
+      (wrapper.vm as any).authSuccess = true;
+      await flushPromises();
+
+      // Use default root
+      const addBtn = wrapper
+        .findAll('.action-button')
+        .find((b) => b.text() === 'Add Folder');
+      await addBtn?.trigger('click');
+      await flushPromises();
+
+      expect(api.addGoogleDriveSource).toHaveBeenCalledWith('root');
+      expect(api.getMediaDirectories).toHaveBeenCalled(); // refreshes list
+      expect((wrapper.vm as any).showDriveAuth).toBe(false); // modal closes
+    });
+
+    it('handles add drive source failure', async () => {
+      (api.addGoogleDriveSource as Mock).mockResolvedValue({
+        success: false,
+        error: 'Failed',
+      });
+      const wrapper = mount(SourcesModal);
+      (wrapper.vm as any).showDriveAuth = true;
+      (wrapper.vm as any).driveAuthUrl = 'http://url';
+      (wrapper.vm as any).authSuccess = true;
+      await flushPromises();
+
+      const addBtn = wrapper
+        .findAll('.action-button')
+        .find((b) => b.text() === 'Add Folder');
+      await addBtn?.trigger('click');
+      await flushPromises();
+
+      expect(wrapper.text()).toContain('Failed');
+    });
   });
 });
