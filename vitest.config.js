@@ -9,7 +9,14 @@ export default defineConfig({
     environment: 'happy-dom',
     testTimeout: 10000,
     include: ['tests/**/*.{test,spec}.{js,ts}'],
-    exclude: ['node_modules', 'out', 'release', '.vite', 'dist', 'tests/e2e/**'],
+    exclude: [
+      'node_modules',
+      'out',
+      'release',
+      '.vite',
+      'dist',
+      'tests/e2e/**',
+    ],
     coverage: {
       provider: 'istanbul',
       reporter: ['text', 'json', 'html', 'lcov'],

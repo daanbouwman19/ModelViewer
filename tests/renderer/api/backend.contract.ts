@@ -8,8 +8,12 @@ export interface ContractTestOptions {
 export function runBackendContractTests(
   adapterName: string,
   createAdapter: () => IMediaBackend,
-  primeBackend: (method: keyof IMediaBackend | string, result?: any, error?: any) => void,
-  options: ContractTestOptions
+  primeBackend: (
+    method: keyof IMediaBackend | string,
+    result?: any,
+    error?: any,
+  ) => void,
+  options: ContractTestOptions,
 ) {
   describe(`Shared Contract: ${adapterName}`, () => {
     let backend: IMediaBackend;
@@ -27,10 +31,10 @@ export function runBackendContractTests(
         // We just assert it returns a valid LoadResult structure
         expect(result).toHaveProperty('type');
         if (adapterName === 'WebAdapter') {
-           expect(result.type).toBe('http-url');
+          expect(result.type).toBe('http-url');
         } else {
-           // For Electron, it returns whatever we mocked
-           expect(result).toEqual(mockResult);
+          // For Electron, it returns whatever we mocked
+          expect(result).toEqual(mockResult);
         }
       });
     });
@@ -143,8 +147,8 @@ export function runBackendContractTests(
       });
 
       it('should extract metadata', async () => {
-         primeBackend('extractMetadata', undefined);
-         await backend.extractMetadata(['file.mp4']);
+        primeBackend('extractMetadata', undefined);
+        await backend.extractMetadata(['file.mp4']);
       });
     });
 
@@ -233,10 +237,10 @@ export function runBackendContractTests(
         });
       } else {
         it('should return not supported', async () => {
-           // For Web, checking implementation
-           const result = await backend.openInVlc('/file.mp4');
-           expect(result.success).toBe(false);
-           expect(result.message).toContain('Not supported');
+          // For Web, checking implementation
+          const result = await backend.openInVlc('/file.mp4');
+          expect(result.success).toBe(false);
+          expect(result.message).toContain('Not supported');
         });
       }
     });

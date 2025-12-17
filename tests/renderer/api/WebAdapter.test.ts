@@ -1,4 +1,4 @@
-import { describe, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { WebAdapter } from '../../../src/renderer/api/WebAdapter';
 import { runBackendContractTests } from './backend.contract';
 

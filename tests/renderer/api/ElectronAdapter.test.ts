@@ -45,8 +45,8 @@ describe('ElectronAdapter', () => {
       vi.clearAllMocks();
 
       if (method === 'getVideoMetadata' && error) {
-         mock.mockResolvedValue({ error });
-         return;
+        mock.mockResolvedValue({ error });
+        return;
       }
 
       if (error) {
@@ -55,15 +55,15 @@ describe('ElectronAdapter', () => {
         mock.mockResolvedValue(result);
       }
     },
-    { supportsVlc: true }
+    { supportsVlc: true },
   );
 
   // Additional specific tests if any
   it('loadFileAsDataURL calls bridge directly', async () => {
-     mockElectronAPI.loadFileAsDataURL.mockResolvedValue({ type: 'test' });
-     const adapter = new ElectronAdapter(mockElectronAPI as any);
-     const res = await adapter.loadFileAsDataURL('file');
-     expect(res).toEqual({ type: 'test' });
-     expect(mockElectronAPI.loadFileAsDataURL).toHaveBeenCalledWith('file');
+    mockElectronAPI.loadFileAsDataURL.mockResolvedValue({ type: 'test' });
+    const adapter = new ElectronAdapter(mockElectronAPI as any);
+    const res = await adapter.loadFileAsDataURL('file');
+    expect(res).toEqual({ type: 'test' });
+    expect(mockElectronAPI.loadFileAsDataURL).toHaveBeenCalledWith('file');
   });
 });

@@ -9,12 +9,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import {
-  app,
-  BrowserWindow,
-  ipcMain,
-  IpcMainInvokeEvent,
-} from 'electron';
+import { app, BrowserWindow, ipcMain, IpcMainInvokeEvent } from 'electron';
 import path from 'path';
 import fs from 'fs/promises';
 import ffmpegPath from 'ffmpeg-static';

@@ -11,7 +11,11 @@ import rangeParser from 'range-parser';
 import { createMediaSource } from './media-source';
 
 import { IMediaSource } from './media-source-types';
-import { getThumbnailCachePath, checkThumbnailCache, getMimeType } from './media-utils';
+import {
+  getThumbnailCachePath,
+  checkThumbnailCache,
+  getMimeType,
+} from './media-utils';
 import {
   getDriveFileMetadata,
   getDriveFileThumbnail,
