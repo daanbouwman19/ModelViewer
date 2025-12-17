@@ -343,7 +343,9 @@ describe('Server', () => {
     });
 
     it('GET /api/stream with transcode=true should call serveTranscodedStream', async () => {
-      await request(app).get('/api/stream').query({ file: 'test.mp4', transcode: 'true' });
+      await request(app)
+        .get('/api/stream')
+        .query({ file: 'test.mp4', transcode: 'true' });
       expect(mediaHandler.serveTranscodedStream).toHaveBeenCalled();
     });
     it('GET /api/stream should 400 if missing file', async () => {

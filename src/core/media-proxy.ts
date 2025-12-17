@@ -1,5 +1,7 @@
 import http from 'http';
 import { AddressInfo } from 'net';
+import { getDriveFileMetadata } from '../main/google-drive-service';
+import { getDriveStreamWithCache } from './drive-stream';
 
 export class InternalMediaProxy {
   private static instance: InternalMediaProxy;
@@ -21,30 +23,12 @@ export class InternalMediaProxy {
         }
 
         const fileId = match[1];
-        // Use createMediaSource factory instead of direct class instantiation to decouple if desired,
-        // or just use DriveMediaSource. But to avoid circular dependency, we import createMediaSource which is in media-source.ts.
-        // Wait, media-source.ts imports media-proxy.ts. Circular dependency!
-        // media-source.ts IMPORTS InternalMediaProxy.
-        // media-proxy.ts IMPORTS createMediaSource (which is in media-source.ts).
-
-        // Fix: Use a dynamic import or restructure.
-        // Better: Pass the source factory or logic differently.
-        // Or simply instantiate DriveMediaSource if we know it's a Drive file.
-        // But DriveMediaSource is in media-source.ts.
-
-        // To break the cycle:
-        // 1. Move IMediaSource interface to media-source-types.ts (Done).
-        // 2. DriveMediaSource depends on InternalMediaProxy.
-        // 3. InternalMediaProxy depends on DriveMediaSource (to stream).
-
-        // We can lazy load DriveMediaSource inside the handler.
-        const { DriveMediaSource } = await import('./media-source');
-        const source = new DriveMediaSource(`gdrive://${fileId}`);
+        const meta = await getDriveFileMetadata(fileId);
+        const totalSize = Number(meta.size);
+        const mimeType = meta.mimeType || 'application/octet-stream';
 
         // Handle Range requests
         const rangeHeader = req.headers.range;
-        const totalSize = await source.getSize();
-        const mimeType = await source.getMimeType();
 
         let start = 0;
         let end = totalSize - 1;
@@ -55,7 +39,10 @@ export class InternalMediaProxy {
           if (parts[1]) end = parseInt(parts[1], 10);
         }
 
-        const { stream, length } = await source.getStream({ start, end });
+        const { stream, length } = await getDriveStreamWithCache(fileId, {
+          start,
+          end,
+        });
 
         // Calculate the actual end byte being served based on the length returned
         const actualEnd = start + length - 1;
@@ -69,7 +56,7 @@ export class InternalMediaProxy {
 
         stream.pipe(res);
 
-        stream.on('error', (err) => {
+        stream.on('error', (err: unknown) => {
           console.error('[InternalProxy] Stream Error:', err);
           if (!res.headersSent) {
             res.writeHead(500);

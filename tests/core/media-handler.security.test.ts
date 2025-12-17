@@ -1,12 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  serveStaticFile,
-  serveMetadata,
-  serveThumbnail,
-  createMediaRequestHandler,
-} from '../../src/core/media-handler';
+import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
+import { createMediaRequestHandler } from '../../src/core/media-handler';
 import * as security from '../../src/core/security';
-import fs from 'fs';
 
 // Mock dependencies
 vi.mock('../../src/core/security');
@@ -46,7 +40,7 @@ describe('media-handler security', () => {
     headers: Record<string, string | string[] | undefined>;
     url?: string;
   };
-  let res: { writeHead: vi.Mock; end: vi.Mock; headersSent: boolean };
+  let res: { writeHead: Mock; end: Mock; headersSent: boolean };
 
   beforeEach(() => {
     vi.clearAllMocks();
