@@ -62,7 +62,7 @@ vi.mock('../../src/core/security', () => ({
 }));
 
 describe('main.js IPC Security', () => {
-  let handlers: { [key: string]: (event: any, ...args: any[]) => any } = {};
+  const handlers: { [key: string]: (event: any, ...args: any[]) => any } = {};
 
   beforeEach(async () => {
     vi.resetModules();
