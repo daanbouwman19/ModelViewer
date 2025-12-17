@@ -7,9 +7,10 @@
       class="header p-3 bg-gray-800 border-b border-gray-700 flex items-center gap-2"
     >
       <button
-        class="p-2 rounded hover:bg-gray-700 disabled:opacity-50"
+        class="p-2 rounded hover:bg-gray-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
         :disabled="!parentPath"
         title="Go Up"
+        aria-label="Go to parent directory"
         @click="navigateUp"
       >
         ⬆️
@@ -20,8 +21,11 @@
         {{ displayPath }}
       </div>
       <button
-        class="p-2 rounded hover:bg-gray-700"
+        class="p-2 rounded hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
         :title="
+          viewMode === 'list' ? 'Switch to Grid View' : 'Switch to List View'
+        "
+        :aria-label="
           viewMode === 'list' ? 'Switch to Grid View' : 'Switch to List View'
         "
         @click="toggleViewMode"
@@ -29,8 +33,9 @@
         {{ viewMode === 'list' ? '📅' : 'list' }}
       </button>
       <button
-        class="p-2 rounded hover:bg-gray-700"
+        class="p-2 rounded hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
         title="Refresh"
+        aria-label="Refresh directory"
         @click="refresh"
       >
         🔄
@@ -56,15 +61,18 @@
         v-else-if="viewMode === 'grid'"
         class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2"
       >
-        <div
+        <button
           v-for="entry in sortedEntries"
           :key="entry.path"
-          class="flex flex-col items-center p-2 rounded transition-colors aspect-square justify-center border border-transparent hover:border-gray-600 cursor-pointer hover:bg-gray-800"
+          type="button"
+          class="flex flex-col items-center p-2 rounded transition-colors aspect-square justify-center border border-transparent hover:border-gray-600 cursor-pointer hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full h-full"
           :class="{
             'bg-blue-900/50 border-blue-500': entry.path === selectedPath,
           }"
+          :aria-label="`${entry.isDirectory ? 'Folder' : 'File'}: ${entry.name}`"
           @click="handleEntryClick(entry)"
           @dblclick="handleEntryDoubleClick(entry)"
+          @keydown.enter.prevent="handleEntryDoubleClick(entry)"
         >
           <span class="text-4xl mb-2">{{
             entry.isDirectory ? (isDriveRoot(entry.path) ? '💾' : '📁') : '📄'
@@ -72,26 +80,29 @@
           <span class="text-xs text-center break-all line-clamp-2 w-full">{{
             entry.name
           }}</span>
-        </div>
+        </button>
       </div>
 
       <!-- List View -->
       <ul v-else class="space-y-1">
-        <li
-          v-for="entry in sortedEntries"
-          :key="entry.path"
-          class="flex items-center gap-2 p-2 rounded transition-colors cursor-pointer hover:bg-gray-800"
-          :class="{ 'bg-blue-900/50': entry.path === selectedPath }"
-          @click="handleEntryClick(entry)"
-          @dblclick="handleEntryDoubleClick(entry)"
-        >
-          <span class="icon">{{
-            entry.isDirectory ? (isDriveRoot(entry.path) ? '💾' : '📁') : '📄'
-          }}</span>
-          <span class="name flex-grow truncate">{{ entry.name }}</span>
-          <span v-if="entry.isDirectory" class="text-xs text-gray-500">{{
-            isDriveRoot(entry.path) ? 'DRIVE' : 'DIR'
-          }}</span>
+        <li v-for="entry in sortedEntries" :key="entry.path">
+          <button
+            type="button"
+            class="flex items-center gap-2 p-2 rounded transition-colors cursor-pointer hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full text-left"
+            :class="{ 'bg-blue-900/50': entry.path === selectedPath }"
+            :aria-label="`${entry.isDirectory ? 'Folder' : 'File'}: ${entry.name}`"
+            @click="handleEntryClick(entry)"
+            @dblclick="handleEntryDoubleClick(entry)"
+            @keydown.enter.prevent="handleEntryDoubleClick(entry)"
+          >
+            <span class="icon">{{
+              entry.isDirectory ? (isDriveRoot(entry.path) ? '💾' : '📁') : '📄'
+            }}</span>
+            <span class="name flex-grow truncate">{{ entry.name }}</span>
+            <span v-if="entry.isDirectory" class="text-xs text-gray-500">{{
+              isDriveRoot(entry.path) ? 'DRIVE' : 'DIR'
+            }}</span>
+          </button>
         </li>
       </ul>
 
@@ -108,13 +119,13 @@
       class="footer p-3 bg-gray-800 border-t border-gray-700 flex justify-end gap-3"
     >
       <button
-        class="px-4 py-2 rounded text-gray-300 hover:text-white"
+        class="px-4 py-2 rounded text-gray-300 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
         @click="$emit('cancel')"
       >
         Cancel
       </button>
       <button
-        class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+        class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500"
         :disabled="!selectedPath"
         @click="confirmSelection"
       >

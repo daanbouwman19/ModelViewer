@@ -39,7 +39,7 @@ describe('FileExplorer.vue', () => {
     await toggleBtn.trigger('click');
     await flushPromises();
 
-    const items = wrapper.findAll('li.cursor-pointer');
+    const items = wrapper.findAll('ul.space-y-1 > li > button');
     expect(items).toHaveLength(2);
     expect(items[0].text()).toContain('Folder1');
     expect(items[1].text()).toContain('File1.txt');
@@ -57,7 +57,7 @@ describe('FileExplorer.vue', () => {
     await flushPromises();
 
     // Default Grid View: Find grid items
-    const items = wrapper.findAll('.grid > div');
+    const items = wrapper.findAll('.grid > button');
     const folderItem = items[0]; // Assuming it's sorted first
 
     await folderItem.trigger('dblclick');
@@ -84,7 +84,7 @@ describe('FileExplorer.vue', () => {
     await flushPromises();
 
     // Default Grid View
-    const items = wrapper.findAll('.grid > div');
+    const items = wrapper.findAll('.grid > button');
     const fileItem = items[0];
 
     // Reset mock to check for calls
@@ -107,7 +107,7 @@ describe('FileExplorer.vue', () => {
     });
     await flushPromises();
 
-    const items = wrapper.findAll('.grid > div');
+    const items = wrapper.findAll('.grid > button');
     await items[0].trigger('click');
 
     // Check if Select Directory button is enabled
@@ -126,7 +126,7 @@ describe('FileExplorer.vue', () => {
     });
     await flushPromises();
 
-    const items = wrapper.findAll('.grid > div');
+    const items = wrapper.findAll('.grid > button');
     await items[0].trigger('click');
 
     const selectBtn = wrapper.find('button.bg-blue-600');
@@ -148,7 +148,7 @@ describe('FileExplorer.vue', () => {
     });
     await flushPromises();
 
-    const items = wrapper.findAll('.grid > div');
+    const items = wrapper.findAll('.grid > button');
     // Click folder to select
     await items[0].trigger('click');
     expect((wrapper.vm as any).selectedPath).toBe('/Folder1');
@@ -236,7 +236,7 @@ describe('FileExplorer.vue', () => {
     const wrapper = mount(FileExplorer, { props: { initialPath: '/' } });
     await flushPromises();
 
-    const items = wrapper.findAll('.grid > div');
+    const items = wrapper.findAll('.grid > button');
     expect(items[0].text()).toContain('a_folder');
     expect(items[1].text()).toContain('c_folder');
     expect(items[2].text()).toContain('b_file.txt');
@@ -256,7 +256,7 @@ describe('FileExplorer.vue', () => {
 
     // In Grid view, icons are displayed as text content 💾, no .icon class
     // Structure: <span class="text-4xl ...">💾</span>
-    const items = wrapper.findAll('.grid > div');
+    const items = wrapper.findAll('.grid > button');
 
     expect(items[0].text()).toContain('💾');
     expect(items[0].text()).toContain('C:');
@@ -276,7 +276,7 @@ describe('FileExplorer.vue', () => {
     });
     await flushPromises();
 
-    const items = wrapper.findAll('.grid > div');
+    const items = wrapper.findAll('.grid > button');
     // First item: /
     expect(items[0].text()).toContain('💾');
     expect(items[0].text()).toContain('Root');
@@ -355,7 +355,7 @@ describe('FileExplorer.vue', () => {
     await flushPromises();
 
     // Find grid item
-    const item = wrapper.find('.grid > div');
+    const item = wrapper.find('.grid > button');
     await item.trigger('dblclick');
     await flushPromises();
 
@@ -407,7 +407,7 @@ describe('FileExplorer.vue', () => {
 
     // Find the folder item
     const folderItem = wrapper
-      .findAll('.grid > div')
+      .findAll('.grid > button')
       .filter((w) => w.text().includes('My Folder'))
       .at(0);
     expect(folderItem?.exists()).toBe(true);
@@ -440,7 +440,7 @@ describe('FileExplorer.vue', () => {
     await flushPromises();
 
     const fileItem = wrapper
-      .findAll('.grid > div')
+      .findAll('.grid > button')
       .filter((w) => w.text().includes('My File'))
       .at(0);
 
