@@ -16,7 +16,8 @@ vi.mock('fs/promises', () => ({
 
 vi.mock('../../src/core/media-handler', () => ({
   serveMetadata: vi.fn((req, res) => res.end()),
-  serveTranscode: vi.fn((req, res) => res.end()),
+  serveTranscodedStream: vi.fn((req, res) => res.end()),
+  serveRawStream: vi.fn((req, res) => res.end()),
   serveThumbnail: vi.fn((req, res) => res.end()),
   serveStaticFile: vi.fn((req, res) => res.end()),
 }));

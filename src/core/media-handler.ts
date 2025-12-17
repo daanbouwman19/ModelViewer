@@ -168,6 +168,11 @@ export async function serveRawStream(
     if (parts[1]) end = parseInt(parts[1], 10);
   }
 
+    if (start >= totalSize) {
+      res.writeHead(416, { 'Content-Range': `bytes */${totalSize}` });
+      return res.end('Requested range not satisfiable.');
+    }
+
   const { stream, length } = await source.getStream({ start, end });
   const actualEnd = start + length - 1;
 

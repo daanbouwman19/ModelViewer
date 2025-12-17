@@ -23,7 +23,8 @@ vi.mock('fs/promises', () => ({
 // Mock media-handler to ensure it closes requests
 vi.mock('../../src/core/media-handler', () => ({
   serveMetadata: vi.fn((req, res) => res.end()),
-  serveTranscode: vi.fn((req, res) => res.end()),
+  serveTranscodedStream: vi.fn((req, res) => res.end()),
+  serveRawStream: vi.fn((req, res) => res.end()),
   serveThumbnail: vi.fn((req, res) => res.end()),
   serveStaticFile: vi.fn((req, res) => res.end()),
 }));
@@ -336,9 +337,14 @@ describe('Server', () => {
       expect(response.status).toBe(400);
     });
 
-    it('GET /api/stream should call serveTranscode', async () => {
+    it('GET /api/stream should call serveRawStream by default', async () => {
       await request(app).get('/api/stream').query({ file: 'test.mp4' });
-      expect(mediaHandler.serveTranscode).toHaveBeenCalled();
+      expect(mediaHandler.serveRawStream).toHaveBeenCalled();
+    });
+
+    it('GET /api/stream with transcode=true should call serveTranscodedStream', async () => {
+      await request(app).get('/api/stream').query({ file: 'test.mp4', transcode: 'true' });
+      expect(mediaHandler.serveTranscodedStream).toHaveBeenCalled();
     });
     it('GET /api/stream should 400 if missing file', async () => {
       const response = await request(app).get('/api/stream');
@@ -354,9 +360,9 @@ describe('Server', () => {
       expect(response.status).toBe(400);
     });
 
-    it('GET /api/serve should call serveStaticFile', async () => {
+    it('GET /api/serve should call serveRawStream', async () => {
       await request(app).get('/api/serve').query({ path: 'test.mp4' });
-      expect(mediaHandler.serveStaticFile).toHaveBeenCalled();
+      expect(mediaHandler.serveRawStream).toHaveBeenCalled();
     });
     it('GET /api/serve should 400 if missing path', async () => {
       const response = await request(app).get('/api/serve');

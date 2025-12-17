@@ -23,7 +23,8 @@ vi.mock('../../src/core/database');
 vi.mock('../../src/core/media-service');
 vi.mock('../../src/core/media-handler', () => ({
   serveMetadata: vi.fn(),
-  serveTranscode: vi.fn(),
+  serveTranscodedStream: vi.fn(),
+  serveRawStream: vi.fn(),
   serveThumbnail: vi.fn(),
   serveStaticFile: vi.fn(),
 }));
