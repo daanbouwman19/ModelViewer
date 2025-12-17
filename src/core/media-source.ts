@@ -86,6 +86,18 @@ export class DriveMediaSource implements IMediaSource {
     const proxyUrl = await InternalMediaProxy.getInstance().getUrlForFile(
       this.fileId,
     );
+    try {
+      const meta = await getDriveFileMetadata(this.fileId);
+      if (meta.name) {
+        const lastDot = meta.name.lastIndexOf('.');
+        if (lastDot !== -1) {
+          const ext = meta.name.substring(lastDot); // includes dot
+          return `${proxyUrl}${ext}`;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to resolve extension for Drive file input', e);
+    }
     return proxyUrl;
   }
 

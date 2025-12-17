@@ -15,7 +15,9 @@ export class InternalMediaProxy {
       try {
         // Expected URL: /stream/:fileId
         const url = req.url || '';
-        const match = url.match(/^\/stream\/([^/?]+)/);
+        // Expected URL: /stream/:fileId (optional extension)
+        // Capture only the ID (Base64url characters)
+        const match = url.match(/^\/stream\/([a-zA-Z0-9_\-]+)/);
 
         if (!match) {
           res.writeHead(404);

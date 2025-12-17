@@ -1008,7 +1008,7 @@ describe('media-handler unit tests', () => {
     it('cleans up transcoded process on request close', async () => {
       const mockProc = {
         stdout: { pipe: vi.fn() },
-        stderr: { on: vi.fn() },
+        stderr: new PassThrough(),
         on: vi.fn(),
         kill: vi.fn(),
       };
@@ -1030,7 +1030,7 @@ describe('media-handler unit tests', () => {
     it('handles process error', async () => {
       const mockProc = new EventEmitter() as any;
       mockProc.stdout = new PassThrough();
-      mockProc.stderr = new EventEmitter();
+      mockProc.stderr = new PassThrough();
       mockProc.kill = vi.fn();
       mockSpawn.mockReturnValue(mockProc as any);
 
@@ -1050,7 +1050,7 @@ describe('media-handler unit tests', () => {
     it('collects stderr data', async () => {
       const mockProc = new EventEmitter() as any;
       mockProc.stdout = new PassThrough();
-      mockProc.stderr = new EventEmitter();
+      mockProc.stderr = new PassThrough();
       mockProc.kill = vi.fn();
       mockSpawn.mockReturnValue(mockProc as any);
 
