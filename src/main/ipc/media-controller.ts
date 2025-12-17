@@ -48,7 +48,7 @@ export function registerMediaHandlers() {
     async (_event: IpcMainInvokeEvent, filePath: string) => {
       await recordMediaView(filePath);
     },
-    { validators: [(_, filePath) => validatePathAccess(filePath)] },
+    { validators: [(filePath) => validatePathAccess(filePath)] },
   );
 
   handleIpc(

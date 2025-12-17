@@ -195,6 +195,9 @@ export function runBackendContractTests(
     describe('Google Drive', () => {
       it('should start auth flow', async () => {
         primeBackend('startGoogleDriveAuth', 'http://auth.url');
+        if (adapterName === 'ElectronAdapter') {
+          primeBackend('openExternal', undefined);
+        }
         const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
 
         const url = await backend.startGoogleDriveAuth();

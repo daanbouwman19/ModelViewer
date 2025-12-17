@@ -11,10 +11,7 @@ import rangeParser from 'range-parser';
 import { createMediaSource } from './media-source';
 
 import { IMediaSource } from './media-source-types';
-import {
-  getThumbnailCachePath,
-  checkThumbnailCache,
-} from './media-utils';
+import { getThumbnailCachePath, checkThumbnailCache } from './media-utils';
 import { getProvider } from './fs-provider-factory';
 import { authorizeFilePath } from './security';
 import { DATA_URL_THRESHOLD_MB } from './constants';
@@ -181,7 +178,7 @@ export async function serveRawStream(
     }
   }
 
-  if (start >= totalSize && totalSize > 0) {
+  if (start >= totalSize) {
     res.writeHead(416, { 'Content-Range': `bytes */${totalSize}` });
     return res.end('Requested range not satisfiable.');
   }
@@ -314,6 +311,15 @@ export async function serveThumbnail(
     }
   }
 
+  // Ensure GDrive files don't fall through to local FS
+  if (filePath.startsWith('gdrive://')) {
+    if (!res.headersSent) {
+      res.writeHead(404);
+      res.end();
+    }
+    return;
+  }
+
   // 3. Fallback to FFmpeg (Local)
   try {
     const auth = await authorizeFilePath(filePath);
@@ -333,9 +339,7 @@ export async function serveThumbnail(
 
   try {
     const queue = await getThumbnailQueue();
-    await queue.add(() =>
-      runFFmpegThumbnail(filePath, cacheFile, ffmpegPath),
-    );
+    await queue.add(() => runFFmpegThumbnail(filePath, cacheFile, ffmpegPath));
 
     // Verify file exists
     await fsPromises.stat(cacheFile);

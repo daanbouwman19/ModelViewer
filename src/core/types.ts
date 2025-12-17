@@ -52,6 +52,6 @@ export interface MediaLibraryItem {
   last_viewed: number | null;
 }
 
-export type IpcResult<T = any> =
+export type IpcResult<T = unknown> =
   | { success: true; data: T }
   | { success: false; error: string };

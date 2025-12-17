@@ -1,11 +1,13 @@
 import { ipcMain, IpcMainInvokeEvent } from 'electron';
 
 export interface IpcOptions {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   validators?: ((...args: any[]) => Promise<void> | void)[];
 }
 
 export function handleIpc<T>(
   channel: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handler: (event: IpcMainInvokeEvent, ...args: any[]) => Promise<T> | T,
   options: IpcOptions = {},
 ) {

@@ -127,7 +127,7 @@ describe('Security: load-file-as-data-url', () => {
 
     // Mock createReadStream
     (mockCreateReadStream as unknown as Mock).mockReturnValue(
-      Readable.from([Buffer.from('test')])
+      Readable.from([Buffer.from('test')]),
     );
 
     const result = await handler(null, validFile);

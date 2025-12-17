@@ -39,11 +39,13 @@ export interface ElectronAPI {
     isActive: boolean,
   ) => Promise<IpcResult<void>>;
   getMediaDirectories: () => Promise<IpcResult<MediaDirectory[]>>;
-  getSupportedExtensions: () => Promise<IpcResult<{
-    images: string[];
-    videos: string[];
-    all: string[];
-  }>>;
+  getSupportedExtensions: () => Promise<
+    IpcResult<{
+      images: string[];
+      videos: string[];
+      all: string[];
+    }>
+  >;
   getServerPort: () => Promise<IpcResult<number>>;
   openInVlc: (
     filePath: string,
@@ -52,11 +54,16 @@ export interface ElectronAPI {
   getVideoMetadata: (
     filePath: string,
   ) => Promise<IpcResult<{ duration?: number; error?: string }>>;
-  listDirectory: (directoryPath: string) => Promise<IpcResult<FileSystemEntry[]>>;
+  listDirectory: (
+    directoryPath: string,
+  ) => Promise<IpcResult<FileSystemEntry[]>>;
   getParentDirectory: (path: string) => Promise<IpcResult<string | null>>;
 
   // Smart Playlists & Metadata
-  upsertMetadata: (filePath: string, metadata: MediaMetadata) => Promise<IpcResult<void>>;
+  upsertMetadata: (
+    filePath: string,
+    metadata: MediaMetadata,
+  ) => Promise<IpcResult<void>>;
   getMetadata: (
     filePaths: string[],
   ) => Promise<IpcResult<{ [path: string]: MediaMetadata }>>;
@@ -82,7 +89,9 @@ export interface ElectronAPI {
   addGoogleDriveSource: (
     folderId: string,
   ) => Promise<IpcResult<{ name?: string }>>;
-  listGoogleDriveDirectory: (folderId: string) => Promise<IpcResult<FileSystemEntry[]>>;
+  listGoogleDriveDirectory: (
+    folderId: string,
+  ) => Promise<IpcResult<FileSystemEntry[]>>;
   getGoogleDriveParent: (folderId: string) => Promise<IpcResult<string | null>>;
 }
 
@@ -100,7 +109,8 @@ const api: ElectronAPI = {
   getAlbumsWithViewCounts: () =>
     ipcRenderer.invoke(IPC_CHANNELS.GET_ALBUMS_WITH_VIEW_COUNTS),
 
-  reindexMediaLibrary: () => ipcRenderer.invoke(IPC_CHANNELS.REINDEX_MEDIA_LIBRARY),
+  reindexMediaLibrary: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.REINDEX_MEDIA_LIBRARY),
 
   addMediaDirectory: (path?: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.ADD_MEDIA_DIRECTORY, path),
@@ -114,15 +124,19 @@ const api: ElectronAPI = {
       isActive,
     }),
 
-  getMediaDirectories: () => ipcRenderer.invoke(IPC_CHANNELS.GET_MEDIA_DIRECTORIES),
+  getMediaDirectories: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.GET_MEDIA_DIRECTORIES),
 
-  getSupportedExtensions: () => ipcRenderer.invoke(IPC_CHANNELS.GET_SUPPORTED_EXTENSIONS),
+  getSupportedExtensions: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.GET_SUPPORTED_EXTENSIONS),
 
   getServerPort: () => ipcRenderer.invoke(IPC_CHANNELS.GET_SERVER_PORT),
 
-  openExternal: (url: string) => ipcRenderer.invoke(IPC_CHANNELS.OPEN_EXTERNAL, url),
+  openExternal: (url: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.OPEN_EXTERNAL, url),
 
-  openInVlc: (filePath: string) => ipcRenderer.invoke(IPC_CHANNELS.OPEN_IN_VLC, filePath),
+  openInVlc: (filePath: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.OPEN_IN_VLC, filePath),
 
   getVideoMetadata: (filePath: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.GET_VIDEO_METADATA, filePath),
@@ -143,15 +157,23 @@ const api: ElectronAPI = {
     ipcRenderer.invoke(IPC_CHANNELS.DB_SET_RATING, { filePath, rating }),
 
   createSmartPlaylist: (name: string, criteria: string) =>
-    ipcRenderer.invoke(IPC_CHANNELS.DB_CREATE_SMART_PLAYLIST, { name, criteria }),
+    ipcRenderer.invoke(IPC_CHANNELS.DB_CREATE_SMART_PLAYLIST, {
+      name,
+      criteria,
+    }),
 
-  getSmartPlaylists: () => ipcRenderer.invoke(IPC_CHANNELS.DB_GET_SMART_PLAYLISTS),
+  getSmartPlaylists: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.DB_GET_SMART_PLAYLISTS),
 
   deleteSmartPlaylist: (id: number) =>
     ipcRenderer.invoke(IPC_CHANNELS.DB_DELETE_SMART_PLAYLIST, id),
 
   updateSmartPlaylist: (id: number, name: string, criteria: string) =>
-    ipcRenderer.invoke(IPC_CHANNELS.DB_UPDATE_SMART_PLAYLIST, { id, name, criteria }),
+    ipcRenderer.invoke(IPC_CHANNELS.DB_UPDATE_SMART_PLAYLIST, {
+      id,
+      name,
+      criteria,
+    }),
 
   getAllMetadataAndStats: () =>
     ipcRenderer.invoke(IPC_CHANNELS.DB_GET_ALL_METADATA_AND_STATS),
@@ -160,7 +182,8 @@ const api: ElectronAPI = {
     ipcRenderer.invoke(IPC_CHANNELS.MEDIA_EXTRACT_METADATA, filePaths),
 
   // Google Drive
-  startGoogleDriveAuth: () => ipcRenderer.invoke(IPC_CHANNELS.AUTH_GOOGLE_DRIVE_START),
+  startGoogleDriveAuth: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.AUTH_GOOGLE_DRIVE_START),
   submitGoogleDriveAuthCode: (code: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.AUTH_GOOGLE_DRIVE_CODE, code),
   addGoogleDriveSource: (folderId: string) =>

@@ -54,7 +54,9 @@ export class ElectronAdapter implements IMediaBackend {
     directoryPath: string,
     isActive: boolean,
   ): Promise<void> {
-    return this.invoke(this.bridge.setDirectoryActiveState(directoryPath, isActive));
+    return this.invoke(
+      this.bridge.setDirectoryActiveState(directoryPath, isActive),
+    );
   }
 
   async getMediaDirectories(): Promise<MediaDirectory[]> {
@@ -84,7 +86,7 @@ export class ElectronAdapter implements IMediaBackend {
         .split('/')
         .map((segment) => encodeURIComponent(segment))
         .join('/');
-      return `http://localhost:${port}/${pathForUrl}`;
+      return `http://localhost:${port}${pathForUrl}`;
     };
   }
 
