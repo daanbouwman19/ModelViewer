@@ -234,7 +234,7 @@ describe('SourcesModal.vue', () => {
   it('should handle error when reindexing fails', async () => {
     const error = new Error('Reindex failed');
     (api.reindexMediaLibrary as Mock).mockRejectedValue(error);
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
 
     const wrapper = mount(SourcesModal);
     const buttons = wrapper.findAll('.modal-actions .action-button');
@@ -256,7 +256,7 @@ describe('SourcesModal.vue', () => {
   it('should handle error when adding directory fails', async () => {
     const error = new Error('Add failed');
     (api.addMediaDirectory as Mock).mockRejectedValue(error);
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
 
     const wrapper = mount(SourcesModal);
     // Simulate FileExplorer selection to trigger the API call that fails
@@ -274,7 +274,7 @@ describe('SourcesModal.vue', () => {
   it('should handle error when toggling directory fails', async () => {
     const error = new Error('Toggle failed');
     (api.setDirectoryActiveState as Mock).mockRejectedValue(error);
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
 
     const wrapper = mount(SourcesModal);
     const checkbox = wrapper.findAll('.source-checkbox')[0];
@@ -300,7 +300,7 @@ describe('SourcesModal.vue', () => {
   it('should handle error when removing directory fails', async () => {
     const error = new Error('Remove failed');
     (api.removeMediaDirectory as Mock).mockRejectedValue(error);
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
 
     const wrapper = mount(SourcesModal);
     const removeButton = wrapper.findAll('.remove-button')[0];
@@ -403,7 +403,7 @@ describe('SourcesModal.vue', () => {
     });
 
     it('adds drive source successfully', async () => {
-      (api.addGoogleDriveSource as Mock).mockResolvedValue({ success: true });
+      (api.addGoogleDriveSource as Mock).mockResolvedValue({ name: 'Drive' });
       const wrapper = mount(SourcesModal);
 
       // Set state to authenticated
@@ -425,10 +425,7 @@ describe('SourcesModal.vue', () => {
     });
 
     it('handles add drive source failure', async () => {
-      (api.addGoogleDriveSource as Mock).mockResolvedValue({
-        success: false,
-        error: 'Failed',
-      });
+      (api.addGoogleDriveSource as Mock).mockRejectedValue(new Error('Failed'));
       const wrapper = mount(SourcesModal);
       (wrapper.vm as any).showDriveAuth = true;
       (wrapper.vm as any).driveAuthUrl = 'http://url';
