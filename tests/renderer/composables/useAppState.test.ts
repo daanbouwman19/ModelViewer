@@ -42,14 +42,14 @@ describe('useAppState', () => {
 
       const mockAlbums: any[] = [
         {
-          id: 'Album1',
+          id: 'album-1-id',
           name: 'Album1',
           textures: [],
           totalViews: 0,
           children: [],
         },
         {
-          id: 'Album2',
+          id: 'album-2-id',
           name: 'Album2',
           textures: [],
           totalViews: 5,
@@ -88,9 +88,10 @@ describe('useAppState', () => {
       expect(appState.state.allAlbums).toEqual(mockAlbums);
       expect(appState.state.mediaDirectories).toEqual(mockDirectories);
       expect(appState.state.supportedExtensions).toEqual(mockExtensions);
+      // Check that albums are selected by ID, not by Name
       expect(appState.state.albumsSelectedForSlideshow).toEqual({
-        Album1: true,
-        Album2: true,
+        'album-1-id': true,
+        'album-2-id': true,
       });
     });
 
@@ -113,7 +114,7 @@ describe('useAppState', () => {
     });
 
     it('should load album selection from localStorage if present', async () => {
-      const savedSelection = { Album1: true };
+      const savedSelection = { 'album-1-id': true };
       vi.spyOn(window.localStorage, 'getItem').mockReturnValue(
         JSON.stringify(savedSelection),
       );
@@ -136,14 +137,14 @@ describe('useAppState', () => {
       vi.spyOn(window.localStorage, 'getItem').mockReturnValue('invalid-json');
       const mockAlbums = [
         {
-          id: 'Album1',
+          id: 'album-1-id',
           name: 'Album1',
           textures: [],
           totalViews: 0,
           children: [],
         },
         {
-          id: 'Album2',
+          id: 'album-2-id',
           name: 'Album2',
           textures: [],
           totalViews: 0,
@@ -169,8 +170,12 @@ describe('useAppState', () => {
         'Failed to parse saved album selection:',
         expect.any(Error),
       );
-      expect(appState.state.albumsSelectedForSlideshow['Album1']).toBe(true);
-      expect(appState.state.albumsSelectedForSlideshow['Album2']).toBe(true);
+      expect(appState.state.albumsSelectedForSlideshow['album-1-id']).toBe(
+        true,
+      );
+      expect(appState.state.albumsSelectedForSlideshow['album-2-id']).toBe(
+        true,
+      );
 
       consoleSpy.mockRestore();
     });
@@ -298,7 +303,7 @@ describe('useAppState', () => {
       const setItemSpy = vi.spyOn(window.localStorage, 'setItem');
 
       // Trigger change on the reactive object
-      appState.state.albumsSelectedForSlideshow = { NewAlbum: true };
+      appState.state.albumsSelectedForSlideshow = { 'new-album-id': true };
 
       // Wait for Vue watcher
       await nextTick();
@@ -317,7 +322,7 @@ describe('useAppState', () => {
           throw new Error('QuotaExceeded');
         });
 
-      appState.state.albumsSelectedForSlideshow = { AnotherAlbum: true };
+      appState.state.albumsSelectedForSlideshow = { 'another-album-id': true };
 
       await nextTick();
 

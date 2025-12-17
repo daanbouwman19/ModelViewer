@@ -207,11 +207,11 @@ describe('SourcesModal.vue', () => {
 
   it('should call reindexMediaLibrary and select all albums when reindex button clicked', async () => {
     const newAlbums = [
-      { id: 'newAlbum1', name: 'newAlbum1', children: [] },
+      { id: 'newAlbum1-id', name: 'newAlbum1', children: [] },
       {
-        id: 'newAlbum2',
+        id: 'newAlbum2-id',
         name: 'newAlbum2',
-        children: [{ id: 'subAlbum', name: 'subAlbum', children: [] }],
+        children: [{ id: 'subAlbum-id', name: 'subAlbum', children: [] }],
       },
     ];
     (api.reindexMediaLibrary as Mock).mockResolvedValue(newAlbums);
@@ -228,10 +228,11 @@ describe('SourcesModal.vue', () => {
 
     expect(api.reindexMediaLibrary).toHaveBeenCalled();
     expect(mockState.allAlbums).toEqual(newAlbums);
+    // Check that selection is by ID
     expect(mockState.albumsSelectedForSlideshow).toEqual({
-      newAlbum1: true,
-      newAlbum2: true,
-      subAlbum: true,
+      'newAlbum1-id': true,
+      'newAlbum2-id': true,
+      'subAlbum-id': true,
     });
   });
 
