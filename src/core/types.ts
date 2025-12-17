@@ -51,3 +51,7 @@ export interface MediaLibraryItem {
   view_count: number | null;
   last_viewed: number | null;
 }
+
+export type IpcResult<T = unknown> =
+  | { success: true; data: T }
+  | { success: false; error: string };

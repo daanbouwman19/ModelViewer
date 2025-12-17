@@ -4,7 +4,6 @@
  */
 import http from 'http';
 import { AddressInfo } from 'net';
-import ffmpegPath from 'ffmpeg-static';
 import { createMediaRequestHandler } from '../core/media-handler';
 import { getMimeType as coreGetMimeType } from '../core/media-utils';
 
@@ -28,10 +27,10 @@ export const getMimeType = coreGetMimeType;
  * Starts the local HTTP server if it is not already running.
  * @param onReadyCallback - A callback function executed once the server has started and the port is assigned.
  */
-function startLocalServer(
+async function startLocalServer(
   cacheDir: string,
   onReadyCallback?: () => void,
-): void {
+): Promise<void> {
   if (serverInstance) {
     console.warn('[local-server.js] Server already started. Ignoring request.');
     if (onReadyCallback && typeof onReadyCallback === 'function') {
@@ -39,6 +38,8 @@ function startLocalServer(
     }
     return;
   }
+
+  const { default: ffmpegPath } = await import('ffmpeg-static');
 
   const requestHandler = createMediaRequestHandler({
     ffmpegPath: ffmpegPath || null,

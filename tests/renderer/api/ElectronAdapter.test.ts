@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ElectronAdapter } from '../../../src/renderer/api/ElectronAdapter';
 import { runBackendContractTests } from './backend.contract';
 
@@ -36,6 +36,10 @@ describe('ElectronAdapter', () => {
     getGoogleDriveParent: vi.fn(),
   };
 
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   runBackendContractTests(
     'ElectronAdapter',
     () => new ElectronAdapter(mockElectronAPI as any),
@@ -43,17 +47,23 @@ describe('ElectronAdapter', () => {
       const mock = mockElectronAPI[method as keyof typeof mockElectronAPI];
       if (!mock) throw new Error(`Method ${method} not mocked`);
 
-      vi.clearAllMocks();
-
       if (method === 'getVideoMetadata' && error) {
-        mock.mockResolvedValue({ error });
+        // Special case because getVideoMetadata returns object with optional error prop in original contract?
+        // Actually ElectronAdapter.ts:110 invokes it, then checks res.error.
+        // So we should return { success: true, data: { error } } or similar if that's what the bridge does?
+        // Wait, looking at invoke(), if success is true, it returns data.
+        // ElectronAdapter:110: const res = await this.invoke(...)
+        // So res is data.
+        // If we want res.error to be present, data must be { error }.
+        mock.mockResolvedValue({ success: true, data: { error } });
         return;
       }
 
       if (error) {
-        mock.mockRejectedValue(new Error(error));
+        // ElectronAdapter invoke throws if result.success is false
+        mock.mockResolvedValue({ success: false, error });
       } else {
-        mock.mockResolvedValue(result);
+        mock.mockResolvedValue({ success: true, data: result });
       }
     },
     { supportsVlc: true },
@@ -61,10 +71,62 @@ describe('ElectronAdapter', () => {
 
   // Additional specific tests if any
   it('loadFileAsDataURL calls bridge directly', async () => {
-    mockElectronAPI.loadFileAsDataURL.mockResolvedValue({ type: 'test' });
+    mockElectronAPI.loadFileAsDataURL.mockResolvedValue({
+      success: true,
+      data: { type: 'test' },
+    });
     const adapter = new ElectronAdapter(mockElectronAPI as any);
     const res = await adapter.loadFileAsDataURL('file');
     expect(res).toEqual({ type: 'test' });
     expect(mockElectronAPI.loadFileAsDataURL).toHaveBeenCalledWith('file');
+  });
+
+  it('addGoogleDriveSource handles error', async () => {
+    mockElectronAPI.addGoogleDriveSource.mockResolvedValue({
+      success: false,
+      error: 'Failed',
+    });
+    const adapter = new ElectronAdapter(mockElectronAPI as any);
+    await expect(adapter.addGoogleDriveSource('id')).rejects.toThrow('Failed');
+  });
+
+  it('getMediaUrlGenerator handles local paths', async () => {
+    mockElectronAPI.getServerPort.mockResolvedValue({
+      success: true,
+      data: 3000,
+    });
+    const adapter = new ElectronAdapter(mockElectronAPI as any);
+    const generator = await adapter.getMediaUrlGenerator();
+    // Expect double slash as we ensure leading slash
+    expect(generator('/path/to/file')).toBe(
+      'http://localhost:3000//path/to/file',
+    );
+    expect(generator('/path/with space')).toBe(
+      'http://localhost:3000//path/with%20space',
+    );
+    // Check windows path replacement logic if needed, but we pass / usually.
+  });
+
+  it('getMediaUrlGenerator handles gdrive paths', async () => {
+    mockElectronAPI.getServerPort.mockResolvedValue({
+      success: true,
+      data: 3000,
+    });
+    const adapter = new ElectronAdapter(mockElectronAPI as any);
+    const generator = await adapter.getMediaUrlGenerator();
+    expect(generator('gdrive://id')).toBe(
+      'http://localhost:3000/gdrive%3A%2F%2Fid',
+    );
+  });
+
+  it('getVideoMetadata throws if duration undefined', async () => {
+    mockElectronAPI.getVideoMetadata.mockResolvedValue({
+      success: true,
+      data: {},
+    }); // no duration
+    const adapter = new ElectronAdapter(mockElectronAPI as any);
+    await expect(adapter.getVideoMetadata('file')).rejects.toThrow(
+      'Failed to get video metadata',
+    );
   });
 });

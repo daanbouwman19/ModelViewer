@@ -80,8 +80,11 @@ describe('main.js IPC Handlers', () => {
     const result = await handler(null, nonExistentPath);
 
     expect(result).toEqual({
-      type: 'error',
-      message: 'Access denied',
+      success: true,
+      data: {
+        type: 'error',
+        message: 'Access denied',
+      },
     });
     expect(fsPromises.default.realpath).toHaveBeenCalledWith(nonExistentPath);
   });

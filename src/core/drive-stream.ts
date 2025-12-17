@@ -11,7 +11,7 @@ import {
  */
 export async function getDriveStreamWithCache(
   fileId: string,
-  range?: { start: number; end: number },
+  range?: { start?: number; end?: number },
 ): Promise<{ stream: Readable; length: number }> {
   const cacheManager = getDriveCacheManager();
 

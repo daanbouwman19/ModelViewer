@@ -11,16 +11,8 @@ import rangeParser from 'range-parser';
 import { createMediaSource } from './media-source';
 
 import { IMediaSource } from './media-source-types';
-import {
-  getThumbnailCachePath,
-  checkThumbnailCache,
-  getMimeType,
-} from './media-utils';
-import {
-  getDriveFileMetadata,
-  getDriveFileThumbnail,
-  getDriveFileStream,
-} from '../main/google-drive-service';
+import { getThumbnailCachePath, checkThumbnailCache } from './media-utils';
+import { getProvider } from './fs-provider-factory';
 import { authorizeFilePath } from './security';
 import { DATA_URL_THRESHOLD_MB } from './constants';
 import { GenerateUrlOptions, GenerateUrlResult } from './media-handler-types';
@@ -30,113 +22,70 @@ export interface MediaHandlerOptions {
   cacheDir: string;
 }
 
-/**
- * Helper to generate URL for Google Drive files
- */
-async function generateDriveFileUrl(
+let thumbnailQueue: InstanceType<typeof import('p-queue').default> | null =
+  null;
+
+async function getThumbnailQueue() {
+  if (thumbnailQueue) return thumbnailQueue;
+  const { default: PQueue } = await import('p-queue');
+  thumbnailQueue = new PQueue({ concurrency: 2 });
+  return thumbnailQueue;
+}
+
+function runFFmpegThumbnail(
   filePath: string,
-  options: GenerateUrlOptions,
-): Promise<GenerateUrlResult> {
-  const { serverPort, preferHttp } = options;
-  const fileId = filePath.replace('gdrive://', '');
-
-  // For video, or preferHttp, return HTTP URL from local server which pipes Drive stream
-  const meta = await getDriveFileMetadata(fileId);
-
-  // Use threshold for ALL files (images or video)
-  const isLarge = Number(meta.size) > DATA_URL_THRESHOLD_MB * 1024 * 1024;
-
-  if (preferHttp || isLarge) {
-    if (serverPort === 0) {
-      return {
-        type: 'error',
-        message: 'Local server not ready to stream Drive file.',
-      };
+  cacheFile: string,
+  ffmpegPath: string,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const generateArgs = [
+      '-y',
+      '-ss',
+      '1',
+      '-i',
+      filePath,
+      '-frames:v',
+      '1',
+      '-q:v',
+      '5',
+      '-update',
+      '1',
+      cacheFile,
+    ];
+    const genProcess = spawn(ffmpegPath, generateArgs);
+    let stderr = '';
+    if (genProcess.stderr) {
+      genProcess.stderr.on('data', (d) => (stderr += d.toString()));
     }
-    // We need to encode the URI because the file path is now a gdrive:// URI
-    const encodedPath = encodeURIComponent(filePath);
-    return {
-      type: 'http-url',
-      url: `http://localhost:${serverPort}/video/stream?file=${encodedPath}`,
-    };
-  }
-
-  // For small files, return Data URL
-  // Fetch buffer
-  const stream = await getDriveFileStream(fileId);
-  const chunks: Buffer[] = [];
-  for await (const chunk of stream) {
-    chunks.push(Buffer.from(chunk));
-  }
-  const buffer = Buffer.concat(chunks);
-  const mimeType = meta.mimeType || 'application/octet-stream';
-  const dataURL = `data:${mimeType};base64,${buffer.toString('base64')}`;
-  return { type: 'data-url', url: dataURL };
+    genProcess.on('close', (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`FFmpeg failed with code ${code}: ${stderr}`));
+    });
+    genProcess.on('error', (err) => reject(err));
+  });
 }
 
 /**
- * Helper to generate URL for local files
- */
-async function generateLocalFileUrl(
-  filePath: string,
-  options: GenerateUrlOptions,
-): Promise<GenerateUrlResult> {
-  const { serverPort, preferHttp } = options;
-
-  const auth = await authorizeFilePath(filePath);
-  if (!auth.isAllowed) {
-    return { type: 'error', message: auth.message || 'Access denied' };
-  }
-
-  const stats = await fsPromises.stat(filePath);
-  const isLarge = stats.size > DATA_URL_THRESHOLD_MB * 1024 * 1024;
-
-  if (preferHttp || isLarge) {
-    if (serverPort === 0) {
-      return {
-        type: 'error',
-        message: isLarge
-          ? 'Local server not ready to stream large file.'
-          : 'Local server not ready to stream file.',
-      };
-    }
-
-    const encodedPath = encodeURIComponent(filePath);
-    return {
-      type: 'http-url',
-      url: `http://localhost:${serverPort}/video/stream?file=${encodedPath}`,
-    };
-  }
-
-  const mimeType = getMimeType(filePath);
-  const fileBuffer = await fsPromises.readFile(filePath);
-  const dataURL = `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
-  return { type: 'data-url', url: dataURL };
-}
-
-/**
- * Retrieves video duration using ffmpeg.
+ * Retrieves video duration using ffmpeg or provider metadata.
  */
 export async function getVideoDuration(
   filePath: string,
   ffmpegPath: string,
 ): Promise<{ duration: number } | { error: string }> {
-  if (filePath.startsWith('gdrive://')) {
-    const fileId = filePath.replace('gdrive://', '');
-    try {
-      const metadata = await getDriveFileMetadata(fileId);
-      if (
-        metadata.videoMediaMetadata &&
-        metadata.videoMediaMetadata.durationMillis
-      ) {
-        return {
-          duration: Number(metadata.videoMediaMetadata.durationMillis) / 1000,
-        };
-      }
-      return { error: 'Duration not available from Drive API' };
-    } catch {
-      return { error: 'Failed to fetch Drive metadata' };
+  try {
+    const provider = getProvider(filePath);
+    const meta = await provider.getMetadata(filePath);
+    if (meta.duration) {
+      return { duration: meta.duration };
     }
+  } catch {
+    // Ignore provider errors
+  }
+
+  // If it's a Drive file and we didn't get duration from metadata,
+  // we can't easily use local FFmpeg on the ID string.
+  if (filePath.startsWith('gdrive://')) {
+    return { error: 'Duration not available' };
   }
 
   return new Promise((resolve) => {
@@ -204,7 +153,6 @@ export async function serveMetadata(
 
 /**
  * Serves a raw stream (Direct Play) for a media source.
- * Throws errors instead of handling them, to allow caller control.
  */
 export async function serveRawStream(
   req: http.IncomingMessage,
@@ -222,17 +170,11 @@ export async function serveRawStream(
     const ranges = rangeParser(totalSize, rangeHeader);
 
     if (Array.isArray(ranges) && ranges.length > 0) {
-      // For simplicity, we only handle the first range.
       start = ranges[0].start;
       end = ranges[0].end;
     } else if (ranges === -1) {
-      // -1: Unsatisfiable
       res.writeHead(416, { 'Content-Range': `bytes */${totalSize}` });
       return res.end('Requested range not satisfiable.');
-    } else if (ranges === -2) {
-      // -2: Malformed -> typically ignore and serve full content or 400.
-      // Standard behavior is often to treat as no range or error.
-      // We will proceed with full content (default start=0, end=total-1)
     }
   }
 
@@ -268,7 +210,6 @@ export async function serveRawStream(
 
 /**
  * Spawns FFmpeg to transcode the source and pipes output to response.
- * Throws errors instead of handling them.
  */
 export async function serveTranscodedStream(
   req: http.IncomingMessage,
@@ -317,10 +258,6 @@ export async function serveTranscodedStream(
 
   ffmpegProcess.stdout.pipe(res);
 
-  ffmpegProcess.stderr.on('data', () => {
-    // Optional: verbose logging
-  });
-
   ffmpegProcess.on('error', (err) => {
     console.error('[Transcode] Spawn Error:', err);
   });
@@ -353,16 +290,19 @@ export async function serveThumbnail(
     return;
   }
 
-  if (filePath.startsWith('gdrive://')) {
-    const fileId = filePath.replace('gdrive://', '');
-    try {
-      const stream = await getDriveFileThumbnail(fileId);
+  // 2. Try Provider (Drive)
+  try {
+    const provider = getProvider(filePath);
+    const stream = await provider.getThumbnailStream(filePath);
+    if (stream) {
       const writeStream = fs.createWriteStream(cacheFile);
       stream.pipe(writeStream);
       stream.pipe(res);
       return;
-    } catch (e) {
-      console.warn('[Thumbnail] Drive fetch failed, fallback disabled:', e);
+    }
+  } catch (e) {
+    console.warn('[Thumbnail] Provider fetch failed:', e);
+    if (filePath.startsWith('gdrive://')) {
       if (!res.headersSent) {
         res.writeHead(404);
         res.end();
@@ -371,6 +311,16 @@ export async function serveThumbnail(
     }
   }
 
+  // Ensure GDrive files don't fall through to local FS
+  if (filePath.startsWith('gdrive://')) {
+    if (!res.headersSent) {
+      res.writeHead(404);
+      res.end();
+    }
+    return;
+  }
+
+  // 3. Fallback to FFmpeg (Local)
   try {
     const auth = await authorizeFilePath(filePath);
     if (!auth.isAllowed) {
@@ -387,72 +337,29 @@ export async function serveThumbnail(
     return res.end('FFmpeg binary not found');
   }
 
-  const generateArgs = [
-    '-y',
-    '-ss',
-    '1',
-    '-i',
-    filePath,
-    '-frames:v',
-    '1',
-    '-q:v',
-    '5',
-    '-update',
-    '1',
-    cacheFile,
-  ];
+  try {
+    const queue = await getThumbnailQueue();
+    await queue.add(() => runFFmpegThumbnail(filePath, cacheFile, ffmpegPath));
 
-  const genProcess = spawn(ffmpegPath, generateArgs);
+    // Verify file exists
+    await fsPromises.stat(cacheFile);
 
-  let stderr = '';
-  if (genProcess.stderr) {
-    genProcess.stderr.on('data', (d) => (stderr += d.toString()));
-  }
-
-  genProcess.on('close', (code) => {
-    if (code === 0) {
-      fs.promises
-        .stat(cacheFile)
-        .then(() => {
-          res.writeHead(200, {
-            'Content-Type': 'image/jpeg',
-            'Cache-Control': 'public, max-age=31536000',
-          });
-          fs.createReadStream(cacheFile).pipe(res);
-        })
-        .catch((err) => {
-          console.error(
-            '[Thumbnail] Local FFmpeg success but no file:',
-            err,
-            '\nStderr:',
-            stderr,
-          );
-          if (!res.headersSent) res.writeHead(500);
-          res.end();
-        });
-    } else {
-      console.error(
-        '[Thumbnail] FFmpeg failed with code',
-        code,
-        '\nStderr:',
-        stderr,
-      );
-      if (!res.headersSent) res.writeHead(500);
-      res.end();
-    }
-  });
-
-  genProcess.on('error', (err) => {
-    console.error('[Thumbnail] Spawn failed', err);
+    res.writeHead(200, {
+      'Content-Type': 'image/jpeg',
+      'Cache-Control': 'public, max-age=31536000',
+    });
+    fs.createReadStream(cacheFile).pipe(res);
+  } catch (err) {
+    console.error('[Thumbnail] Generation failed:', err);
     if (!res.headersSent) {
       res.writeHead(500);
       res.end('Generation failed');
     }
-  });
+  }
 }
 
 /**
- * Handles static file serving (Unified with Raw Stream logic via IMediaSource).
+ * Handles static file serving.
  */
 export async function serveStaticFile(
   req: http.IncomingMessage,
@@ -465,7 +372,6 @@ export async function serveStaticFile(
   } catch (err: unknown) {
     console.error('[ServeStatic] Error:', err);
     if (!res.headersSent) {
-      // Check for specific auth error messages
       const msg = (err as Error).message || '';
       if (msg.includes('Access denied')) {
         res.writeHead(403);
@@ -480,8 +386,6 @@ export async function serveStaticFile(
 
 /**
  * Creates a request handler function for media operations.
- * @param options - Configuration options (e.g. ffmpegPath).
- * @returns An async function to handle http requests.
  */
 export function createMediaRequestHandler(options: MediaHandlerOptions) {
   const { ffmpegPath, cacheDir } = options;
@@ -577,10 +481,44 @@ export async function generateFileUrl(
   options: GenerateUrlOptions,
 ): Promise<GenerateUrlResult> {
   try {
-    if (filePath.startsWith('gdrive://')) {
-      return await generateDriveFileUrl(filePath, options);
+    const { serverPort, preferHttp } = options;
+    const provider = getProvider(filePath);
+
+    // [SECURITY] Check access for local files
+    if (!filePath.startsWith('gdrive://')) {
+      const auth = await authorizeFilePath(filePath);
+      if (!auth.isAllowed)
+        return { type: 'error', message: auth.message || 'Access denied' };
     }
-    return await generateLocalFileUrl(filePath, options);
+
+    const meta = await provider.getMetadata(filePath);
+    const isLarge = meta.size > DATA_URL_THRESHOLD_MB * 1024 * 1024;
+
+    if (preferHttp || isLarge) {
+      if (serverPort === 0) {
+        return {
+          type: 'error',
+          message: isLarge
+            ? 'Local server not ready to stream large file.'
+            : 'Local server not ready to stream file.',
+        };
+      }
+      const encodedPath = encodeURIComponent(filePath);
+      return {
+        type: 'http-url',
+        url: `http://localhost:${serverPort}/video/stream?file=${encodedPath}`,
+      };
+    }
+
+    const result = await provider.getStream(filePath);
+    const chunks: Buffer[] = [];
+    for await (const chunk of result.stream) {
+      chunks.push(Buffer.from(chunk));
+    }
+    const buffer = Buffer.concat(chunks);
+    const mimeType = meta.mimeType || 'application/octet-stream';
+    const dataURL = `data:${mimeType};base64,${buffer.toString('base64')}`;
+    return { type: 'data-url', url: dataURL };
   } catch (error: unknown) {
     console.error(
       `[media-handler] Error processing ${filePath} in generateFileUrl:`,
@@ -600,15 +538,11 @@ export async function openMediaInVlc(
   filePath: string,
   serverPort: number,
 ): Promise<{ success: boolean; message?: string }> {
-  // Drive check replaced by streaming logic below
-
-  // Logic to resolve VLC path
   const platform = process.platform;
   let vlcPath: string | null = null;
   let fileArg = filePath;
 
   if (filePath.startsWith('gdrive://')) {
-    // We already checked port above
     if (serverPort > 0) {
       fileArg = `http://localhost:${serverPort}/video/stream?file=${encodeURIComponent(filePath)}`;
     } else {
@@ -636,7 +570,7 @@ export async function openMediaInVlc(
         vlcPath = p;
         break;
       } catch {
-        // Continue checking other paths
+        // Continue checking
       }
     }
   } else if (platform === 'darwin') {
@@ -645,11 +579,9 @@ export async function openMediaInVlc(
       await fsPromises.access(macPath);
       vlcPath = macPath;
     } catch {
-      // Fallback to trying 'vlc' in PATH if the standard app path fails
       vlcPath = 'vlc';
     }
   } else {
-    // On Linux, assume 'vlc' is in the PATH
     vlcPath = 'vlc';
   }
 
@@ -667,7 +599,6 @@ export async function openMediaInVlc(
       stdio: 'ignore',
     });
 
-    // Listen for spawn errors (e.g. ENOENT if 'vlc' is not in PATH)
     child.on('error', (err) => {
       console.error('[media-handler] Error launching VLC (async):', err);
     });

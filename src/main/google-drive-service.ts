@@ -1,4 +1,4 @@
-import { google, drive_v3 } from 'googleapis';
+import type { drive_v3 } from 'googleapis';
 import { getOAuth2Client, loadSavedCredentialsIfExist } from './google-auth';
 import { Readable } from 'stream';
 import { MediaFile, Album } from '../core/types';
@@ -17,6 +17,7 @@ export async function getDriveClient(): Promise<drive_v3.Drive> {
     }
   }
 
+  const { google } = await import('googleapis');
   driveClient = google.drive({ version: 'v3', auth });
   return driveClient;
 }

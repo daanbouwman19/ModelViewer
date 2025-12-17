@@ -403,7 +403,7 @@ describe('SourcesModal.vue', () => {
     });
 
     it('adds drive source successfully', async () => {
-      (api.addGoogleDriveSource as Mock).mockResolvedValue({ success: true });
+      (api.addGoogleDriveSource as Mock).mockResolvedValue({ name: 'Drive' });
       const wrapper = mount(SourcesModal);
 
       // Set state to authenticated
@@ -425,10 +425,7 @@ describe('SourcesModal.vue', () => {
     });
 
     it('handles add drive source failure', async () => {
-      (api.addGoogleDriveSource as Mock).mockResolvedValue({
-        success: false,
-        error: 'Failed',
-      });
+      (api.addGoogleDriveSource as Mock).mockRejectedValue(new Error('Failed'));
       const wrapper = mount(SourcesModal);
       (wrapper.vm as any).showDriveAuth = true;
       (wrapper.vm as any).driveAuthUrl = 'http://url';

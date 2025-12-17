@@ -94,7 +94,8 @@ describe('main.js IPC Security', () => {
 
     // Expecting rejection (access denied) or at least not calling db
     // Currently (vulnerable) it will not reject and will call db
-    await expect(handler(null, unauthorizedPath)).rejects.toThrow();
+    const result = await handler(null, unauthorizedPath);
+    expect(result).toEqual({ success: false, error: 'Access denied' });
 
     expect(db.recordMediaView).not.toHaveBeenCalled();
   });
@@ -151,9 +152,11 @@ describe('main.js IPC Security', () => {
 
     expect(handler).toBeDefined();
 
-    await expect(
-      handler(null, { filePath: unauthorizedPath, metadata: {} }),
-    ).rejects.toThrow();
+    const result = await handler(null, {
+      filePath: unauthorizedPath,
+      metadata: {},
+    });
+    expect(result).toEqual({ success: false, error: 'Access denied' });
     expect(db.upsertMetadata).not.toHaveBeenCalled();
   });
 });

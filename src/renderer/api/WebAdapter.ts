@@ -284,21 +284,15 @@ export class WebAdapter implements IMediaBackend {
     return true;
   }
 
-  async addGoogleDriveSource(
-    folderId: string,
-  ): Promise<{ success: boolean; name?: string; error?: string }> {
-    try {
-      const data = await this.request<{ name: string }>(
-        '/api/sources/google-drive',
-        {
-          method: 'POST',
-          body: JSON.stringify({ folderId }),
-        },
-      );
-      return { success: true, name: data.name };
-    } catch (e) {
-      return { success: false, error: (e as Error).message };
-    }
+  async addGoogleDriveSource(folderId: string): Promise<{ name?: string }> {
+    const data = await this.request<{ name: string }>(
+      '/api/sources/google-drive',
+      {
+        method: 'POST',
+        body: JSON.stringify({ folderId }),
+      },
+    );
+    return { name: data.name };
   }
 
   async listGoogleDriveDirectory(folderId: string): Promise<FileSystemEntry[]> {

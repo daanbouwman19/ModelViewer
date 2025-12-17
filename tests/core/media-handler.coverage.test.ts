@@ -1,15 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
+import { Readable } from 'stream';
 import { generateFileUrl, openMediaInVlc } from '../../src/core/media-handler';
-import {
-  getDriveFileMetadata,
-  getDriveFileStream,
-} from '../../src/main/google-drive-service';
+import { getDriveFileMetadata } from '../../src/main/google-drive-service';
+import { getDriveStreamWithCache } from '../../src/core/drive-stream';
 import { authorizeFilePath } from '../../src/core/security';
 
 vi.mock('../../src/core/media-utils', () => ({
   getMimeType: vi.fn().mockReturnValue('video/mp4'),
   getThumbnailCachePath: vi.fn(),
   checkThumbnailCache: vi.fn(),
+}));
+
+vi.mock('../../src/core/drive-stream', () => ({
+  getDriveStreamWithCache: vi.fn(),
 }));
 
 vi.mock('../../src/main/google-drive-service', () => ({
@@ -32,9 +35,26 @@ const mockSpawn = vi.hoisted(() => vi.fn());
 
 vi.mock('fs/promises', () => ({ default: mockFsPromises, ...mockFsPromises }));
 vi.mock('fs', () => ({
-  default: { promises: mockFsPromises },
+  default: {
+    promises: mockFsPromises,
+    createReadStream: vi.fn().mockImplementation(() => {
+      const s = new Readable();
+      s._read = () => {};
+      s.push(Buffer.from('data')); // Default small data
+      s.push(null);
+      return s;
+    }),
+  },
   promises: mockFsPromises,
+  createReadStream: vi.fn().mockImplementation(() => {
+    const s = new Readable();
+    s._read = () => {};
+    s.push(Buffer.from('data'));
+    s.push(null);
+    return s;
+  }),
 }));
+
 vi.mock('child_process', () => ({
   spawn: mockSpawn,
   default: { spawn: mockSpawn },
@@ -55,7 +75,7 @@ describe('media-handler coverage', () => {
       const result = await generateFileUrl('gdrive://123', { serverPort: 0 });
       expect(result).toEqual({
         type: 'error',
-        message: 'Local server not ready to stream Drive file.',
+        message: 'Local server not ready to stream large file.',
       });
     });
 
@@ -107,7 +127,10 @@ describe('media-handler coverage', () => {
           yield Buffer.from('data');
         },
       };
-      (getDriveFileStream as unknown as Mock).mockResolvedValue(mockStream);
+      (getDriveStreamWithCache as unknown as Mock).mockResolvedValue({
+        stream: mockStream,
+        length: 100,
+      });
 
       const result = await generateFileUrl('gdrive://123', {
         serverPort: 3000,

@@ -53,6 +53,18 @@ vi.mock('fs', async (importOriginal) => {
   };
 });
 
+vi.mock('fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('fs/promises')>();
+  return {
+    ...actual,
+    default: {
+      ...actual,
+      stat: mockFsStat,
+    },
+    stat: mockFsStat,
+  };
+});
+
 // Import code under test AFTER mocking
 import {
   serveTranscodedStream,
@@ -181,7 +193,7 @@ describe('media-handler unit tests', () => {
     it('handles gdrive metadata failure', async () => {
       mockGetDriveFileMetadata.mockRejectedValue(new Error('API fail'));
       const result = await getVideoDuration('gdrive://123', 'ffmpeg');
-      expect(result).toEqual({ error: 'Failed to fetch Drive metadata' });
+      expect(result).toEqual({ error: 'Duration not available' });
     });
 
     it('fetches duration from local file using ffmpeg', async () => {
@@ -191,6 +203,7 @@ describe('media-handler unit tests', () => {
       mockSpawn.mockReturnValue(mockProc);
 
       const promise = getVideoDuration('/local/file.mp4', 'ffmpeg');
+      await vi.waitFor(() => expect(mockSpawn).toHaveBeenCalled());
 
       // Emit on stderr as per implementation
       mockProc.stderr.emit('data', 'Duration: 00:00:10.50, start:');
@@ -207,6 +220,7 @@ describe('media-handler unit tests', () => {
       mockSpawn.mockReturnValue(mockProc);
 
       const promise = getVideoDuration('/local/file.mp4', 'ffmpeg');
+      await vi.waitFor(() => expect(mockSpawn).toHaveBeenCalled());
 
       mockProc.emit('close', 1);
 
@@ -221,6 +235,8 @@ describe('media-handler unit tests', () => {
       mockSpawn.mockReturnValue(mockProc);
 
       const promise = getVideoDuration('/local/file.mp4', 'ffmpeg');
+      await vi.waitFor(() => expect(mockSpawn).toHaveBeenCalled());
+
       mockProc.emit('error', new Error('Spawn failed'));
 
       const result = (await promise) as any;
@@ -230,7 +246,7 @@ describe('media-handler unit tests', () => {
       mockGetDriveFileMetadata.mockResolvedValue({});
       const result = await getVideoDuration('gdrive://123', 'ffmpeg');
       expect(result).toEqual({
-        error: 'Duration not available from Drive API',
+        error: 'Duration not available',
       });
     });
   });
@@ -662,6 +678,8 @@ describe('media-handler unit tests', () => {
         '/cache',
       );
 
+      await vi.waitFor(() => expect(mockSpawn).toHaveBeenCalled());
+
       // Emit stderr data
       mockProcess.stderr.emit('data', 'Error output');
 
@@ -694,9 +712,7 @@ describe('media-handler unit tests', () => {
       await vi.waitFor(() => {
         expect(res.writeHead).toHaveBeenCalledWith(500);
         expect(consoleSpy).toHaveBeenCalledWith(
-          '[Thumbnail] Local FFmpeg success but no file:',
-          expect.anything(),
-          expect.anything(),
+          '[Thumbnail] Generation failed:',
           expect.anything(),
         );
       });

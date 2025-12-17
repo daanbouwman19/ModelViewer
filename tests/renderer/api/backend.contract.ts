@@ -195,6 +195,9 @@ export function runBackendContractTests(
     describe('Google Drive', () => {
       it('should start auth flow', async () => {
         primeBackend('startGoogleDriveAuth', 'http://auth.url');
+        if (adapterName === 'ElectronAdapter') {
+          primeBackend('openExternal', undefined);
+        }
         const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
 
         const url = await backend.startGoogleDriveAuth();
@@ -223,9 +226,9 @@ export function runBackendContractTests(
       });
 
       it('should add drive source', async () => {
-        primeBackend('addGoogleDriveSource', { success: true, name: 'Drive' });
+        primeBackend('addGoogleDriveSource', { name: 'Drive' });
         const result = await backend.addGoogleDriveSource('folderId');
-        expect(result).toEqual({ success: true, name: 'Drive' });
+        expect(result).toEqual({ name: 'Drive' });
       });
 
       it('should list drive directory', async () => {
