@@ -8,6 +8,7 @@ import fs from 'fs';
 import fsPromises from 'fs/promises';
 import { spawn } from 'child_process';
 import rangeParser from 'range-parser';
+import { createInterface } from 'readline';
 import { createMediaSource } from './media-source';
 
 import { IMediaSource } from './media-source-types';
@@ -258,8 +259,9 @@ export async function serveTranscodedStream(
 
   ffmpegProcess.stdout.pipe(res);
 
-  ffmpegProcess.stderr.on('data', (data) => {
-    console.error(`[Transcode] FFmpeg Stderr: ${data}`);
+  const stderrReader = createInterface({ input: ffmpegProcess.stderr });
+  stderrReader.on('line', (line) => {
+    console.error(`[Transcode] FFmpeg Stderr: ${line}`);
   });
 
   ffmpegProcess.on('error', (err) => {
