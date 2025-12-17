@@ -51,19 +51,19 @@ export const collectTexturesRecursive = (album: Album): MediaFile[] => {
 };
 
 /**
- * Recursively gets all album names from a given album and its children.
+ * Recursively gets all album IDs from a given album and its children.
  * This is useful for building a list of IDs or keys for tree traversal.
  * Optimized to use iterative traversal instead of recursion to avoid O(N^2) array copying.
  * @param album - The album to start from.
- * @returns A flat list of album names.
+ * @returns A flat list of album IDs.
  */
-export const getAlbumAndChildrenNames = (album: Album): string[] => {
-  const names: string[] = [];
+export const getAlbumAndChildrenIds = (album: Album): string[] => {
+  const ids: string[] = [];
   const stack = [album];
 
   while (stack.length > 0) {
     const node = stack.pop()!;
-    names.push(node.name);
+    ids.push(node.id);
 
     if (node.children) {
       // Push children in reverse order so they are processed in original order
@@ -72,7 +72,7 @@ export const getAlbumAndChildrenNames = (album: Album): string[] => {
       }
     }
   }
-  return names;
+  return ids;
 };
 
 /**
@@ -87,7 +87,7 @@ export const selectAllAlbums = (
   isSelected: boolean,
 ): void => {
   for (const album of albums) {
-    selectionMap[album.name] = isSelected;
+    selectionMap[album.id] = isSelected;
     if (album.children) {
       selectAllAlbums(album.children, selectionMap, isSelected);
     }
@@ -96,10 +96,10 @@ export const selectAllAlbums = (
 
 /**
  * Collects all textures (media files) from a list of albums and their children
- * if their names are marked as true in the provided selection map.
+ * if their IDs are marked as true in the provided selection map.
  * This is used to build the global media pool for the slideshow.
  * @param albums - The list of root albums to traverse.
- * @param selection - A map where keys are album names and values are booleans indicating selection.
+ * @param selection - A map where keys are album IDs and values are booleans indicating selection.
  * @returns A flattened list of all media files from the selected albums.
  */
 export const collectSelectedTextures = (
@@ -114,7 +114,7 @@ export const collectSelectedTextures = (
   while (stack.length > 0) {
     const album = stack.pop()!;
 
-    if (selection[album.name] && album.textures) {
+    if (selection[album.id] && album.textures) {
       for (const texture of album.textures) {
         textures.push(texture);
       }

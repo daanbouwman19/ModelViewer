@@ -36,10 +36,12 @@ vi.mock('../../../src/renderer/composables/useAppState');
 
 const mockAlbums = [
   {
+    id: 'Album1',
     name: 'Album1',
     textures: [{ name: 't1.jpg', path: '/t1.jpg' }],
     children: [
       {
+        id: 'SubAlbum1',
         name: 'SubAlbum1',
         textures: [{ name: 'st1.jpg', path: '/st1.jpg' }],
         children: [],
@@ -47,6 +49,7 @@ const mockAlbums = [
     ],
   },
   {
+    id: 'Album2',
     name: 'Album2',
     textures: [{ name: 't2.jpg', path: '/t2.jpg' }],
     children: [],
@@ -207,6 +210,7 @@ describe('AlbumsList.vue', () => {
       // Mock allAlbums to contain valid files
       mockAppState.allAlbums.value = [
         {
+          id: 'Root',
           name: 'Root',
           children: [],
           textures: [

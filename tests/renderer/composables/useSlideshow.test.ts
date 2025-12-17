@@ -408,6 +408,7 @@ describe('useSlideshow', () => {
     beforeEach(() => {
       mockState.allAlbums = [
         {
+          id: 'albumA',
           name: 'albumA',
           textures: [
             {
@@ -421,6 +422,7 @@ describe('useSlideshow', () => {
           ],
           children: [
             {
+              id: 'albumA_child',
               name: 'albumA_child',
               textures: [
                 {
@@ -432,6 +434,7 @@ describe('useSlideshow', () => {
           ],
         },
         {
+          id: 'albumB',
           name: 'albumB',
           textures: [
             {
@@ -442,6 +445,7 @@ describe('useSlideshow', () => {
           children: [],
         },
         {
+          id: 'albumC',
           name: 'albumC',
           textures: [],
         }, // Empty album
@@ -497,10 +501,12 @@ describe('useSlideshow', () => {
     it('should collect textures from selected children even if parent is unselected', async () => {
       mockState.allAlbums = [
         {
+          id: 'Parent',
           name: 'Parent',
           textures: [{ path: 'parent.png', name: 'parent.png' }],
           children: [
             {
+              id: 'Child',
               name: 'Child',
               textures: [{ path: 'child.png', name: 'child.png' }],
               children: [],
@@ -531,6 +537,7 @@ describe('useSlideshow', () => {
       mockState.isSlideshowActive = true;
       mockState.allAlbums = [
         {
+          id: 'albumA',
           name: 'albumA',
           textures: [
             {

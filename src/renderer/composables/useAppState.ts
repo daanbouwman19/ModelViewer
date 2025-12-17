@@ -185,7 +185,7 @@ export function useAppState() {
   const selectAllAlbumsRecursively = (albums: Album[]) => {
     const traverse = (list: Album[]) => {
       for (const album of list) {
-        state.albumsSelectedForSlideshow[album.name] = true;
+        state.albumsSelectedForSlideshow[album.id] = true;
         if (album.children) {
           traverse(album.children);
         }

@@ -3,6 +3,7 @@ import { EventEmitter } from 'events';
 
 // Define types for mock data
 interface MockAlbum {
+  id: string;
   name: string;
   textures: { name: string; path: string }[];
   children: MockAlbum[];
@@ -221,6 +222,7 @@ describe('Database', () => {
     it('should cache albums successfully', async () => {
       const albums = [
         {
+          id: 'album1',
           name: 'album1',
           textures: [
             { name: 'texture1.png', path: '/test/album1/texture1.png' },
@@ -228,6 +230,7 @@ describe('Database', () => {
           children: [],
         },
         {
+          id: 'album2',
           name: 'album2',
           textures: [
             { name: 'texture2.jpg', path: '/test/album2/texture2.jpg' },
@@ -247,6 +250,7 @@ describe('Database', () => {
     it('should overwrite existing cache', async () => {
       const albums1 = [
         {
+          id: 'album1',
           name: 'album1',
           textures: [{ name: 'tex1.png', path: '/test/tex1.png' }],
           children: [],
@@ -255,6 +259,7 @@ describe('Database', () => {
 
       const albums2 = [
         {
+          id: 'album2',
           name: 'album2',
           textures: [{ name: 'tex2.png', path: '/test/tex2.png' }],
           children: [],
@@ -279,6 +284,7 @@ describe('Database', () => {
     it('should preserve album structure', async () => {
       const albums = [
         {
+          id: 'test-album',
           name: 'test-album',
           textures: [
             { name: 'texture1.png', path: '/test/texture1.png' },
@@ -306,6 +312,7 @@ describe('Database', () => {
     it('should retrieve cached albums', async () => {
       const albums = [
         {
+          id: 'cached-album',
           name: 'cached-album',
           textures: [{ name: 'tex.png', path: '/test/tex.png' }],
           children: [],

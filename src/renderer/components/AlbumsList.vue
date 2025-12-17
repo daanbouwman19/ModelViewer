@@ -43,7 +43,7 @@
       </li>
       <AlbumTree
         v-for="album in allAlbums"
-        :key="album.name"
+        :key="album.id"
         :album="album"
         :selection="albumsSelectedForSlideshow"
         @toggle-selection="handleToggleSelection"
@@ -115,7 +115,7 @@ import { useSlideshow } from '../composables/useSlideshow';
 import AlbumTree from './AlbumTree.vue';
 import { api } from '../api';
 import {
-  getAlbumAndChildrenNames,
+  getAlbumAndChildrenIds,
   collectTexturesRecursive,
 } from '../utils/albumUtils';
 import type {
@@ -153,20 +153,20 @@ const handleToggleSelection = ({
   recursive: boolean;
 }) => {
   if (recursive) {
-    const names = getAlbumAndChildrenNames(album);
+    const ids = getAlbumAndChildrenIds(album);
     // Determine the new state: if any child is unselected, the new state is "selected" (true).
     // Otherwise, if all are selected, the new state is "unselected" (false).
-    const newSelectionState = names.some(
-      (name) => !albumsSelectedForSlideshow.value[name],
+    const newSelectionState = ids.some(
+      (id) => !albumsSelectedForSlideshow.value[id],
     );
 
-    for (const name of names) {
-      slideshow.toggleAlbumSelection(name, newSelectionState);
+    for (const id of ids) {
+      slideshow.toggleAlbumSelection(id, newSelectionState);
     }
   } else {
     // Single mode: Toggle only this album
-    const current = albumsSelectedForSlideshow.value[album.name];
-    slideshow.toggleAlbumSelection(album.name, !current);
+    const current = albumsSelectedForSlideshow.value[album.id];
+    slideshow.toggleAlbumSelection(album.id, !current);
   }
 };
 
@@ -285,6 +285,7 @@ const handleSmartPlaylistSlideshow = async (playlist: SmartPlaylist) => {
     }
 
     const fakeAlbum: Album = {
+      id: `playlist-${playlist.id}`,
       name: playlist.name,
       textures: mediaFiles,
       children: [],

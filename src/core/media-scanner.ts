@@ -82,6 +82,7 @@ async function scanDirectoryRecursive(
 
     if (textures.length > 0 || children.length > 0) {
       return {
+        id: directoryPath,
         name: path.basename(directoryPath),
         textures,
         children,
