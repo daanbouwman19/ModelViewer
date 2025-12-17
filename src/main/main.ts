@@ -9,7 +9,13 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import { app, BrowserWindow, ipcMain, IpcMainInvokeEvent } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  IpcMainInvokeEvent,
+  shell,
+} from 'electron';
 import path from 'path';
 import fs from 'fs/promises';
 import ffmpegPath from 'ffmpeg-static';
@@ -306,6 +312,19 @@ ipcMain.handle('get-supported-extensions', () => {
 ipcMain.handle('get-server-port', () => {
   return getServerPort();
 });
+
+/**
+ * Handles the 'open-external' IPC call.
+ * Opens the provided URL in the default system browser.
+ * @param url - The URL to open externally.
+ */
+ipcMain.handle(
+  'open-external',
+  async (_event: IpcMainInvokeEvent, url: string) => {
+    if (!url) return;
+    await shell.openExternal(url);
+  },
+);
 
 /**
  * Handles the 'open-in-vlc' IPC call.

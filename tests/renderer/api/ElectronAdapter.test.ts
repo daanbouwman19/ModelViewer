@@ -16,6 +16,7 @@ describe('ElectronAdapter', () => {
     getSupportedExtensions: vi.fn(),
     getServerPort: vi.fn(),
     openInVlc: vi.fn(),
+    openExternal: vi.fn(),
     getVideoMetadata: vi.fn(),
     listDirectory: vi.fn(),
     getParentDirectory: vi.fn(),

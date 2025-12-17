@@ -81,7 +81,7 @@ describe('media-handler coverage', () => {
       });
       expect(result).toEqual({
         type: 'http-url',
-        url: 'http://localhost:3000//local/large.mp4',
+        url: 'http://localhost:3000/video/stream?file=%2Flocal%2Flarge.mp4',
       });
     });
 
@@ -137,7 +137,7 @@ describe('media-handler coverage', () => {
       const result = await openMediaInVlc('gdrive://123', 0);
       expect(result).toEqual({
         success: false,
-        message: 'Local server is not running to stream Drive file.',
+        message: 'Local server is not running to stream files.',
       });
     });
 

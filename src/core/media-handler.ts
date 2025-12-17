@@ -542,28 +542,23 @@ export async function generateFileUrl(
       return { type: 'error', message: auth.message || 'Access denied' };
     }
 
-    // If preferHttp is true, always return an HTTP URL (if the server is running)
-    if (preferHttp && serverPort > 0) {
-      const pathForUrl = filePath.replace(/\\/g, '/');
-      return {
-        type: 'http-url',
-        url: `http://localhost:${serverPort}/${pathForUrl}`,
-      };
-    }
-
     const stats = await fsPromises.stat(filePath);
+    const isLarge = stats.size > DATA_URL_THRESHOLD_MB * 1024 * 1024;
 
-    if (stats.size > DATA_URL_THRESHOLD_MB * 1024 * 1024) {
+    if (preferHttp || isLarge) {
       if (serverPort === 0) {
         return {
           type: 'error',
-          message: 'Local server not ready to stream large file.',
+          message: isLarge
+            ? 'Local server not ready to stream large file.'
+            : 'Local server not ready to stream file.',
         };
       }
-      const pathForUrl = filePath.replace(/\\/g, '/');
+
+      const encodedPath = encodeURIComponent(filePath);
       return {
         type: 'http-url',
-        url: `http://localhost:${serverPort}/${pathForUrl}`,
+        url: `http://localhost:${serverPort}/video/stream?file=${encodedPath}`,
       };
     }
 
@@ -592,19 +587,6 @@ export async function openMediaInVlc(
 ): Promise<{ success: boolean; message?: string }> {
   // Drive check replaced by streaming logic below
 
-  if (filePath.startsWith('gdrive://')) {
-    // Create a local stream URL for VLC
-    if (serverPort === 0) {
-      return {
-        success: false,
-        message: 'Local server is not running to stream Drive file.',
-      };
-    }
-    const encodedPath = encodeURIComponent(filePath);
-    const streamUrl = `http://localhost:${serverPort}/video/stream?file=${encodedPath}`;
-    console.log(`[VLC] Streaming Drive file from: ${streamUrl}`);
-  }
-
   // Logic to resolve VLC path
   const platform = process.platform;
   let vlcPath: string | null = null;
@@ -615,7 +597,10 @@ export async function openMediaInVlc(
     if (serverPort > 0) {
       fileArg = `http://localhost:${serverPort}/video/stream?file=${encodeURIComponent(filePath)}`;
     } else {
-      return { success: false, message: 'Server not ready for streaming' };
+      return {
+        success: false,
+        message: 'Local server is not running to stream files.',
+      };
     }
   } else {
     // Local file auth check

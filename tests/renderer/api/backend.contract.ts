@@ -195,11 +195,24 @@ export function runBackendContractTests(
     describe('Google Drive', () => {
       it('should start auth flow', async () => {
         primeBackend('startGoogleDriveAuth', 'http://auth.url');
-        // We mock window.open to prevent actual opening
         const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
+
         const url = await backend.startGoogleDriveAuth();
         expect(url).toBe('http://auth.url');
-        expect(openSpy).toHaveBeenCalledWith('http://auth.url', '_blank');
+
+        const maybeAdapter = backend as unknown as {
+          bridge?: { openExternal?: ReturnType<typeof vi.fn> };
+        };
+
+        if (adapterName === 'ElectronAdapter' && maybeAdapter.bridge) {
+          expect(maybeAdapter.bridge.openExternal).toHaveBeenCalledWith(
+            'http://auth.url',
+          );
+          expect(openSpy).not.toHaveBeenCalled();
+        } else {
+          expect(openSpy).toHaveBeenCalledWith('http://auth.url', '_blank');
+        }
+
         openSpy.mockRestore();
       });
 
