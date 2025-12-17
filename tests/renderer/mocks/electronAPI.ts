@@ -5,6 +5,7 @@ export const createMockElectronAPI = (): ElectronAPI => ({
   loadFileAsDataURL: vi.fn().mockResolvedValue({ type: 'data-url', url: '' }),
   getServerPort: vi.fn().mockResolvedValue(0),
   openInVlc: vi.fn().mockResolvedValue({ success: true }),
+  openExternal: vi.fn().mockResolvedValue(undefined),
   getVideoMetadata: vi.fn().mockResolvedValue({}),
   recordMediaView: vi.fn().mockResolvedValue(undefined),
   getMediaViewCounts: vi.fn().mockResolvedValue({}),

@@ -1,452 +1,128 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { WebAdapter } from '../../../src/renderer/api/WebAdapter';
+import { runBackendContractTests } from './backend.contract';
 
-// Mock fetch
 const fetchMock = vi.fn();
 global.fetch = fetchMock;
 
-// Mock window.location
 Object.defineProperty(window, 'location', {
-  value: {
-    port: '3000',
-  },
+  value: { port: '3000' },
   writable: true,
 });
 
 describe('WebAdapter', () => {
-  let adapter: WebAdapter;
+  runBackendContractTests(
+    'WebAdapter',
+    () => {
+      vi.clearAllMocks();
+      return new WebAdapter();
+    },
+    (method, result, error) => {
+      if (method === 'loadFileAsDataURL') {
+        return;
+      }
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    adapter = new WebAdapter();
-  });
+      if (method === 'getServerPort') {
+        Object.defineProperty(window, 'location', {
+          value: { port: String(result) },
+          writable: true,
+        });
+        return;
+      }
 
-  describe('loadFileAsDataURL', () => {
-    it('returns correct http-url', async () => {
-      const result = await adapter.loadFileAsDataURL('/path/to/file.jpg');
-      expect(result).toEqual({
-        type: 'http-url',
-        url: '/api/serve?path=%2Fpath%2Fto%2Ffile.jpg',
-      });
-    });
-  });
+      if (error) {
+        fetchMock.mockResolvedValue({
+          ok: false,
+          status: 500,
+          statusText: typeof error === 'string' ? error : 'Error',
+          json: () => Promise.resolve({ error }),
+          text: () =>
+            Promise.resolve(typeof error === 'string' ? error : 'Error'),
+        });
+      } else {
+        let mockJson = result;
 
-  describe('recordMediaView', () => {
-    it('calls correct API endpoint', async () => {
-      fetchMock.mockResolvedValue({ ok: true });
-      await adapter.recordMediaView('/file.jpg');
-      expect(fetchMock).toHaveBeenCalledWith('/api/media/view', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filePath: '/file.jpg' }),
-      });
-    });
-  });
+        if (
+          method === 'getParentDirectory' ||
+          method === 'getGoogleDriveParent'
+        ) {
+          mockJson = { parent: result };
+        }
 
-  describe('getMediaViewCounts', () => {
-    it('returns counts from API', async () => {
-      const mockCounts = { '/file.jpg': 5 };
+        if (method === 'addGoogleDriveSource') {
+          // Contract test expects { success: true, name }
+          // API returns { name } (success is implied by 200 OK in WebAdapter logic)
+          mockJson = { name: result.name };
+        }
+
+        fetchMock.mockResolvedValue({
+          ok: true,
+          headers: { get: () => 'application/json' },
+          json: () => Promise.resolve(mockJson),
+          text: () => Promise.resolve(mockJson),
+        });
+      }
+    },
+    { supportsVlc: false },
+  );
+
+  describe('Implementation Details', () => {
+    it('request handles 400 with JSON error message', async () => {
       fetchMock.mockResolvedValue({
-        json: () => Promise.resolve(mockCounts),
+        ok: false,
+        status: 400,
+        statusText: 'Bad Request',
+        json: () => Promise.resolve({ error: 'Custom Error' }),
       });
-      const result = await adapter.getMediaViewCounts(['/file.jpg']);
-      expect(result).toEqual(mockCounts);
-      expect(fetchMock).toHaveBeenCalledWith(
-        '/api/media/views',
-        expect.any(Object),
+      const adapter = new WebAdapter();
+      await expect(adapter.addMediaDirectory('/path')).rejects.toThrow(
+        'Custom Error',
       );
     });
-  });
 
-  describe('getAlbumsWithViewCounts', () => {
-    it('fetches albums', async () => {
-      const mockAlbums = [{ id: 1 }];
+    it('request handles 500 with non-JSON body', async () => {
       fetchMock.mockResolvedValue({
-        json: () => Promise.resolve(mockAlbums),
+        ok: false,
+        status: 500,
+        statusText: 'Internal Server Error',
+        json: () => Promise.reject(new Error('Parse error')),
       });
-      const result = await adapter.getAlbumsWithViewCounts();
-      expect(result).toEqual(mockAlbums);
-      expect(fetchMock).toHaveBeenCalledWith('/api/albums');
+      const adapter = new WebAdapter();
+      await expect(adapter.addMediaDirectory('/path')).rejects.toThrow(
+        'Internal Server Error',
+      );
     });
-  });
 
-  describe('reindexMediaLibrary', () => {
-    it('calls reindex endpoint', async () => {
-      const mockAlbums = [{ id: 1 }];
+    it('request handles 204 No Content (void return)', async () => {
       fetchMock.mockResolvedValue({
-        json: () => Promise.resolve(mockAlbums),
+        ok: true,
+        headers: { get: () => null },
       });
-      const result = await adapter.reindexMediaLibrary();
-      expect(result).toEqual(mockAlbums);
-      expect(fetchMock).toHaveBeenCalledWith('/api/albums/reindex', {
-        method: 'POST',
-      });
-    });
-  });
-
-  describe('addMediaDirectory', () => {
-    it('calls API when path provided', async () => {
-      fetchMock.mockResolvedValue({ ok: true });
-      const result = await adapter.addMediaDirectory('/new/dir');
-      expect(result).toBe('/new/dir');
-      expect(fetchMock).toHaveBeenCalledWith('/api/directories', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: '/new/dir' }),
-      });
+      const adapter = new WebAdapter();
+      await expect(adapter.recordMediaView('/file')).resolves.toBeUndefined();
     });
 
-    it('returns null and warns if no path', async () => {
+    it('getVideoMetadata throws if duration is invalid', async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        headers: { get: () => 'application/json' },
+        json: () => Promise.resolve({ duration: 'invalid' }),
+      });
+      const adapter = new WebAdapter();
+      await expect(adapter.getVideoMetadata('/file')).rejects.toThrow(
+        'Failed to get video metadata',
+      );
+    });
+
+    it('addMediaDirectory returns null if no path provided', async () => {
+      const adapter = new WebAdapter();
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
       const result = await adapter.addMediaDirectory();
       expect(result).toBeNull();
-      expect(consoleSpy).toHaveBeenCalled();
-    });
-  });
-
-  describe('removeMediaDirectory', () => {
-    it('calls delete endpoint', async () => {
-      fetchMock.mockResolvedValue({ ok: true });
-      await adapter.removeMediaDirectory('/dir');
-      expect(fetchMock).toHaveBeenCalledWith('/api/directories', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: '/dir' }),
-      });
-    });
-  });
-
-  describe('setDirectoryActiveState', () => {
-    it('calls put endpoint', async () => {
-      fetchMock.mockResolvedValue({ ok: true });
-      await adapter.setDirectoryActiveState('/dir', true);
-      expect(fetchMock).toHaveBeenCalledWith('/api/directories/active', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ directoryPath: '/dir', isActive: true }),
-      });
-    });
-  });
-
-  describe('getMediaDirectories', () => {
-    it('fetches directories', async () => {
-      const mockDirs = ['/dir'];
-      fetchMock.mockResolvedValue({
-        json: () => Promise.resolve(mockDirs),
-      });
-      const result = await adapter.getMediaDirectories();
-      expect(result).toEqual(mockDirs);
-    });
-  });
-
-  describe('getSupportedExtensions', () => {
-    it('fetches extensions', async () => {
-      const mockExts = { images: ['jpg'] };
-      fetchMock.mockResolvedValue({
-        json: () => Promise.resolve(mockExts),
-      });
-      const result = await adapter.getSupportedExtensions();
-      expect(result).toEqual(mockExts);
-    });
-  });
-
-  describe('getServerPort', () => {
-    it('returns window port', async () => {
-      const port = await adapter.getServerPort();
-      expect(port).toBe(3000);
-    });
-
-    it('defaults to 80 if port is empty', async () => {
-      // Temporarily redefine property
-      Object.defineProperty(window, 'location', {
-        value: { port: '' },
-        writable: true,
-      });
-      const port = await adapter.getServerPort();
-      expect(port).toBe(80);
-
-      // Reset
-      Object.defineProperty(window, 'location', {
-        value: { port: '3000' },
-        writable: true,
-      });
-    });
-  });
-
-  describe('URL Generators', () => {
-    it('generates media url', async () => {
-      const gen = await adapter.getMediaUrlGenerator();
-      expect(gen('/file.jpg')).toBe('/api/serve?path=%2Ffile.jpg');
-    });
-
-    it('generates thumbnail url', async () => {
-      const gen = await adapter.getThumbnailUrlGenerator();
-      expect(gen('/file.jpg')).toBe('/api/thumbnail?file=%2Ffile.jpg');
-    });
-
-    it('generates video stream url', async () => {
-      const gen = await adapter.getVideoStreamUrlGenerator();
-      expect(gen('/file.mp4', 10)).toBe(
-        '/api/stream?file=%2Ffile.mp4&startTime=10',
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'WebAdapter: Adding directory requires a path input.',
       );
-    });
-
-    it('generates video stream url with default start time', async () => {
-      const gen = await adapter.getVideoStreamUrlGenerator();
-      expect(gen('/file.mp4')).toBe('/api/stream?file=%2Ffile.mp4&startTime=0');
-    });
-  });
-
-  describe('openInVlc', () => {
-    it('returns not supported', async () => {
-      const result = await adapter.openInVlc();
-      expect(result).toEqual({
-        success: false,
-        message: 'Not supported in Web version.',
-      });
-    });
-  });
-
-  describe('getVideoMetadata', () => {
-    it('fetches metadata', async () => {
-      fetchMock.mockResolvedValue({
-        json: () => Promise.resolve({ duration: 100 }),
-      });
-      await adapter.getVideoMetadata('/file.mp4');
-      expect(fetchMock).toHaveBeenCalledWith('/api/metadata?file=%2Ffile.mp4');
-    });
-  });
-
-  describe('listDirectory', () => {
-    it('fetches directory list', async () => {
-      const mockList = [{ name: 'file' }];
-      fetchMock.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(mockList),
-      });
-      const result = await adapter.listDirectory('/dir');
-      expect(result).toEqual(mockList);
-      expect(fetchMock).toHaveBeenCalledWith('/api/fs/ls?path=%2Fdir');
-    });
-
-    it('throws on error', async () => {
-      fetchMock.mockResolvedValue({ ok: false });
-      await expect(adapter.listDirectory('/dir')).rejects.toThrow();
-    });
-  });
-
-  describe('getParentDirectory', () => {
-    it('fetches parent', async () => {
-      fetchMock.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ parent: '/parent' }),
-      });
-      const result = await adapter.getParentDirectory('/child');
-      expect(result).toBe('/parent');
-      expect(fetchMock).toHaveBeenCalledWith('/api/fs/parent?path=%2Fchild');
-    });
-    it('returns null on error/root', async () => {
-      fetchMock.mockResolvedValue({ ok: false });
-      const result = await adapter.getParentDirectory('/');
-      expect(result).toBeNull();
-    });
-  });
-
-  describe('Smart Playlists', () => {
-    it('createSmartPlaylist calls API', async () => {
-      fetchMock.mockResolvedValue({
-        json: () => Promise.resolve({ id: 123 }),
-      });
-      const result = await adapter.createSmartPlaylist('My List', '{}');
-      expect(result).toEqual({ id: 123 });
-      expect(fetchMock).toHaveBeenCalledWith('/api/smart-playlists', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: 'My List', criteria: '{}' }),
-      });
-    });
-
-    it('getSmartPlaylists fetches lists', async () => {
-      const mockLists = [{ id: 1, name: 'List' }];
-      fetchMock.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(mockLists),
-      });
-      const result = await adapter.getSmartPlaylists();
-      expect(result).toEqual(mockLists);
-      expect(fetchMock).toHaveBeenCalledWith('/api/smart-playlists');
-    });
-
-    it('updateSmartPlaylist calls API', async () => {
-      const mockPayload = { name: 'New Name', criteria: '{}' };
-      fetchMock.mockResolvedValue({ ok: true });
-      await adapter.updateSmartPlaylist(1, 'New Name', '{}');
-      expect(fetchMock).toHaveBeenCalledWith('/api/smart-playlists/1', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(mockPayload),
-      });
-    });
-
-    it('deleteSmartPlaylist calls API', async () => {
-      fetchMock.mockResolvedValue({ ok: true });
-      await adapter.deleteSmartPlaylist(1);
-      expect(fetchMock).toHaveBeenCalledWith('/api/smart-playlists/1', {
-        method: 'DELETE',
-      });
-    });
-  });
-
-  describe('Metadata & Rating', () => {
-    it('setRating calls API', async () => {
-      fetchMock.mockResolvedValue({ ok: true });
-      await adapter.setRating('/file.jpg', 5);
-      expect(fetchMock).toHaveBeenCalledWith('/api/media/rate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filePath: '/file.jpg', rating: 5 }),
-      });
-    });
-
-    it('upsertMetadata calls API', async () => {
-      const meta = { duration: 10 };
-      fetchMock.mockResolvedValue({ ok: true });
-      await adapter.upsertMetadata('/file.mp4', meta);
-      expect(fetchMock).toHaveBeenCalledWith('/api/media/metadata', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filePath: '/file.mp4', metadata: meta }),
-      });
-    });
-
-    it('getMetadata fetches batch', async () => {
-      const mockRes = { '/file.mp4': { duration: 10 } };
-      fetchMock.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(mockRes),
-      });
-      const result = await adapter.getMetadata(['/file.mp4']);
-      expect(result).toEqual(mockRes);
-      expect(fetchMock).toHaveBeenCalledWith('/api/media/metadata/batch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filePaths: ['/file.mp4'] }),
-      });
-    });
-
-    it('getAllMetadataAndStats fetches all', async () => {
-      fetchMock.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve([]),
-      });
-      await adapter.getAllMetadataAndStats();
-      expect(fetchMock).toHaveBeenCalledWith('/api/media/all');
-    });
-  });
-  describe('Google Drive', () => {
-    it('startGoogleDriveAuth returns url', async () => {
-      fetchMock.mockResolvedValue({
-        ok: true,
-        text: () => Promise.resolve('http://auth.url'),
-      });
-      const windowOpenSpy = vi
-        .spyOn(window, 'open')
-        .mockImplementation(() => null);
-      const url = await adapter.startGoogleDriveAuth();
-      expect(url).toBe('http://auth.url');
-      expect(fetchMock).toHaveBeenCalledWith('/api/auth/google-drive/start');
-      expect(windowOpenSpy).toHaveBeenCalledWith('http://auth.url', '_blank');
-      windowOpenSpy.mockRestore();
-    });
-
-    it('startGoogleDriveAuth throws on error', async () => {
-      fetchMock.mockResolvedValue({ ok: false });
-      await expect(adapter.startGoogleDriveAuth()).rejects.toThrow();
-    });
-
-    it('submitGoogleDriveAuthCode sends code', async () => {
-      fetchMock.mockResolvedValue({ ok: true });
-      const result = await adapter.submitGoogleDriveAuthCode('code123');
-      expect(result).toBe(true);
-      expect(fetchMock).toHaveBeenCalledWith('/api/auth/google-drive/code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: 'code123' }),
-      });
-    });
-
-    it('submitGoogleDriveAuthCode throws on error', async () => {
-      fetchMock.mockResolvedValue({ ok: false });
-      await expect(adapter.submitGoogleDriveAuthCode('c')).rejects.toThrow();
-    });
-
-    it('addGoogleDriveSource calls API', async () => {
-      fetchMock.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ success: true, name: 'Folder' }),
-      });
-      const result = await adapter.addGoogleDriveSource('folder123');
-      expect(result).toEqual({ success: true, name: 'Folder' });
-      expect(fetchMock).toHaveBeenCalledWith('/api/sources/google-drive', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ folderId: 'folder123' }),
-      });
-    });
-
-    it('addGoogleDriveSource handles API error', async () => {
-      fetchMock.mockResolvedValue({
-        ok: false,
-        json: () => Promise.resolve({ error: 'Fail' }),
-      });
-      const result = await adapter.addGoogleDriveSource('f');
-      expect(result).toEqual({ success: false, error: 'Fail' });
-    });
-
-    it('addGoogleDriveSource handles network error', async () => {
-      fetchMock.mockRejectedValue(new Error('Network'));
-      const result = await adapter.addGoogleDriveSource('f');
-      expect(result).toEqual({ success: false, error: 'Network' });
-    });
-
-    it('listGoogleDriveDirectory fetches files', async () => {
-      const mockFiles = [{ name: 'File', path: 'id' }];
-      fetchMock.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve(mockFiles),
-      });
-      const result = await adapter.listGoogleDriveDirectory('folderId');
-      expect(result).toEqual(mockFiles);
-      expect(fetchMock).toHaveBeenCalledWith(
-        '/api/drive/files?folderId=folderId',
-      );
-
-      // Test without folderId
-      await adapter.listGoogleDriveDirectory('');
-      expect(fetchMock).toHaveBeenCalledWith('/api/drive/files');
-    });
-
-    it('listGoogleDriveDirectory throws on error', async () => {
-      fetchMock.mockResolvedValue({ ok: false });
-      await expect(adapter.listGoogleDriveDirectory('id')).rejects.toThrow();
-    });
-
-    it('getGoogleDriveParent fetches parent', async () => {
-      fetchMock.mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({ parent: 'parentId' }),
-      });
-      const result = await adapter.getGoogleDriveParent('childId');
-      expect(result).toBe('parentId');
-      expect(fetchMock).toHaveBeenCalledWith(
-        '/api/drive/parent?folderId=childId',
-      );
-    });
-
-    it('getGoogleDriveParent returns null on error', async () => {
-      fetchMock.mockResolvedValue({ ok: false });
-      const result = await adapter.getGoogleDriveParent('id');
-      expect(result).toBeNull();
+      consoleSpy.mockRestore();
     });
   });
 });

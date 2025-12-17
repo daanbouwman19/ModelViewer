@@ -46,6 +46,7 @@ export interface ElectronAPI {
   openInVlc: (
     filePath: string,
   ) => Promise<{ success: boolean; message?: string }>;
+  openExternal: (url: string) => Promise<void>;
   getVideoMetadata: (
     filePath: string,
   ) => Promise<{ duration?: number; error?: string }>;
@@ -166,6 +167,8 @@ const api: ElectronAPI = {
    * @returns A promise that resolves to the server port.
    */
   getServerPort: () => ipcRenderer.invoke('get-server-port'),
+
+  openExternal: (url: string) => ipcRenderer.invoke('open-external', url),
 
   /**
    * Opens the given file in VLC Media Player.

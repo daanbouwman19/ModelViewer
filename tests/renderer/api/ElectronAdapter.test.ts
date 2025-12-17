@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { ElectronAdapter } from '../../../src/renderer/api/ElectronAdapter';
+import { runBackendContractTests } from './backend.contract';
 
 describe('ElectronAdapter', () => {
-  let adapter: ElectronAdapter;
   const mockElectronAPI = {
     loadFileAsDataURL: vi.fn(),
     recordMediaView: vi.fn(),
@@ -16,12 +16,10 @@ describe('ElectronAdapter', () => {
     getSupportedExtensions: vi.fn(),
     getServerPort: vi.fn(),
     openInVlc: vi.fn(),
+    openExternal: vi.fn(),
     getVideoMetadata: vi.fn(),
-
     listDirectory: vi.fn(),
     getParentDirectory: vi.fn(),
-
-    // New methods
     setRating: vi.fn(),
     createSmartPlaylist: vi.fn(),
     getSmartPlaylists: vi.fn(),
@@ -34,282 +32,39 @@ describe('ElectronAdapter', () => {
     startGoogleDriveAuth: vi.fn(),
     submitGoogleDriveAuthCode: vi.fn(),
     addGoogleDriveSource: vi.fn(),
+    listGoogleDriveDirectory: vi.fn(),
+    getGoogleDriveParent: vi.fn(),
   };
 
-  beforeEach(() => {
-    // Setup global window.electronAPI mock
-    global.window.electronAPI = mockElectronAPI as any;
-    adapter = new ElectronAdapter();
-    vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    global.window.electronAPI = undefined as any;
-  });
-
-  it('loadFileAsDataURL should call electronAPI.loadFileAsDataURL', async () => {
-    const mockResult = { type: 'data-url', url: 'data:...' };
-    mockElectronAPI.loadFileAsDataURL.mockResolvedValue(mockResult);
-
-    const result = await adapter.loadFileAsDataURL('test.jpg');
-
-    expect(mockElectronAPI.loadFileAsDataURL).toHaveBeenCalledWith('test.jpg');
-    expect(result).toBe(mockResult);
-  });
-
-  it('recordMediaView should call electronAPI.recordMediaView', async () => {
-    mockElectronAPI.recordMediaView.mockResolvedValue(undefined);
-
-    await adapter.recordMediaView('test.jpg');
-
-    expect(mockElectronAPI.recordMediaView).toHaveBeenCalledWith('test.jpg');
-  });
-
-  it('getMediaViewCounts should call electronAPI.getMediaViewCounts', async () => {
-    const mockCounts = { 'test.jpg': 5 };
-    mockElectronAPI.getMediaViewCounts.mockResolvedValue(mockCounts);
-
-    const result = await adapter.getMediaViewCounts(['test.jpg']);
-
-    expect(mockElectronAPI.getMediaViewCounts).toHaveBeenCalledWith([
-      'test.jpg',
-    ]);
-    expect(result).toBe(mockCounts);
-  });
-
-  it('getAlbumsWithViewCounts should call electronAPI.getAlbumsWithViewCounts', async () => {
-    const mockAlbums = [{ id: '1', title: 'Album' }];
-    mockElectronAPI.getAlbumsWithViewCounts.mockResolvedValue(mockAlbums);
-
-    const result = await adapter.getAlbumsWithViewCounts();
-
-    expect(mockElectronAPI.getAlbumsWithViewCounts).toHaveBeenCalled();
-    expect(result).toBe(mockAlbums);
-  });
-
-  it('reindexMediaLibrary should call electronAPI.reindexMediaLibrary', async () => {
-    const mockAlbums = [{ id: '1', title: 'Album' }];
-    mockElectronAPI.reindexMediaLibrary.mockResolvedValue(mockAlbums);
-
-    const result = await adapter.reindexMediaLibrary();
-
-    expect(mockElectronAPI.reindexMediaLibrary).toHaveBeenCalled();
-    expect(result).toBe(mockAlbums);
-  });
-
-  it('addMediaDirectory should call electronAPI.addMediaDirectory', async () => {
-    mockElectronAPI.addMediaDirectory.mockResolvedValue(null);
-
-    const result = await adapter.addMediaDirectory();
-
-    expect(result).toBe(null);
-  });
-
-  it('addMediaDirectory should return null to trigger custom file explorer if API returns null', async () => {
-    // Expect it to call, but return null
-    mockElectronAPI.addMediaDirectory.mockResolvedValue(null);
-    const result = await adapter.addMediaDirectory();
-
-    expect(result).toBe(null);
-    expect(mockElectronAPI.addMediaDirectory).toHaveBeenCalled();
-  });
-
-  it('setDirectoryActiveState should call electronAPI.setDirectoryActiveState', async () => {
-    mockElectronAPI.setDirectoryActiveState.mockResolvedValue(undefined);
-
-    await adapter.setDirectoryActiveState('/path', true);
-
-    expect(mockElectronAPI.setDirectoryActiveState).toHaveBeenCalledWith(
-      '/path',
-      true,
-    );
-  });
-
-  it('getMediaDirectories should call electronAPI.getMediaDirectories', async () => {
-    const mockDirs = [{ path: '/path', isActive: true }];
-    mockElectronAPI.getMediaDirectories.mockResolvedValue(mockDirs);
-
-    const result = await adapter.getMediaDirectories();
-
-    expect(mockElectronAPI.getMediaDirectories).toHaveBeenCalled();
-    expect(result).toBe(mockDirs);
-  });
-
-  it('getSupportedExtensions should call electronAPI.getSupportedExtensions', async () => {
-    const mockExts = { images: ['jpg'], videos: ['mp4'], all: ['jpg', 'mp4'] };
-    mockElectronAPI.getSupportedExtensions.mockResolvedValue(mockExts);
-
-    const result = await adapter.getSupportedExtensions();
-
-    expect(mockElectronAPI.getSupportedExtensions).toHaveBeenCalled();
-    expect(result).toBe(mockExts);
-  });
-
-  it('getServerPort should call electronAPI.getServerPort', async () => {
-    mockElectronAPI.getServerPort.mockResolvedValue(1234);
-
-    const result = await adapter.getServerPort();
-
-    expect(mockElectronAPI.getServerPort).toHaveBeenCalled();
-    expect(result).toBe(1234);
-  });
-
-  it('getMediaUrlGenerator should return a function that generates URLs', async () => {
-    mockElectronAPI.getServerPort.mockResolvedValue(3000);
-
-    const generator = await adapter.getMediaUrlGenerator();
-    const url = generator('C:\\path\\to\\file.jpg');
-
-    // The implementation encodes each segment, including 'C:'.
-    // 'C:' becomes 'C%3A' when encoded.
-    expect(url).toBe('http://localhost:3000/C%3A/path/to/file.jpg');
-    // Also test special characters
-    const url2 = generator('path/to/my file.jpg');
-    expect(url2).toBe('http://localhost:3000/path/to/my%20file.jpg');
-  });
-
-  it('getThumbnailUrlGenerator should return a function that generates URLs', async () => {
-    mockElectronAPI.getServerPort.mockResolvedValue(3000);
-
-    const generator = await adapter.getThumbnailUrlGenerator();
-    const url = generator('path/to/file.mp4');
-
-    expect(url).toBe(
-      'http://localhost:3000/video/thumbnail?file=path%2Fto%2Ffile.mp4',
-    );
-  });
-
-  it('getVideoStreamUrlGenerator should return a function that generates URLs', async () => {
-    mockElectronAPI.getServerPort.mockResolvedValue(3000);
-
-    const generator = await adapter.getVideoStreamUrlGenerator();
-    const url = generator('path/to/file.mp4', 10);
-
-    expect(url).toBe(
-      'http://localhost:3000/video/stream?file=path%2Fto%2Ffile.mp4&startTime=10',
-    );
-
-    // Test default arg
-    const urlDefault = generator('path/to/file.mp4');
-    expect(urlDefault).toBe(
-      'http://localhost:3000/video/stream?file=path%2Fto%2Ffile.mp4&startTime=0',
-    );
-  });
-
-  it('getVideoMetadata should call electronAPI.getVideoMetadata', async () => {
-    const mockRes = { duration: 100 };
-    mockElectronAPI.getVideoMetadata.mockResolvedValue(mockRes);
-
-    const result = await adapter.getVideoMetadata('file.mp4');
-
-    expect(mockElectronAPI.getVideoMetadata).toHaveBeenCalledWith('file.mp4');
-    expect(result).toEqual({ duration: 100 });
-  });
-
-  it('getVideoMetadata should throw error if API returns error', async () => {
-    mockElectronAPI.getVideoMetadata.mockResolvedValue({
-      error: 'Failed',
-    });
-
-    await expect(adapter.getVideoMetadata('file.mp4')).rejects.toThrow(
-      'Failed',
-    );
-  });
-
-  it('getVideoMetadata should throw error if duration is undefined', async () => {
-    mockElectronAPI.getVideoMetadata.mockResolvedValue({}); // No duration, no error msg
-    await expect(adapter.getVideoMetadata('file.mp4')).rejects.toThrow(
-      'Failed to get video metadata',
-    );
-  });
-
-  it('openInVlc should call electronAPI.openInVlc', async () => {
-    const mockResponse = { success: true };
-    mockElectronAPI.openInVlc.mockResolvedValue(mockResponse);
-
-    const result = await adapter.openInVlc('file.mp4');
-
-    expect(mockElectronAPI.openInVlc).toHaveBeenCalledWith('file.mp4');
-    expect(result).toBe(mockResponse);
-  });
-
-  it('listDirectory should call electronAPI.listDirectory', async () => {
-    const mockEntries = [{ name: 'test', isDirectory: false }];
-    mockElectronAPI.listDirectory.mockResolvedValue(mockEntries);
-
-    const result = await adapter.listDirectory('/path');
-
-    expect(mockElectronAPI.listDirectory).toHaveBeenCalledWith('/path');
-    expect(result).toBe(mockEntries);
-  });
-
-  it('getParentDirectory should call electronAPI.getParentDirectory', async () => {
-    mockElectronAPI.getParentDirectory.mockResolvedValue('/parent');
-
-    const result = await adapter.getParentDirectory('/parent/child');
-
-    expect(mockElectronAPI.getParentDirectory).toHaveBeenCalledWith(
-      '/parent/child',
-    );
-    expect(result).toBe('/parent');
-  });
-
-  describe('Smart Playlists & Metadata', () => {
-    it('setRating calls api', async () => {
-      await adapter.setRating('file.jpg', 5);
-      expect(mockElectronAPI.setRating).toHaveBeenCalledWith('file.jpg', 5);
-    });
-
-    it('createSmartPlaylist calls api', async () => {
-      mockElectronAPI.createSmartPlaylist.mockResolvedValue({ id: 1 });
-      const res = await adapter.createSmartPlaylist('List', '{}');
-      expect(mockElectronAPI.createSmartPlaylist).toHaveBeenCalledWith(
-        'List',
-        '{}',
-      );
-      expect(res).toEqual({ id: 1 });
-    });
-
-    it('getSmartPlaylists calls api', async () => {
-      mockElectronAPI.getSmartPlaylists.mockResolvedValue([]);
-      const res = await adapter.getSmartPlaylists();
-      expect(mockElectronAPI.getSmartPlaylists).toHaveBeenCalled();
-      expect(res).toEqual([]);
-    });
-
-    it('updateSmartPlaylist calls api', async () => {
-      await adapter.updateSmartPlaylist(1, 'Name', '{}');
-      expect(mockElectronAPI.updateSmartPlaylist).toHaveBeenCalledWith(
-        1,
-        'Name',
-        '{}',
-      );
-    });
-
-    it('deleteSmartPlaylist calls api', async () => {
-      await adapter.deleteSmartPlaylist(1);
-      expect(mockElectronAPI.deleteSmartPlaylist).toHaveBeenCalledWith(1);
-    });
-
-    it('upsertMetadata calls api', async () => {
-      await adapter.upsertMetadata('file.mp4', { duration: 10 });
-      expect(mockElectronAPI.upsertMetadata).toHaveBeenCalledWith('file.mp4', {
-        duration: 10,
-      });
-    });
-
-    it('getMetadata calls api', async () => {
-      mockElectronAPI.getMetadata.mockResolvedValue({});
-      const res = await adapter.getMetadata(['file.mp4']);
-      expect(mockElectronAPI.getMetadata).toHaveBeenCalledWith(['file.mp4']);
-      expect(res).toEqual({});
-    });
-
-    it('getAllMetadataAndStats calls api', async () => {
-      mockElectronAPI.getAllMetadataAndStats.mockResolvedValue([]);
-      const res = await adapter.getAllMetadataAndStats();
-      expect(mockElectronAPI.getAllMetadataAndStats).toHaveBeenCalled();
-      expect(res).toEqual([]);
-    });
+  runBackendContractTests(
+    'ElectronAdapter',
+    () => new ElectronAdapter(mockElectronAPI as any),
+    (method, result, error) => {
+      const mock = mockElectronAPI[method as keyof typeof mockElectronAPI];
+      if (!mock) throw new Error(`Method ${method} not mocked`);
+
+      vi.clearAllMocks();
+
+      if (method === 'getVideoMetadata' && error) {
+        mock.mockResolvedValue({ error });
+        return;
+      }
+
+      if (error) {
+        mock.mockRejectedValue(new Error(error));
+      } else {
+        mock.mockResolvedValue(result);
+      }
+    },
+    { supportsVlc: true },
+  );
+
+  // Additional specific tests if any
+  it('loadFileAsDataURL calls bridge directly', async () => {
+    mockElectronAPI.loadFileAsDataURL.mockResolvedValue({ type: 'test' });
+    const adapter = new ElectronAdapter(mockElectronAPI as any);
+    const res = await adapter.loadFileAsDataURL('file');
+    expect(res).toEqual({ type: 'test' });
+    expect(mockElectronAPI.loadFileAsDataURL).toHaveBeenCalledWith('file');
   });
 });

@@ -5,6 +5,8 @@ coverage/
 .vite/
 out/
 release/
+playwright-report/
+test-results/
 dist-server/
 dist-web/
 media-library.db

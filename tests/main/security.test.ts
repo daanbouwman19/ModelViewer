@@ -3,13 +3,23 @@ import { ipcMain } from 'electron';
 import path from 'path';
 
 // Mock dependencies
-vi.mock('fs/promises', () => ({
+const mockFsPromises = {
+  access: vi.fn(),
+  stat: vi.fn(),
+  readFile: vi.fn(),
+  realpath: vi.fn(),
+};
+
+vi.mock('fs', () => ({
   default: {
-    access: vi.fn(),
-    stat: vi.fn(),
-    readFile: vi.fn(),
-    realpath: vi.fn(),
+    promises: mockFsPromises,
   },
+  promises: mockFsPromises,
+}));
+
+vi.mock('fs/promises', () => ({
+  default: mockFsPromises,
+  ...mockFsPromises,
 }));
 
 vi.mock('electron', () => ({
@@ -103,13 +113,10 @@ describe('Security: load-file-as-data-url', () => {
     const validFile = path.join(allowedDir, 'image.jpg');
 
     // Mock FS calls
-    (fsPromises.default.realpath as unknown as Mock).mockResolvedValue(
-      validFile,
-    );
-    (fsPromises.default.stat as unknown as Mock).mockResolvedValue({
-      size: 1000,
-    });
-    (fsPromises.default.readFile as unknown as Mock).mockResolvedValue(
+    const mockPromises = fsPromises.default || fsPromises;
+    (mockPromises.realpath as unknown as Mock).mockResolvedValue(validFile);
+    (mockPromises.stat as unknown as Mock).mockResolvedValue({ size: 1000 });
+    (mockPromises.readFile as unknown as Mock).mockResolvedValue(
       Buffer.from('test'),
     );
 
@@ -131,9 +138,8 @@ describe('Security: load-file-as-data-url', () => {
     const sensitiveFile = '/etc/passwd';
 
     // Mock FS to pretend the file exists
-    (fsPromises.default.realpath as unknown as Mock).mockResolvedValue(
-      sensitiveFile,
-    );
+    const mockPromises = fsPromises.default || fsPromises;
+    (mockPromises.realpath as unknown as Mock).mockResolvedValue(sensitiveFile);
 
     const result = await handler(null, sensitiveFile);
 
@@ -158,9 +164,8 @@ describe('Security: load-file-as-data-url', () => {
     const resolvedPath = '/etc/passwd';
 
     // Mock FS
-    (fsPromises.default.realpath as unknown as Mock).mockResolvedValue(
-      resolvedPath,
-    );
+    const mockPromises = fsPromises.default || fsPromises;
+    (mockPromises.realpath as unknown as Mock).mockResolvedValue(resolvedPath);
 
     const result = await handler(null, traversalPath);
 
@@ -185,9 +190,8 @@ describe('Security: load-file-as-data-url', () => {
     const targetPath = '/etc/passwd';
 
     // Mock realpath to return the sensitive target
-    (fsPromises.default.realpath as unknown as Mock).mockResolvedValue(
-      targetPath,
-    );
+    const mockPromises = fsPromises.default || fsPromises;
+    (mockPromises.realpath as unknown as Mock).mockResolvedValue(targetPath);
 
     const result = await handler(null, symlinkPath);
 
