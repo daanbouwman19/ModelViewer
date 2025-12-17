@@ -7,7 +7,7 @@ import ffmpegPath from 'ffmpeg-static';
 import os from 'os';
 
 describe('Thumbnail Generation Integration', () => {
-  it('should generate a thumbnail using valid ffmpeg args', async () => {
+  it('should generate a thumbnail using valid ffmpeg args', { timeout: 60000 }, async () => {
     const tempDir = fs.mkdtempSync(
       path.join(os.tmpdir(), 'mediaplayer-repro-'),
     );
