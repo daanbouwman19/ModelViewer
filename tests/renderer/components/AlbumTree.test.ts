@@ -88,12 +88,13 @@ describe('AlbumTree.vue', () => {
       },
     });
 
-    await wrapper.find('input[type="checkbox"]').trigger('change');
+    await wrapper.find('input[type="checkbox"]').trigger('click');
 
     expect(wrapper.emitted().toggleSelection).toBeTruthy();
-    expect((wrapper.emitted().toggleSelection as unknown[][])[0][0]).toEqual(
-      testAlbum,
-    );
+    expect((wrapper.emitted().toggleSelection as unknown[][])[0][0]).toEqual({
+      album: testAlbum,
+      recursive: true,
+    });
   });
 
   it('emits albumClick event when album item is clicked', async () => {
@@ -201,12 +202,16 @@ describe('AlbumTree.vue', () => {
     expect(childTree.exists()).toBe(true);
 
     // Emit event from child
-    childTree.vm.$emit('toggleSelection', testAlbum.children[0]);
+    childTree.vm.$emit('toggleSelection', {
+      album: testAlbum.children[0],
+      recursive: true,
+    });
 
     expect(wrapper.emitted().toggleSelection).toBeTruthy();
-    expect((wrapper.emitted().toggleSelection as unknown[][])[0][0]).toEqual(
-      testAlbum.children[0],
-    );
+    expect((wrapper.emitted().toggleSelection as unknown[][])[0][0]).toEqual({
+      album: testAlbum.children[0],
+      recursive: true,
+    });
   });
 
   it('re-emits albumClick from child component', async () => {

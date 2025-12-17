@@ -2,10 +2,14 @@
  * Tests for useAppState composable
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { useAppState } from '@/composables/useAppState';
+import {
+  useAppState,
+  setupPersistenceWatcher,
+} from '@/composables/useAppState';
 // Import the api instance so we can spy/mock on it.
 // We mock the module below, so this import gets the mocked version.
 import { api } from '@/api';
+import { nextTick } from 'vue';
 
 // Mock the api module.
 // We only mock the methods we use in the test.
@@ -22,25 +26,23 @@ describe('useAppState', () => {
   let appState: ReturnType<typeof useAppState>;
 
   beforeEach(() => {
-    // Reset the state before each test
-    appState = useAppState();
-    appState.state.allAlbums = [];
-    appState.state.albumsSelectedForSlideshow = {};
-    appState.state.mediaDirectories = [];
-    appState.state.supportedExtensions = { images: [], videos: [], all: [] };
-    appState.state.isSlideshowActive = false;
-    appState.state.slideshowTimerId = null;
-    appState.state.isTimerRunning = false;
-
     // Clear mocks
     vi.clearAllMocks();
+    vi.restoreAllMocks();
+
+    appState = useAppState();
+    // Reset the internal singleton state before each test
+    appState.resetInternalState();
   });
 
   describe('initializeApp', () => {
     it('should initialize app state with data from API', async () => {
-      const mockAlbums = [
+      // Ensure localStorage returns null to trigger default selection
+      vi.spyOn(window.localStorage, 'getItem').mockReturnValue(null);
+
+      const mockAlbums: any[] = [
         { name: 'Album1', textures: [], totalViews: 0, children: [] },
-        { name: 'Album2', textures: [], totalViews: 5, children: [] },
+        { name: 'Album2', textures: [], totalViews: 5 }, // No children property to hit else branch
       ];
       const mockDirectories = [
         {
@@ -98,6 +100,57 @@ describe('useAppState', () => {
 
       consoleSpy.mockRestore();
     });
+
+    it('should load album selection from localStorage if present', async () => {
+      const savedSelection = { Album1: true };
+      vi.spyOn(window.localStorage, 'getItem').mockReturnValue(
+        JSON.stringify(savedSelection),
+      );
+
+      vi.mocked(api.getAlbumsWithViewCounts).mockResolvedValue([]);
+      vi.mocked(api.getMediaDirectories).mockResolvedValue([]);
+      vi.mocked(api.getSmartPlaylists).mockResolvedValue([]);
+      vi.mocked(api.getSupportedExtensions).mockResolvedValue({
+        images: [],
+        videos: [],
+        all: [],
+      });
+
+      await appState.initializeApp();
+
+      expect(appState.state.albumsSelectedForSlideshow).toEqual(savedSelection);
+    });
+
+    it('should fallback to selecting all albums if localStorage parsing fails', async () => {
+      vi.spyOn(window.localStorage, 'getItem').mockReturnValue('invalid-json');
+      const mockAlbums = [
+        { name: 'Album1', textures: [], totalViews: 0, children: [] },
+        { name: 'Album2', textures: [], totalViews: 0, children: [] },
+      ];
+      vi.mocked(api.getAlbumsWithViewCounts).mockResolvedValue(mockAlbums);
+      vi.mocked(api.getMediaDirectories).mockResolvedValue([]);
+      vi.mocked(api.getSmartPlaylists).mockResolvedValue([]);
+      vi.mocked(api.getSupportedExtensions).mockResolvedValue({
+        images: [],
+        videos: [],
+        all: [],
+      });
+
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+
+      await appState.initializeApp();
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to parse saved album selection:',
+        expect.any(Error),
+      );
+      expect(appState.state.albumsSelectedForSlideshow['Album1']).toBe(true);
+      expect(appState.state.albumsSelectedForSlideshow['Album2']).toBe(true);
+
+      consoleSpy.mockRestore();
+    });
   });
 
   describe('resetState', () => {
@@ -108,18 +161,18 @@ describe('useAppState', () => {
         {
           name: 'file1.jpg',
           path: '/path/file1.jpg',
-        },
+        } as any,
       ];
       appState.state.currentMediaIndex = 5;
       appState.state.currentMediaItem = {
         name: 'test.jpg',
         path: '/path/test.jpg',
-      };
+      } as any;
       appState.state.globalMediaPoolForSelection = [
         {
           name: 'file3.jpg',
           path: '/path/file3.jpg',
-        },
+        } as any,
       ];
 
       appState.resetState();
@@ -134,7 +187,7 @@ describe('useAppState', () => {
 
   describe('stopSlideshow', () => {
     it('should clear timer and set isTimerRunning to false', () => {
-      const timerId = setInterval(() => {}, 1000);
+      const timerId = setInterval(() => {}, 1000) as any;
       appState.state.slideshowTimerId = timerId;
       appState.state.isTimerRunning = true;
 
@@ -214,6 +267,50 @@ describe('useAppState', () => {
         all: ['.gif'],
       };
       expect(appState.imageExtensionsSet.value.has('.gif')).toBe(true);
+    });
+  });
+
+  describe('watchers', () => {
+    it('should save album selection to localStorage when it changes', async () => {
+      const setItemSpy = vi.spyOn(window.localStorage, 'setItem');
+
+      // Trigger change on the reactive object
+      appState.state.albumsSelectedForSlideshow = { NewAlbum: true };
+
+      // Wait for Vue watcher
+      await nextTick();
+
+      expect(setItemSpy).toHaveBeenCalled();
+    });
+
+    it('should handle localStorage errors in watcher', async () => {
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+
+      const setItemSpy = vi
+        .spyOn(window.localStorage, 'setItem')
+        .mockImplementation(() => {
+          throw new Error('QuotaExceeded');
+        });
+
+      appState.state.albumsSelectedForSlideshow = { AnotherAlbum: true };
+
+      await nextTick();
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to save album selection:',
+        expect.any(Error),
+      );
+      consoleSpy.mockRestore();
+      setItemSpy.mockRestore();
+    });
+
+    it('should not initialize watcher twice', () => {
+      // isWatcherInitialized is true by now because the module loaded and beforeEach runs it
+      // Calling it again should hit the 'if (isWatcherInitialized) return' branch
+      const result = setupPersistenceWatcher();
+      expect(result).toBeUndefined();
     });
   });
 });
