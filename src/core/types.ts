@@ -11,6 +11,7 @@ export interface MediaFile {
 }
 
 export interface Album {
+  id: string;
   name: string;
   textures: MediaFile[];
   children: Album[];

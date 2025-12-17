@@ -302,15 +302,15 @@ export function useSlideshow() {
 
   /**
    * Toggles the selection state of an album for the global slideshow.
-   * @param albumName - The name of the album to toggle.
+   * @param albumId - The ID of the album to toggle.
    * @param isSelected - Explicitly set the selection state.
    */
-  const toggleAlbumSelection = (albumName: string, isSelected?: boolean) => {
+  const toggleAlbumSelection = (albumId: string, isSelected?: boolean) => {
     if (typeof isSelected === 'boolean') {
-      state.albumsSelectedForSlideshow[albumName] = isSelected;
+      state.albumsSelectedForSlideshow[albumId] = isSelected;
     } else {
-      state.albumsSelectedForSlideshow[albumName] =
-        !state.albumsSelectedForSlideshow[albumName];
+      state.albumsSelectedForSlideshow[albumId] =
+        !state.albumsSelectedForSlideshow[albumId];
     }
   };
 

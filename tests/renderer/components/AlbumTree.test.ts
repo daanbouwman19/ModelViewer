@@ -11,19 +11,23 @@ vi.mock('../../../src/renderer/composables/useSlideshow', () => ({
 }));
 
 const testAlbum = {
+  id: 'root-id',
   name: 'root',
   textures: [{ name: 'root.jpg', path: '/root.jpg' }],
   children: [
     {
+      id: 'child1-id',
       name: 'child1',
       textures: [{ name: 'child1.jpg', path: '/child1.jpg' }],
       children: [],
     },
     {
+      id: 'child2-id',
       name: 'child2',
       textures: [{ name: 'child2.jpg', path: '/child2.jpg' }],
       children: [
         {
+          id: 'grandchild-id',
           name: 'grandchild',
           textures: [{ name: 'grandchild.jpg', path: '/grandchild.jpg' }],
           children: [],
@@ -46,7 +50,12 @@ describe('AlbumTree.vue', () => {
   });
 
   it('handles album with empty or missing children safely', () => {
-    const emptyAlbum = { name: 'empty', textures: [], children: [] };
+    const emptyAlbum = {
+      id: 'empty-id',
+      name: 'empty',
+      textures: [],
+      children: [],
+    };
     const wrapper = mount(AlbumTree, {
       props: { album: emptyAlbum, selection: {} },
     });
@@ -148,10 +157,10 @@ describe('AlbumTree.vue', () => {
         props: {
           album: testAlbum,
           selection: {
-            root: true,
-            child1: true,
-            child2: true,
-            grandchild: true,
+            'root-id': true,
+            'child1-id': true,
+            'child2-id': true,
+            'grandchild-id': true,
           },
         },
       });
@@ -164,8 +173,8 @@ describe('AlbumTree.vue', () => {
         props: {
           album: testAlbum,
           selection: {
-            root: true,
-            child1: true,
+            'root-id': true,
+            'child1-id': true,
           },
         },
       });
@@ -178,7 +187,7 @@ describe('AlbumTree.vue', () => {
         props: {
           album: testAlbum,
           selection: {
-            child1: true,
+            'child1-id': true,
           },
         },
       });

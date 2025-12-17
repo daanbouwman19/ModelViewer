@@ -44,7 +44,7 @@
     <ul v-if="isFolder && isOpen" class="album-subtree">
       <AlbumTree
         v-for="child in album.children"
-        :key="child.name"
+        :key="child.id"
         :album="child"
         :depth="depth + 1"
         :selection="selection"
@@ -62,7 +62,7 @@
  * It emits events for album selection and clicks, which are handled by the parent component.
  */
 import { ref, computed } from 'vue';
-import { countTextures, getAlbumAndChildrenNames } from '../utils/albumUtils';
+import { countTextures, getAlbumAndChildrenIds } from '../utils/albumUtils';
 import { useSlideshow } from '../composables/useSlideshow';
 import type { Album } from '../../core/types';
 
@@ -106,13 +106,15 @@ const toggle = () => {
 const totalTextureCount = computed(() => countTextures(props.album));
 
 const selectionState = computed(() => {
-  const allChildren = getAlbumAndChildrenNames(props.album);
-  const selectedChildren = allChildren.filter((name) => props.selection[name]);
+  const allChildrenIds = getAlbumAndChildrenIds(props.album);
+  const selectedChildrenIds = allChildrenIds.filter(
+    (id) => props.selection[id],
+  );
 
-  if (selectedChildren.length === 0) {
+  if (selectedChildrenIds.length === 0) {
     return 'none';
   }
-  if (selectedChildren.length === allChildren.length) {
+  if (selectedChildrenIds.length === allChildrenIds.length) {
     return 'all';
   }
   return 'some';

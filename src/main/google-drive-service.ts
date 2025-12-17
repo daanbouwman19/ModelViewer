@@ -152,6 +152,7 @@ export async function listDriveFiles(folderId: string): Promise<Album> {
   }
 
   return {
+    id: folderId,
     name: 'Google Drive Folder', // Caller should overwrite this with actual root name
     textures,
     children,
