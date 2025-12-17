@@ -53,14 +53,26 @@ export const collectTexturesRecursive = (album: Album): MediaFile[] => {
 /**
  * Recursively gets all album names from a given album and its children.
  * This is useful for building a list of IDs or keys for tree traversal.
+ * Optimized to use iterative traversal instead of recursion to avoid O(N^2) array copying.
  * @param album - The album to start from.
  * @returns A flat list of album names.
  */
 export const getAlbumAndChildrenNames = (album: Album): string[] => {
-  return [
-    album.name,
-    ...(album.children?.flatMap(getAlbumAndChildrenNames) ?? []),
-  ];
+  const names: string[] = [];
+  const stack = [album];
+
+  while (stack.length > 0) {
+    const node = stack.pop()!;
+    names.push(node.name);
+
+    if (node.children) {
+      // Push children in reverse order so they are processed in original order
+      for (let i = node.children.length - 1; i >= 0; i--) {
+        stack.push(node.children[i]);
+      }
+    }
+  }
+  return names;
 };
 
 /**
