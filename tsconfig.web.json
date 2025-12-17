@@ -11,6 +11,7 @@
     "noUnusedParameters": true,
     "outDir": "out",
     "types": ["vite/client", "node"],
+    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/renderer/*"]
     }
