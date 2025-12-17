@@ -207,8 +207,12 @@ describe('SourcesModal.vue', () => {
 
   it('should call reindexMediaLibrary and select all albums when reindex button clicked', async () => {
     const newAlbums = [
-      { name: 'newAlbum1', children: [] },
-      { name: 'newAlbum2', children: [{ name: 'subAlbum', children: [] }] },
+      { id: 'newAlbum1', name: 'newAlbum1', children: [] },
+      {
+        id: 'newAlbum2',
+        name: 'newAlbum2',
+        children: [{ id: 'subAlbum', name: 'subAlbum', children: [] }],
+      },
     ];
     (api.reindexMediaLibrary as Mock).mockResolvedValue(newAlbums);
     (api.getMediaDirectories as Mock).mockResolvedValue([]);

@@ -41,8 +41,19 @@ describe('useAppState', () => {
       vi.spyOn(window.localStorage, 'getItem').mockReturnValue(null);
 
       const mockAlbums: any[] = [
-        { name: 'Album1', textures: [], totalViews: 0, children: [] },
-        { name: 'Album2', textures: [], totalViews: 5 }, // No children property to hit else branch
+        {
+          id: 'Album1',
+          name: 'Album1',
+          textures: [],
+          totalViews: 0,
+          children: [],
+        },
+        {
+          id: 'Album2',
+          name: 'Album2',
+          textures: [],
+          totalViews: 5,
+        }, // No children property to hit else branch
       ];
       const mockDirectories = [
         {
@@ -124,8 +135,20 @@ describe('useAppState', () => {
     it('should fallback to selecting all albums if localStorage parsing fails', async () => {
       vi.spyOn(window.localStorage, 'getItem').mockReturnValue('invalid-json');
       const mockAlbums = [
-        { name: 'Album1', textures: [], totalViews: 0, children: [] },
-        { name: 'Album2', textures: [], totalViews: 0, children: [] },
+        {
+          id: 'Album1',
+          name: 'Album1',
+          textures: [],
+          totalViews: 0,
+          children: [],
+        },
+        {
+          id: 'Album2',
+          name: 'Album2',
+          textures: [],
+          totalViews: 0,
+          children: [],
+        },
       ];
       vi.mocked(api.getAlbumsWithViewCounts).mockResolvedValue(mockAlbums);
       vi.mocked(api.getMediaDirectories).mockResolvedValue([]);

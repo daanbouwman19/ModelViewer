@@ -291,8 +291,16 @@ describe('Palette Accessibility Improvements', () => {
   describe('AlbumTree.vue', () => {
     it('toggle button should have accessible label and aria-expanded', async () => {
       const album = {
+        id: 'root-id',
         name: 'Root Album',
-        children: [{ name: 'Child', textures: [], children: [] }],
+        children: [
+          {
+            id: 'child-id',
+            name: 'Child',
+            textures: [],
+            children: [],
+          },
+        ],
         textures: [],
       };
       const wrapper = mount(AlbumTree, {
@@ -318,7 +326,12 @@ describe('Palette Accessibility Improvements', () => {
     });
 
     it('checkbox should have accessible label', () => {
-      const album = { name: 'Test Album', children: [], textures: [] };
+      const album = {
+        id: 'test-id',
+        name: 'Test Album',
+        children: [],
+        textures: [],
+      };
       const wrapper = mount(AlbumTree, {
         props: {
           album,
