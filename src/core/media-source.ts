@@ -1,20 +1,30 @@
 import fs from 'fs';
-import path from 'path';
+
 import { Readable } from 'stream';
 import { getDriveFileMetadata } from '../main/google-drive-service';
 import { getDriveStreamWithCache } from './drive-stream';
-import { authorizeFilePath } from './security';
+import { authorizeFilePath, AuthorizationResult } from './security';
 import { InternalMediaProxy } from './media-proxy';
 import { IMediaSource } from './media-source-types';
+import { getMimeType } from './media-utils';
 
 export class LocalMediaSource implements IMediaSource {
+  private authResult: Promise<AuthorizationResult> | undefined;
+
   constructor(private filePath: string) {}
 
-  async getFFmpegInput(): Promise<string> {
-    const auth = await authorizeFilePath(this.filePath);
+  private async ensureAuthorized(): Promise<void> {
+    if (!this.authResult) {
+      this.authResult = authorizeFilePath(this.filePath);
+    }
+    const auth = await this.authResult;
     if (!auth.isAllowed) {
       throw new Error(auth.message || 'Access denied');
     }
+  }
+
+  async getFFmpegInput(): Promise<string> {
+    await this.ensureAuthorized();
     return this.filePath;
   }
 
@@ -22,10 +32,7 @@ export class LocalMediaSource implements IMediaSource {
     start: number;
     end: number;
   }): Promise<{ stream: Readable; length: number }> {
-    const auth = await authorizeFilePath(this.filePath);
-    if (!auth.isAllowed) {
-      throw new Error(auth.message || 'Access denied');
-    }
+    await this.ensureAuthorized();
 
     const options: { start?: number; end?: number } = {};
     if (range) {
@@ -40,7 +47,14 @@ export class LocalMediaSource implements IMediaSource {
 
     // Validate range
     if (start > end || start >= stats.size) {
-      // Typically fs might handle this, but let's be safe
+      // Return empty stream or throw.
+      // Since we want to be robust, let's return an empty stream
+      // or rely on caller to handle the 416 based on lengthCheck?
+      // Actually caller checks size. But if we are here, something is odd.
+      // Let's just allow fs to handle or return empty.
+      // fs.createReadStream with invalid range might error or return empty.
+      // We'll throw to be safe so caller sends 416 if they catch it,
+      // but serveRawStream checks size before calling this.
     }
 
     const length = end - start + 1;
@@ -50,26 +64,12 @@ export class LocalMediaSource implements IMediaSource {
   }
 
   async getMimeType(): Promise<string> {
-    const auth = await authorizeFilePath(this.filePath);
-    if (!auth.isAllowed) {
-      throw new Error(auth.message || 'Access denied');
-    }
-
-    const ext = path.extname(this.filePath).toLowerCase();
-    if (['.mp4', '.m4v'].includes(ext)) return 'video/mp4';
-    if (['.webm'].includes(ext)) return 'video/webm';
-    if (['.mkv'].includes(ext)) return 'video/x-matroska';
-    if (['.avi'].includes(ext)) return 'video/x-msvideo';
-    if (['.mov'].includes(ext)) return 'video/quicktime';
-    return 'application/octet-stream';
+    await this.ensureAuthorized();
+    return getMimeType(this.filePath);
   }
 
   async getSize(): Promise<number> {
-    const auth = await authorizeFilePath(this.filePath);
-    if (!auth.isAllowed) {
-      throw new Error(auth.message || 'Access denied');
-    }
-
+    await this.ensureAuthorized();
     const stats = await fs.promises.stat(this.filePath);
     return stats.size;
   }

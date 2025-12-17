@@ -57,13 +57,13 @@ vi.mock('fs', async (importOriginal) => {
 import {
   serveTranscodedStream,
   serveRawStream,
-  getMimeType,
   getVideoDuration,
   serveMetadata,
   serveThumbnail,
   serveStaticFile,
   createMediaRequestHandler,
 } from '../../src/core/media-handler';
+import { getMimeType } from '../../src/core/media-utils';
 
 vi.mock('../../src/main/google-drive-service', () => ({
   getDriveFileMetadata: mockGetDriveFileMetadata,
@@ -74,10 +74,15 @@ vi.mock('../../src/core/security', () => ({
   authorizeFilePath: mockAuthorizeFilePath,
 }));
 
-vi.mock('../../src/core/media-utils', () => ({
-  getThumbnailCachePath: mockGetThumbnailCachePath,
-  checkThumbnailCache: mockCheckThumbnailCache,
-}));
+vi.mock('../../src/core/media-utils', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../src/core/media-utils')>();
+  return {
+    ...actual,
+    getThumbnailCachePath: mockGetThumbnailCachePath,
+    checkThumbnailCache: mockCheckThumbnailCache,
+  };
+});
 
 vi.mock('../../src/core/media-source', () => ({
   createMediaSource: vi.fn(),
@@ -221,6 +226,13 @@ describe('media-handler unit tests', () => {
       const result = (await promise) as any;
       expect(result.error).toBe('FFmpeg execution failed');
     });
+    it('returns error if drive metadata has no duration', async () => {
+      mockGetDriveFileMetadata.mockResolvedValue({});
+      const result = await getVideoDuration('gdrive://123', 'ffmpeg');
+      expect(result).toEqual({
+        error: 'Duration not available from Drive API',
+      });
+    });
   });
 
   describe('serveMetadata', () => {
@@ -229,6 +241,13 @@ describe('media-handler unit tests', () => {
       await serveMetadata(req, res, '/local/file', 'ffmpeg');
       expect(res.writeHead).toHaveBeenCalledWith(403);
       expect(res.end).toHaveBeenCalledWith('Access denied.');
+    });
+
+    it('returns 500 if auth check throws', async () => {
+      mockAuthorizeFilePath.mockRejectedValue(new Error('Auth error'));
+      await serveMetadata(req, res, '/local/file', 'ffmpeg');
+      expect(res.writeHead).toHaveBeenCalledWith(500);
+      expect(res.end).toHaveBeenCalledWith('Internal Error');
     });
 
     it('returns error if ffmpeg path missing for local file', async () => {
@@ -341,6 +360,40 @@ describe('media-handler unit tests', () => {
 
       expect(res.writeHead).not.toHaveBeenCalled();
     });
+
+    it('logs spawn error', async () => {
+      const sourceInput = '/path/to/video.mp4';
+      vi.mocked(mockMediaSource.getFFmpegInput).mockResolvedValue(sourceInput);
+      const mockProcess = new EventEmitter() as any;
+      mockProcess.stdout = new PassThrough();
+      mockProcess.stderr = new PassThrough();
+      mockProcess.kill = vi.fn();
+      mockSpawn.mockReturnValue(mockProcess);
+
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+
+      const mp = serveTranscodedStream(
+        req,
+        res,
+        mockMediaSource,
+        'ffmpeg',
+        null,
+      );
+
+      // Wait for the function to proceed past await getFFmpegInput
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      mockProcess.emit('error', new Error('Spawn problem'));
+      await mp;
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[Transcode] Spawn Error:',
+        expect.anything(),
+      );
+      consoleSpy.mockRestore();
+    });
   });
 
   describe('serveRawStream', () => {
@@ -434,7 +487,58 @@ describe('media-handler unit tests', () => {
         }),
       );
     });
+
+    it('returns 416 for unsatisfiable range', async () => {
+      req.headers.range = 'bytes=2000-3000';
+      vi.mocked(mockMediaSource.getSize).mockResolvedValue(1000);
+
+      await serveRawStream(req, res, mockMediaSource);
+
+      expect(res.writeHead).toHaveBeenCalledWith(416, expect.anything());
+      expect(res.end).toHaveBeenCalledWith('Requested range not satisfiable.');
+    });
+
+    it('returns 416 if start >= totalSize', async () => {
+      req.headers.range = '';
+
+      vi.mocked(mockMediaSource.getSize).mockResolvedValue(0);
+      await serveRawStream(req, res, mockMediaSource);
+      expect(res.writeHead).toHaveBeenCalledWith(
+        416,
+        expect.objectContaining({ 'Content-Range': 'bytes */0' }),
+      );
+    });
+
+    it('handles stream error during pipe', async () => {
+      vi.mocked(mockMediaSource.getSize).mockResolvedValue(1000);
+      vi.mocked(mockMediaSource.getMimeType).mockResolvedValue('video/mp4');
+      const mockStream = new PassThrough();
+      vi.mocked(mockMediaSource.getStream).mockResolvedValue({
+        stream: mockStream,
+        length: 1000,
+      });
+
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+
+      await serveRawStream(req, res, mockMediaSource);
+
+      // Raw stream is synchronous setup once awaited getStream.
+      // But let's yield just in case
+      await new Promise((r) => setTimeout(r, 0));
+
+      mockStream.emit('error', new Error('Pipe broken'));
+      expect(res.writeHead).toHaveBeenCalledWith(500);
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[RawStream] Stream error:',
+        expect.anything(),
+      );
+
+      consoleSpy.mockRestore();
+    });
   });
+
   describe('serveThumbnail', () => {
     it('serves from cache if available', async () => {
       const cachePath = '/cache/thumb.jpg';
@@ -489,6 +593,14 @@ describe('media-handler unit tests', () => {
 
       expect(res.writeHead).toHaveBeenCalledWith(403);
       expect(res.end).toHaveBeenCalledWith('Access denied.');
+    });
+
+    it('returns 500 if auth threw error', async () => {
+      mockCheckThumbnailCache.mockResolvedValue(false);
+      mockAuthorizeFilePath.mockRejectedValue(new Error('Auth fail'));
+      await serveThumbnail(req, res, '/local/vid.mp4', 'ffmpeg', '/cache');
+      expect(res.writeHead).toHaveBeenCalledWith(500);
+      expect(res.end).toHaveBeenCalledWith('Internal Error');
     });
 
     it('handles ffmpg generation for local file', async () => {
@@ -557,9 +669,65 @@ describe('media-handler unit tests', () => {
       mockProcess.emit('close', 1);
 
       await promise;
+    });
 
-      // We can't easily assert console.error but we ensure the callback ran
-      // If we really wanted to, we could spy on console.error
+    it('handles ffmpeg close success but file missing', async () => {
+      mockCheckThumbnailCache.mockResolvedValue(false);
+      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+      const mockProcess = new EventEmitter() as any;
+      mockProcess.stderr = new EventEmitter();
+      mockSpawn.mockReturnValue(mockProcess);
+
+      mockFsStat.mockRejectedValue(new Error('ENOENT'));
+
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+
+      const p = serveThumbnail(req, res, '/video.mp4', 'ffmpeg', '/cache');
+
+      // wait for async auth
+      await new Promise((r) => setTimeout(r, 0));
+
+      mockProcess.emit('close', 0);
+
+      await vi.waitFor(() => {
+        expect(res.writeHead).toHaveBeenCalledWith(500);
+        expect(consoleSpy).toHaveBeenCalledWith(
+          '[Thumbnail] Local FFmpeg success but no file:',
+          expect.anything(),
+          expect.anything(),
+          expect.anything(),
+        );
+      });
+      await p;
+      consoleSpy.mockRestore();
+    });
+
+    it('handles spawn error', async () => {
+      mockCheckThumbnailCache.mockResolvedValue(false);
+      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+      const mockProcess = new EventEmitter() as any;
+      mockProcess.stderr = new EventEmitter();
+      mockSpawn.mockReturnValue(mockProcess);
+
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+
+      const p = serveThumbnail(req, res, '/video.mp4', 'ffmpeg', '/cache');
+
+      // wait for async auth
+      await new Promise((r) => setTimeout(r, 0));
+
+      mockProcess.emit('error', new Error('Spawn failed'));
+
+      await vi.waitFor(() => {
+        expect(res.writeHead).toHaveBeenCalledWith(500);
+        expect(res.end).toHaveBeenCalledWith('Generation failed');
+      });
+      await p;
+      consoleSpy.mockRestore();
     });
   });
 

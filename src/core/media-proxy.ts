@@ -1,4 +1,5 @@
 import http from 'http';
+import rangeParser from 'range-parser';
 import { AddressInfo } from 'net';
 import { getDriveFileMetadata } from '../main/google-drive-service';
 import { getDriveStreamWithCache } from './drive-stream';
@@ -34,9 +35,15 @@ export class InternalMediaProxy {
         let end = totalSize - 1;
 
         if (rangeHeader) {
-          const parts = rangeHeader.replace(/bytes=/, '').split('-');
-          start = parseInt(parts[0], 10);
-          if (parts[1]) end = parseInt(parts[1], 10);
+          const ranges = rangeParser(totalSize, rangeHeader);
+
+          if (Array.isArray(ranges) && ranges.length > 0) {
+            start = ranges[0].start;
+            end = ranges[0].end;
+          } else if (ranges === -1) {
+            res.writeHead(416, { 'Content-Range': `bytes */${totalSize}` });
+            return res.end('Requested range not satisfiable.');
+          }
         }
 
         const { stream, length } = await getDriveStreamWithCache(fileId, {

@@ -65,7 +65,11 @@ describe('media-source', () => {
 
   describe('LocalMediaSource', () => {
     const filePath = '/local/file.mp4';
-    const source = new LocalMediaSource(filePath);
+    let source: LocalMediaSource;
+
+    beforeEach(() => {
+      source = new LocalMediaSource(filePath);
+    });
 
     it('getFFmpegInput throws if access denied', async () => {
       mockAuthorizeFilePath.mockResolvedValue({ isAllowed: false });

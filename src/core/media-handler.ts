@@ -6,56 +6,20 @@
 import http from 'http';
 import fs from 'fs';
 import { spawn } from 'child_process';
-import {
-  SUPPORTED_IMAGE_EXTENSIONS,
-  SUPPORTED_VIDEO_EXTENSIONS,
-} from './constants';
+import rangeParser from 'range-parser';
 import { createMediaSource } from './media-source';
+
 import { IMediaSource } from './media-source-types';
 import { getThumbnailCachePath, checkThumbnailCache } from './media-utils';
 import {
-  getDriveFileThumbnail,
   getDriveFileMetadata,
+  getDriveFileThumbnail,
 } from '../main/google-drive-service';
 import { authorizeFilePath } from './security';
-import path from 'path';
 
 export interface MediaHandlerOptions {
   ffmpegPath: string | null;
   cacheDir: string;
-}
-
-/**
- * Determines the MIME type of a file based on its extension.
- */
-export function getMimeType(filePath: string): string {
-  if (filePath.startsWith('gdrive://')) {
-    return 'application/octet-stream';
-  }
-
-  const extension = path.extname(filePath).substring(1).toLowerCase();
-  if (SUPPORTED_IMAGE_EXTENSIONS.includes(`.${extension}`)) {
-    return `image/${extension === 'jpg' ? 'jpeg' : extension}`;
-  }
-  if (SUPPORTED_VIDEO_EXTENSIONS.includes(`.${extension}`)) {
-    switch (extension) {
-      case 'mp4':
-        return 'video/mp4';
-      case 'webm':
-        return 'video/webm';
-      case 'ogg':
-        return 'video/ogg';
-      case 'mov':
-        return 'video/quicktime';
-      case 'avi':
-        return 'video/x-msvideo';
-      case 'mkv':
-        return 'video/x-matroska';
-      default:
-        return `video/${extension}`;
-    }
-  }
-  return 'application/octet-stream';
 }
 
 /**
@@ -163,9 +127,21 @@ export async function serveRawStream(
   let end = totalSize - 1;
 
   if (rangeHeader) {
-    const parts = rangeHeader.replace(/bytes=/, '').split('-');
-    start = parseInt(parts[0], 10);
-    if (parts[1]) end = parseInt(parts[1], 10);
+    const ranges = rangeParser(totalSize, rangeHeader);
+
+    if (Array.isArray(ranges) && ranges.length > 0) {
+      // For simplicity, we only handle the first range.
+      start = ranges[0].start;
+      end = ranges[0].end;
+    } else if (ranges === -1) {
+      // -1: Unsatisfiable
+      res.writeHead(416, { 'Content-Range': `bytes */${totalSize}` });
+      return res.end('Requested range not satisfiable.');
+    } else if (ranges === -2) {
+      // -2: Malformed -> typically ignore and serve full content or 400.
+      // Standard behavior is often to treat as no range or error.
+      // We will proceed with full content (default start=0, end=total-1)
+    }
   }
 
   if (start >= totalSize) {

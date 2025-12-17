@@ -196,6 +196,54 @@ describe('InternalMediaProxy', () => {
       );
     });
 
+    it('handles unsatisfiable range requests', async () => {
+      req.url = '/stream/file-123';
+      // bytes=2000-3000 where size is 1000
+      req.headers.range = 'bytes=2000-3000';
+
+      mockGetDriveFileMetadata.mockResolvedValue({ size: '1000' });
+      // range-parser will return -1 for unsatisfiable ranges if we used it directly,
+      // but here we are relying on InternalMediaProxy to use range-parser.
+      // 2000 >= 1000, so it is unsatisfiable.
+
+      await handler(req, res);
+
+      expect(res.writeHead).toHaveBeenCalledWith(
+        416,
+        expect.objectContaining({ 'Content-Range': 'bytes */1000' }),
+      );
+      expect(res.end).toHaveBeenCalledWith('Requested range not satisfiable.');
+    });
+
+    it('ignores malformed range requests and serves full content', async () => {
+      req.url = '/stream/file-123';
+      req.headers.range = 'invalid-unit=0-100';
+
+      mockGetDriveFileMetadata.mockResolvedValue({
+        size: '1000',
+        mimeType: 'video/mp4',
+      });
+      // InternalMediaProxy uses range-parser. malformed -> -2.
+      // Logic: if array -> use it. else if -1 -> 416. else -> full content.
+      // So malformed should result in full content.
+
+      const mockStream = { pipe: vi.fn(), on: vi.fn(), destroy: vi.fn() };
+      mockGetDriveStreamWithCache.mockResolvedValue({
+        stream: mockStream,
+        length: 1000,
+      });
+
+      await handler(req, res);
+
+      expect(res.writeHead).toHaveBeenCalledWith(
+        206,
+        expect.objectContaining({
+          'Content-Range': 'bytes 0-999/1000',
+          'Content-Length': 1000,
+        }),
+      );
+    });
+
     it('handles open-ended range requests', async () => {
       req.url = '/stream/file-123';
       req.headers.range = 'bytes=100-';
@@ -283,5 +331,32 @@ describe('InternalMediaProxy', () => {
     const url2 = await proxy.getUrlForFile('id2');
     expect(mockListen).toHaveBeenCalledTimes(1); // Should not accept listen again
     expect(url2).toContain('54321');
+  });
+
+  it('start() is idempotent', async () => {
+    const proxy = InternalMediaProxy.getInstance();
+    mockListen.mockImplementation((p, h, cb) => {
+      if (cb) cb();
+    });
+    await proxy.start();
+    await proxy.start();
+    expect(mockListen).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not send error response if headers already sent', async () => {
+    const handler = getCallback();
+    const req = { url: '/stream/file-error', headers: {}, on: vi.fn() };
+    const res = {
+      writeHead: vi.fn(),
+      end: vi.fn(),
+      headersSent: true,
+    };
+
+    mockGetDriveFileMetadata.mockRejectedValue(new Error('Fail after headers'));
+
+    await handler(req, res);
+
+    expect(res.writeHead).not.toHaveBeenCalled();
+    expect(res.end).not.toHaveBeenCalled();
   });
 });

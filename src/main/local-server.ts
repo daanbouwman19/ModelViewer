@@ -5,10 +5,8 @@
 import http from 'http';
 import { AddressInfo } from 'net';
 import ffmpegPath from 'ffmpeg-static';
-import {
-  createMediaRequestHandler,
-  getMimeType as coreGetMimeType,
-} from '../core/media-handler';
+import { createMediaRequestHandler } from '../core/media-handler';
+import { getMimeType as coreGetMimeType } from '../core/media-utils';
 
 /**
  * Holds the singleton instance of the HTTP server.
