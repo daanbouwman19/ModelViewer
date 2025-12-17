@@ -203,7 +203,7 @@ describe('Local Server', () => {
         req.on('error', reject);
       });
 
-      expect(response.statusCode).toBe(200);
+      expect(response.statusCode).toBe(206);
       expect(response.data).toBe(testContent);
       expect(response.headers['content-type']).toBe('application/octet-stream');
     });
@@ -327,7 +327,7 @@ describe('Local Server', () => {
         req.on('error', reject);
       });
 
-      expect(response.statusCode).toBe(200);
+      expect(response.statusCode).toBe(206);
       expect(response.headers['content-type']).toBe('video/mp4');
       expect(response.headers['accept-ranges']).toBe('bytes');
     });

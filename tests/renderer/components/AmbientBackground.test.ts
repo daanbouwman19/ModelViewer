@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mount, flushPromises } from '@vue/test-utils'; // Correct import for flushPromises? No, usually in test-utils or vitest
+import { mount, flushPromises } from '@vue/test-utils';
+import { ref } from 'vue';
 import AmbientBackground from '../../../src/renderer/components/AmbientBackground.vue';
 import { useAppState } from '../../../src/renderer/composables/useAppState';
 import { api } from '../../../src/renderer/api';
@@ -13,11 +14,9 @@ describe('AmbientBackground.vue', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockAppState = {
-      currentMediaItem: { value: null },
-      supportedExtensions: {
-        value: { images: ['.jpg', '.png'], videos: ['.mp4'] },
-      },
-      mainVideoElement: { value: null },
+      currentMediaItem: ref(null),
+      supportedExtensions: ref({ images: ['.jpg', '.png'], videos: ['.mp4'] }),
+      mainVideoElement: ref(null),
     };
     vi.mocked(useAppState).mockReturnValue(mockAppState);
 

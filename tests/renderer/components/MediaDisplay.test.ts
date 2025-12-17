@@ -811,6 +811,11 @@ describe('MediaDisplay.vue', () => {
       // We return null from the api mock
       (api.getVideoStreamUrlGenerator as Mock).mockResolvedValue(null);
 
+      // Spy on console.error to suppress expected error
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+
       const wrapper = mount(MediaDisplay);
       await flushPromises();
 
@@ -818,6 +823,8 @@ describe('MediaDisplay.vue', () => {
 
       expect((wrapper.vm as any).error).toBe('Local server not available');
       expect((wrapper.vm as any).isTranscodingLoading).toBe(false);
+
+      consoleSpy.mockRestore();
     });
 
     it('should try transcoding on media error if not already transcoding', async () => {

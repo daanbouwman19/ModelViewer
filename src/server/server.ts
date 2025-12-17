@@ -349,8 +349,13 @@ export async function createApp() {
   // We define specific routes for granular control.
 
   // Imports for granular functions
-  const { serveMetadata, serveTranscode, serveThumbnail, serveStaticFile } =
-    await import('../core/media-handler');
+  const {
+    serveMetadata,
+    serveTranscodedStream,
+    serveRawStream,
+    serveThumbnail,
+  } = await import('../core/media-handler');
+  const { createMediaSource } = await import('../core/media-source');
 
   // Google Drive Auth & Source Management
   // Typically these would be in a separate controller, but keeping inline for consistency with this file.
@@ -500,11 +505,36 @@ export async function createApp() {
     serveMetadata(req, res, filePath, ffmpegStatic);
   });
 
-  app.get('/api/stream', (req, res) => {
+  app.get('/api/stream', async (req, res) => {
     const filePath = req.query.file as string;
     const startTime = req.query.startTime as string;
+    const isTranscode = req.query.transcode === 'true';
+
     if (!filePath) return res.status(400).send('Missing file');
-    serveTranscode(req, res, filePath, startTime, ffmpegStatic);
+
+    try {
+      const source = createMediaSource(filePath);
+      if (isTranscode) {
+        if (!ffmpegStatic) return res.status(500).send('FFmpeg not found');
+        await serveTranscodedStream(
+          req,
+          res,
+          source,
+          ffmpegStatic,
+          startTime || null,
+        );
+      } else {
+        await serveRawStream(req, res, source);
+      }
+    } catch (e: unknown) {
+      console.error('Stream error:', e);
+      if (!res.headersSent) {
+        const msg = (e as Error).message || '';
+        if (msg.includes('Access denied'))
+          res.status(403).send('Access denied');
+        else res.status(500).send('Stream error');
+      }
+    }
   });
 
   app.get('/api/thumbnail', (req, res) => {
@@ -513,10 +543,21 @@ export async function createApp() {
     serveThumbnail(req, res, filePath, ffmpegStatic, CACHE_DIR);
   });
 
-  app.get('/api/serve', (req, res) => {
+  app.get('/api/serve', async (req, res) => {
     const filePath = req.query.path as string;
     if (!filePath) return res.status(400).send('Missing path');
-    serveStaticFile(req, res, filePath);
+    try {
+      const source = createMediaSource(filePath);
+      await serveRawStream(req, res, source);
+    } catch (e: unknown) {
+      console.error('Serve error:', e);
+      if (!res.headersSent) {
+        const msg = (e as Error).message || '';
+        if (msg.includes('Access denied'))
+          res.status(403).send('Access denied');
+        else res.status(500).send('Serve error');
+      }
+    }
   });
 
   // Frontend Serving (Production)
