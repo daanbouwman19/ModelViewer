@@ -23,10 +23,95 @@ import {
 } from '../main/google-drive-service';
 import { authorizeFilePath } from './security';
 import { DATA_URL_THRESHOLD_MB } from './constants';
+import { GenerateUrlOptions, GenerateUrlResult } from './media-handler-types';
 
 export interface MediaHandlerOptions {
   ffmpegPath: string | null;
   cacheDir: string;
+}
+
+/**
+ * Helper to generate URL for Google Drive files
+ */
+async function generateDriveFileUrl(
+  filePath: string,
+  options: GenerateUrlOptions,
+): Promise<GenerateUrlResult> {
+  const { serverPort, preferHttp } = options;
+  const fileId = filePath.replace('gdrive://', '');
+
+  // For video, or preferHttp, return HTTP URL from local server which pipes Drive stream
+  const meta = await getDriveFileMetadata(fileId);
+
+  // Use threshold for ALL files (images or video)
+  const isLarge = Number(meta.size) > DATA_URL_THRESHOLD_MB * 1024 * 1024;
+
+  if (preferHttp || isLarge) {
+    if (serverPort === 0) {
+      return {
+        type: 'error',
+        message: 'Local server not ready to stream Drive file.',
+      };
+    }
+    // We need to encode the URI because the file path is now a gdrive:// URI
+    const encodedPath = encodeURIComponent(filePath);
+    return {
+      type: 'http-url',
+      url: `http://localhost:${serverPort}/video/stream?file=${encodedPath}`,
+    };
+  }
+
+  // For small files, return Data URL
+  // Fetch buffer
+  const stream = await getDriveFileStream(fileId);
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) {
+    chunks.push(Buffer.from(chunk));
+  }
+  const buffer = Buffer.concat(chunks);
+  const mimeType = meta.mimeType || 'application/octet-stream';
+  const dataURL = `data:${mimeType};base64,${buffer.toString('base64')}`;
+  return { type: 'data-url', url: dataURL };
+}
+
+/**
+ * Helper to generate URL for local files
+ */
+async function generateLocalFileUrl(
+  filePath: string,
+  options: GenerateUrlOptions,
+): Promise<GenerateUrlResult> {
+  const { serverPort, preferHttp } = options;
+
+  const auth = await authorizeFilePath(filePath);
+  if (!auth.isAllowed) {
+    return { type: 'error', message: auth.message || 'Access denied' };
+  }
+
+  const stats = await fsPromises.stat(filePath);
+  const isLarge = stats.size > DATA_URL_THRESHOLD_MB * 1024 * 1024;
+
+  if (preferHttp || isLarge) {
+    if (serverPort === 0) {
+      return {
+        type: 'error',
+        message: isLarge
+          ? 'Local server not ready to stream large file.'
+          : 'Local server not ready to stream file.',
+      };
+    }
+
+    const encodedPath = encodeURIComponent(filePath);
+    return {
+      type: 'http-url',
+      url: `http://localhost:${serverPort}/video/stream?file=${encodedPath}`,
+    };
+  }
+
+  const mimeType = getMimeType(filePath);
+  const fileBuffer = await fsPromises.readFile(filePath);
+  const dataURL = `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
+  return { type: 'data-url', url: dataURL };
 }
 
 /**
@@ -489,83 +574,13 @@ export function createMediaRequestHandler(options: MediaHandlerOptions) {
  */
 export async function generateFileUrl(
   filePath: string,
-  options: { serverPort: number; preferHttp?: boolean },
-): Promise<{
-  type: 'data-url' | 'http-url' | 'error';
-  url?: string;
-  message?: string;
-}> {
+  options: GenerateUrlOptions,
+): Promise<GenerateUrlResult> {
   try {
-    const { serverPort, preferHttp } = options;
-
-    // 1. Handle Google Drive Files
     if (filePath.startsWith('gdrive://')) {
-      const fileId = filePath.replace('gdrive://', '');
-
-      // For video, or preferHttp, return HTTP URL from local server which pipes Drive stream
-      const meta = await getDriveFileMetadata(fileId);
-
-      // Use threshold for ALL files (images or video)
-      const isLarge = Number(meta.size) > DATA_URL_THRESHOLD_MB * 1024 * 1024;
-
-      if (preferHttp || isLarge) {
-        if (serverPort === 0) {
-          return {
-            type: 'error',
-            message: 'Local server not ready to stream Drive file.',
-          };
-        }
-        // We need to encode the URI because the file path is now a gdrive:// URI
-        const encodedPath = encodeURIComponent(filePath);
-        return {
-          type: 'http-url',
-          url: `http://localhost:${serverPort}/video/stream?file=${encodedPath}`,
-        };
-      }
-
-      // For small files, return Data URL
-      // Fetch buffer
-      const stream = await getDriveFileStream(fileId);
-      const chunks: Buffer[] = [];
-      for await (const chunk of stream) {
-        chunks.push(Buffer.from(chunk));
-      }
-      const buffer = Buffer.concat(chunks);
-      const mimeType = meta.mimeType || 'application/octet-stream';
-      const dataURL = `data:${mimeType};base64,${buffer.toString('base64')}`;
-      return { type: 'data-url', url: dataURL };
+      return await generateDriveFileUrl(filePath, options);
     }
-
-    // 2. Handle Local Files
-    const auth = await authorizeFilePath(filePath);
-    if (!auth.isAllowed) {
-      return { type: 'error', message: auth.message || 'Access denied' };
-    }
-
-    const stats = await fsPromises.stat(filePath);
-    const isLarge = stats.size > DATA_URL_THRESHOLD_MB * 1024 * 1024;
-
-    if (preferHttp || isLarge) {
-      if (serverPort === 0) {
-        return {
-          type: 'error',
-          message: isLarge
-            ? 'Local server not ready to stream large file.'
-            : 'Local server not ready to stream file.',
-        };
-      }
-
-      const encodedPath = encodeURIComponent(filePath);
-      return {
-        type: 'http-url',
-        url: `http://localhost:${serverPort}/video/stream?file=${encodedPath}`,
-      };
-    }
-
-    const mimeType = getMimeType(filePath);
-    const fileBuffer = await fsPromises.readFile(filePath);
-    const dataURL = `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
-    return { type: 'data-url', url: dataURL };
+    return await generateLocalFileUrl(filePath, options);
   } catch (error: unknown) {
     console.error(
       `[media-handler] Error processing ${filePath} in generateFileUrl:`,
