@@ -17,3 +17,8 @@
 
 **Learning:** List items (like media sources) often have repetitive action buttons (e.g., "Remove"). Without specific context, screen readers just announce "Remove, Remove, Remove".
 **Action:** Always append the item's name or identifier to the `aria-label` of action buttons in lists (e.g., `aria-label="'Remove ' + item.name"`).
+
+## 2025-10-27 - [Keyboard Navigation in File Explorers]
+
+**Learning:** When converting file explorer items from `div` to `button`, the native `Enter` key triggers a `click` event, which typically only _selects_ the item. Keyboard users need a way to _open_ (navigate into) folders, which corresponds to `dblclick` for mouse users.
+**Action:** Explicitly bind `@keydown.enter.prevent` to the open/navigate action on the button. This allows Space to select (via standard click) and Enter to open, matching standard OS file explorer behavior.

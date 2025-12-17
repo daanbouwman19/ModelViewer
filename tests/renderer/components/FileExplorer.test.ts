@@ -39,7 +39,7 @@ describe('FileExplorer.vue', () => {
     await toggleBtn.trigger('click');
     await flushPromises();
 
-    const items = wrapper.findAll('li.cursor-pointer');
+    const items = wrapper.findAll('ul.space-y-1 > li > button');
     expect(items).toHaveLength(2);
     expect(items[0].text()).toContain('Folder1');
     expect(items[1].text()).toContain('File1.txt');
@@ -57,7 +57,7 @@ describe('FileExplorer.vue', () => {
     await flushPromises();
 
     // Default Grid View: Find grid items
-    const items = wrapper.findAll('.grid > div');
+    const items = wrapper.findAll('.grid > button');
     const folderItem = items[0]; // Assuming it's sorted first
 
     await folderItem.trigger('dblclick');
@@ -84,7 +84,7 @@ describe('FileExplorer.vue', () => {
     await flushPromises();
 
     // Default Grid View
-    const items = wrapper.findAll('.grid > div');
+    const items = wrapper.findAll('.grid > button');
     const fileItem = items[0];
 
     // Reset mock to check for calls
@@ -107,7 +107,7 @@ describe('FileExplorer.vue', () => {
     });
     await flushPromises();
 
-    const items = wrapper.findAll('.grid > div');
+    const items = wrapper.findAll('.grid > button');
     await items[0].trigger('click');
 
     // Check if Select Directory button is enabled
@@ -126,7 +126,7 @@ describe('FileExplorer.vue', () => {
     });
     await flushPromises();
 
-    const items = wrapper.findAll('.grid > div');
+    const items = wrapper.findAll('.grid > button');
     await items[0].trigger('click');
 
     const selectBtn = wrapper.find('button.bg-blue-600');
@@ -148,7 +148,7 @@ describe('FileExplorer.vue', () => {
     });
     await flushPromises();
 
-    const items = wrapper.findAll('.grid > div');
+    const items = wrapper.findAll('.grid > button');
     // Click folder to select
     await items[0].trigger('click');
     expect((wrapper.vm as any).selectedPath).toBe('/Folder1');
@@ -236,7 +236,7 @@ describe('FileExplorer.vue', () => {
     const wrapper = mount(FileExplorer, { props: { initialPath: '/' } });
     await flushPromises();
 
-    const items = wrapper.findAll('.grid > div');
+    const items = wrapper.findAll('.grid > button');
     expect(items[0].text()).toContain('a_folder');
     expect(items[1].text()).toContain('c_folder');
     expect(items[2].text()).toContain('b_file.txt');
@@ -256,7 +256,7 @@ describe('FileExplorer.vue', () => {
 
     // In Grid view, icons are displayed as text content 💾, no .icon class
     // Structure: <span class="text-4xl ...">💾</span>
-    const items = wrapper.findAll('.grid > div');
+    const items = wrapper.findAll('.grid > button');
 
     expect(items[0].text()).toContain('💾');
     expect(items[0].text()).toContain('C:');
@@ -276,7 +276,7 @@ describe('FileExplorer.vue', () => {
     });
     await flushPromises();
 
-    const items = wrapper.findAll('.grid > div');
+    const items = wrapper.findAll('.grid > button');
     // First item: /
     expect(items[0].text()).toContain('💾');
     expect(items[0].text()).toContain('Root');
@@ -355,7 +355,7 @@ describe('FileExplorer.vue', () => {
     await flushPromises();
 
     // Find grid item
-    const item = wrapper.find('.grid > div');
+    const item = wrapper.find('.grid > button');
     await item.trigger('dblclick');
     await flushPromises();
 
@@ -407,7 +407,7 @@ describe('FileExplorer.vue', () => {
 
     // Find the folder item
     const folderItem = wrapper
-      .findAll('.grid > div')
+      .findAll('.grid > button')
       .filter((w) => w.text().includes('My Folder'))
       .at(0);
     expect(folderItem?.exists()).toBe(true);
@@ -440,7 +440,7 @@ describe('FileExplorer.vue', () => {
     await flushPromises();
 
     const fileItem = wrapper
-      .findAll('.grid > div')
+      .findAll('.grid > button')
       .filter((w) => w.text().includes('My File'))
       .at(0);
 
@@ -451,5 +451,117 @@ describe('FileExplorer.vue', () => {
     expect((wrapper.vm as any).selectedPath).toBeNull();
     const selectBtn = wrapper.find('button.bg-blue-600');
     expect(selectBtn.attributes()).toHaveProperty('disabled');
+  });
+
+  it('refreshes current directory in Google Drive mode', async () => {
+    const driveEntries = [
+      { name: 'My Folder', path: 'folder-123', isDirectory: true },
+    ];
+    (api.listGoogleDriveDirectory as any).mockResolvedValue(driveEntries);
+    (api.getGoogleDriveParent as any).mockResolvedValue('root');
+
+    const wrapper = mount(FileExplorer, {
+      props: { mode: 'google-drive', initialPath: 'folder-abc' },
+    });
+    await flushPromises();
+
+    // Clear calls
+    (api.listGoogleDriveDirectory as any).mockClear();
+
+    // Click refresh
+    const refreshBtn = wrapper.find('button[title="Refresh"]');
+    await refreshBtn.trigger('click');
+    await flushPromises();
+
+    expect(api.listGoogleDriveDirectory).toHaveBeenCalledWith('folder-abc');
+  });
+
+  it('handles error when fetching parent directory in Google Drive mode', async () => {
+    (api.listGoogleDriveDirectory as any).mockResolvedValue([]);
+    // Mock getGoogleDriveParent to throw
+    (api.getGoogleDriveParent as any).mockRejectedValue(
+      new Error('Parent fetch failed'),
+    );
+
+    const wrapper = mount(FileExplorer, {
+      props: { mode: 'google-drive', initialPath: 'sub-folder' },
+    });
+    await flushPromises();
+
+    // Since parent fetch failed, navigateUp should go to root?
+    // The component sets parentPath to 'root' on error.
+
+    // Check if Up button is enabled (since parentPath is 'root')
+    const upBtn = wrapper.find('button[title="Go Up"]');
+    expect(upBtn.attributes('disabled')).toBeUndefined();
+
+    await upBtn.trigger('click');
+    await flushPromises();
+
+    expect(api.listGoogleDriveDirectory).toHaveBeenCalledWith('root');
+  });
+
+  it('handles error when fetching parent directory in Local mode', async () => {
+    (api.listDirectory as any).mockResolvedValue([]);
+    // Mock getParentDirectory to throw
+    (api.getParentDirectory as any).mockRejectedValue(
+      new Error('Parent fetch failed'),
+    );
+
+    const wrapper = mount(FileExplorer, {
+      props: { initialPath: '/some/path', mode: 'local' },
+    });
+    await flushPromises();
+
+    // Component sets parentPath to 'ROOT' on error.
+    const upBtn = wrapper.find('button[title="Go Up"]');
+    expect(upBtn.attributes('disabled')).toBeUndefined();
+
+    await upBtn.trigger('click');
+    await flushPromises();
+
+    // loadDirectory('') which calls listDirectory('ROOT')
+    expect(api.listDirectory).toHaveBeenCalledWith('ROOT');
+  });
+
+  it('refreshes at root (My PC) correctly', async () => {
+    (api.listDirectory as any).mockResolvedValue([]);
+    (api.getParentDirectory as any).mockResolvedValue(null);
+
+    const wrapper = mount(FileExplorer, {
+      props: { initialPath: '' }, // Root
+    });
+    await flushPromises();
+
+    // Verify we are at My PC
+    expect(wrapper.find('.current-path').text()).toBe('My PC');
+
+    // Clear calls
+    (api.listDirectory as any).mockClear();
+
+    const refreshBtn = wrapper.find('button[title="Refresh"]');
+    await refreshBtn.trigger('click');
+    await flushPromises();
+
+    // Should call listDirectory('ROOT') which corresponds to loadDirectory('')
+    expect(api.listDirectory).toHaveBeenCalledWith('ROOT');
+  });
+
+  it('navigates on Enter key press', async () => {
+    (api.listDirectory as any).mockResolvedValue([
+      { name: 'Folder1', path: '/Folder1', isDirectory: true },
+    ]);
+    (api.getParentDirectory as any).mockResolvedValue('/');
+
+    const wrapper = mount(FileExplorer, {
+      props: { initialPath: '/' },
+    });
+    await flushPromises();
+
+    const item = wrapper.find('.grid > button');
+    await item.trigger('keydown.enter');
+    await flushPromises();
+
+    expect(api.listDirectory).toHaveBeenCalledWith('/Folder1');
   });
 });
