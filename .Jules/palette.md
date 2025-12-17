@@ -20,5 +20,5 @@
 
 ## 2025-10-27 - [Keyboard Navigation in File Explorers]
 
-**Learning:** When converting file explorer items from `div` to `button`, the native `Enter` key triggers a `click` event, which typically only *selects* the item. Keyboard users need a way to *open* (navigate into) folders, which corresponds to `dblclick` for mouse users.
+**Learning:** When converting file explorer items from `div` to `button`, the native `Enter` key triggers a `click` event, which typically only _selects_ the item. Keyboard users need a way to _open_ (navigate into) folders, which corresponds to `dblclick` for mouse users.
 **Action:** Explicitly bind `@keydown.enter.prevent` to the open/navigate action on the button. This allows Space to select (via standard click) and Enter to open, matching standard OS file explorer behavior.

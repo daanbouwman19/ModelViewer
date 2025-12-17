@@ -452,4 +452,116 @@ describe('FileExplorer.vue', () => {
     const selectBtn = wrapper.find('button.bg-blue-600');
     expect(selectBtn.attributes()).toHaveProperty('disabled');
   });
+
+  it('refreshes current directory in Google Drive mode', async () => {
+    const driveEntries = [
+      { name: 'My Folder', path: 'folder-123', isDirectory: true },
+    ];
+    (api.listGoogleDriveDirectory as any).mockResolvedValue(driveEntries);
+    (api.getGoogleDriveParent as any).mockResolvedValue('root');
+
+    const wrapper = mount(FileExplorer, {
+      props: { mode: 'google-drive', initialPath: 'folder-abc' },
+    });
+    await flushPromises();
+
+    // Clear calls
+    (api.listGoogleDriveDirectory as any).mockClear();
+
+    // Click refresh
+    const refreshBtn = wrapper.find('button[title="Refresh"]');
+    await refreshBtn.trigger('click');
+    await flushPromises();
+
+    expect(api.listGoogleDriveDirectory).toHaveBeenCalledWith('folder-abc');
+  });
+
+  it('handles error when fetching parent directory in Google Drive mode', async () => {
+    (api.listGoogleDriveDirectory as any).mockResolvedValue([]);
+    // Mock getGoogleDriveParent to throw
+    (api.getGoogleDriveParent as any).mockRejectedValue(
+      new Error('Parent fetch failed'),
+    );
+
+    const wrapper = mount(FileExplorer, {
+      props: { mode: 'google-drive', initialPath: 'sub-folder' },
+    });
+    await flushPromises();
+
+    // Since parent fetch failed, navigateUp should go to root?
+    // The component sets parentPath to 'root' on error.
+
+    // Check if Up button is enabled (since parentPath is 'root')
+    const upBtn = wrapper.find('button[title="Go Up"]');
+    expect(upBtn.attributes('disabled')).toBeUndefined();
+
+    await upBtn.trigger('click');
+    await flushPromises();
+
+    expect(api.listGoogleDriveDirectory).toHaveBeenCalledWith('root');
+  });
+
+  it('handles error when fetching parent directory in Local mode', async () => {
+    (api.listDirectory as any).mockResolvedValue([]);
+    // Mock getParentDirectory to throw
+    (api.getParentDirectory as any).mockRejectedValue(
+      new Error('Parent fetch failed'),
+    );
+
+    const wrapper = mount(FileExplorer, {
+      props: { initialPath: '/some/path', mode: 'local' },
+    });
+    await flushPromises();
+
+    // Component sets parentPath to 'ROOT' on error.
+    const upBtn = wrapper.find('button[title="Go Up"]');
+    expect(upBtn.attributes('disabled')).toBeUndefined();
+
+    await upBtn.trigger('click');
+    await flushPromises();
+
+    // loadDirectory('') which calls listDirectory('ROOT')
+    expect(api.listDirectory).toHaveBeenCalledWith('ROOT');
+  });
+
+  it('refreshes at root (My PC) correctly', async () => {
+    (api.listDirectory as any).mockResolvedValue([]);
+    (api.getParentDirectory as any).mockResolvedValue(null);
+
+    const wrapper = mount(FileExplorer, {
+      props: { initialPath: '' }, // Root
+    });
+    await flushPromises();
+
+    // Verify we are at My PC
+    expect(wrapper.find('.current-path').text()).toBe('My PC');
+
+    // Clear calls
+    (api.listDirectory as any).mockClear();
+
+    const refreshBtn = wrapper.find('button[title="Refresh"]');
+    await refreshBtn.trigger('click');
+    await flushPromises();
+
+    // Should call listDirectory('ROOT') which corresponds to loadDirectory('')
+    expect(api.listDirectory).toHaveBeenCalledWith('ROOT');
+  });
+
+  it('navigates on Enter key press', async () => {
+    (api.listDirectory as any).mockResolvedValue([
+      { name: 'Folder1', path: '/Folder1', isDirectory: true },
+    ]);
+    (api.getParentDirectory as any).mockResolvedValue('/');
+
+    const wrapper = mount(FileExplorer, {
+      props: { initialPath: '/' },
+    });
+    await flushPromises();
+
+    const item = wrapper.find('.grid > button');
+    await item.trigger('keydown.enter');
+    await flushPromises();
+
+    expect(api.listDirectory).toHaveBeenCalledWith('/Folder1');
+  });
 });
