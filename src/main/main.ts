@@ -1,5 +1,6 @@
 /**
  * @file This is the main entry point for the Electron application.
+ * It manages the application lifecycle, window creation, and initialization of background services (Database, Local Server, Auth).
  */
 
 import dotenv from 'dotenv';

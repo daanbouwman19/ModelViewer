@@ -300,16 +300,12 @@ const addDriveSource = async () => {
   addDriveError.value = '';
   try {
     const fid = driveFolderId.value || 'root';
-    const res = await api.addGoogleDriveSource(fid);
-    if (res.success) {
-      // Update local list
-      mediaDirectories.value = await api.getMediaDirectories();
-      cancelDriveAuth();
-    } else {
-      addDriveError.value = res.error || 'Failed to add source';
-    }
+    await api.addGoogleDriveSource(fid);
+    // Update local list
+    mediaDirectories.value = await api.getMediaDirectories();
+    cancelDriveAuth();
   } catch (e) {
-    addDriveError.value = (e as Error).message;
+    addDriveError.value = (e as Error).message || 'Failed to add source';
   } finally {
     isAddingDrive.value = false;
   }

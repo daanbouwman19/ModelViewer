@@ -65,9 +65,7 @@ export interface IMediaBackend {
   // Google Drive
   startGoogleDriveAuth(): Promise<string>;
   submitGoogleDriveAuthCode(code: string): Promise<boolean>;
-  addGoogleDriveSource(
-    folderId: string,
-  ): Promise<{ success: boolean; name?: string; error?: string }>;
+  addGoogleDriveSource(folderId: string): Promise<{ name?: string }>;
   listGoogleDriveDirectory(folderId: string): Promise<FileSystemEntry[]>;
   getGoogleDriveParent(folderId: string): Promise<string | null>;
 }

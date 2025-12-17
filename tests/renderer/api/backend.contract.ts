@@ -226,9 +226,9 @@ export function runBackendContractTests(
       });
 
       it('should add drive source', async () => {
-        primeBackend('addGoogleDriveSource', { success: true, name: 'Drive' });
+        primeBackend('addGoogleDriveSource', { name: 'Drive' });
         const result = await backend.addGoogleDriveSource('folderId');
-        expect(result).toEqual({ success: true, name: 'Drive' });
+        expect(result).toEqual({ name: 'Drive' });
       });
 
       it('should list drive directory', async () => {

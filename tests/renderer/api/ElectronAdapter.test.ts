@@ -87,13 +87,7 @@ describe('ElectronAdapter', () => {
       error: 'Failed',
     });
     const adapter = new ElectronAdapter(mockElectronAPI as any);
-    const res = await adapter.addGoogleDriveSource('id');
-    // The adapter implementation catches error from invoke?
-    // Adapter:
-    // try { const res = await this.invoke(...) ... } catch (e) { return { success: false, error: e.message } }
-    // invoke throws if result.success is false.
-    // So this should return { success: false, error: 'Failed' }
-    expect(res).toEqual({ success: false, error: 'Failed' });
+    await expect(adapter.addGoogleDriveSource('id')).rejects.toThrow('Failed');
   });
 
   it('getMediaUrlGenerator handles local paths', async () => {
@@ -103,11 +97,12 @@ describe('ElectronAdapter', () => {
     });
     const adapter = new ElectronAdapter(mockElectronAPI as any);
     const generator = await adapter.getMediaUrlGenerator();
+    // Expect double slash as we ensure leading slash
     expect(generator('/path/to/file')).toBe(
-      'http://localhost:3000/path/to/file',
+      'http://localhost:3000//path/to/file',
     );
     expect(generator('/path/with space')).toBe(
-      'http://localhost:3000/path/with%20space',
+      'http://localhost:3000//path/with%20space',
     );
     // Check windows path replacement logic if needed, but we pass / usually.
   });

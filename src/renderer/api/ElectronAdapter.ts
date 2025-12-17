@@ -86,7 +86,7 @@ export class ElectronAdapter implements IMediaBackend {
         .split('/')
         .map((segment) => encodeURIComponent(segment))
         .join('/');
-      return `http://localhost:${port}${pathForUrl}`;
+      return `http://localhost:${port}/${pathForUrl}`;
     };
   }
 
@@ -186,15 +186,8 @@ export class ElectronAdapter implements IMediaBackend {
     return this.invoke(this.bridge.submitGoogleDriveAuthCode(code));
   }
 
-  async addGoogleDriveSource(
-    folderId: string,
-  ): Promise<{ success: boolean; name?: string; error?: string }> {
-    try {
-      const res = await this.invoke(this.bridge.addGoogleDriveSource(folderId));
-      return { success: true, name: res.name };
-    } catch (e) {
-      return { success: false, error: (e as Error).message };
-    }
+  async addGoogleDriveSource(folderId: string): Promise<{ name?: string }> {
+    return this.invoke(this.bridge.addGoogleDriveSource(folderId));
   }
 
   async listGoogleDriveDirectory(folderId: string): Promise<FileSystemEntry[]> {

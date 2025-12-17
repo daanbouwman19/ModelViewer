@@ -22,8 +22,8 @@ export interface MediaHandlerOptions {
   cacheDir: string;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let thumbnailQueue: any = null;
+let thumbnailQueue: InstanceType<typeof import('p-queue').default> | null =
+  null;
 
 async function getThumbnailQueue() {
   if (thumbnailQueue) return thumbnailQueue;

@@ -92,7 +92,6 @@ export function registerSystemHandlers() {
           defaultId: 1,
           title: 'Open External Link',
           message: `Do you want to open this external link?\n\n${url}`,
-          checkboxLabel: 'Trust this domain',
         });
 
         if (response === 1) {
