@@ -80,6 +80,35 @@ const isDev = !app.isPackaged;
  */
 let mainWindow: BrowserWindow | null = null;
 
+// --- Helper Functions ---
+
+/**
+ * Validates access to a file path. Throws if access is denied.
+ * Allows gdrive:// paths without check (assumed safe/handled by other layers).
+ */
+async function validatePathAccess(filePath: string): Promise<void> {
+  if (filePath.startsWith('gdrive://')) return;
+  const auth = await authorizeFilePath(filePath);
+  if (!auth.isAllowed) {
+    throw new Error(auth.message || 'Access denied');
+  }
+}
+
+/**
+ * Filters a list of file paths, returning only those authorized.
+ * Uses Promise.all for parallel verification.
+ */
+async function filterAuthorizedPaths(filePaths: string[]): Promise<string[]> {
+  const results = await Promise.all(
+    filePaths.map(async (p) => {
+      if (p.startsWith('gdrive://')) return p;
+      const auth = await authorizeFilePath(p);
+      return auth.isAllowed ? p : null;
+    }),
+  );
+  return results.filter((p) => p !== null) as string[];
+}
+
 // --- IPC Handlers ---
 
 /**
@@ -112,6 +141,8 @@ ipcMain.handle(
 ipcMain.handle(
   'record-media-view',
   async (_event: IpcMainInvokeEvent, filePath: string) => {
+    // [SECURITY] Validate path to prevent unauthorized file access/probing
+    await validatePathAccess(filePath);
     await recordMediaView(filePath);
   },
 );
@@ -124,7 +155,9 @@ ipcMain.handle(
 ipcMain.handle(
   'get-media-view-counts',
   async (_event: IpcMainInvokeEvent, filePaths: string[]) => {
-    return getMediaViewCounts(filePaths);
+    // [SECURITY] Filter out unauthorized paths
+    const allowedPaths = await filterAuthorizedPaths(filePaths);
+    return getMediaViewCounts(allowedPaths);
   },
 );
 
@@ -322,6 +355,11 @@ ipcMain.handle(
   'open-external',
   async (_event: IpcMainInvokeEvent, url: string) => {
     if (!url) return;
+    // [SECURITY] Validate protocol to prevent opening insecure or local schemes
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      console.warn(`[Security] Blocked open-external for non-http URL: ${url}`);
+      return;
+    }
     await shell.openExternal(url);
   },
 );
@@ -374,6 +412,8 @@ ipcMain.handle(
 ipcMain.handle(
   'db:upsert-metadata',
   async (_event: IpcMainInvokeEvent, { filePath, metadata }) => {
+    // [SECURITY] Validate path
+    await validatePathAccess(filePath);
     await upsertMetadata(filePath, metadata);
   },
 );
@@ -384,7 +424,9 @@ ipcMain.handle(
 ipcMain.handle(
   'db:get-metadata',
   async (_event: IpcMainInvokeEvent, filePaths: string[]) => {
-    return getMetadata(filePaths);
+    // [SECURITY] Filter unauthorized paths
+    const allowedPaths = await filterAuthorizedPaths(filePaths);
+    return getMetadata(allowedPaths);
   },
 );
 
@@ -394,6 +436,8 @@ ipcMain.handle(
 ipcMain.handle(
   'db:set-rating',
   async (_event: IpcMainInvokeEvent, { filePath, rating }) => {
+    // [SECURITY] Validate path
+    await validatePathAccess(filePath);
     await setRating(filePath, rating);
   },
 );
