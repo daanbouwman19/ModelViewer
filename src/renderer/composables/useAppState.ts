@@ -1,4 +1,4 @@
-import { reactive, toRefs, computed } from 'vue';
+import { reactive, toRefs, computed, watch } from 'vue';
 import type {
   Album,
   MediaFile,
@@ -107,10 +107,71 @@ const videoExtensionsSet = computed(
   () => new Set(state.supportedExtensions.videos),
 );
 
+// Track if persistence watcher is set up
+let isWatcherInitialized = false;
+
+/**
+ * Persist selection state to local storage.
+ * Exported for testing purposes.
+ */
+export const setupPersistenceWatcher = () => {
+  if (isWatcherInitialized) return;
+  watch(
+    () => state.albumsSelectedForSlideshow,
+    (newSelection: { [key: string]: boolean }) => {
+      try {
+        localStorage.setItem('albumSelection', JSON.stringify(newSelection));
+      } catch (e) {
+        console.error('Failed to save album selection:', e);
+      }
+    },
+    { deep: true },
+  );
+  isWatcherInitialized = true;
+};
+
+// Start watcher immediately
+setupPersistenceWatcher();
+
 /**
  * A Vue composable that provides access to the global application state and related actions.
  */
 export function useAppState() {
+  /**
+   * Resets the entire internal state. Used primarily for testing.
+   */
+  const resetInternalState = () => {
+    state.isScanning = false;
+    state.allAlbums = [];
+    state.albumsSelectedForSlideshow = {};
+    state.globalMediaPoolForSelection = [];
+    state.totalMediaInPool = 0;
+    state.displayedMediaFiles = [];
+    state.currentMediaItem = null;
+    state.currentMediaIndex = -1;
+    state.isSlideshowActive = false;
+    state.slideshowTimerId = null;
+    state.timerDuration = 5;
+    state.isTimerRunning = false;
+    state.timerProgress = 0;
+    state.playFullVideo = false;
+    state.pauseTimerOnPlay = false;
+    state.mediaFilter = 'All';
+    state.viewMode = 'player';
+    state.gridMediaFiles = [];
+    state.isSourcesModalVisible = false;
+    state.isSmartPlaylistModalVisible = false;
+    state.smartPlaylists = [];
+    state.playlistToEdit = null;
+    state.mediaDirectories = [];
+    state.supportedExtensions = {
+      images: [],
+      videos: [],
+      all: [],
+    };
+    state.mainVideoElement = null;
+  };
+
   /**
    * Initializes the application state by fetching data from the main process.
    * This includes loading albums, media directories, and supported extensions.
@@ -122,12 +183,38 @@ export function useAppState() {
       state.smartPlaylists = await api.getSmartPlaylists();
       state.supportedExtensions = await api.getSupportedExtensions();
 
-      state.allAlbums.forEach((album) => {
-        state.albumsSelectedForSlideshow[album.name] = true;
-      });
+      // Load selection from local storage
+      const savedSelection = localStorage.getItem('albumSelection');
+      if (savedSelection) {
+        try {
+          state.albumsSelectedForSlideshow = JSON.parse(savedSelection);
+        } catch (e) {
+          console.error('Failed to parse saved album selection:', e);
+          // Fallback to selecting all
+          selectAllAlbumsRecursively(state.allAlbums);
+        }
+      } else {
+        // Default to selecting ALL albums recursively
+        selectAllAlbumsRecursively(state.allAlbums);
+      }
     } catch (error) {
       console.error('[useAppState] Error during initial load:', error);
     }
+  };
+
+  /**
+   * Helper to select all albums recursively.
+   */
+  const selectAllAlbumsRecursively = (albums: Album[]) => {
+    const traverse = (list: Album[]) => {
+      for (const album of list) {
+        state.albumsSelectedForSlideshow[album.name] = true;
+        if (album.children) {
+          traverse(album.children);
+        }
+      }
+    };
+    traverse(albums);
   };
 
   /**
@@ -160,5 +247,6 @@ export function useAppState() {
     initializeApp,
     resetState,
     stopSlideshow,
+    resetInternalState,
   };
 }

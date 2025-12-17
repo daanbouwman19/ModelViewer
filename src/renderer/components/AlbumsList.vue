@@ -142,20 +142,31 @@ const {
 const slideshow = useSlideshow();
 
 /**
- * Toggles the selection of an album and all its children. If any child is unselected,
- * it selects all of them. If all are already selected, it deselects all of them.
- * @param album - The album to toggle.
+ * Toggles the selection of an album. Can be recursive (children included) or single.
+ * @param payload - The event payload containing the album and recursive flag.
  */
-const handleToggleSelection = (album: Album) => {
-  const names = getAlbumAndChildrenNames(album);
-  // Determine the new state: if any child is unselected, the new state is "selected" (true).
-  // Otherwise, if all are selected, the new state is "unselected" (false).
-  const newSelectionState = names.some(
-    (name) => !albumsSelectedForSlideshow.value[name],
-  );
+const handleToggleSelection = ({
+  album,
+  recursive,
+}: {
+  album: Album;
+  recursive: boolean;
+}) => {
+  if (recursive) {
+    const names = getAlbumAndChildrenNames(album);
+    // Determine the new state: if any child is unselected, the new state is "selected" (true).
+    // Otherwise, if all are selected, the new state is "unselected" (false).
+    const newSelectionState = names.some(
+      (name) => !albumsSelectedForSlideshow.value[name],
+    );
 
-  for (const name of names) {
-    slideshow.toggleAlbumSelection(name, newSelectionState);
+    for (const name of names) {
+      slideshow.toggleAlbumSelection(name, newSelectionState);
+    }
+  } else {
+    // Single mode: Toggle only this album
+    const current = albumsSelectedForSlideshow.value[album.name];
+    slideshow.toggleAlbumSelection(album.name, !current);
   }
 };
 

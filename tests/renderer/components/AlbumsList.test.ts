@@ -141,7 +141,10 @@ describe('AlbumsList.vue', () => {
     const wrapper = mount(AlbumsList);
     const albumTree = wrapper.findComponent({ name: 'AlbumTree' });
 
-    albumTree.vm.$emit('toggleSelection', mockAlbums[0]);
+    albumTree.vm.$emit('toggleSelection', {
+      album: mockAlbums[0],
+      recursive: true,
+    });
     await wrapper.vm.$nextTick();
 
     expect(mockToggleAlbumSelection).toHaveBeenCalledWith('Album1', true);
@@ -157,7 +160,10 @@ describe('AlbumsList.vue', () => {
     const wrapper = mount(AlbumsList);
     const albumTree = wrapper.findComponent({ name: 'AlbumTree' });
 
-    albumTree.vm.$emit('toggleSelection', mockAlbums[0]);
+    albumTree.vm.$emit('toggleSelection', {
+      album: mockAlbums[0],
+      recursive: true,
+    });
     await wrapper.vm.$nextTick();
 
     expect(mockToggleAlbumSelection).toHaveBeenCalledWith('Album1', false);

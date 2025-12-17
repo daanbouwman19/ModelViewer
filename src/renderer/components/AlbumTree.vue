@@ -22,7 +22,7 @@
             :checked="selectionState === 'all'"
             :indeterminate="selectionState === 'some'"
             :aria-label="`Select ${album.name}`"
-            @change="handleToggleSelection(album)"
+            @click="handleToggleSelection(album, $event)"
           />
           <span
             class="checkmark"
@@ -78,7 +78,7 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
-  (e: 'toggleSelection', album: Album): void;
+  (e: 'toggleSelection', payload: { album: Album; recursive: boolean }): void;
   (e: 'albumClick', album: Album): void;
 }>();
 
@@ -121,9 +121,13 @@ const selectionState = computed(() => {
 /**
  * Emits an event to toggle the selection of an album.
  * @param album - The album to toggle.
+ * @param event - The interaction event.
  */
-const handleToggleSelection = (album: Album) => {
-  emit('toggleSelection', album);
+const handleToggleSelection = (album: Album, event: MouseEvent) => {
+  // If shift key is pressed, toggle ONLY the parent (not recursive)
+  // Otherwise default to recursive (standard behavior)
+  const recursive = !event.shiftKey;
+  emit('toggleSelection', { album, recursive });
 };
 
 /**
