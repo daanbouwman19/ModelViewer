@@ -279,7 +279,6 @@ describe('useAppState', () => {
 
       // Wait for Vue watcher
       await nextTick();
-      await nextTick();
 
       expect(setItemSpy).toHaveBeenCalled();
     });
@@ -297,7 +296,6 @@ describe('useAppState', () => {
 
       appState.state.albumsSelectedForSlideshow = { AnotherAlbum: true };
 
-      await nextTick();
       await nextTick();
 
       expect(consoleSpy).toHaveBeenCalledWith(

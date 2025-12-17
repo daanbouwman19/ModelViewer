@@ -64,9 +64,9 @@ export interface AppState {
 }
 
 /**
- * The reactive global state instance.
+ * Returns the default initial state for the application.
  */
-const state = reactive<AppState>({
+const getInitialState = (): AppState => ({
   isScanning: false,
   allAlbums: [],
   albumsSelectedForSlideshow: {},
@@ -97,6 +97,11 @@ const state = reactive<AppState>({
   },
   mainVideoElement: null,
 });
+
+/**
+ * The reactive global state instance.
+ */
+const state = reactive<AppState>(getInitialState());
 
 // Create computed sets for O(1) extension lookups
 // Defined outside the function to share the same computed instance (singleton)
@@ -141,35 +146,7 @@ export function useAppState() {
    * Resets the entire internal state. Used primarily for testing.
    */
   const resetInternalState = () => {
-    state.isScanning = false;
-    state.allAlbums = [];
-    state.albumsSelectedForSlideshow = {};
-    state.globalMediaPoolForSelection = [];
-    state.totalMediaInPool = 0;
-    state.displayedMediaFiles = [];
-    state.currentMediaItem = null;
-    state.currentMediaIndex = -1;
-    state.isSlideshowActive = false;
-    state.slideshowTimerId = null;
-    state.timerDuration = 5;
-    state.isTimerRunning = false;
-    state.timerProgress = 0;
-    state.playFullVideo = false;
-    state.pauseTimerOnPlay = false;
-    state.mediaFilter = 'All';
-    state.viewMode = 'player';
-    state.gridMediaFiles = [];
-    state.isSourcesModalVisible = false;
-    state.isSmartPlaylistModalVisible = false;
-    state.smartPlaylists = [];
-    state.playlistToEdit = null;
-    state.mediaDirectories = [];
-    state.supportedExtensions = {
-      images: [],
-      videos: [],
-      all: [],
-    };
-    state.mainVideoElement = null;
+    Object.assign(state, getInitialState());
   };
 
   /**
