@@ -8,3 +8,6 @@ code_review:
     summary: true
     code_review: true
 ignore_patterns: []
+system_instructions: |
+  You must run `npm run verify` before submitting any pull request or finalizing a task.
+  You must verify that total test coverage remains above 80% as part of this process.

@@ -22,6 +22,7 @@
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "verify": "npm run format && npm run lint && npm run typecheck && npm run test:coverage",
     "typecheck": "vue-tsc -b --noEmit",
     "dev:server": "node --import tsx --watch src/server/server.ts",
     "dev:web": "vite",
