@@ -170,8 +170,8 @@ describe('Main Process IPC - open-in-vlc', () => {
 
     const result = await openInVlcHandler({}, 'C:\\video.mp4');
 
-    expect(result.success).toBe(false);
-    expect(result.message).toContain('VLC Media Player not found');
+    expect(result.data.success).toBe(false);
+    expect(result.data.message).toContain('VLC Media Player not found');
     expect(mockSpawn).not.toHaveBeenCalled();
   });
 
@@ -189,7 +189,9 @@ describe('Main Process IPC - open-in-vlc', () => {
 
     const result = await openInVlcHandler({}, 'C:\\video.mp4');
 
-    expect(result.success).toBe(true);
+    expect(result.data.success).toBe(true);
+    expect(result.data.success).toBe(true);
+    expect(result.data.success).toBe(true);
     expect(mockSpawn).toHaveBeenCalled();
     expect(mockChild.unref).toHaveBeenCalled();
   });
@@ -268,7 +270,7 @@ describe('Main Process IPC - open-in-vlc', () => {
 
     const result = await openInVlcHandler({}, '/home/user/video.mp4');
 
-    expect(result.success).toBe(false);
-    expect(result.message).toContain('Failed to launch VLC: Spawn failed');
+    expect(result.data.success).toBe(false);
+    expect(result.data.message).toContain('Failed to launch VLC: Spawn failed');
   });
 });

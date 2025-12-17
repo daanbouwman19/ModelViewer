@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { ipcMain } from 'electron';
 import path from 'path';
+import { Readable } from 'stream';
 
 // Mock dependencies
 const mockFsPromises = {
@@ -10,11 +11,15 @@ const mockFsPromises = {
   realpath: vi.fn(),
 };
 
+const mockCreateReadStream = vi.fn();
+
 vi.mock('fs', () => ({
   default: {
     promises: mockFsPromises,
+    createReadStream: mockCreateReadStream,
   },
   promises: mockFsPromises,
+  createReadStream: mockCreateReadStream,
 }));
 
 vi.mock('fs/promises', () => ({
@@ -120,9 +125,14 @@ describe('Security: load-file-as-data-url', () => {
       Buffer.from('test'),
     );
 
+    // Mock createReadStream
+    (mockCreateReadStream as unknown as Mock).mockReturnValue(
+      Readable.from([Buffer.from('test')])
+    );
+
     const result = await handler(null, validFile);
 
-    expect(result).toHaveProperty('type', 'data-url');
+    expect(result.data).toHaveProperty('type', 'data-url');
   });
 
   it('should deny access to files outside allowed media directories', async () => {
@@ -143,7 +153,7 @@ describe('Security: load-file-as-data-url', () => {
 
     const result = await handler(null, sensitiveFile);
 
-    expect(result).toEqual({
+    expect(result.data).toEqual({
       type: 'error',
       message: expect.stringContaining('Access denied'),
     });
@@ -169,7 +179,7 @@ describe('Security: load-file-as-data-url', () => {
 
     const result = await handler(null, traversalPath);
 
-    expect(result).toEqual({
+    expect(result.data).toEqual({
       type: 'error',
       message: expect.stringContaining('Access denied'),
     });
@@ -195,7 +205,7 @@ describe('Security: load-file-as-data-url', () => {
 
     const result = await handler(null, symlinkPath);
 
-    expect(result).toEqual({
+    expect(result.data).toEqual({
       type: 'error',
       message: expect.stringContaining('Access denied'),
     });

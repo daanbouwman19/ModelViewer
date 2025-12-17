@@ -122,7 +122,7 @@ describe('Security: open-in-vlc', () => {
 
     const result = await handler(null, sensitiveFile);
 
-    expect(result).toEqual({
+    expect(result.data).toEqual({
       success: false,
       message: expect.stringContaining('Access denied'),
     });

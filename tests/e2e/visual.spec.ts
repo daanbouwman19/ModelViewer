@@ -1,0 +1,50 @@
+import { test, expect } from '@playwright/test';
+
+test('MediaGrid visual regression', async ({ page }) => {
+  // Mock backend API
+  await page.route('**/api/albums', async (route) => {
+    const json = [
+      {
+        name: 'Test Album',
+        textures: [
+          { name: 'test1.jpg', path: '/media/test1.jpg' },
+          { name: 'test2.mp4', path: '/media/test2.mp4' },
+        ],
+        children: [],
+      },
+    ];
+    await route.fulfill({ json });
+  });
+
+  await page.route('**/api/directories', async (route) => {
+    await route.fulfill({
+      json: [{ path: '/media', type: 'local', name: 'Media' }],
+    });
+  });
+
+  await page.route('**/api/config/extensions', async (route) => {
+    await route.fulfill({
+      json: { images: ['jpg'], videos: ['mp4'], all: ['jpg', 'mp4'] },
+    });
+  });
+
+  await page.route('**/api/serve*', async (route) => {
+    // Serve a 1x1 pixel transparent gif
+    const buffer = Buffer.from(
+      'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+      'base64',
+    );
+    await route.fulfill({ body: buffer, contentType: 'image/gif' });
+  });
+
+  await page.goto('/');
+
+  // Wait for data to load
+  await expect(page.getByText('Test Album')).toBeVisible();
+
+  // Take screenshot
+  await expect(page).toHaveScreenshot('media-grid.png', {
+    fullPage: true,
+    maxDiffPixelRatio: 0.2,
+  });
+});
