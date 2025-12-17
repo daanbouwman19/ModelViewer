@@ -142,10 +142,27 @@ describe('media-source', () => {
     const filePath = 'gdrive://123';
     const source = new DriveMediaSource(filePath);
 
-    it('getFFmpegInput delegates to InternalMediaProxy', async () => {
+    it('getFFmpegInput delegates to InternalMediaProxy and appends extension', async () => {
       mockProxyGetUrlForFile.mockResolvedValue('http://proxy/123');
-      expect(await source.getFFmpegInput()).toBe('http://proxy/123');
+      mockGetDriveFileMetadata.mockResolvedValue({ name: 'video.mov' });
+
+      // Should append .mov to the proxy URL
+      expect(await source.getFFmpegInput()).toBe('http://proxy/123.mov');
       expect(mockProxyGetUrlForFile).toHaveBeenCalledWith('123');
+    });
+
+    it('getFFmpegInput handles missing extension in metadata', async () => {
+      mockProxyGetUrlForFile.mockResolvedValue('http://proxy/123');
+      mockGetDriveFileMetadata.mockResolvedValue({ name: 'file_without_ext' });
+
+      expect(await source.getFFmpegInput()).toBe('http://proxy/123');
+    });
+
+    it('getFFmpegInput handles metadata error gracefully', async () => {
+      mockProxyGetUrlForFile.mockResolvedValue('http://proxy/123');
+      mockGetDriveFileMetadata.mockRejectedValue(new Error('Fetch failed'));
+
+      expect(await source.getFFmpegInput()).toBe('http://proxy/123');
     });
 
     it('getStream delegates to drive-stream', async () => {

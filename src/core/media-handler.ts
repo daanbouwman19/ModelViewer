@@ -258,6 +258,10 @@ export async function serveTranscodedStream(
 
   ffmpegProcess.stdout.pipe(res);
 
+  ffmpegProcess.stderr.on('data', (data) => {
+    console.error(`[Transcode] FFmpeg Stderr: ${data}`);
+  });
+
   ffmpegProcess.on('error', (err) => {
     console.error('[Transcode] Spawn Error:', err);
   });
