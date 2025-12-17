@@ -5,17 +5,20 @@
 
 import http from 'http';
 import fs from 'fs';
+import fsPromises from 'fs/promises';
 import { spawn } from 'child_process';
 import rangeParser from 'range-parser';
 import { createMediaSource } from './media-source';
 
 import { IMediaSource } from './media-source-types';
-import { getThumbnailCachePath, checkThumbnailCache } from './media-utils';
+import { getThumbnailCachePath, checkThumbnailCache, getMimeType } from './media-utils';
 import {
   getDriveFileMetadata,
   getDriveFileThumbnail,
+  getDriveFileStream,
 } from '../main/google-drive-service';
 import { authorizeFilePath } from './security';
+import { DATA_URL_THRESHOLD_MB } from './constants';
 
 export interface MediaHandlerOptions {
   ffmpegPath: string | null;
@@ -475,4 +478,203 @@ export function createMediaRequestHandler(options: MediaHandlerOptions) {
     const requestedPath = decodeURIComponent(parsedUrl.pathname.substring(1));
     return serveStaticFile(req, res, requestedPath);
   };
+}
+
+/**
+ * Generates a URL (Data URL or HTTP URL) for loading a file.
+ */
+export async function generateFileUrl(
+  filePath: string,
+  options: { serverPort: number; preferHttp?: boolean },
+): Promise<{
+  type: 'data-url' | 'http-url' | 'error';
+  url?: string;
+  message?: string;
+}> {
+  try {
+    const { serverPort, preferHttp } = options;
+
+    // 1. Handle Google Drive Files
+    if (filePath.startsWith('gdrive://')) {
+      const fileId = filePath.replace('gdrive://', '');
+
+      // For video, or preferHttp, return HTTP URL from local server which pipes Drive stream
+      const meta = await getDriveFileMetadata(fileId);
+
+      // Use threshold for ALL files (images or video)
+      const isLarge = Number(meta.size) > DATA_URL_THRESHOLD_MB * 1024 * 1024;
+
+      if (preferHttp || isLarge) {
+        if (serverPort === 0) {
+          return {
+            type: 'error',
+            message: 'Local server not ready to stream Drive file.',
+          };
+        }
+        // We need to encode the URI because the file path is now a gdrive:// URI
+        const encodedPath = encodeURIComponent(filePath);
+        return {
+          type: 'http-url',
+          url: `http://localhost:${serverPort}/video/stream?file=${encodedPath}`,
+        };
+      }
+
+      // For small files, return Data URL
+      // Fetch buffer
+      const stream = await getDriveFileStream(fileId);
+      const chunks: Buffer[] = [];
+      for await (const chunk of stream) {
+        chunks.push(Buffer.from(chunk));
+      }
+      const buffer = Buffer.concat(chunks);
+      const mimeType = meta.mimeType || 'application/octet-stream';
+      const dataURL = `data:${mimeType};base64,${buffer.toString('base64')}`;
+      return { type: 'data-url', url: dataURL };
+    }
+
+    // 2. Handle Local Files
+    const auth = await authorizeFilePath(filePath);
+    if (!auth.isAllowed) {
+      return { type: 'error', message: auth.message || 'Access denied' };
+    }
+
+    // If preferHttp is true, always return an HTTP URL (if the server is running)
+    if (preferHttp && serverPort > 0) {
+      const pathForUrl = filePath.replace(/\\/g, '/');
+      return {
+        type: 'http-url',
+        url: `http://localhost:${serverPort}/${pathForUrl}`,
+      };
+    }
+
+    const stats = await fsPromises.stat(filePath);
+
+    if (stats.size > DATA_URL_THRESHOLD_MB * 1024 * 1024) {
+      if (serverPort === 0) {
+        return {
+          type: 'error',
+          message: 'Local server not ready to stream large file.',
+        };
+      }
+      const pathForUrl = filePath.replace(/\\/g, '/');
+      return {
+        type: 'http-url',
+        url: `http://localhost:${serverPort}/${pathForUrl}`,
+      };
+    }
+
+    const mimeType = getMimeType(filePath);
+    const fileBuffer = await fsPromises.readFile(filePath);
+    const dataURL = `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
+    return { type: 'data-url', url: dataURL };
+  } catch (error: unknown) {
+    console.error(
+      `[media-handler] Error processing ${filePath} in generateFileUrl:`,
+      error,
+    );
+    return {
+      type: 'error',
+      message: (error as Error).message || 'Unknown error processing file.',
+    };
+  }
+}
+
+/**
+ * Opens a media file in VLC Media Player.
+ */
+export async function openMediaInVlc(
+  filePath: string,
+  serverPort: number,
+): Promise<{ success: boolean; message?: string }> {
+  // Drive check replaced by streaming logic below
+
+  if (filePath.startsWith('gdrive://')) {
+    // Create a local stream URL for VLC
+    if (serverPort === 0) {
+      return {
+        success: false,
+        message: 'Local server is not running to stream Drive file.',
+      };
+    }
+    const encodedPath = encodeURIComponent(filePath);
+    const streamUrl = `http://localhost:${serverPort}/video/stream?file=${encodedPath}`;
+    console.log(`[VLC] Streaming Drive file from: ${streamUrl}`);
+  }
+
+  // Logic to resolve VLC path
+  const platform = process.platform;
+  let vlcPath: string | null = null;
+  let fileArg = filePath;
+
+  if (filePath.startsWith('gdrive://')) {
+    // We already checked port above
+    if (serverPort > 0) {
+      fileArg = `http://localhost:${serverPort}/video/stream?file=${encodeURIComponent(filePath)}`;
+    } else {
+      return { success: false, message: 'Server not ready for streaming' };
+    }
+  } else {
+    // Local file auth check
+    const auth = await authorizeFilePath(filePath);
+    if (!auth.isAllowed) {
+      return { success: false, message: auth.message || 'Access denied' };
+    }
+  }
+
+  if (platform === 'win32') {
+    const commonPaths = [
+      'C:\\Program Files\\VideoLAN\\VLC\\vlc.exe',
+      'C:\\Program Files (x86)\\VideoLAN\\VLC\\vlc.exe',
+    ];
+    for (const p of commonPaths) {
+      try {
+        await fsPromises.access(p);
+        vlcPath = p;
+        break;
+      } catch {
+        // Continue checking other paths
+      }
+    }
+  } else if (platform === 'darwin') {
+    const macPath = '/Applications/VLC.app/Contents/MacOS/VLC';
+    try {
+      await fsPromises.access(macPath);
+      vlcPath = macPath;
+    } catch {
+      // Fallback to trying 'vlc' in PATH if the standard app path fails
+      vlcPath = 'vlc';
+    }
+  } else {
+    // On Linux, assume 'vlc' is in the PATH
+    vlcPath = 'vlc';
+  }
+
+  if (!vlcPath) {
+    return {
+      success: false,
+      message:
+        'VLC Media Player not found. Please ensure it is installed in the default location.',
+    };
+  }
+
+  try {
+    const child = spawn(vlcPath, [fileArg], {
+      detached: true,
+      stdio: 'ignore',
+    });
+
+    // Listen for spawn errors (e.g. ENOENT if 'vlc' is not in PATH)
+    child.on('error', (err) => {
+      console.error('[media-handler] Error launching VLC (async):', err);
+    });
+
+    child.unref();
+    return { success: true };
+  } catch (error: unknown) {
+    console.error('[media-handler] Error launching VLC:', error);
+    return {
+      success: false,
+      message: `Failed to launch VLC: ${(error as Error).message}`,
+    };
+  }
 }

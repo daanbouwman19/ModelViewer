@@ -102,6 +102,7 @@
     "vue": "^3.5.12"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
     "@swc/core": "^1.15.3",
     "@tailwindcss/vite": "^4.1.18",
     "@types/better-sqlite3": "^7.6.13",

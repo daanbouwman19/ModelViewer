@@ -14,15 +14,12 @@ import {
   BrowserWindow,
   ipcMain,
   IpcMainInvokeEvent,
-  shell,
 } from 'electron';
 import path from 'path';
 import fs from 'fs/promises';
-import { spawn } from 'child_process';
 import ffmpegPath from 'ffmpeg-static';
 
 import {
-  DATA_URL_THRESHOLD_MB,
   SUPPORTED_VIDEO_EXTENSIONS,
   SUPPORTED_IMAGE_EXTENSIONS,
   ALL_SUPPORTED_EXTENSIONS,
@@ -52,18 +49,20 @@ import {
   getAlbumsWithViewCounts,
   extractAndSaveMetadata,
 } from '../core/media-service';
-import { getVideoDuration } from '../core/media-handler';
+import {
+  getVideoDuration,
+  generateFileUrl,
+  openMediaInVlc,
+} from '../core/media-handler';
 import {
   startLocalServer,
   stopLocalServer,
   getServerPort,
-  getMimeType as resolveMimeType,
 } from './local-server';
 import { listDirectory } from '../core/file-system';
 import { generateAuthUrl, authenticateWithCode } from './google-auth';
 import {
   getDriveClient,
-  getDriveFileStream,
   getDriveFileMetadata,
   listDriveDirectory,
   getDriveParent,
@@ -98,96 +97,10 @@ ipcMain.handle(
     filePath: string,
     options: { preferHttp?: boolean } = {},
   ) => {
-    try {
-      // 1. Handle Google Drive Files
-      if (filePath.startsWith('gdrive://')) {
-        const fileId = filePath.replace('gdrive://', '');
-        const currentServerPort = getServerPort();
-
-        // For video, or preferHttp, return HTTP URL from local server which pipes Drive stream
-        const meta = await getDriveFileMetadata(fileId);
-
-        // Use threshold for ALL files (images or video)
-        // Note: For Drive files, streaming logic is slightly different, but we should use HTTP URL if large
-        const isLarge = Number(meta.size) > DATA_URL_THRESHOLD_MB * 1024 * 1024;
-
-        if (options.preferHttp || isLarge) {
-          if (currentServerPort === 0) {
-            return {
-              type: 'error',
-              message: 'Local server not ready to stream Drive file.',
-            };
-          }
-          // We need to encode the URI because the file path is now a gdrive:// URI
-          const encodedPath = encodeURIComponent(filePath);
-          return {
-            type: 'http-url',
-            url: `http://localhost:${currentServerPort}/video/stream?file=${encodedPath}`,
-          };
-        }
-
-        // For small files, return Data URL
-        // Fetch buffer
-        const stream = await getDriveFileStream(fileId);
-        const chunks: Buffer[] = [];
-        for await (const chunk of stream) {
-          chunks.push(Buffer.from(chunk));
-        }
-        const buffer = Buffer.concat(chunks);
-        const mimeType = meta.mimeType || 'application/octet-stream';
-        const dataURL = `data:${mimeType};base64,${buffer.toString('base64')}`;
-        return { type: 'data-url', url: dataURL };
-      }
-
-      // 2. Handle Local Files
-      const auth = await authorizeFilePath(filePath);
-      if (!auth.isAllowed) {
-        return { type: 'error', message: auth.message || 'Access denied' };
-      }
-
-      const currentServerPort = getServerPort();
-
-      // If preferHttp is true, always return an HTTP URL (if the server is running)
-      if (options.preferHttp && currentServerPort > 0) {
-        const pathForUrl = filePath.replace(/\\/g, '/');
-        return {
-          type: 'http-url',
-          url: `http://localhost:${currentServerPort}/${pathForUrl}`,
-        };
-      }
-
-      const stats = await fs.stat(filePath);
-
-      // Check if file is larger than threshold (1MB)
-      // Note: This logic now applies to images too, not just videos
-      if (stats.size > DATA_URL_THRESHOLD_MB * 1024 * 1024) {
-        if (currentServerPort === 0) {
-          return {
-            type: 'error',
-            message: 'Local server not ready to stream large file.',
-          };
-        }
-        const pathForUrl = filePath.replace(/\\/g, '/');
-        return {
-          type: 'http-url',
-          url: `http://localhost:${currentServerPort}/${pathForUrl}`,
-        };
-      }
-
-      const mimeType = resolveMimeType(filePath);
-      const fileBuffer = await fs.readFile(filePath);
-      const dataURL = `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
-      return { type: 'data-url', url: dataURL };
-    } catch (error: unknown) {
-      console.error(
-        `[main.js] Error processing ${filePath} in load-file-as-data-url:`,
-        error,
-      );
-      return {
-        type: 'error',
-        message: (error as Error).message || 'Unknown error processing file.',
-      };
-    }
+    return generateFileUrl(filePath, {
+      serverPort: getServerPort(),
+      preferHttp: options.preferHttp,
+    });
   },
 );
 
@@ -298,30 +211,16 @@ ipcMain.handle(
 /**
  * Handles 'auth:google-drive-start'
  */
-
-// ...
-
 ipcMain.handle('auth:google-drive-start', async () => {
   const url = generateAuthUrl();
 
   // Start temporary auth server on port 3000 to catch the callback
-  // This matches the default redirect URI in Google Console
   startAuthServer(3000).catch((err) =>
     console.error('Failed to start auth server', err),
   );
 
-  await shell.openExternal(url);
-  // User needs to paste code, or we need a loopback server.
-  // For MVP, let's ask user to paste code in a prompt
-  // Ideally we spin up a temporary server or intercept protocol.
-  // The google-secrets.ts uses a localhost redirect. Let's assume we want to support code copy-paste or implement a loopback.
-  // For simplicity, let's return the URL to the frontend, frontend opens it, and asks user for code?
+  // Return the URL for the frontend to open
   return url;
-  // Wait, typical desktop flow uses a loopback server listening on the redirect URI.
-  // I will implement a simpler 'manual copy paste' flow for the "Add Source" modal for now if the user agrees.
-  // But the user plan said "Use IPC handlers to trigger the login".
-  // I'll assume I should handle the loopback or manual code entry.
-  // Let's implement a manual code entry on the frontend for this MVP as it's most robust without complex networking issues.
 });
 
 /**
@@ -422,105 +321,7 @@ ipcMain.handle('get-server-port', () => {
 ipcMain.handle(
   'open-in-vlc',
   async (_event: IpcMainInvokeEvent, filePath: string) => {
-    // Drive check replaced by streaming logic below
-
-    if (filePath.startsWith('gdrive://')) {
-      // Create a local stream URL for VLC
-      const port = getServerPort();
-      if (port === 0) {
-        return {
-          success: false,
-          message: 'Local server is not running to stream Drive file.',
-        };
-      }
-      const encodedPath = encodeURIComponent(filePath);
-      const streamUrl = `http://localhost:${port}/video/stream?file=${encodedPath}`;
-      console.log(`[VLC] Streaming Drive file from: ${streamUrl}`);
-
-      // We still need to find VLC path (reusing logic below)
-      // We will duplicate the VLC finding logic or refactor.
-      // Refactoring is better but for minimal change let's flow down.
-      // But 'filePath' argument to spawn needs to be the URL.
-      // Let's change the variable passed to spawn.
-    }
-
-    // Logic to resolve VLC path
-    const platform = process.platform;
-    let vlcPath: string | null = null;
-    let fileArg = filePath;
-
-    if (filePath.startsWith('gdrive://')) {
-      // We already checked port above
-      const port = getServerPort();
-      if (port > 0) {
-        fileArg = `http://localhost:${port}/video/stream?file=${encodeURIComponent(filePath)}`;
-      } else {
-        return { success: false, message: 'Server not ready for streaming' };
-      }
-    } else {
-      // Local file auth check
-      const auth = await authorizeFilePath(filePath);
-      if (!auth.isAllowed) {
-        return { success: false, message: auth.message || 'Access denied' };
-      }
-    }
-
-    if (platform === 'win32') {
-      const commonPaths = [
-        'C:\\Program Files\\VideoLAN\\VLC\\vlc.exe',
-        'C:\\Program Files (x86)\\VideoLAN\\VLC\\vlc.exe',
-      ];
-      for (const p of commonPaths) {
-        try {
-          await fs.access(p);
-          vlcPath = p;
-          break;
-        } catch {
-          // Continue checking other paths
-        }
-      }
-    } else if (platform === 'darwin') {
-      const macPath = '/Applications/VLC.app/Contents/MacOS/VLC';
-      try {
-        await fs.access(macPath);
-        vlcPath = macPath;
-      } catch {
-        // Fallback to trying 'vlc' in PATH if the standard app path fails
-        vlcPath = 'vlc';
-      }
-    } else {
-      // On Linux, assume 'vlc' is in the PATH
-      vlcPath = 'vlc';
-    }
-
-    if (!vlcPath) {
-      return {
-        success: false,
-        message:
-          'VLC Media Player not found. Please ensure it is installed in the default location.',
-      };
-    }
-
-    try {
-      const child = spawn(vlcPath, [fileArg], {
-        detached: true,
-        stdio: 'ignore',
-      });
-
-      // Listen for spawn errors (e.g. ENOENT if 'vlc' is not in PATH)
-      child.on('error', (err) => {
-        console.error('[main.js] Error launching VLC (async):', err);
-      });
-
-      child.unref();
-      return { success: true };
-    } catch (error: unknown) {
-      console.error('[main.js] Error launching VLC:', error);
-      return {
-        success: false,
-        message: `Failed to launch VLC: ${(error as Error).message}`,
-      };
-    }
+    return openMediaInVlc(filePath, getServerPort());
   },
 );
 

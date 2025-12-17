@@ -9,45 +9,47 @@ import type {
 import type { FileSystemEntry } from '../../core/file-system';
 
 export class ElectronAdapter implements IMediaBackend {
+  constructor(private bridge = window.electronAPI) {}
+
   async loadFileAsDataURL(filePath: string): Promise<LoadResult> {
-    return window.electronAPI.loadFileAsDataURL(filePath);
+    return this.bridge.loadFileAsDataURL(filePath);
   }
 
   async recordMediaView(filePath: string): Promise<void> {
-    return window.electronAPI.recordMediaView(filePath);
+    return this.bridge.recordMediaView(filePath);
   }
 
   async getMediaViewCounts(
     filePaths: string[],
   ): Promise<{ [filePath: string]: number }> {
-    return window.electronAPI.getMediaViewCounts(filePaths);
+    return this.bridge.getMediaViewCounts(filePaths);
   }
 
   async getAlbumsWithViewCounts(): Promise<Album[]> {
-    return window.electronAPI.getAlbumsWithViewCounts();
+    return this.bridge.getAlbumsWithViewCounts();
   }
 
   async reindexMediaLibrary(): Promise<Album[]> {
-    return window.electronAPI.reindexMediaLibrary();
+    return this.bridge.reindexMediaLibrary();
   }
 
   async addMediaDirectory(path?: string): Promise<string | null> {
-    return window.electronAPI.addMediaDirectory(path);
+    return this.bridge.addMediaDirectory(path);
   }
 
   async removeMediaDirectory(directoryPath: string): Promise<void> {
-    return window.electronAPI.removeMediaDirectory(directoryPath);
+    return this.bridge.removeMediaDirectory(directoryPath);
   }
 
   async setDirectoryActiveState(
     directoryPath: string,
     isActive: boolean,
   ): Promise<void> {
-    return window.electronAPI.setDirectoryActiveState(directoryPath, isActive);
+    return this.bridge.setDirectoryActiveState(directoryPath, isActive);
   }
 
   async getMediaDirectories(): Promise<MediaDirectory[]> {
-    return window.electronAPI.getMediaDirectories();
+    return this.bridge.getMediaDirectories();
   }
 
   async getSupportedExtensions(): Promise<{
@@ -55,15 +57,15 @@ export class ElectronAdapter implements IMediaBackend {
     videos: string[];
     all: string[];
   }> {
-    return window.electronAPI.getSupportedExtensions();
+    return this.bridge.getSupportedExtensions();
   }
 
   async getServerPort(): Promise<number> {
-    return window.electronAPI.getServerPort();
+    return this.bridge.getServerPort();
   }
 
   async getMediaUrlGenerator(): Promise<(filePath: string) => string> {
-    const port = await window.electronAPI.getServerPort();
+    const port = await this.bridge.getServerPort();
     return (filePath: string) => {
       if (filePath.startsWith('gdrive://')) {
         return `http://localhost:${port}/${encodeURIComponent(filePath)}`;
@@ -78,7 +80,7 @@ export class ElectronAdapter implements IMediaBackend {
   }
 
   async getThumbnailUrlGenerator(): Promise<(filePath: string) => string> {
-    const port = await window.electronAPI.getServerPort();
+    const port = await this.bridge.getServerPort();
     return (filePath: string) => {
       // For Drive files, thumbnails might not work yet, but we generate the URL anyway
       return `http://localhost:${port}/video/thumbnail?file=${encodeURIComponent(filePath)}`;
@@ -88,14 +90,14 @@ export class ElectronAdapter implements IMediaBackend {
   async getVideoStreamUrlGenerator(): Promise<
     (filePath: string, startTime?: number) => string
   > {
-    const port = await window.electronAPI.getServerPort();
+    const port = await this.bridge.getServerPort();
     return (filePath: string, startTime = 0) => {
       return `http://localhost:${port}/video/stream?file=${encodeURIComponent(filePath)}&startTime=${startTime}`;
     };
   }
 
   async getVideoMetadata(filePath: string): Promise<{ duration: number }> {
-    const res = await window.electronAPI.getVideoMetadata(filePath);
+    const res = await this.bridge.getVideoMetadata(filePath);
     if (res.error || res.duration === undefined) {
       throw new Error(res.error || 'Failed to get video metadata');
     }
@@ -105,47 +107,47 @@ export class ElectronAdapter implements IMediaBackend {
   async openInVlc(
     filePath: string,
   ): Promise<{ success: boolean; message?: string }> {
-    return window.electronAPI.openInVlc(filePath);
+    return this.bridge.openInVlc(filePath);
   }
 
   async listDirectory(path: string): Promise<FileSystemEntry[]> {
-    return window.electronAPI.listDirectory(path);
+    return this.bridge.listDirectory(path);
   }
 
   async getParentDirectory(path: string): Promise<string | null> {
-    return window.electronAPI.getParentDirectory(path);
+    return this.bridge.getParentDirectory(path);
   }
 
   async upsertMetadata(
     filePath: string,
     metadata: MediaMetadata,
   ): Promise<void> {
-    return window.electronAPI.upsertMetadata(filePath, metadata);
+    return this.bridge.upsertMetadata(filePath, metadata);
   }
 
   async getMetadata(
     filePaths: string[],
   ): Promise<{ [path: string]: MediaMetadata }> {
-    return window.electronAPI.getMetadata(filePaths);
+    return this.bridge.getMetadata(filePaths);
   }
 
   async setRating(filePath: string, rating: number): Promise<void> {
-    return window.electronAPI.setRating(filePath, rating);
+    return this.bridge.setRating(filePath, rating);
   }
 
   async createSmartPlaylist(
     name: string,
     criteria: string,
   ): Promise<{ id: number }> {
-    return window.electronAPI.createSmartPlaylist(name, criteria);
+    return this.bridge.createSmartPlaylist(name, criteria);
   }
 
   async getSmartPlaylists(): Promise<SmartPlaylist[]> {
-    return window.electronAPI.getSmartPlaylists();
+    return this.bridge.getSmartPlaylists();
   }
 
   async deleteSmartPlaylist(id: number): Promise<void> {
-    return window.electronAPI.deleteSmartPlaylist(id);
+    return this.bridge.deleteSmartPlaylist(id);
   }
 
   async updateSmartPlaylist(
@@ -153,36 +155,41 @@ export class ElectronAdapter implements IMediaBackend {
     name: string,
     criteria: string,
   ): Promise<void> {
-    return window.electronAPI.updateSmartPlaylist(id, name, criteria);
+    return this.bridge.updateSmartPlaylist(id, name, criteria);
   }
 
   async getAllMetadataAndStats(): Promise<MediaLibraryItem[]> {
-    return window.electronAPI.getAllMetadataAndStats();
+    return this.bridge.getAllMetadataAndStats();
   }
 
   async extractMetadata(filePaths: string[]): Promise<void> {
-    return window.electronAPI.extractMetadata(filePaths);
+    return this.bridge.extractMetadata(filePaths);
   }
 
   async startGoogleDriveAuth(): Promise<string> {
-    return window.electronAPI.startGoogleDriveAuth();
+    const url = await this.bridge.startGoogleDriveAuth();
+    // In strict hexagonal architecture, the backend returns the URL,
+    // and the "Adapter" (Client) decides how to present it.
+    // For Electron, we open it in the default browser.
+    window.open(url, '_blank');
+    return url;
   }
 
   async submitGoogleDriveAuthCode(code: string): Promise<boolean> {
-    return window.electronAPI.submitGoogleDriveAuthCode(code);
+    return this.bridge.submitGoogleDriveAuthCode(code);
   }
 
   async addGoogleDriveSource(
     folderId: string,
   ): Promise<{ success: boolean; name?: string; error?: string }> {
-    return window.electronAPI.addGoogleDriveSource(folderId);
+    return this.bridge.addGoogleDriveSource(folderId);
   }
 
   async listGoogleDriveDirectory(folderId: string): Promise<FileSystemEntry[]> {
-    return window.electronAPI.listGoogleDriveDirectory(folderId);
+    return this.bridge.listGoogleDriveDirectory(folderId);
   }
 
   async getGoogleDriveParent(folderId: string): Promise<string | null> {
-    return window.electronAPI.getGoogleDriveParent(folderId);
+    return this.bridge.getGoogleDriveParent(folderId);
   }
 }

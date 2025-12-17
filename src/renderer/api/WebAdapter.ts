@@ -9,6 +9,52 @@ import type {
 import type { FileSystemEntry } from '../../core/file-system';
 
 export class WebAdapter implements IMediaBackend {
+  private async request<T>(
+    url: string,
+    options?: RequestInit & { responseType?: 'json' | 'text' },
+  ): Promise<T> {
+    const headers = new Headers(options?.headers);
+    if (
+      options?.method === 'POST' ||
+      options?.method === 'PUT' ||
+      options?.method === 'DELETE'
+    ) {
+      if (!headers.has('Content-Type')) {
+        headers.set('Content-Type', 'application/json');
+      }
+    }
+
+    const res = await fetch(url, {
+      ...options,
+      headers,
+    });
+
+    if (!res.ok) {
+      let errorMessage = res.statusText;
+      try {
+        const err = await res.json();
+        if (err.error) errorMessage = err.error;
+      } catch {
+        // Ignore JSON parse error for error response
+      }
+      throw new Error(
+        errorMessage || `Request failed with status ${res.status}`,
+      );
+    }
+
+    if (options?.responseType === 'text') {
+      return res.text() as unknown as T;
+    }
+
+    // Handle empty responses (e.g. 200 OK with no content)
+    const contentType = res.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return res.json();
+    }
+    // For void returns or non-json
+    return undefined as unknown as T;
+  }
+
   async loadFileAsDataURL(filePath: string): Promise<LoadResult> {
     // In web mode, we construct a URL to the backend
     const encodedPath = encodeURIComponent(filePath);
@@ -19,9 +65,8 @@ export class WebAdapter implements IMediaBackend {
   }
 
   async recordMediaView(filePath: string): Promise<void> {
-    await fetch('/api/media/view', {
+    await this.request<void>('/api/media/view', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ filePath }),
     });
   }
@@ -29,22 +74,18 @@ export class WebAdapter implements IMediaBackend {
   async getMediaViewCounts(
     filePaths: string[],
   ): Promise<{ [filePath: string]: number }> {
-    const res = await fetch('/api/media/views', {
-      method: 'POST', // Use POST for batch
-      headers: { 'Content-Type': 'application/json' },
+    return this.request<{ [filePath: string]: number }>('/api/media/views', {
+      method: 'POST',
       body: JSON.stringify({ filePaths }),
     });
-    return res.json();
   }
 
   async getAlbumsWithViewCounts(): Promise<Album[]> {
-    const res = await fetch('/api/albums');
-    return res.json();
+    return this.request<Album[]>('/api/albums');
   }
 
   async reindexMediaLibrary(): Promise<Album[]> {
-    const res = await fetch('/api/albums/reindex', { method: 'POST' });
-    return res.json();
+    return this.request<Album[]>('/api/albums/reindex', { method: 'POST' });
   }
 
   async addMediaDirectory(path?: string): Promise<string | null> {
@@ -52,18 +93,16 @@ export class WebAdapter implements IMediaBackend {
       console.warn('WebAdapter: Adding directory requires a path input.');
       return null;
     }
-    await fetch('/api/directories', {
+    await this.request<void>('/api/directories', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ path }),
     });
     return path;
   }
 
   async removeMediaDirectory(directoryPath: string): Promise<void> {
-    await fetch('/api/directories', {
+    await this.request<void>('/api/directories', {
       method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ path: directoryPath }),
     });
   }
@@ -72,16 +111,14 @@ export class WebAdapter implements IMediaBackend {
     directoryPath: string,
     isActive: boolean,
   ): Promise<void> {
-    await fetch('/api/directories/active', {
+    await this.request<void>('/api/directories/active', {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ directoryPath, isActive }),
     });
   }
 
   async getMediaDirectories(): Promise<MediaDirectory[]> {
-    const res = await fetch('/api/directories');
-    return res.json();
+    return this.request<MediaDirectory[]>('/api/directories');
   }
 
   async getSupportedExtensions(): Promise<{
@@ -89,8 +126,11 @@ export class WebAdapter implements IMediaBackend {
     videos: string[];
     all: string[];
   }> {
-    const res = await fetch('/api/config/extensions');
-    return res.json();
+    return this.request<{
+      images: string[];
+      videos: string[];
+      all: string[];
+    }>('/api/config/extensions');
   }
 
   async getServerPort(): Promise<number> {
@@ -120,42 +160,38 @@ export class WebAdapter implements IMediaBackend {
   }
 
   async getVideoMetadata(filePath: string): Promise<{ duration: number }> {
-    try {
-      const res = await fetch(
-        `/api/metadata?file=${encodeURIComponent(filePath)}`,
-      );
-      const data = await res.json();
-      if (typeof data.duration === 'number') {
-        return { duration: data.duration };
-      }
-      return { duration: 0 };
-    } catch {
-      return { duration: 0 };
+    const data = await this.request<{ duration: number }>(
+      `/api/metadata?file=${encodeURIComponent(filePath)}`,
+    );
+    if (typeof data.duration === 'number') {
+      return { duration: data.duration };
     }
+    throw new Error('Failed to get video metadata');
   }
 
   async listDirectory(directoryPath: string): Promise<FileSystemEntry[]> {
-    const res = await fetch(
+    return this.request<FileSystemEntry[]>(
       `/api/fs/ls?path=${encodeURIComponent(directoryPath)}`,
     );
-    if (!res.ok) throw new Error('Failed to list directory');
-    return res.json();
   }
 
   async getParentDirectory(path: string): Promise<string | null> {
-    const res = await fetch(`/api/fs/parent?path=${encodeURIComponent(path)}`);
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.parent;
+    try {
+      const data = await this.request<{ parent: string | null }>(
+        `/api/fs/parent?path=${encodeURIComponent(path)}`,
+      );
+      return data.parent;
+    } catch {
+      return null;
+    }
   }
 
   async upsertMetadata(
     filePath: string,
     metadata: MediaMetadata,
   ): Promise<void> {
-    await fetch('/api/media/metadata', {
+    await this.request<void>('/api/media/metadata', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ filePath, metadata }),
     });
   }
@@ -163,22 +199,23 @@ export class WebAdapter implements IMediaBackend {
   async getMetadata(
     filePaths: string[],
   ): Promise<{ [path: string]: MediaMetadata }> {
-    const res = await fetch('/api/media/metadata/batch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ filePaths }),
-    });
-    if (!res.ok) {
-      console.error('Failed to fetch metadata batch:', res.statusText);
+    try {
+      return await this.request<{ [path: string]: MediaMetadata }>(
+        '/api/media/metadata/batch',
+        {
+          method: 'POST',
+          body: JSON.stringify({ filePaths }),
+        },
+      );
+    } catch (e) {
+      console.error('Failed to fetch metadata batch:', e);
       return {};
     }
-    return res.json();
   }
 
   async setRating(filePath: string, rating: number): Promise<void> {
-    await fetch('/api/media/rate', {
+    await this.request<void>('/api/media/rate', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ filePath, rating }),
     });
   }
@@ -187,25 +224,23 @@ export class WebAdapter implements IMediaBackend {
     name: string,
     criteria: string,
   ): Promise<{ id: number }> {
-    const res = await fetch('/api/smart-playlists', {
+    return this.request<{ id: number }>('/api/smart-playlists', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, criteria }),
     });
-    return res.json();
   }
 
   async getSmartPlaylists(): Promise<SmartPlaylist[]> {
-    const res = await fetch('/api/smart-playlists');
-    if (!res.ok) {
-      console.error('Failed to fetch smart playlists:', res.statusText);
+    try {
+      return await this.request<SmartPlaylist[]>('/api/smart-playlists');
+    } catch (e) {
+      console.error('Failed to fetch smart playlists:', e);
       return [];
     }
-    return res.json();
   }
 
   async deleteSmartPlaylist(id: number): Promise<void> {
-    await fetch(`/api/smart-playlists/${id}`, {
+    await this.request<void>(`/api/smart-playlists/${id}`, {
       method: 'DELETE',
     });
   }
@@ -215,42 +250,37 @@ export class WebAdapter implements IMediaBackend {
     name: string,
     criteria: string,
   ): Promise<void> {
-    await fetch(`/api/smart-playlists/${id}`, {
+    await this.request<void>(`/api/smart-playlists/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, criteria }),
     });
   }
 
   async getAllMetadataAndStats(): Promise<MediaLibraryItem[]> {
-    const res = await fetch('/api/media/all');
-    return res.json();
+    return this.request<MediaLibraryItem[]>('/api/media/all');
   }
 
   async extractMetadata(filePaths: string[]): Promise<void> {
-    await fetch('/api/media/extract-metadata', {
+    await this.request<void>('/api/media/extract-metadata', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ filePaths }),
     });
   }
 
   // Google Drive
   async startGoogleDriveAuth(): Promise<string> {
-    const res = await fetch('/api/auth/google-drive/start');
-    if (!res.ok) throw new Error('Failed to start auth');
-    const url = await res.text();
+    const url = await this.request<string>('/api/auth/google-drive/start', {
+      responseType: 'text',
+    });
     window.open(url, '_blank');
     return url;
   }
 
   async submitGoogleDriveAuthCode(code: string): Promise<boolean> {
-    const res = await fetch('/api/auth/google-drive/code', {
+    await this.request<void>('/api/auth/google-drive/code', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code }),
     });
-    if (!res.ok) throw new Error('Failed to submit code');
     return true;
   }
 
@@ -258,16 +288,13 @@ export class WebAdapter implements IMediaBackend {
     folderId: string,
   ): Promise<{ success: boolean; name?: string; error?: string }> {
     try {
-      const res = await fetch('/api/sources/google-drive', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ folderId }),
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        return { success: false, error: err.error || 'Failed to add source' };
-      }
-      const data = await res.json();
+      const data = await this.request<{ name: string }>(
+        '/api/sources/google-drive',
+        {
+          method: 'POST',
+          body: JSON.stringify({ folderId }),
+        },
+      );
       return { success: true, name: data.name };
     } catch (e) {
       return { success: false, error: (e as Error).message };
@@ -276,17 +303,17 @@ export class WebAdapter implements IMediaBackend {
 
   async listGoogleDriveDirectory(folderId: string): Promise<FileSystemEntry[]> {
     const query = folderId ? `?folderId=${encodeURIComponent(folderId)}` : '';
-    const res = await fetch(`/api/drive/files${query}`);
-    if (!res.ok) throw new Error('Failed to list Drive directory');
-    return res.json();
+    return this.request<FileSystemEntry[]>(`/api/drive/files${query}`);
   }
 
   async getGoogleDriveParent(folderId: string): Promise<string | null> {
-    const res = await fetch(
-      `/api/drive/parent?folderId=${encodeURIComponent(folderId)}`,
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.parent;
+    try {
+      const data = await this.request<{ parent: string | null }>(
+        `/api/drive/parent?folderId=${encodeURIComponent(folderId)}`,
+      );
+      return data.parent;
+    } catch {
+      return null;
+    }
   }
 }

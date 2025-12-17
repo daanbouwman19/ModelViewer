@@ -63,13 +63,23 @@ vi.mock('path', async (importOriginal) => {
   };
 });
 
-vi.mock('fs/promises', () => ({
+const fsPromisesMock = {
+  access: mockFsAccess,
+  stat: vi.fn(),
+  readFile: vi.fn(),
+  realpath: mockRealpath,
+};
+
+vi.mock('fs', () => ({
   default: {
-    access: mockFsAccess,
-    stat: vi.fn(),
-    readFile: vi.fn(),
-    realpath: mockRealpath,
+    promises: fsPromisesMock,
   },
+  promises: fsPromisesMock,
+}));
+
+vi.mock('fs/promises', () => ({
+  default: fsPromisesMock,
+  ...fsPromisesMock,
 }));
 
 vi.mock('child_process', () => {
