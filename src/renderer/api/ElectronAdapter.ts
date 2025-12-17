@@ -171,7 +171,7 @@ export class ElectronAdapter implements IMediaBackend {
     // In strict hexagonal architecture, the backend returns the URL,
     // and the "Adapter" (Client) decides how to present it.
     // For Electron, we open it in the default browser.
-    window.open(url, '_blank');
+    await this.bridge.openExternal(url);
     return url;
   }
 
