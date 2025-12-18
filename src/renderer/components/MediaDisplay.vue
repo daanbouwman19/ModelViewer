@@ -8,7 +8,8 @@
       class="flex flex-wrap justify-center items-center mb-2 mt-4 shrink-0 z-10 gap-4"
     >
       <h2
-        class="text-lg md:text-xl font-semibold text-center album-title truncate max-w-[60vw] md:max-w-none"
+        class="text-lg md:text-xl font-semibold text-center album-title max-w-[85vw] md:max-w-none"
+        :class="{ truncate: isSlideshowActive }"
       >
         {{ displayTitle }}
       </h2>
@@ -24,6 +25,20 @@
           {{ filter }}
         </button>
       </div>
+    </div>
+
+    <div
+      class="smart-timer-controls-media z-20 transition-transform-opacity duration-500 ease-in-out will-change-transform flex flex-row justify-center gap-4 w-full mb-2 md:absolute md:top-4 md:right-4 md:flex-col md:gap-2 md:w-auto md:items-end md:mb-0"
+      :class="{ 'opacity-0 md:-translate-y-20': !isControlsVisible }"
+    >
+      <label class="glass-toggle" title="Play Full Video">
+        <input v-model="playFullVideo" type="checkbox" />
+        <span class="toggle-label text-xs md:text-sm">Play Full Video</span>
+      </label>
+      <label class="glass-toggle" title="Pause Timer on Play">
+        <input v-model="pauseTimerOnPlay" type="checkbox" />
+        <span class="toggle-label text-xs md:text-sm">Pause Timer on Play</span>
+      </label>
     </div>
 
     <div
@@ -154,20 +169,6 @@
     </div>
 
     <div
-      class="smart-timer-controls-media absolute top-4 right-4 flex flex-col gap-2 z-20 items-end transition-transform-opacity duration-500 ease-in-out will-change-transform"
-      :class="{ '-translate-y-20 opacity-0': !isControlsVisible }"
-    >
-      <label class="glass-toggle" title="Play Full Video">
-        <input v-model="playFullVideo" type="checkbox" />
-        <span class="toggle-label text-xs md:text-sm">Play Full Video</span>
-      </label>
-      <label class="glass-toggle" title="Pause Timer on Play">
-        <input v-model="pauseTimerOnPlay" type="checkbox" />
-        <span class="toggle-label text-xs md:text-sm">Pause Timer on Play</span>
-      </label>
-    </div>
-
-    <div
       class="floating-controls absolute bottom-4 md:bottom-8 left-1/2 transform -translate-x-1/2 flex justify-between items-center gap-4 md:gap-6 z-20 transition-transform-opacity duration-500 ease-in-out will-change-transform w-[90%] md:w-auto"
       :class="{ 'translate-y-48 opacity-0': !isControlsVisible }"
     >
@@ -219,7 +220,7 @@
           </span>
         </p>
 
-        <p class="text-xs text-gray-300 drop-shadow-md">
+        <p v-if="currentMediaItem" class="text-xs text-gray-300 drop-shadow-md">
           {{ countInfo }}
         </p>
       </div>

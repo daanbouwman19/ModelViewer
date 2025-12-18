@@ -238,6 +238,7 @@ describe('MediaDisplay.vue', () => {
 
   it('should display count info when slideshow is active', () => {
     mockRefs.isSlideshowActive.value = true;
+    mockRefs.currentMediaItem.value = { name: 'test2.jpg', path: '/test2.jpg' };
     mockRefs.displayedMediaFiles.value = [
       { name: 'test1.jpg', path: '/test1.jpg' },
       { name: 'test2.jpg', path: '/test2.jpg' },
@@ -361,6 +362,7 @@ describe('MediaDisplay.vue', () => {
 
   it('should use totalMediaInPool fallback when not set', () => {
     mockRefs.isSlideshowActive.value = true;
+    mockRefs.currentMediaItem.value = { name: 'test1.jpg', path: '/test1.jpg' };
     mockRefs.displayedMediaFiles.value = [
       { name: 'test1.jpg', path: '/test1.jpg' },
     ];

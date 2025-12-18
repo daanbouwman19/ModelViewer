@@ -8,6 +8,7 @@
       <!-- Mobile Close Button (only visible on mobile) -->
       <button
         class="md:hidden text-gray-400 hover:text-white mr-2"
+        aria-label="Close Sidebar"
         @click="$emit('close')"
       >
         <CloseIcon class="w-5 h-5" />
