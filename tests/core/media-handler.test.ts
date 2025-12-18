@@ -1,9 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { IMediaSource } from '../../src/core/media-source-types';
 import { PassThrough, EventEmitter } from 'stream';
 import { createMediaSource } from '../../src/core/media-source';
 
-// Hoist mocks to ensure shared reference
 const {
   mockSpawn,
   mockGetDriveFileMetadata,
@@ -14,6 +13,9 @@ const {
   mockFsCreateReadStream,
   mockFsCreateWriteStream,
   mockFsStat,
+  mockGetDriveStreamWithCache,
+  mockFsReadFile,
+  mockFsAccess,
 } = vi.hoisted(() => ({
   mockSpawn: vi.fn(),
   mockGetDriveFileMetadata: vi.fn(),
@@ -24,6 +26,9 @@ const {
   mockFsCreateReadStream: vi.fn(),
   mockFsCreateWriteStream: vi.fn(),
   mockFsStat: vi.fn(),
+  mockGetDriveStreamWithCache: vi.fn(),
+  mockFsReadFile: vi.fn(),
+  mockFsAccess: vi.fn(),
 }));
 
 vi.mock('child_process', () => ({
@@ -40,16 +45,24 @@ vi.mock('fs', async (importOriginal) => {
       promises: {
         ...actual.promises,
         stat: mockFsStat,
+        readFile: mockFsReadFile,
+        access: mockFsAccess,
       },
       createReadStream: mockFsCreateReadStream,
       createWriteStream: mockFsCreateWriteStream,
+      readFile: mockFsReadFile,
+      access: mockFsAccess,
     },
     promises: {
       ...actual.promises,
       stat: mockFsStat,
+      readFile: mockFsReadFile,
+      access: mockFsAccess,
     },
     createReadStream: mockFsCreateReadStream,
     createWriteStream: mockFsCreateWriteStream,
+    readFile: mockFsReadFile,
+    access: mockFsAccess,
   };
 });
 
@@ -60,8 +73,12 @@ vi.mock('fs/promises', async (importOriginal) => {
     default: {
       ...actual,
       stat: mockFsStat,
+      readFile: mockFsReadFile,
+      access: mockFsAccess,
     },
     stat: mockFsStat,
+    readFile: mockFsReadFile,
+    access: mockFsAccess,
   };
 });
 
@@ -74,12 +91,18 @@ import {
   serveThumbnail,
   serveStaticFile,
   createMediaRequestHandler,
+  generateFileUrl,
+  openMediaInVlc,
 } from '../../src/core/media-handler';
 import { getMimeType } from '../../src/core/media-utils';
 
 vi.mock('../../src/main/google-drive-service', () => ({
   getDriveFileMetadata: mockGetDriveFileMetadata,
   getDriveFileThumbnail: mockGetDriveFileThumbnail,
+}));
+
+vi.mock('../../src/core/drive-stream', () => ({
+  getDriveStreamWithCache: mockGetDriveStreamWithCache,
 }));
 
 vi.mock('../../src/core/security', () => ({
@@ -121,24 +144,18 @@ describe('media-handler unit tests', () => {
     req = {
       headers: {},
       on: vi.fn((event, cb) => {
-        // console.log(`[MockReq] on(${event}) registered`);
         listeners[event] = listeners[event] || [];
         listeners[event].push(cb);
       }),
       emit: vi.fn((event, ...args) => {
-        // console.log(`[MockReq] emit(${event})`);
         if (listeners[event]) {
           listeners[event].forEach((cb) => cb(...args));
         }
       }),
     };
     res = {
-      writeHead: vi.fn(() => {
-        // console.log(`[MockRes] writeHead(${code})`);
-      }),
-      end: vi.fn(() => {
-        // console.log(`[MockRes] end(${msg})`);
-      }),
+      writeHead: vi.fn(() => {}),
+      end: vi.fn(() => {}),
       headersSent: false,
       on: vi.fn(),
       once: vi.fn(),
@@ -148,7 +165,6 @@ describe('media-handler unit tests', () => {
 
     // Default mock behavior
     vi.mocked(createMediaSource).mockImplementation(() => {
-      // console.log(`[MockMediaSource] Created for ${file}`);
       return {
         getFFmpegInput: vi.fn().mockResolvedValue('/path/to/media'),
         getStream: vi
@@ -1064,6 +1080,159 @@ describe('media-handler unit tests', () => {
       await serveTranscodedStream(req, res, mockSource as any, 'ffmpeg', null);
 
       mockProc.stderr.emit('data', 'some log');
+    });
+  });
+  describe('generateFileUrl', () => {
+    it('should return error for large Drive file if serverPort is 0', async () => {
+      mockGetDriveFileMetadata.mockResolvedValue({
+        size: 10 * 1024 * 1024,
+        mimeType: 'video/mp4',
+      });
+
+      const result = await generateFileUrl('gdrive://123', { serverPort: 0 });
+      expect(result).toEqual({
+        type: 'error',
+        message: 'Local server not ready to stream large file.',
+      });
+    });
+
+    it('should return error for large local file if serverPort is 0', async () => {
+      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+      mockFsStat.mockResolvedValue({ size: 10 * 1024 * 1024 }); // > 1MB
+
+      const result = await generateFileUrl('/local/large.mp4', {
+        serverPort: 0,
+      });
+      expect(result).toEqual({
+        type: 'error',
+        message: 'Local server not ready to stream large file.',
+      });
+    });
+
+    it('should return http-url for large local file if serverPort > 0', async () => {
+      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+      mockFsStat.mockResolvedValue({ size: 10 * 1024 * 1024 });
+
+      const result = await generateFileUrl('/local/large.mp4', {
+        serverPort: 3000,
+      });
+      expect(result).toEqual({
+        type: 'http-url',
+        url: 'http://localhost:3000/video/stream?file=%2Flocal%2Flarge.mp4',
+      });
+    });
+
+    it('should handle fs errors gracefully', async () => {
+      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+      mockFsStat.mockRejectedValue(new Error('FS Error'));
+      const result = await generateFileUrl('/local/file.mp4', {
+        serverPort: 3000,
+      });
+      expect(result).toEqual({
+        type: 'error',
+        message: 'FS Error',
+      });
+    });
+
+    it('should return data-url for small Drive file', async () => {
+      mockGetDriveFileMetadata.mockResolvedValue({
+        size: 100,
+        mimeType: 'video/mp4',
+      });
+      const mockStream = {
+        [Symbol.asyncIterator]: async function* () {
+          yield Buffer.from('data');
+        },
+      };
+      (mockGetDriveStreamWithCache as unknown as Mock).mockResolvedValue({
+        stream: mockStream,
+        length: 100,
+      });
+
+      const result = await generateFileUrl('gdrive://123', {
+        serverPort: 3000,
+      });
+      expect(result.type).toBe('data-url');
+    });
+
+    it('should return data-url for small local file', async () => {
+      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+      mockFsStat.mockResolvedValue({ size: 100 });
+      // Create a mock fs module locally to force readFile or ensure readFile is mocked
+      // In this file we only mocked fs.promises.stat in the hoist but we modified the mock above to include readFile.
+      // However, we need to provide implementation for readFile.
+
+      // const fs = await import('fs/promises'); // REMOVED
+      // (fs.readFile as Mock).mockResolvedValue(Buffer.from('data')); // REMOVED
+      const mockStream = {
+        [Symbol.asyncIterator]: async function* () {
+          yield Buffer.from('data');
+        },
+      };
+      mockFsCreateReadStream.mockReturnValue(mockStream);
+
+      const result = await generateFileUrl('/local/small.mp4', {
+        serverPort: 3000,
+      });
+      expect(result.type).toBe('data-url');
+    });
+  });
+
+  describe('openMediaInVlc', () => {
+    const originalPlatform = process.platform;
+    afterEach(() => {
+      Object.defineProperty(process, 'platform', { value: originalPlatform });
+    });
+
+    it('should return error for Drive file if serverPort is 0', async () => {
+      const result = await openMediaInVlc('gdrive://123', 0);
+      expect(result).toEqual({
+        success: false,
+        message: 'Local server is not running to stream files.',
+      });
+    });
+
+    it('should prepare stream url for Drive file', async () => {
+      Object.defineProperty(process, 'platform', { value: 'linux' });
+      // Mock spawn to succeed
+      const mockChild = { unref: vi.fn(), on: vi.fn() };
+      mockSpawn.mockReturnValue(mockChild);
+
+      const result = await openMediaInVlc('gdrive://123', 3000);
+      expect(result).toEqual({ success: true });
+      expect(mockSpawn).toHaveBeenCalledWith(
+        'vlc',
+        [expect.stringContaining('http://localhost:3000/video/stream')],
+        expect.anything(),
+      );
+    });
+
+    it('should handle win32 platform', async () => {
+      Object.defineProperty(process, 'platform', { value: 'win32' });
+      // Mock fs.access to succeed for first path
+      // const fs = await import('fs/promises'); // REMOVED
+      // (fs.access as Mock).mockResolvedValue(undefined); // REMOVED
+      mockFsAccess.mockResolvedValue(undefined); // ADDED
+
+      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+      const mockChild = { unref: vi.fn(), on: vi.fn() };
+      mockSpawn.mockReturnValue(mockChild);
+
+      const result = await openMediaInVlc('/local.mp4', 3000);
+      expect(result).toEqual({ success: true });
+    });
+
+    it('should handle darwin platform', async () => {
+      Object.defineProperty(process, 'platform', { value: 'darwin' });
+      // const fs = await import('fs/promises'); // REMOVED
+      // (fs.access as Mock).mockResolvedValue(undefined); // REMOVED
+      mockFsAccess.mockResolvedValue(undefined); // ADDED
+      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+      const mockChild = { unref: vi.fn(), on: vi.fn() };
+      mockSpawn.mockReturnValue(mockChild);
+
+      const result = await openMediaInVlc('/local.mp4', 3000);
+      expect(result).toEqual({ success: true });
     });
   });
 });

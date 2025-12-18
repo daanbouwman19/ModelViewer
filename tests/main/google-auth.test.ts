@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import os from 'os';
+import path from 'path';
 
 // Don't import fs directly, import the mock target or use the mock object
 import * as googleAuth from '../../src/main/google-auth';
@@ -144,4 +146,282 @@ describe('Google Auth Service', () => {
       expect(writeFileMock).toHaveBeenCalled();
     });
   });
+});
+
+describe('google-auth coverage', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    readFileMock.mockRejectedValue(new Error('Default error'));
+  });
+
+  it('getTokenPath fallback when error occurs', async () => {
+    vi.spyOn(os, 'homedir').mockImplementation(() => {
+      throw new Error('Fail');
+    });
+
+    const originalAppData = process.env.APPDATA;
+    delete process.env.APPDATA;
+
+    readFileMock.mockRejectedValue(new Error('No file'));
+
+    const googleAuth = await import('../../src/main/google-auth');
+    const googleSecrets = await import('../../src/main/google-secrets');
+    (googleSecrets.getGoogleClientId as any).mockReturnValue('client-id');
+    (googleSecrets.getGoogleClientSecret as any).mockReturnValue(
+      'client-secret',
+    );
+
+    const result = await googleAuth.loadSavedCredentialsIfExist();
+    expect(result).toBe(false);
+
+    expect(readFileMock).not.toHaveBeenCalled();
+
+    vi.restoreAllMocks();
+    process.env.APPDATA = originalAppData;
+  });
+
+  it('getOAuth2Client throws if missing client ID', async () => {
+    const googleSecrets = await import('../../src/main/google-secrets');
+    (googleSecrets.getGoogleClientId as any).mockReturnValue(undefined);
+    (googleSecrets.getGoogleClientSecret as any).mockReturnValue('secret');
+
+    vi.resetModules();
+    const googleAuth = await import('../../src/main/google-auth');
+
+    expect(() => googleAuth.getOAuth2Client()).toThrow(
+      'Google OAuth credentials not configured',
+    );
+  });
+
+  it('getOAuth2Client throws if missing client Secret', async () => {
+    const googleSecrets = await import('../../src/main/google-secrets');
+    (googleSecrets.getGoogleClientId as any).mockReturnValue('id');
+    (googleSecrets.getGoogleClientSecret as any).mockReturnValue(undefined);
+
+    vi.resetModules();
+    const googleAuth = await import('../../src/main/google-auth');
+
+    expect(() => googleAuth.getOAuth2Client()).toThrow(
+      'Google OAuth credentials not configured',
+    );
+  });
+
+  it('getTokenPath uses electron path if process.versions.electron exists', async () => {
+    const originalVersions = process.versions;
+    Object.defineProperty(process, 'versions', {
+      value: { ...originalVersions, electron: '1.0.0' },
+      writable: true,
+    });
+
+    const googleSecrets = await import('../../src/main/google-secrets');
+    (googleSecrets.getGoogleClientId as any).mockReturnValue('id');
+    (googleSecrets.getGoogleClientSecret as any).mockReturnValue('secret');
+
+    readFileMock.mockRejectedValue(new Error('No file'));
+
+    const googleAuth = await import('../../src/main/google-auth');
+
+    await googleAuth.loadSavedCredentialsIfExist();
+
+    expect(readFileMock).toHaveBeenCalledWith(
+      expect.stringContaining('mediaplayer-app'),
+      'utf-8',
+    );
+
+    Object.defineProperty(process, 'versions', { value: originalVersions });
+  });
+
+  it('getTokenPath uses default path if electron not present', async () => {
+    const originalVersions = process.versions;
+    const others = { ...originalVersions } as any;
+    delete others.electron;
+    Object.defineProperty(process, 'versions', {
+      value: others,
+      writable: true,
+    });
+
+    const googleSecrets = await import('../../src/main/google-secrets');
+    (googleSecrets.getGoogleClientId as any).mockReturnValue('id');
+    (googleSecrets.getGoogleClientSecret as any).mockReturnValue('secret');
+
+    readFileMock.mockRejectedValue(new Error('No file'));
+
+    const googleAuth = await import('../../src/main/google-auth');
+
+    await googleAuth.loadSavedCredentialsIfExist();
+
+    expect(readFileMock).toHaveBeenCalledWith(
+      expect.stringContaining('mediaplayer-app'),
+      'utf-8',
+    );
+
+    Object.defineProperty(process, 'versions', { value: originalVersions });
+  });
+});
+
+it('getTokenPath (Electron) uses ELECTRON_USER_DATA if set', async () => {
+  const originalVersions = process.versions;
+  Object.defineProperty(process, 'versions', {
+    value: { ...originalVersions, electron: '1.0.0' },
+    writable: true,
+  });
+  process.env.ELECTRON_USER_DATA = '/custom/path';
+
+  vi.resetModules();
+  const googleSecrets = await import('../../src/main/google-secrets');
+  (googleSecrets.getGoogleClientId as any).mockReturnValue('id');
+  (googleSecrets.getGoogleClientSecret as any).mockReturnValue('secret');
+
+  readFileMock.mockRejectedValue(new Error('No file'));
+
+  const googleAuth = await import('../../src/main/google-auth');
+  await googleAuth.loadSavedCredentialsIfExist();
+
+  expect(readFileMock).toHaveBeenCalledWith(
+    expect.stringContaining(path.normalize('/custom/path')),
+    'utf-8',
+  );
+
+  delete process.env.ELECTRON_USER_DATA;
+  Object.defineProperty(process, 'versions', { value: originalVersions });
+});
+
+it('getTokenPath (Electron) handles win32 platform', async () => {
+  const originalVersions = process.versions;
+  const originalPlatform = process.platform;
+  Object.defineProperty(process, 'versions', {
+    value: { ...originalVersions, electron: '1.0.0' },
+    writable: true,
+  });
+  Object.defineProperty(process, 'platform', {
+    value: 'win32',
+    writable: true,
+  });
+  process.env.APPDATA = 'C:\\Users\\Test\\AppData\\Roaming';
+
+  vi.resetModules();
+  const googleSecrets = await import('../../src/main/google-secrets');
+  (googleSecrets.getGoogleClientId as any).mockReturnValue('id');
+  (googleSecrets.getGoogleClientSecret as any).mockReturnValue('secret');
+  readFileMock.mockRejectedValue(new Error('No file'));
+
+  const googleAuth = await import('../../src/main/google-auth');
+  await googleAuth.loadSavedCredentialsIfExist();
+
+  expect(readFileMock).toHaveBeenCalledWith(
+    expect.stringContaining('mediaplayer-app'),
+    'utf-8',
+  );
+  expect(readFileMock).toHaveBeenCalledWith(
+    expect.stringContaining('C:\\Users\\Test\\AppData\\Roaming'),
+    'utf-8',
+  );
+
+  Object.defineProperty(process, 'versions', { value: originalVersions });
+  Object.defineProperty(process, 'platform', { value: originalPlatform });
+  delete process.env.APPDATA;
+});
+
+it('getTokenPath (Electron) handles darwin platform', async () => {
+  const originalVersions = process.versions;
+  const originalPlatform = process.platform;
+  Object.defineProperty(process, 'versions', {
+    value: { ...originalVersions, electron: '1.0.0' },
+    writable: true,
+  });
+  Object.defineProperty(process, 'platform', {
+    value: 'darwin',
+    writable: true,
+  });
+
+  vi.resetModules();
+  const googleSecrets = await import('../../src/main/google-secrets');
+  (googleSecrets.getGoogleClientId as any).mockReturnValue('id');
+  (googleSecrets.getGoogleClientSecret as any).mockReturnValue('secret');
+
+  readFileMock.mockRejectedValue(new Error('No file'));
+
+  const homedirSpy = vi.spyOn(os, 'homedir').mockReturnValue('/Users/test');
+
+  const googleAuth = await import('../../src/main/google-auth');
+  await googleAuth.loadSavedCredentialsIfExist();
+
+  expect(readFileMock).toHaveBeenCalledWith(
+    expect.stringContaining('mediaplayer-app'),
+    'utf-8',
+  );
+
+  Object.defineProperty(process, 'versions', { value: originalVersions });
+  Object.defineProperty(process, 'platform', { value: originalPlatform });
+  homedirSpy.mockRestore();
+});
+
+it('getTokenPath (Node) handles win32 platform', async () => {
+  const originalVersions = process.versions;
+  const others = { ...originalVersions } as any;
+  delete others.electron;
+  Object.defineProperty(process, 'versions', {
+    value: others,
+    writable: true,
+  });
+  const originalPlatform = process.platform;
+  Object.defineProperty(process, 'platform', {
+    value: 'win32',
+    writable: true,
+  });
+  process.env.APPDATA = 'C:\\Users\\Test\\AppData\\Roaming';
+
+  vi.resetModules();
+  const googleSecrets = await import('../../src/main/google-secrets');
+  (googleSecrets.getGoogleClientId as any).mockReturnValue('id');
+  (googleSecrets.getGoogleClientSecret as any).mockReturnValue('secret');
+  readFileMock.mockRejectedValue(new Error('No file'));
+
+  const googleAuth = await import('../../src/main/google-auth');
+  await googleAuth.loadSavedCredentialsIfExist();
+
+  expect(readFileMock).toHaveBeenCalledWith(
+    expect.stringContaining('C:\\Users\\Test\\AppData\\Roaming'),
+    'utf-8',
+  );
+
+  Object.defineProperty(process, 'versions', { value: originalVersions });
+  Object.defineProperty(process, 'platform', { value: originalPlatform });
+  delete process.env.APPDATA;
+});
+
+it('getTokenPath (Node) handles darwin platform', async () => {
+  const originalVersions = process.versions;
+  const others = { ...originalVersions } as any;
+  delete others.electron;
+  Object.defineProperty(process, 'versions', {
+    value: others,
+    writable: true,
+  });
+  const originalPlatform = process.platform;
+  Object.defineProperty(process, 'platform', {
+    value: 'darwin',
+    writable: true,
+  });
+
+  vi.resetModules();
+  const googleSecrets = await import('../../src/main/google-secrets');
+  (googleSecrets.getGoogleClientId as any).mockReturnValue('id');
+  (googleSecrets.getGoogleClientSecret as any).mockReturnValue('secret');
+
+  readFileMock.mockRejectedValue(new Error('No file'));
+  const homedirSpy = vi.spyOn(os, 'homedir').mockReturnValue('/Users/test');
+
+  const googleAuth = await import('../../src/main/google-auth');
+  await googleAuth.loadSavedCredentialsIfExist();
+
+  expect(readFileMock).toHaveBeenCalledWith(
+    expect.stringContaining('mediaplayer-app'),
+    'utf-8',
+  );
+
+  Object.defineProperty(process, 'versions', { value: originalVersions });
+  Object.defineProperty(process, 'platform', { value: originalPlatform });
+  homedirSpy.mockRestore();
 });
