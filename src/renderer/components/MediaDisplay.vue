@@ -46,15 +46,7 @@
     >
       <!-- State Handling: Mutually Exclusive Blocks -->
 
-      <!-- 1. Placeholder (No Item & Not Loading) -->
-      <p
-        v-if="!currentMediaItem && !isLoading"
-        class="text-gray-500 placeholder"
-      >
-        Media will appear here.
-      </p>
-
-      <!-- 2. Loading / Transcoding / Buffering Overlay -->
+      <!-- 1. Loading / Transcoding / Buffering Overlay (Independent of content) -->
       <div
         v-if="isLoading || isTranscodingLoading || isBuffering"
         class="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-20 pointer-events-none"
@@ -68,6 +60,14 @@
           <template v-else>Loading media...</template>
         </p>
       </div>
+
+      <!-- 2. Placeholder (No Item & Not Loading) -->
+      <p
+        v-if="!currentMediaItem && !isLoading"
+        class="text-gray-500 placeholder"
+      >
+        Media will appear here.
+      </p>
 
       <!-- 3. Error Message (Only if not loading) -->
       <p
