@@ -9,7 +9,9 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "outDir": "out",
-    "types": ["node"]
+    "types": ["node"],
+    "incremental": true,
+    "tsBuildInfoFile": "./node_modules/.cache/tsconfig.node.tsbuildinfo"
   },
   "include": [
     "src/main/**/*",

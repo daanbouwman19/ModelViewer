@@ -14,7 +14,9 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/renderer/*"]
-    }
+    },
+    "incremental": true,
+    "tsBuildInfoFile": "./node_modules/.cache/tsconfig.web.tsbuildinfo"
   },
   "include": [
     "src/renderer/**/*",
