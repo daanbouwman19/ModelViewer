@@ -13,7 +13,8 @@ vi.mock('../../src/core/database');
 vi.mock('../../src/core/media-service');
 vi.mock('../../src/core/file-system');
 vi.mock('../../src/core/security', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../src/core/security')>();
+  const actual =
+    await importOriginal<typeof import('../../src/core/security')>();
   return {
     ...actual,
     authorizeFilePath: vi.fn(),

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { authorizeFilePath } from '../../src/core/security';
+import { authorizeFilePath, escapeHtml } from '../../src/core/security';
 import fs from 'fs/promises';
 import * as database from '../../src/core/database';
 
@@ -40,5 +40,21 @@ describe('authorizeFilePath Security', () => {
     // VERIFY FIX: Messages should be identical "Access denied"
     expect(resultMissing.message).toBe('Access denied');
     expect(resultForbidden.message).toBe('Access denied');
+  });
+});
+
+describe('escapeHtml Security', () => {
+  it('escapes special characters', () => {
+    const input = '<script>alert("xss")</script>';
+    const expected = '&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;';
+    expect(escapeHtml(input)).toBe(expected);
+  });
+
+  it('handles empty string', () => {
+    expect(escapeHtml('')).toBe('');
+  });
+
+  it('handles strings without special characters', () => {
+    expect(escapeHtml('hello world')).toBe('hello world');
   });
 });
