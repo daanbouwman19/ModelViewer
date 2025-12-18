@@ -38,7 +38,7 @@ import {
   ALL_SUPPORTED_EXTENSIONS,
 } from '../core/constants';
 import { listDirectory } from '../core/file-system';
-import { authorizeFilePath } from '../core/security';
+import { authorizeFilePath, escapeHtml } from '../core/security';
 import { initializeDriveCacheManager } from '../main/drive-cache-manager';
 import { generateAuthUrl, authenticateWithCode } from '../main/google-auth';
 import {
@@ -406,8 +406,11 @@ export async function createApp() {
 
   // Auth Callback Handler for browser flow
   app.get('/auth/google/callback', (req, res) => {
-    const code = req.query.code as string;
-    if (!code) return res.status(400).send('Missing code parameter');
+    const code = req.query.code;
+    if (!code || typeof code !== 'string')
+      return res.status(400).send('Missing or invalid code parameter');
+
+    const safeCode = escapeHtml(code);
 
     const html = `
       <!DOCTYPE html>
@@ -428,7 +431,7 @@ export async function createApp() {
           <div class="container">
             <h1>Authentication Successful</h1>
             <p>Please copy the code below and paste it into the Media Player application.</p>
-            <div class="code-box" onclick="selectCode()">${code}</div>
+            <div class="code-box" onclick="selectCode()">${safeCode}</div>
             <button onclick="copyCode()">Copy Code</button>
           </div>
           <script>

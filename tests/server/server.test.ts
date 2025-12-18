@@ -12,7 +12,14 @@ import fs from 'fs/promises';
 vi.mock('../../src/core/database');
 vi.mock('../../src/core/media-service');
 vi.mock('../../src/core/file-system');
-vi.mock('../../src/core/security');
+vi.mock('../../src/core/security', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../src/core/security')>();
+  return {
+    ...actual,
+    authorizeFilePath: vi.fn(),
+  };
+});
 vi.mock('fs/promises', () => ({
   default: {
     stat: vi.fn(),
@@ -373,6 +380,25 @@ describe('Server', () => {
   });
 
   describe('Auth Routes', () => {
+    it('GET /auth/google/callback should not expose XSS', async () => {
+      const maliciousCode = '<script>alert(1)</script>';
+      const response = await request(app)
+        .get('/auth/google/callback')
+        .query({ code: maliciousCode });
+
+      expect(response.status).toBe(200);
+      expect(response.text).not.toContain(maliciousCode);
+      expect(response.text).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
+    });
+
+    it('GET /auth/google/callback should return 400 for invalid code type', async () => {
+      const response = await request(app)
+        .get('/auth/google/callback')
+        .query('code=a&code=b'); // Array input
+
+      expect(response.status).toBe(400);
+    });
+
     it('POST /api/auth/google-drive/code should return 200 on success', async () => {
       const { authenticateWithCode } =
         await import('../../src/main/google-auth');
