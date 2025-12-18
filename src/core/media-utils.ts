@@ -50,3 +50,32 @@ export async function checkThumbnailCache(cacheFile: string): Promise<boolean> {
     return false;
   }
 }
+
+export async function getVlcPath(): Promise<string | null> {
+  const platform = process.platform;
+  if (platform === 'win32') {
+    const commonPaths = [
+      'C:\\Program Files\\VideoLAN\\VLC\\vlc.exe',
+      'C:\\Program Files (x86)\\VideoLAN\\VLC\\vlc.exe',
+    ];
+    for (const p of commonPaths) {
+      try {
+        await fs.promises.access(p);
+        return p;
+      } catch {
+        // Continue checking
+      }
+    }
+    return null;
+  } else if (platform === 'darwin') {
+    const macPath = '/Applications/VLC.app/Contents/MacOS/VLC';
+    try {
+      await fs.promises.access(macPath);
+      return macPath;
+    } catch {
+      return 'vlc';
+    }
+  } else {
+    return 'vlc';
+  }
+}
