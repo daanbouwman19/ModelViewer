@@ -1,6 +1,6 @@
 {
   "name": "mediaplayer-app",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Media Player",
   "main": "out/main/index.js",
   "type": "module",
