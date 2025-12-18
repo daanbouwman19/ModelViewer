@@ -16,7 +16,7 @@ vi.mock('../../../src/renderer/components/MediaDisplay.vue', () => ({
   default: { template: '<div>Display</div>' },
 }));
 vi.mock('../../../src/renderer/components/AlbumsList.vue', () => ({
-  default: { template: '<div>Albums</div>' },
+  default: { name: 'AlbumsList', template: '<div>Albums</div>' },
 }));
 vi.mock('../../../src/renderer/components/LoadingMask.vue', () => ({
   default: { template: '<div>Loading</div>' },
@@ -26,6 +26,12 @@ vi.mock('../../../src/renderer/components/AmbientBackground.vue', () => ({
 }));
 vi.mock('../../../src/renderer/components/SourcesModal.vue', () => ({
   default: { template: '<div>Sources</div>' },
+}));
+vi.mock('../../../src/renderer/components/SmartPlaylistModal.vue', () => ({
+  default: {
+    name: 'SmartPlaylistModal',
+    template: '<div>SmartPlaylistModal</div>',
+  },
 }));
 
 const mockState: any = {
@@ -57,6 +63,7 @@ describe('App.vue', () => {
       viewMode: ref('grid'),
       isSmartPlaylistModalVisible: ref(false),
       smartPlaylists: ref([]),
+      playlistToEdit: ref(null),
     } as any);
 
     vi.mocked(useSlideshow.useSlideshow).mockReturnValue({
@@ -101,6 +108,29 @@ describe('App.vue', () => {
     wrapper.unmount();
   });
 
+  it('ignores shortcuts in textarea', async () => {
+    mount(App);
+    await flushPromises();
+
+    const { navigateMedia } = useSlideshow.useSlideshow();
+
+    const textarea = document.createElement('textarea');
+    document.body.appendChild(textarea);
+
+    const event = new KeyboardEvent('keydown', {
+      key: 'ArrowLeft',
+      bubbles: true,
+    });
+    Object.defineProperty(event, 'target', {
+      value: textarea,
+      enumerable: true,
+    });
+    document.dispatchEvent(event);
+
+    expect(navigateMedia).not.toHaveBeenCalled();
+    document.body.removeChild(textarea);
+  });
+
   it('toggles sidebar', async () => {
     const wrapper = mount(App);
     await flushPromises();
@@ -116,10 +146,43 @@ describe('App.vue', () => {
     // But findComponent returns a wrapper even if it doesn't exist? verify exists()
     expect(albumsList.exists()).toBe(false);
 
-    expect(wrapper.text()).toContain('Show Albums');
+    expect(toggleBtn.attributes('aria-label')).toBe('Show Albums');
     expect(wrapper.text()).not.toContain('Hide Albums');
 
     await toggleBtn.trigger('click');
-    expect(wrapper.text()).toContain('Hide Albums');
+    expect(toggleBtn.attributes('aria-label')).toBe('Hide Albums');
+  });
+
+  it('closes sidebar via @close event from AlbumsList', async () => {
+    const wrapper = mount(App);
+    await flushPromises();
+
+    // Ensure sidebar is shown
+    expect(wrapper.findComponent({ name: 'AlbumsList' }).exists()).toBe(true);
+
+    const albumsList = wrapper.findComponent({ name: 'AlbumsList' });
+    albumsList.vm.$emit('close');
+    await flushPromises();
+
+    expect(wrapper.findComponent({ name: 'AlbumsList' }).exists()).toBe(false);
+  });
+
+  it('clears playlistToEdit via @close event from SmartPlaylistModal', async () => {
+    const { playlistToEdit } = useAppState.useAppState();
+    playlistToEdit.value = {
+      id: 1,
+      name: 'Test',
+      criteria: '{}',
+      createdAt: new Date().toISOString(),
+    };
+
+    const wrapper = mount(App);
+    await flushPromises();
+
+    const modal = wrapper.findComponent({ name: 'SmartPlaylistModal' });
+    modal.vm.$emit('close');
+    await flushPromises();
+
+    expect(playlistToEdit.value).toBe(null);
   });
 });

@@ -4,29 +4,38 @@
 
     <!-- Main Content Layer -->
     <main
-      class="relative z-10 grow flex flex-col md:flex-row p-6 gap-6 overflow-hidden h-screen transition-all duration-300 ease-in-out"
+      class="relative z-10 grow flex flex-col md:flex-row p-4 md:p-6 gap-4 md:gap-6 overflow-hidden h-screen transition-all duration-300 ease-in-out"
     >
       <!-- Sidebar (Collapsible/Floating) -->
+      <!-- Mobile: Fixed Overlay, Desktop: Static Sidebar with Width Transition -->
       <transition name="slide-fade">
-        <AlbumsList v-if="showSidebar" class="shrink-0 w-full md:w-80 h-full" />
+        <AlbumsList
+          v-if="showSidebar"
+          class="fixed inset-0 z-50 md:static md:shrink-0 w-full md:w-80 h-full bg-transparent p-0"
+          @close="showSidebar = false"
+        />
       </transition>
 
       <!-- Main Media Area -->
-      <div class="grow flex flex-col h-full relative">
+      <div class="grow flex flex-col h-full relative w-full min-w-0">
         <!-- Top Bar (Toggle Sidebar & Title) -->
         <div
-          class="flex justify-between items-center mb-4 glass-panel rounded-lg p-3"
+          class="flex justify-between items-center mb-4 glass-panel rounded-lg p-3 shrink-0"
         >
-          <button class="icon-button" @click="showSidebar = !showSidebar">
-            <span v-if="showSidebar">← Hide Albums</span>
-            <span v-else>→ Show Albums</span>
+          <button
+            class="icon-button p-2 rounded-full hover:bg-white/10 transition-colors"
+            :aria-label="showSidebar ? 'Hide Albums' : 'Show Albums'"
+            @click="showSidebar = !showSidebar"
+          >
+            <CloseIcon v-if="showSidebar" />
+            <MenuIcon v-else />
           </button>
           <h1
-            class="text-xl font-bold tracking-wider text-accent drop-shadow-md font-header"
+            class="text-xl font-bold tracking-wider text-accent drop-shadow-md font-header truncate ml-2"
           >
             MediaPlayer
           </h1>
-          <div class="w-20"></div>
+          <div class="w-10 md:w-20"></div>
           <!-- Spacer for balance -->
         </div>
 
@@ -62,6 +71,8 @@ import MediaGrid from './components/MediaGrid.vue';
 import SourcesModal from './components/SourcesModal.vue';
 import SmartPlaylistModal from './components/SmartPlaylistModal.vue';
 import LoadingMask from './components/LoadingMask.vue';
+import MenuIcon from './components/icons/MenuIcon.vue';
+import CloseIcon from './components/icons/CloseIcon.vue';
 import { useAppState } from './composables/useAppState';
 import { useSlideshow } from './composables/useSlideshow';
 
@@ -148,5 +159,28 @@ onBeforeUnmount(() => {
 .slide-fade-leave-to {
   transform: translateX(-20px);
   opacity: 0;
+}
+
+@media (min-width: 768px) {
+  .slide-fade-enter-active,
+  .slide-fade-leave-active {
+    /* Explicitly animate width and margin for smooth resize */
+    transition:
+      width 0.3s ease-out,
+      margin-right 0.3s ease-out,
+      opacity 0.2s ease-out,
+      transform 0.3s ease-out;
+    width: 20rem; /* w-80 */
+    margin-right: 1.5rem; /* mr-6 */
+    overflow: hidden; /* Prevent content spill during resize */
+  }
+
+  .slide-fade-enter-from,
+  .slide-fade-leave-to {
+    width: 0;
+    margin-right: 0;
+    opacity: 0;
+    transform: translateX(-30px);
+  }
 }
 </style>

@@ -58,9 +58,9 @@ describe('Progress Bars', () => {
     await nextTick();
 
     // Assert
-    const progressBar = wrapper.find('[data-testid="slideshow-progress-bar"]');
+    const progressBar = wrapper.find('[data-testid="slideshow-progress"]');
     expect(progressBar.exists()).toBe(true);
-    const innerBar = progressBar.find('.progress-bar');
+    const innerBar = progressBar.find('div.bg-indigo-500');
     expect(innerBar.attributes('style')).toContain('width: 50%');
   });
 
