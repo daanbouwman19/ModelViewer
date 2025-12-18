@@ -55,7 +55,10 @@
       </div>
 
       <!-- 3. Error Message (Only if not loading) -->
-      <p v-else-if="error" class="text-red-400 placeholder z-10 text-center px-4">
+      <p
+        v-else-if="error"
+        class="text-red-400 placeholder z-10 text-center px-4"
+      >
         {{ error }}
       </p>
 
@@ -424,7 +427,8 @@ const tryTranscoding = async (startTime = 0, requestId?: number) => {
 
   if (!currentMediaItem.value) return;
 
-  const effectiveRequestId = requestId !== undefined ? requestId : currentLoadRequestId;
+  const effectiveRequestId =
+    requestId !== undefined ? requestId : currentLoadRequestId;
 
   // Guard: If we are running part of an old request sequence, stop.
   if (effectiveRequestId !== currentLoadRequestId) return;

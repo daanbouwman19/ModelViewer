@@ -23,18 +23,14 @@ describe('MediaDisplay Race Condition', () => {
   const mockCurrentMediaItem = ref<any>(null);
 
   // Helper to control promise resolution
-  let loadMediaResolve: ((val: any) => void) | null = null;
   let loadMediaReject: ((err: any) => void) | null = null;
-  let getMetadataResolve: ((val: any) => void) | null = null;
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockCurrentMediaItem.value = null;
 
     // Reset promise controllers
-    loadMediaResolve = null;
     loadMediaReject = null;
-    getMetadataResolve = null;
 
     // Mock useAppState
     vi.mocked(useAppState).mockReturnValue({
@@ -65,13 +61,13 @@ describe('MediaDisplay Race Condition', () => {
 
     // Mock API
     vi.mocked(api.getVideoStreamUrlGenerator).mockResolvedValue(
-      (path: string) => `http://localhost/stream/${encodeURIComponent(path)}`
+      (path: string) => `http://localhost/stream/${encodeURIComponent(path)}`,
     );
 
     // Mock loadFileAsDataURL to be controllable
     vi.mocked(api.loadFileAsDataURL).mockImplementation(() => {
-      return new Promise((resolve, reject) => {
-        loadMediaResolve = resolve;
+      return new Promise((_resolve, reject) => {
+        // We only care about controlling rejection in this test suite
         loadMediaReject = reject;
       });
     });
@@ -79,7 +75,7 @@ describe('MediaDisplay Race Condition', () => {
     // Mock getVideoMetadata to be controllable
     vi.mocked(api.getVideoMetadata).mockImplementation(() => {
       return new Promise((resolve) => {
-        getMetadataResolve = resolve;
+        resolve({ duration: 100 });
       });
     });
   });
@@ -97,6 +93,9 @@ describe('MediaDisplay Race Condition', () => {
       },
     });
 
+    // Explicitly cast vm to any to access internal state for testing
+    const vm = wrapper.vm as any;
+
     // 1. Start loading Item A
     mockCurrentMediaItem.value = {
       name: 'videoA.mp4',
@@ -104,11 +103,10 @@ describe('MediaDisplay Race Condition', () => {
       type: 'video',
     };
     await wrapper.vm.$nextTick();
-    expect(wrapper.vm.isLoading).toBe(true);
+    expect(vm.isLoading).toBe(true);
 
     // Capture resolve/reject for Item A
     const rejectItemA = loadMediaReject;
-    loadMediaResolve = null; // Reset
 
     // 2. Simulate rapid navigation to Item B
     mockCurrentMediaItem.value = {
@@ -117,7 +115,7 @@ describe('MediaDisplay Race Condition', () => {
       type: 'video',
     };
     await wrapper.vm.$nextTick();
-    expect(wrapper.vm.isLoading).toBe(true);
+    expect(vm.isLoading).toBe(true);
 
     // 3. Fail Item A
     if (rejectItemA) {
@@ -131,8 +129,8 @@ describe('MediaDisplay Race Condition', () => {
     // - isLoading should remain TRUE (because Item B is still loading)
     // - error should be NULL (because Item A's error is ignored)
 
-    expect(wrapper.vm.isLoading).toBe(true);
-    expect(wrapper.vm.error).toBeNull();
+    expect(vm.isLoading).toBe(true);
+    expect(vm.error).toBeNull();
     expect(wrapper.text()).toContain('Loading media...');
     expect(wrapper.text()).not.toContain('Failed to load media file.');
   });
@@ -145,6 +143,9 @@ describe('MediaDisplay Race Condition', () => {
         },
       },
     });
+
+    // Explicitly cast vm to any to access internal state for testing
+    const vm = wrapper.vm as any;
 
     // 1. Start loading a Legacy Video (forces transcoding)
     mockCurrentMediaItem.value = {
@@ -160,8 +161,8 @@ describe('MediaDisplay Race Condition', () => {
     // Check flags
     // isLoading is true (from initial load)
     // isTranscodingLoading is true (from tryTranscoding)
-    expect(wrapper.vm.isLoading).toBe(true);
-    expect(wrapper.vm.isTranscodingLoading).toBe(true);
+    expect(vm.isLoading).toBe(true);
+    expect(vm.isTranscodingLoading).toBe(true);
 
     // UI ASSERTION:
     // - Should show "Transcoding..."
