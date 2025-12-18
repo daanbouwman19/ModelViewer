@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test('MediaGrid visual regression', async ({ page }) => {
+test('MediaGrid visual regression', async ({ page, isMobile }) => {
   // Mock backend API
   await page.route('**/api/albums', async (route) => {
     const json = [
@@ -43,12 +43,21 @@ test('MediaGrid visual regression', async ({ page }) => {
 
   await page.goto('/');
 
+  if (isMobile) {
+    // On mobile, sidebar is open by default and covers the grid.
+    // We must close it to view the grid.
+    // Use .first() to handle strict mode violations if transitions duplicate elements
+    const closeSidebarBtn = page.getByRole('button', { name: 'Close Sidebar' }).first();
+    await expect(closeSidebarBtn).toBeVisible();
+    await closeSidebarBtn.click();
+  }
+
   // Wait for data to load
   await expect(page.getByText('Test Album')).toBeVisible();
 
   // Take screenshot
   await expect(page).toHaveScreenshot('media-grid.png', {
     fullPage: true,
-    maxDiffPixelRatio: 0.2,
+    maxDiffPixelRatio: 0.02,
   });
 });
