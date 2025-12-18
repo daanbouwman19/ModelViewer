@@ -12,7 +12,11 @@ import { createInterface } from 'readline';
 import { createMediaSource } from './media-source';
 
 import { IMediaSource } from './media-source-types';
-import { getThumbnailCachePath, checkThumbnailCache } from './media-utils';
+import {
+  getThumbnailCachePath,
+  checkThumbnailCache,
+  getVlcPath,
+} from './media-utils';
 import { getProvider } from './fs-provider-factory';
 import { authorizeFilePath } from './security';
 import { DATA_URL_THRESHOLD_MB } from './constants';
@@ -550,8 +554,6 @@ export async function openMediaInVlc(
   filePath: string,
   serverPort: number,
 ): Promise<{ success: boolean; message?: string }> {
-  const platform = process.platform;
-  let vlcPath: string | null = null;
   let fileArg = filePath;
 
   if (filePath.startsWith('gdrive://')) {
@@ -571,31 +573,7 @@ export async function openMediaInVlc(
     }
   }
 
-  if (platform === 'win32') {
-    const commonPaths = [
-      'C:\\Program Files\\VideoLAN\\VLC\\vlc.exe',
-      'C:\\Program Files (x86)\\VideoLAN\\VLC\\vlc.exe',
-    ];
-    for (const p of commonPaths) {
-      try {
-        await fsPromises.access(p);
-        vlcPath = p;
-        break;
-      } catch {
-        // Continue checking
-      }
-    }
-  } else if (platform === 'darwin') {
-    const macPath = '/Applications/VLC.app/Contents/MacOS/VLC';
-    try {
-      await fsPromises.access(macPath);
-      vlcPath = macPath;
-    } catch {
-      vlcPath = 'vlc';
-    }
-  } else {
-    vlcPath = 'vlc';
-  }
+  const vlcPath = await getVlcPath();
 
   if (!vlcPath) {
     return {
