@@ -45,7 +45,7 @@ export default [
     rules: {
       'vue/multi-word-component-names': 'off',
       'no-console': 'off',
-      '@typescript-eslint/no-explicit-any': 'warn',
+      '@typescript-eslint/no-explicit-any': 'error',
     },
   },
   {
