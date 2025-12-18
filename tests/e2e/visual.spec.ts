@@ -22,6 +22,10 @@ test('MediaGrid visual regression', async ({ page }) => {
     });
   });
 
+  await page.route('**/api/smart-playlists', async (route) => {
+    await route.fulfill({ json: [] });
+  });
+
   await page.route('**/api/config/extensions', async (route) => {
     await route.fulfill({
       json: { images: ['jpg'], videos: ['mp4'], all: ['jpg', 'mp4'] },
