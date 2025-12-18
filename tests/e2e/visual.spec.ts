@@ -47,7 +47,9 @@ test('MediaGrid visual regression', async ({ page, isMobile }) => {
     // On mobile, sidebar is open by default and covers the grid.
     // We must close it to view the grid.
     // Use .first() to handle strict mode violations if transitions duplicate elements
-    const closeSidebarBtn = page.getByRole('button', { name: 'Close Sidebar' }).first();
+    const closeSidebarBtn = page
+      .getByRole('button', { name: 'Close Sidebar' })
+      .first();
     await expect(closeSidebarBtn).toBeVisible();
     await closeSidebarBtn.click();
   }

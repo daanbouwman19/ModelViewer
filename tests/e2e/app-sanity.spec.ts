@@ -16,7 +16,9 @@ test('app sanity check', async ({ page, isMobile }) => {
     // Instead, we look for the "Close Sidebar" button inside the sidebar.
 
     // Use .first() to handle potential duplicates during transitions or if multiple exist in DOM
-    const closeSidebarBtn = page.getByRole('button', { name: 'Close Sidebar' }).first();
+    const closeSidebarBtn = page
+      .getByRole('button', { name: 'Close Sidebar' })
+      .first();
     const showAlbumsBtn = page.getByRole('button', { name: 'Show Albums' });
 
     // Handle initial state

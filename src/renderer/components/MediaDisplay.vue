@@ -8,7 +8,8 @@
       class="flex flex-wrap justify-center items-center mb-2 mt-4 shrink-0 z-10 gap-4"
     >
       <h2
-        class="text-lg md:text-xl font-semibold text-center album-title truncate max-w-[60vw] md:max-w-none"
+        class="text-lg md:text-xl font-semibold text-center album-title max-w-[85vw] md:max-w-none"
+        :class="{ truncate: isSlideshowActive }"
       >
         {{ displayTitle }}
       </h2>
