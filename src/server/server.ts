@@ -40,6 +40,19 @@ import {
 import { listDirectory } from '../core/file-system';
 import { authorizeFilePath } from '../core/security';
 import { initializeDriveCacheManager } from '../main/drive-cache-manager';
+import { generateAuthUrl, authenticateWithCode } from '../main/google-auth';
+import {
+  getDriveClient,
+  listDriveDirectory,
+  getDriveParent,
+} from '../main/google-drive-service';
+import {
+  serveMetadata,
+  serveTranscodedStream,
+  serveRawStream,
+  serveThumbnail,
+} from '../core/media-handler';
+import { createMediaSource } from '../core/media-source';
 import ffmpegStatic from 'ffmpeg-static';
 
 // Check if we are running in dev mode or production
@@ -349,20 +362,13 @@ export async function createApp() {
   // We define specific routes for granular control.
 
   // Imports for granular functions
-  const {
-    serveMetadata,
-    serveTranscodedStream,
-    serveRawStream,
-    serveThumbnail,
-  } = await import('../core/media-handler');
-  const { createMediaSource } = await import('../core/media-source');
+  // (Moved to top-level static imports)
 
   // Google Drive Auth & Source Management
   // Typically these would be in a separate controller, but keeping inline for consistency with this file.
 
   app.get('/api/auth/google-drive/start', async (_req, res) => {
     try {
-      const { generateAuthUrl } = await import('../main/google-auth');
       const url = generateAuthUrl();
       res.send(url); // Send raw string
     } catch (e) {
@@ -375,7 +381,6 @@ export async function createApp() {
     const { code } = req.body;
     if (!code) return res.status(400).send('Missing code');
     try {
-      const { authenticateWithCode } = await import('../main/google-auth');
       await authenticateWithCode(code);
       res.sendStatus(200);
     } catch (e: unknown) {
@@ -452,8 +457,6 @@ export async function createApp() {
     const { folderId } = req.body;
     if (!folderId) return res.status(400).send('Missing folderId');
     try {
-      // Lazy load to avoid loading Google SDK unless needed
-      const { getDriveClient } = await import('../main/google-drive-service');
       const drive = await getDriveClient();
       // Verify access and get name
       const driveRes = await drive.files.get({
@@ -476,8 +479,6 @@ export async function createApp() {
     const folderId = req.query.folderId as string;
     // folderId is optional, defaults to root but usually we pass it
     try {
-      const { listDriveDirectory } =
-        await import('../main/google-drive-service');
       const files = await listDriveDirectory(folderId || 'root');
       res.json(files);
     } catch (e) {
@@ -490,7 +491,6 @@ export async function createApp() {
     const folderId = req.query.folderId as string;
     if (!folderId) return res.status(400).send('Missing folderId');
     try {
-      const { getDriveParent } = await import('../main/google-drive-service');
       const parent = await getDriveParent(folderId);
       res.json({ parent });
     } catch (e) {

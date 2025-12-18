@@ -31,6 +31,9 @@ const statements: { [key: string]: Database.Statement } = {};
  */
 async function generateFileId(filePath: string): Promise<string> {
   try {
+    if (!filePath) {
+      throw new Error('File path cannot be null or empty');
+    }
     if (filePath.startsWith('gdrive://')) {
       return filePath.replace('gdrive://', '');
     }
@@ -241,7 +244,7 @@ function initDatabase(dbPath: string): WorkerResult {
        extraction_status = COALESCE(excluded.extraction_status, media_metadata.extraction_status)`,
     );
     statements.getPendingMetadata = db.prepare(
-      `SELECT file_path FROM media_metadata WHERE extraction_status = 'pending' OR extraction_status IS NULL LIMIT 100`,
+      `SELECT file_path FROM media_metadata WHERE (extraction_status = 'pending' OR extraction_status IS NULL) AND file_path IS NOT NULL LIMIT 100`,
     );
     statements.updateRating = db.prepare(
       // Only update rating if the row exists, or insert if capable?

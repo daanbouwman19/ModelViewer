@@ -474,7 +474,13 @@ export function createMediaRequestHandler(options: MediaHandlerOptions) {
     }
 
     // Static File Serving
-    const requestedPath = decodeURIComponent(parsedUrl.pathname.substring(1));
+    let requestedPath = decodeURIComponent(parsedUrl.pathname);
+    // On Windows, pathname starts with a slash like /C:/Users..., which we need to strip.
+    // On POSIX, pathname starts with /home/..., which is exactly the absolute path we want.
+    if (process.platform === 'win32' && requestedPath.startsWith('/')) {
+      requestedPath = requestedPath.substring(1);
+    }
+
     return serveStaticFile(req, res, requestedPath);
   };
 }

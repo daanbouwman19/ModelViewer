@@ -152,6 +152,11 @@ export async function extractAndSaveMetadata(
   // Process sequentially to verify stability, or use a concurrency limit
   // For now simple loop
   for (const filePath of filePaths) {
+    // Defensive check
+    if (!filePath) {
+      continue;
+    }
+
     try {
       if (filePath.startsWith('gdrive://')) {
         continue;
