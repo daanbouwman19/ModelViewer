@@ -1,165 +1,248 @@
-import {
-  describe,
-  it,
-  expect,
-  vi,
-  beforeEach,
-  afterEach,
-  type Mock,
-} from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
-import MediaGrid from '@/components/MediaGrid.vue';
-import { api } from '@/api';
+import { reactive, nextTick } from 'vue';
+import MediaGrid from '../../../src/renderer/components/MediaGrid.vue';
+import { useAppState } from '../../../src/renderer/composables/useAppState';
+import { api } from '../../../src/renderer/api';
 
-// Shared mock state
-const mockState = {
-  gridMediaFiles: [] as { path: string; name: string }[],
-  supportedExtensions: {
-    images: ['.jpg', '.png'],
-    videos: ['.mp4', '.webm'],
-  },
-  displayedMediaFiles: [],
-  currentMediaIndex: 0,
-  currentMediaItem: null,
-  viewMode: 'grid',
-  isSlideshowActive: false,
-  isTimerRunning: false,
-};
-
-// Mock useAppState
-vi.mock('@/composables/useAppState', () => ({
-  useAppState: () => ({
-    state: mockState,
-  }),
-}));
-
-// Mock api
-vi.mock('@/api', () => ({
-  api: {
-    getMediaUrlGenerator: vi.fn(),
-    getThumbnailUrlGenerator: vi.fn(),
-  },
-}));
+// Mock dependencies
+vi.mock('../../../src/renderer/composables/useAppState');
+vi.mock('../../../src/renderer/api');
 
 describe('MediaGrid.vue', () => {
+  let mockState: any;
+
   beforeEach(() => {
-    mockState.gridMediaFiles = [];
-    mockState.viewMode = 'grid';
+    vi.resetAllMocks();
+    mockState = reactive({
+      gridMediaFiles: [],
+      supportedExtensions: {
+        images: ['.jpg', '.png'],
+        videos: ['.mp4', '.mkv'],
+        all: ['.jpg', '.png', '.mp4', '.mkv'],
+      },
+      viewMode: 'grid',
+      displayedMediaFiles: [],
+      currentMediaIndex: -1,
+      currentMediaItem: null,
+      isSlideshowActive: false,
+      isTimerRunning: false,
+    });
 
-    vi.clearAllMocks();
-
-    // Default success implementation for generators
-    // Return a simple function that returns the path prefixed
-    (api.getMediaUrlGenerator as Mock).mockResolvedValue(
-      (path: string) => `http://localhost:1234/${encodeURIComponent(path)}`,
+    // Default mocks for api
+    (api.getMediaUrlGenerator as any).mockResolvedValue(
+      (path: string) => `url://${path}`,
     );
-    (api.getThumbnailUrlGenerator as Mock).mockResolvedValue(
-      (path: string) =>
-        `http://localhost:1234/thumb/${encodeURIComponent(path)}`,
-    );
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it('renders "No media files found" when gridMediaFiles is empty', () => {
-    const wrapper = mount(MediaGrid);
-    expect(wrapper.text()).toContain('No media files found in this album');
-  });
-
-  it('renders grid items when gridMediaFiles has items', async () => {
-    mockState.gridMediaFiles = [
-      { path: '/path/to/image1.jpg', name: 'image1.jpg' },
-      { path: '/path/to/video1.mp4', name: 'video1.mp4' },
-    ];
-
-    const wrapper = mount(MediaGrid);
-    await flushPromises(); // Wait for onMounted
-
-    const items = wrapper.findAll('.grid-item');
-    expect(items).toHaveLength(2);
-
-    // Check image rendering
-    const img = items[0].find('img');
-    expect(img.exists()).toBe(true);
-    // Our mock generator encodes paths
-    expect(img.attributes('src')).toContain(
-      encodeURIComponent('/path/to/image1.jpg'),
+    (api.getThumbnailUrlGenerator as any).mockResolvedValue(
+      (path: string) => `thumb://${path}`,
     );
 
-    // Check video rendering
-    const video = items[1].find('video');
-    expect(video.exists()).toBe(true);
-    expect(video.attributes('src')).toContain(
-      encodeURIComponent('/path/to/video1.mp4'),
-    );
+    (useAppState as any).mockReturnValue({ state: mockState });
   });
 
-  it('handles item click correctly', async () => {
-    const item1 = { path: '/path/to/image1.jpg', name: 'image1.jpg' };
-    mockState.gridMediaFiles = [item1];
+  describe('Edge Cases', () => {
+    it('getExtension: no dot', () => {
+      mockState.gridMediaFiles = [
+        { name: 'file-no-ext', path: '/path/to/file-no-ext', viewCount: 0 },
+      ];
+      const wrapper = mount(MediaGrid);
+      expect(wrapper.find('img').exists()).toBe(false);
+      expect(wrapper.find('video').exists()).toBe(false);
+    });
 
-    const wrapper = mount(MediaGrid);
-    await flushPromises();
+    it('getExtension: dot in directory name', () => {
+      mockState.gridMediaFiles = [
+        { name: 'file', path: '/path.with.dot/file', viewCount: 0 },
+      ];
+      const wrapper = mount(MediaGrid);
+      expect(wrapper.find('img').exists()).toBe(false);
+    });
 
-    const item = wrapper.find('.grid-item');
-    await item.trigger('click');
+    it('getExtension: dotfile', () => {
+      mockState.gridMediaFiles = [
+        { name: '.gitignore', path: '/.gitignore', viewCount: 0 },
+      ];
+      const wrapper = mount(MediaGrid);
+      expect(wrapper.find('img').exists()).toBe(false);
+    });
 
-    expect(mockState.viewMode).toBe('player');
-    expect(mockState.isSlideshowActive).toBe(true);
-    expect(mockState.currentMediaItem).toEqual(item1);
-    expect(mockState.displayedMediaFiles).toHaveLength(1);
+    it('getDisplayName fallback to path parsing', () => {
+      const item = { path: '/some/path/file.jpg' } as any;
+      mockState.gridMediaFiles = [item];
+      const wrapper = mount(MediaGrid);
+      expect(wrapper.text()).toContain('file.jpg');
+    });
   });
 
-  it('closes grid view when Close button is clicked', async () => {
-    const wrapper = mount(MediaGrid);
+  describe('Interactions', () => {
+    it('handleItemClick sets state correctly', async () => {
+      const item = { name: 'img.jpg', path: '/img.jpg', viewCount: 0 };
+      mockState.gridMediaFiles = [item];
+      const wrapper = mount(MediaGrid);
+      await flushPromises();
 
-    const closeButton = wrapper.find('button');
-    await closeButton.trigger('click');
+      await wrapper.find('button.grid-item').trigger('click');
 
-    expect(mockState.viewMode).toBe('player');
+      expect(mockState.viewMode).toBe('player');
+      expect(mockState.isSlideshowActive).toBe(true);
+      expect(mockState.currentMediaItem.path).toEqual(item.path);
+    });
+
+    it('closeGrid sets viewMode to player', async () => {
+      const wrapper = mount(MediaGrid);
+      await wrapper.find('button[title="Close Grid View"]').trigger('click');
+      expect(mockState.viewMode).toBe('player');
+    });
   });
 
-  it('infinite scroll loads more items', async () => {
-    // Create more items than the initial visible count (24)
-    const items = Array.from({ length: 30 }, (_, i) => ({
-      path: `/path/item${i}.jpg`,
-      name: `item${i}.jpg`,
-    }));
-    mockState.gridMediaFiles = items;
+  describe('Render Logic', () => {
+    it('uses getPosterUrl for videos', async () => {
+      const item = { name: 'vid.mp4', path: '/vid.mp4', viewCount: 0 };
+      mockState.gridMediaFiles = [item];
+      const mockThumbGen = vi.fn().mockReturnValue('thumb.jpg');
+      (api.getThumbnailUrlGenerator as any).mockResolvedValue(mockThumbGen);
 
-    const wrapper = mount(MediaGrid);
-    await flushPromises();
+      const wrapper = mount(MediaGrid);
+      await flushPromises();
+      await nextTick();
 
-    // Initially should show 24
-    expect(wrapper.findAll('.grid-item')).toHaveLength(24);
-    expect(wrapper.text()).toContain('Loading more...');
+      const video = wrapper.find('video');
+      expect(video.attributes('poster')).toBe('thumb.jpg');
+      expect(mockThumbGen).toHaveBeenCalledWith('/vid.mp4');
+    });
 
-    // Mock scroll event
-    const container = wrapper.find('.media-grid-container');
+    it('getMediaUrl returns empty if generator not ready', async () => {
+      let resolveGen: any;
+      (api.getMediaUrlGenerator as any).mockReturnValue(
+        new Promise((r) => (resolveGen = r)),
+      );
 
-    // Simulate scrolling to bottom
-    // We need to trick the scroll logic: scrollTop + clientHeight >= scrollHeight - 300
-    Object.defineProperty(container.element, 'scrollTop', { value: 1000 });
-    Object.defineProperty(container.element, 'clientHeight', { value: 500 });
-    Object.defineProperty(container.element, 'scrollHeight', { value: 1600 });
+      mockState.gridMediaFiles = [{ name: 'img.jpg', path: '/img.jpg' }];
+      const wrapper = mount(MediaGrid);
 
-    await container.trigger('scroll');
+      expect(wrapper.find('img').attributes('src')).toBe('');
 
-    // Wait for throttle (150ms) + re-render
-    await new Promise((r) => setTimeout(r, 200));
-    // Force update if needed or just wait for next tick
-    await wrapper.vm.$nextTick();
-    await flushPromises();
+      resolveGen(() => 'url');
+      await flushPromises();
+      await nextTick();
 
-    // Should now show all 30
-    expect(wrapper.findAll('.grid-item')).toHaveLength(30);
+      expect(wrapper.find('img').attributes('src')).toBe('url');
+    });
   });
 
-  it('handles generator initialization error gracefully', async () => {
+  describe('Scrolling & Pagination', () => {
+    it('handles scroll logic (throttled)', async () => {
+      const items = Array.from({ length: 100 }, (_, i) => ({
+        name: `img${i}.jpg`,
+        path: `/img${i}.jpg`,
+        viewCount: 0,
+      }));
+      mockState.gridMediaFiles = items;
+
+      const wrapper = mount(MediaGrid);
+      await flushPromises();
+      await nextTick();
+
+      expect(wrapper.findAll('.grid-item').length).toBe(24); // BATCH_SIZE
+
+      const container = wrapper.find('.media-grid-container');
+      Object.defineProperty(container.element, 'scrollTop', {
+        value: 1000,
+        configurable: true,
+      });
+      Object.defineProperty(container.element, 'clientHeight', {
+        value: 500,
+        configurable: true,
+      });
+      Object.defineProperty(container.element, 'scrollHeight', {
+        value: 1600,
+        configurable: true,
+      });
+
+      await container.trigger('scroll');
+      await new Promise((r) => setTimeout(r, 200)); // Wait for throttle
+      await nextTick();
+
+      expect(wrapper.findAll('.grid-item').length).toBe(48);
+    });
+
+    it('scroll logic does not exceed max files', async () => {
+      const items = Array.from({ length: 30 }, (_, i) => ({
+        name: `img${i}.jpg`,
+        path: `/img${i}.jpg`,
+        viewCount: 0,
+      }));
+      mockState.gridMediaFiles = items;
+
+      const wrapper = mount(MediaGrid);
+      await flushPromises();
+
+      (wrapper.vm as any).visibleCount = 28;
+
+      const container = wrapper.find('.media-grid-container');
+      Object.defineProperty(container.element, 'scrollTop', {
+        value: 1000,
+        configurable: true,
+      });
+      Object.defineProperty(container.element, 'clientHeight', {
+        value: 500,
+        configurable: true,
+      });
+      Object.defineProperty(container.element, 'scrollHeight', {
+        value: 1600,
+        configurable: true,
+      });
+
+      await container.trigger('scroll');
+      await new Promise((r) => setTimeout(r, 200));
+      await nextTick();
+
+      expect(wrapper.findAll('.grid-item').length).toBe(30);
+    });
+
+    it('resets visible count when allMediaFiles changes', async () => {
+      mockState.gridMediaFiles = Array.from({ length: 50 }, (_, i) => ({
+        name: `${i}.jpg`,
+        path: `${i}.jpg`,
+      }));
+      const wrapper = mount(MediaGrid);
+      await flushPromises();
+      await nextTick();
+
+      const container = wrapper.find('.media-grid-container');
+      Object.defineProperty(container.element, 'scrollTop', {
+        value: 1000,
+        configurable: true,
+      });
+      Object.defineProperty(container.element, 'clientHeight', {
+        value: 500,
+        configurable: true,
+      });
+      Object.defineProperty(container.element, 'scrollHeight', {
+        value: 1600,
+        configurable: true,
+      });
+
+      await container.trigger('scroll');
+      await new Promise((r) => setTimeout(r, 200));
+      await nextTick();
+
+      expect(wrapper.findAll('.grid-item').length).toBe(48);
+
+      mockState.gridMediaFiles = [
+        { name: 'new.jpg', path: 'new.jpg', viewCount: 0 },
+      ];
+
+      await nextTick();
+      await nextTick();
+
+      expect(wrapper.findAll('.grid-item').length).toBe(1);
+    });
+  });
+
+  it('handles api error gracefully', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    (api.getMediaUrlGenerator as Mock).mockRejectedValue(new Error('Failed'));
+    (api.getMediaUrlGenerator as any).mockRejectedValue(new Error('API Fail'));
 
     mount(MediaGrid);
     await flushPromises();
@@ -168,78 +251,6 @@ describe('MediaGrid.vue', () => {
       'Failed to initialize media URL generators',
       expect.any(Error),
     );
-  });
-
-  it('generates correct URLs for encoded paths', async () => {
-    mockState.gridMediaFiles = [
-      { path: '/path/with spaces/image.jpg', name: 'image.jpg' },
-    ];
-
-    const wrapper = mount(MediaGrid);
-    await flushPromises();
-
-    const img = wrapper.find('img');
-    // Our mock logic uses encodeURIComponent, so we expect encoded space
-    expect(img.attributes('src')).toContain('with%20spaces');
-  });
-  it('handles files with no extension', async () => {
-    mockState.gridMediaFiles = [
-      { path: '/path/noextension', name: 'noextension' },
-    ];
-    const wrapper = mount(MediaGrid);
-    await flushPromises();
-    // Should not render img or video if extension not supported
-    expect(wrapper.find('img').exists()).toBe(false);
-    expect(wrapper.find('video').exists()).toBe(false);
-  });
-
-  it('handles tricky paths correctly (dots in dirs, dotfiles)', async () => {
-    mockState.gridMediaFiles = [
-      { path: '/path.to/file', name: 'file' }, // Dot in dir, no file ext
-      { path: '/path/.config', name: '.config' }, // Dotfile
-      { path: '/path/image.jpg', name: 'image.jpg' }, // Normal
-    ];
-    const wrapper = mount(MediaGrid);
-    await flushPromises();
-
-    // Should render all grid items, but only one image
-    expect(wrapper.findAll('.grid-item')).toHaveLength(3);
-
-    // /path.to/file should NOT be an image
-    // /path/.config should NOT be an image
-    // /path/image.jpg SHOULD be an image
-    expect(wrapper.findAll('img')).toHaveLength(1);
-    const img = wrapper.find('img');
-    expect(img.attributes('src')).toContain('image.jpg');
-  });
-
-  it('throttles scroll events', async () => {
-    vi.useFakeTimers();
-    const items = Array.from({ length: 100 }, (_, i) => ({
-      path: `/p/${i}.jpg`,
-      name: `${i}.jpg`,
-    }));
-    mockState.gridMediaFiles = items;
-
-    const wrapper = mount(MediaGrid);
-    await flushPromises();
-
-    const container = wrapper.find('.media-grid-container');
-    Object.defineProperty(container.element, 'scrollTop', { value: 1300 }); // 1300 + 500 = 1800 > 1700
-    Object.defineProperty(container.element, 'clientHeight', { value: 500 });
-    Object.defineProperty(container.element, 'scrollHeight', { value: 2000 });
-
-    // Trigger multiple scrolls rapidly
-    await container.trigger('scroll');
-    await container.trigger('scroll');
-    await container.trigger('scroll');
-
-    // Advance by more than throttle limit (150ms)
-    vi.advanceTimersByTime(300);
-    await wrapper.vm.$nextTick();
-    await flushPromises();
-
-    expect(wrapper.findAll('.grid-item').length).toBeGreaterThan(24);
-    vi.useRealTimers();
+    consoleSpy.mockRestore();
   });
 });

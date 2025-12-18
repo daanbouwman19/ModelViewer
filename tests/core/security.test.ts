@@ -12,7 +12,7 @@ vi.mock('fs/promises', () => {
 });
 vi.mock('../../src/core/database');
 
-describe('authorizeFilePath Security', () => {
+describe('Security: authorizeFilePath', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(database.getMediaDirectories).mockResolvedValue([
@@ -26,7 +26,7 @@ describe('authorizeFilePath Security', () => {
     ]);
   });
 
-  it('prevents file enumeration: returns uniform error message', async () => {
+  it('prevents file enumeration by returning uniform error message', async () => {
     // Case 1: File does not exist -> fs.realpath throws
     vi.mocked(fs.realpath).mockRejectedValue(new Error('ENOENT'));
 
@@ -40,5 +40,7 @@ describe('authorizeFilePath Security', () => {
     // VERIFY FIX: Messages should be identical "Access denied"
     expect(resultMissing.message).toBe('Access denied');
     expect(resultForbidden.message).toBe('Access denied');
+    expect(resultMissing.isAllowed).toBe(false);
+    expect(resultForbidden.isAllowed).toBe(false);
   });
 });

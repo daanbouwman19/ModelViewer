@@ -26,6 +26,11 @@ vi.mock('../../src/main/google-drive-service', () => ({
   listDriveFiles: vi.fn(),
 }));
 
+// Add this mock for constants if needed, based on previous coverage file
+vi.mock('../../src/core/constants', () => ({
+  ALL_SUPPORTED_EXTENSIONS: ['.jpg', '.mp4'],
+}));
+
 describe('Media Scanner', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -88,6 +93,23 @@ describe('Media Scanner', () => {
     expect(result).toEqual([]);
   });
 
+  it('performFullMediaScan logs error in non-test env', async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'development';
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+
+    mockFs.access.mockRejectedValueOnce(new Error('Access denied'));
+
+    await performFullMediaScan(['/bad/dir']);
+
+    expect(consoleErrorSpy).toHaveBeenCalled();
+
+    consoleErrorSpy.mockRestore();
+    process.env.NODE_ENV = originalNodeEnv;
+  });
+
   it('should handle drive scan errors gracefully', async () => {
     (driveService.listDriveFiles as any).mockRejectedValue(
       new Error('Network error'),
@@ -129,6 +151,23 @@ describe('Media Scanner', () => {
     consoleSpy.mockRestore();
   });
 
+  it('scanDirectoryRecursive logs error in non-test env', async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'development';
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+
+    mockFs.access.mockResolvedValue(undefined);
+    mockFs.readdir.mockRejectedValue(new Error('Read fail'));
+
+    await performFullMediaScan(['/base']);
+
+    expect(consoleErrorSpy).toHaveBeenCalled();
+    consoleErrorSpy.mockRestore();
+    process.env.NODE_ENV = originalNodeEnv;
+  });
+
   it('should ignore special files (sockets/symlinks)', async () => {
     mockFs.access.mockResolvedValue(undefined);
     mockFs.readdir.mockResolvedValue([
@@ -151,5 +190,20 @@ describe('Media Scanner', () => {
 
     const result = await performFullMediaScan([drivePath]);
     expect(result).toEqual([]);
+  });
+
+  it('filters out null albums (empty/unsupported dirs)', async () => {
+    mockFs.access.mockResolvedValue(undefined);
+    // Mock readdir to return empty or unsupported files
+    mockFs.readdir.mockResolvedValue([
+      {
+        name: 'ignored.txt',
+        isFile: () => true,
+        isDirectory: () => false,
+      } as any,
+    ]);
+
+    const results = await performFullMediaScan(['/base']);
+    expect(results).toEqual([]);
   });
 });

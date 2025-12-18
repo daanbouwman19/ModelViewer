@@ -5,6 +5,7 @@ import { getDriveFileMetadata } from '../../src/main/google-drive-service';
 import { getDriveStreamWithCache } from '../../src/core/drive-stream';
 import { authorizeFilePath } from '../../src/core/security';
 
+// Mocks
 vi.mock('../../src/core/media-utils', () => ({
   getMimeType: vi.fn().mockReturnValue('video/mp4'),
   getThumbnailCachePath: vi.fn(),
@@ -40,7 +41,7 @@ vi.mock('fs', () => ({
     createReadStream: vi.fn().mockImplementation(() => {
       const s = new Readable();
       s._read = () => {};
-      s.push(Buffer.from('data')); // Default small data
+      s.push(Buffer.from('data'));
       s.push(null);
       return s;
     }),
@@ -60,7 +61,7 @@ vi.mock('child_process', () => ({
   default: { spawn: mockSpawn },
 }));
 
-describe('media-handler coverage', () => {
+describe('Media Handler Utils', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -81,7 +82,7 @@ describe('media-handler coverage', () => {
 
     it('should return error for large local file if serverPort is 0', async () => {
       (authorizeFilePath as any).mockResolvedValue({ isAllowed: true });
-      mockFsPromises.stat.mockResolvedValue({ size: 10 * 1024 * 1024 }); // > 1MB
+      mockFsPromises.stat.mockResolvedValue({ size: 10 * 1024 * 1024 });
 
       const result = await generateFileUrl('/local/large.mp4', {
         serverPort: 0,
@@ -108,6 +109,7 @@ describe('media-handler coverage', () => {
     it('should handle fs errors gracefully', async () => {
       (authorizeFilePath as any).mockResolvedValue({ isAllowed: true });
       mockFsPromises.stat.mockRejectedValue(new Error('FS Error'));
+
       const result = await generateFileUrl('/local/file.mp4', {
         serverPort: 3000,
       });
@@ -166,7 +168,6 @@ describe('media-handler coverage', () => {
 
     it('should prepare stream url for Drive file', async () => {
       Object.defineProperty(process, 'platform', { value: 'linux' });
-      // Mock spawn to succeed
       const mockChild = { unref: vi.fn(), on: vi.fn() };
       mockSpawn.mockReturnValue(mockChild);
 
@@ -181,7 +182,6 @@ describe('media-handler coverage', () => {
 
     it('should handle win32 platform', async () => {
       Object.defineProperty(process, 'platform', { value: 'win32' });
-      // Mock fs.access to succeed for first path
       mockFsPromises.access.mockResolvedValue(undefined);
       (authorizeFilePath as any).mockResolvedValue({ isAllowed: true });
       const mockChild = { unref: vi.fn(), on: vi.fn() };

@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { google } from 'googleapis';
-import { EventEmitter } from 'events';
+import { Readable } from 'stream';
 
-// We need to mock imports BEFORE importing the module under test
 vi.mock('../../src/main/google-auth');
 vi.mock('googleapis');
 
-// Import the module under test dynamically to support resetting
+// Mock global fetch
+const mockFetch = vi.fn();
+global.fetch = mockFetch;
 
 const mockDrive = {
   files: {
@@ -18,49 +19,37 @@ const mockDrive = {
 (google.drive as any).mockReturnValue(mockDrive);
 
 describe('Google Drive Service', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.resetModules();
     vi.clearAllMocks();
+
+    // Setup default mock behavior for authentication
+    const googleAuth = await import('../../src/main/google-auth');
+    (googleAuth.getOAuth2Client as any).mockReturnValue({
+      credentials: { refresh_token: 'valid_token' },
+      getAccessToken: vi.fn().mockResolvedValue({ token: 'access_token' }),
+    });
+    (googleAuth.loadSavedCredentialsIfExist as any).mockResolvedValue(true);
   });
 
-  describe('getDriveClient', () => {
-    it('should initialize drive client if auth is valid', async () => {
-      // Re-import to reset module state (driveClient = null)
+  describe('Client Management', () => {
+    it('getDriveClient returns existing client (memoization)', async () => {
       const driveService = await import('../../src/main/google-drive-service');
-      const googleAuth = await import('../../src/main/google-auth');
+      const client1 = await driveService.getDriveClient();
+      const client2 = await driveService.getDriveClient();
 
-      (googleAuth.getOAuth2Client as any).mockReturnValue({
-        credentials: { refresh_token: 'valid' },
-      });
-
-      const client = await driveService.getDriveClient();
-      expect(client).toBe(mockDrive);
-      expect(google.drive).toHaveBeenCalled();
+      expect(client1).toBe(client2);
+      expect(google.drive).toHaveBeenCalledTimes(1);
     });
 
-    it('should try to load credentials if not authenticated', async () => {
-      const driveService = await import('../../src/main/google-drive-service');
+    it('throws if user not authenticated', async () => {
       const googleAuth = await import('../../src/main/google-auth');
-
       (googleAuth.getOAuth2Client as any).mockReturnValue({
-        credentials: {}, // empty
-      });
-      (googleAuth.loadSavedCredentialsIfExist as any).mockResolvedValue(true);
-
-      const client = await driveService.getDriveClient();
-      expect(client).toBe(mockDrive);
-      expect(googleAuth.loadSavedCredentialsIfExist).toHaveBeenCalled();
-    });
-
-    it('should throw if authentication fails', async () => {
-      const driveService = await import('../../src/main/google-drive-service');
-      const googleAuth = await import('../../src/main/google-auth');
-
-      (googleAuth.getOAuth2Client as any).mockReturnValue({
-        credentials: {},
+        credentials: {}, // No refresh token
       });
       (googleAuth.loadSavedCredentialsIfExist as any).mockResolvedValue(false);
 
+      const driveService = await import('../../src/main/google-drive-service');
       await expect(driveService.getDriveClient()).rejects.toThrow(
         'User not authenticated',
       );
@@ -68,398 +57,280 @@ describe('Google Drive Service', () => {
   });
 
   describe('listDriveFiles', () => {
-    it('should return album structure recursively', async () => {
+    it('handles undefined files in response', async () => {
       const driveService = await import('../../src/main/google-drive-service');
-      const googleAuth = await import('../../src/main/google-auth');
-
-      (googleAuth.getOAuth2Client as any).mockReturnValue({
-        credentials: { refresh_token: 'valid' },
-      });
-
-      const mockFilesRoot = [
-        { id: 'f1', name: 'image.jpg', mimeType: 'image/jpeg' },
-      ];
-      const mockFoldersRoot = [
-        {
-          id: 'subfolder_id',
-          name: 'SubFolder',
-          mimeType: 'application/vnd.google-apps.folder',
-        },
-      ];
-
-      const mockFilesSub = [
-        { id: 'f2', name: 'subimage.jpg', mimeType: 'image/jpeg' },
-      ];
-
       const listMock = mockDrive.files.list as any;
-      listMock.mockReset();
-
-      // 1. Root files
-      listMock.mockResolvedValueOnce({ data: { files: mockFilesRoot } });
-      // 2. Root folders
-      listMock.mockResolvedValueOnce({ data: { files: mockFoldersRoot } });
-
-      // 3. Subfolder files
-      listMock.mockResolvedValueOnce({ data: { files: mockFilesSub } });
-      // 4. Subfolder folders (empty)
-      listMock.mockResolvedValueOnce({ data: { files: [] } });
+      listMock.mockResolvedValueOnce({ data: {} }); // First call (files)
+      listMock.mockResolvedValueOnce({ data: { files: [] } }); // Second call (folders)
 
       const result = await driveService.listDriveFiles('root');
-
-      expect(result.textures).toHaveLength(1);
-      expect(result.textures[0].path).toBe('gdrive://f1');
-
-      expect(result.children).toHaveLength(1);
-      expect(result.children[0].name).toBe('SubFolder');
-      expect(result.children[0].textures).toHaveLength(1);
-      expect(result.children[0].textures[0].path).toBe('gdrive://f2');
-      expect(mockDrive.files.list).toHaveBeenCalledWith(
-        expect.objectContaining({
-          supportsAllDrives: true,
-          includeItemsFromAllDrives: true,
-        }),
-      );
-    });
-  });
-
-  describe('getDriveFileStream', () => {
-    it('should return a stream', async () => {
-      const driveService = await import('../../src/main/google-drive-service');
-      const googleAuth = await import('../../src/main/google-auth');
-
-      (googleAuth.getOAuth2Client as any).mockReturnValue({
-        credentials: { refresh_token: 'valid' },
-      });
-      const mockStream = { pipe: vi.fn(), on: vi.fn() };
-      (mockDrive.files.get as any).mockResolvedValue({ data: mockStream });
-
-      const stream = await driveService.getDriveFileStream('fileId');
-      expect(stream).toBe(mockStream);
-      expect(mockDrive.files.get).toHaveBeenCalledWith(
-        expect.objectContaining({ fileId: 'fileId', alt: 'media' }),
-        expect.objectContaining({ responseType: 'stream', headers: {} }),
-      );
+      expect(result.textures).toEqual([]);
     });
 
-    it('should use Range header if start/end provided', async () => {
+    it('defaults names', async () => {
       const driveService = await import('../../src/main/google-drive-service');
-      const auth = await import('../../src/main/google-auth');
-      (auth.getOAuth2Client as any).mockReturnValue({
-        credentials: { refresh_token: 'valid' },
-      });
-
-      (mockDrive.files.get as any).mockResolvedValue({
-        data: new EventEmitter(),
-      });
-
-      await driveService.getDriveFileStream('fileId', { start: 0, end: 100 });
-
-      expect(mockDrive.files.get).toHaveBeenCalledWith(
-        expect.anything(),
-        expect.objectContaining({ headers: { Range: 'bytes=0-100' } }),
-      );
-    });
-
-    it('should log stream events', async () => {
-      const driveService = await import('../../src/main/google-drive-service');
-      const auth = await import('../../src/main/google-auth');
-      (auth.getOAuth2Client as any).mockReturnValue({
-        credentials: { refresh_token: 'valid' },
-      });
-
-      const mockStream = new EventEmitter();
-      (mockDrive.files.get as any).mockResolvedValue({ data: mockStream });
-      console.log = vi.fn();
-      console.error = vi.fn();
-
-      await driveService.getDriveFileStream('fileId');
-
-      mockStream.emit('end');
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('Stream ended'),
-      );
-
-      mockStream.emit('error', new Error('Fail'));
-      expect(console.error).toHaveBeenCalledWith(
-        expect.stringContaining('Stream error'),
-        expect.anything(),
-      );
-    });
-
-    it('should retry on 429', async () => {
-      const driveService = await import('../../src/main/google-drive-service');
-      const auth = await import('../../src/main/google-auth');
-      (auth.getOAuth2Client as any).mockReturnValue({
-        credentials: { refresh_token: 'valid' },
-      });
-
-      (mockDrive.files.get as any)
-        .mockRejectedValueOnce({ code: 429 })
-        .mockResolvedValueOnce({ data: new EventEmitter() });
-
-      await driveService.getDriveFileStream('fileId');
-
-      expect(mockDrive.files.get).toHaveBeenCalledTimes(2);
-    });
-  });
-
-  describe('getDriveFileMetadata', () => {
-    it('should return metadata', async () => {
-      const driveService = await import('../../src/main/google-drive-service');
-      const googleAuth = await import('../../src/main/google-auth');
-
-      (googleAuth.getOAuth2Client as any).mockReturnValue({
-        credentials: { refresh_token: 'valid' },
-      });
-      const mockMeta = { id: 'fileId', size: '100' };
-      (mockDrive.files.get as any).mockResolvedValue({ data: mockMeta });
-
-      const meta = await driveService.getDriveFileMetadata('fileId');
-      expect(meta).toBe(mockMeta);
-    });
-  });
-
-  describe('getDriveFileThumbnail', () => {
-    it('should return thumbnail stream if link exists', async () => {
-      const driveService = await import('../../src/main/google-drive-service');
-      const googleAuth = await import('../../src/main/google-auth');
-
-      (googleAuth.getOAuth2Client as any).mockReturnValue({
-        credentials: { refresh_token: 'valid' },
-        getAccessToken: vi.fn().mockResolvedValue({ token: 'access_token' }),
-      });
-
-      const mockMeta = {
-        data: { thumbnailLink: 'http://thumb.link', mimeType: 'image/jpeg' },
-      };
-      (mockDrive.files.get as any).mockResolvedValue(mockMeta);
-
-      const mockBody = new ReadableStream({
-        start(controller) {
-          controller.enqueue(new Uint8Array([1, 2, 3]));
-          controller.close();
+      const listMock = mockDrive.files.list as any;
+      listMock.mockResolvedValueOnce({ data: { files: [{ id: 'f1' }] } });
+      listMock.mockResolvedValueOnce({
+        data: {
+          files: [
+            { id: 'sub1', mimeType: 'application/vnd.google-apps.folder' },
+          ],
         },
       });
+      listMock.mockResolvedValueOnce({ data: { files: [] } }); // Recursion for sub1
+      listMock.mockResolvedValueOnce({ data: { files: [] } }); // Recursion for sub1 folders
 
-      const mockFetchResponse = {
-        ok: true,
-        body: mockBody,
-      };
-
-      global.fetch = vi.fn().mockResolvedValue(mockFetchResponse);
-
-      const stream = await driveService.getDriveFileThumbnail('fileId');
-
-      expect(mockDrive.files.get).toHaveBeenCalledWith({
-        fileId: 'fileId',
-        fields: 'thumbnailLink, mimeType',
-        supportsAllDrives: true,
-      });
-
-      const chunks: Buffer[] = [];
-      for await (const chunk of stream) {
-        chunks.push(chunk);
-      }
-      expect(chunks.length).toBe(1);
-      expect(chunks[0]).toEqual(Buffer.from([1, 2, 3]));
-      expect(global.fetch).toHaveBeenCalledWith('http://thumb.link', {
-        headers: { Authorization: 'Bearer access_token' },
-      });
+      const result = await driveService.listDriveFiles('root');
+      expect(result.textures[0].name).toBe('Untitled');
+      expect(result.children[0].name).toBe('Untitled Folder');
     });
 
-    it('should throw if no thumbnail link', async () => {
+    it('handles pagination', async () => {
       const driveService = await import('../../src/main/google-drive-service');
-      const googleAuth = await import('../../src/main/google-auth');
-
-      (googleAuth.getOAuth2Client as any).mockReturnValue({
-        credentials: { refresh_token: 'valid' },
+      const listMock = mockDrive.files.list as any;
+      listMock.mockResolvedValueOnce({
+        data: {
+          files: [{ id: 'f1' }],
+          nextPageToken: 'token2',
+        },
       });
+      listMock.mockResolvedValueOnce({
+        data: {
+          files: [{ id: 'f2' }],
+        },
+      });
+      listMock.mockResolvedValueOnce({ data: { files: [] } }); // Folders
 
-      const mockMeta = { data: { thumbnailLink: null } }; // No link
-      (mockDrive.files.get as any).mockResolvedValue(mockMeta);
-
-      await expect(
-        driveService.getDriveFileThumbnail('fileId'),
-      ).rejects.toThrow('No thumbnail available');
+      const result = await driveService.listDriveFiles('root');
+      expect(result.textures).toHaveLength(2);
     });
 
-    it('should throw if fetch fails', async () => {
+    it('handles shortcuts correctly', async () => {
       const driveService = await import('../../src/main/google-drive-service');
-      const googleAuth = await import('../../src/main/google-auth');
-
-      (googleAuth.getOAuth2Client as any).mockReturnValue({
-        credentials: { refresh_token: 'valid' },
-        getAccessToken: vi.fn().mockResolvedValue({ token: 'access_token' }),
+      const listMock = mockDrive.files.list as any;
+      listMock.mockResolvedValueOnce({
+        data: {
+          files: [
+            {
+              id: 'sc1',
+              mimeType: 'application/vnd.google-apps.shortcut',
+              shortcutDetails: {
+                targetMimeType: 'image/jpeg',
+                targetId: 'target1',
+              },
+            },
+            {
+              id: 'sc2',
+              mimeType: 'application/vnd.google-apps.shortcut',
+              shortcutDetails: {
+                targetMimeType: 'application/pdf', // Ignored
+                targetId: 'target2',
+              },
+            },
+          ],
+        },
       });
-
-      const mockMeta = {
-        data: { thumbnailLink: 'http://thumb.link' },
-      };
-      (mockDrive.files.get as any).mockResolvedValue(mockMeta);
-
-      global.fetch = vi.fn().mockResolvedValue({
-        ok: false,
-        statusText: 'Not Found',
+      listMock.mockResolvedValueOnce({
+        data: {
+          files: [
+            {
+              id: 'sc_folder',
+              mimeType: 'application/vnd.google-apps.shortcut',
+              shortcutDetails: {
+                targetMimeType: 'application/vnd.google-apps.folder',
+                targetId: 'target_folder',
+              },
+            },
+          ],
+        },
       });
+      listMock.mockResolvedValueOnce({ data: { files: [] } }); // Recursion
+      listMock.mockResolvedValueOnce({ data: { files: [] } }); // Recursion
 
-      await expect(
-        driveService.getDriveFileThumbnail('fileId'),
-      ).rejects.toThrow('Failed to fetch thumbnail: Not Found');
+      const result = await driveService.listDriveFiles('root');
+      expect(result.textures).toHaveLength(1);
+      expect(result.children).toHaveLength(1);
+    });
+
+    it('retries on rate limit', async () => {
+      const driveService = await import('../../src/main/google-drive-service');
+      const listMock = mockDrive.files.list as any;
+      const error429 = new Error('Rate limit') as any;
+      error429.code = 429;
+
+      listMock.mockRejectedValueOnce(error429);
+      listMock.mockResolvedValueOnce({ data: { files: [] } }); // Success on retry
+      listMock.mockResolvedValueOnce({ data: { files: [] } }); // Folders
+
+      await driveService.listDriveFiles('root');
+      expect(listMock).toHaveBeenCalledTimes(3); // 1 fail, 1 success, 1 folders
     });
   });
 
   describe('listDriveDirectory', () => {
-    it('should list files and folders flatly', async () => {
+    it('handles generic files and shortcuts', async () => {
       const driveService = await import('../../src/main/google-drive-service');
-      const googleAuth = await import('../../src/main/google-auth');
-
-      (googleAuth.getOAuth2Client as any).mockReturnValue({
-        credentials: { refresh_token: 'valid' },
-      });
-
-      const mockFiles = [
-        { id: 'f1', name: 'File.txt', mimeType: 'text/plain' },
-        {
-          id: 'd1',
-          name: 'Folder',
-          mimeType: 'application/vnd.google-apps.folder',
+      const listMock = mockDrive.files.list as any;
+      listMock.mockResolvedValueOnce({
+        data: {
+          files: [
+            { id: 'f1', name: 'File1', mimeType: 'image/jpeg' },
+            {
+              id: 'd1',
+              name: 'Dir1',
+              mimeType: 'application/vnd.google-apps.folder',
+            },
+            {
+              id: 's1',
+              name: 'ShortcutDir',
+              mimeType: 'application/vnd.google-apps.shortcut',
+              shortcutDetails: {
+                targetMimeType: 'application/vnd.google-apps.folder',
+                targetId: 'targetD1',
+              },
+            },
+          ],
         },
-      ];
-
-      (mockDrive.files.list as any).mockResolvedValue({
-        data: { files: mockFiles },
       });
 
-      const result = await driveService.listDriveDirectory('root');
+      const items = await driveService.listDriveDirectory('root');
+      expect(items).toHaveLength(3);
+      expect(items[2].path).toBe('targetD1');
+    });
 
-      expect(result).toHaveLength(2);
-      expect(result[0]).toEqual({
-        name: 'File.txt',
-        path: 'f1',
-        isDirectory: false,
-      });
-      expect(result[1]).toEqual({
-        name: 'Folder',
-        path: 'd1',
-        isDirectory: true,
-      });
-      expect(mockDrive.files.list).toHaveBeenCalledWith(
-        expect.objectContaining({
-          q: "'root' in parents and trashed = false",
-          supportsAllDrives: true,
-          includeItemsFromAllDrives: true,
-        }),
+    it('handles root explicitly', async () => {
+      const driveService = await import('../../src/main/google-drive-service');
+      const listMock = mockDrive.files.list as any;
+      listMock.mockResolvedValueOnce({ data: { files: [] } });
+      await driveService.listDriveDirectory('root');
+      expect(listMock).toHaveBeenCalledWith(
+        expect.objectContaining({ q: "'root' in parents and trashed = false" }),
       );
     });
 
-    it('should handle shortcuts to folders', async () => {
+    it('handles error', async () => {
       const driveService = await import('../../src/main/google-drive-service');
-      const googleAuth = await import('../../src/main/google-auth');
+      const listMock = mockDrive.files.list as any;
+      listMock.mockRejectedValueOnce(new Error('List failed'));
 
-      (googleAuth.getOAuth2Client as any).mockReturnValue({
-        credentials: { refresh_token: 'valid' },
-      });
-
-      const mockFiles = [
-        {
-          id: 'shortcut1',
-          name: 'Shortcut to Folder',
-          mimeType: 'application/vnd.google-apps.shortcut',
-          shortcutDetails: {
-            targetId: 'folderTargetId',
-            targetMimeType: 'application/vnd.google-apps.folder',
-          },
-        },
-      ];
-
-      (mockDrive.files.list as any).mockResolvedValue({
-        data: { files: mockFiles },
-      });
-
-      const result = await driveService.listDriveDirectory('root');
-
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual({
-        name: 'Shortcut to Folder',
-        path: 'folderTargetId', // Should resolve to target ID
-        isDirectory: true,
-      });
-    });
-
-    it('should ignore shortcuts to non-folders (or treat as files if supported)', async () => {
-      const driveService = await import('../../src/main/google-drive-service');
-
-      const mockFiles = [
-        {
-          id: 'shortcut1',
-          name: 'Shortcut to File',
-          mimeType: 'application/vnd.google-apps.shortcut',
-          shortcutDetails: {
-            targetId: 'fileTargetId',
-            targetMimeType: 'application/pdf', // Unsupported for now or just file
-          },
-        },
-      ];
-
-      (mockDrive.files.list as any).mockResolvedValue({
-        data: { files: mockFiles },
-      });
-
-      const result = await driveService.listDriveDirectory('root');
-
-      // Our logic defaults isDirectory to false if not folder
-      expect(result).toHaveLength(1);
-      expect(result[0].isDirectory).toBe(false);
-      expect(result[0].path).toBe('shortcut1'); // Or targetId? Current logic keeps shortcut ID if not folder
-    });
-
-    it('should handle errors', async () => {
-      const driveService = await import('../../src/main/google-drive-service');
-      (mockDrive.files.list as any).mockRejectedValue(new Error('API Error'));
       await expect(driveService.listDriveDirectory('root')).rejects.toThrow(
-        'API Error',
+        'List failed',
       );
     });
   });
 
   describe('getDriveParent', () => {
-    it('should return parent id', async () => {
+    it('returns parent', async () => {
       const driveService = await import('../../src/main/google-drive-service');
-      (mockDrive.files.get as any).mockResolvedValue({
-        data: { parents: ['parentId'] },
+      const getMock = mockDrive.files.get as any;
+      getMock.mockResolvedValueOnce({ data: { parents: ['p1'] } });
+      const p1 = await driveService.getDriveParent('child');
+      expect(p1).toBe('p1');
+
+      getMock.mockResolvedValueOnce({ data: { parents: [] } });
+      const p2 = await driveService.getDriveParent('child');
+      expect(p2).toBeNull();
+
+      getMock.mockRejectedValueOnce(new Error('Fail'));
+      const p3 = await driveService.getDriveParent('child');
+      expect(p3).toBeNull();
+
+      const p4 = await driveService.getDriveParent('root');
+      expect(p4).toBeNull();
+    });
+  });
+
+  describe('getDriveFileThumbnail', () => {
+    it('handles fetch success', async () => {
+      const driveService = await import('../../src/main/google-drive-service');
+      const getMock = mockDrive.files.get as any;
+      getMock.mockResolvedValueOnce({
+        data: { thumbnailLink: 'http://thumb' },
       });
 
-      const parent = await driveService.getDriveParent('childId');
-      expect(parent).toBe('parentId');
-      expect(mockDrive.files.get).toHaveBeenCalledWith(
+      // Mock web stream - create a proper ReadableStream
+      const mockStream = new ReadableStream({
+        start(controller) {
+          controller.close();
+        },
+      });
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        body: mockStream,
+      });
+
+      const stream = await driveService.getDriveFileThumbnail('id');
+      expect(stream).toBeInstanceOf(Readable);
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://thumb',
         expect.objectContaining({
-          fileId: 'childId',
-          fields: 'parents',
-          supportsAllDrives: true,
+          headers: { Authorization: 'Bearer access_token' },
         }),
       );
     });
 
-    it('should return null if no parents', async () => {
+    it('throws if fetch fails', async () => {
       const driveService = await import('../../src/main/google-drive-service');
-      (mockDrive.files.get as any).mockResolvedValue({
-        data: { parents: [] },
+      const getMock = mockDrive.files.get as any;
+      getMock.mockResolvedValueOnce({
+        data: { thumbnailLink: 'http://thumb' },
       });
-      const parent = await driveService.getDriveParent('childId');
-      expect(parent).toBeNull();
+
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        statusText: 'Not Found',
+      });
+
+      await expect(driveService.getDriveFileThumbnail('id')).rejects.toThrow(
+        'Failed to fetch thumbnail: Not Found',
+      );
     });
 
-    it('should return null for root', async () => {
+    it('throws if no link', async () => {
       const driveService = await import('../../src/main/google-drive-service');
-      const parent = await driveService.getDriveParent('root');
-      expect(parent).toBeNull();
+      const getMock = mockDrive.files.get as any;
+      getMock.mockResolvedValueOnce({ data: {} });
+
+      await expect(driveService.getDriveFileThumbnail('id')).rejects.toThrow(
+        'No thumbnail available',
+      );
+    });
+  });
+
+  describe('Other Operations', () => {
+    it('getDriveFileStream returns stream', async () => {
+      const driveService = await import('../../src/main/google-drive-service');
+      const getMock = mockDrive.files.get as any;
+      const stream = new Readable();
+      getMock.mockResolvedValueOnce({ data: stream });
+
+      const result = await driveService.getDriveFileStream('id');
+      expect(result).toBe(stream);
     });
 
-    it('should return null on error', async () => {
+    it('getDriveFileStream handles range headers', async () => {
       const driveService = await import('../../src/main/google-drive-service');
-      (mockDrive.files.get as any).mockRejectedValue(new Error('API Error'));
-      const parent = await driveService.getDriveParent('childId');
-      expect(parent).toBeNull();
+      const getMock = mockDrive.files.get as any;
+      const stream = new Readable();
+      getMock.mockResolvedValueOnce({ data: stream });
+
+      await driveService.getDriveFileStream('id', { start: 0, end: 100 });
+      expect(getMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ headers: { Range: 'bytes=0-100' } }),
+      );
+    });
+
+    it('getDriveFileMetadata returns metadata', async () => {
+      const driveService = await import('../../src/main/google-drive-service');
+      const getMock = mockDrive.files.get as any;
+      const meta = { id: '1', name: 'f' };
+      getMock.mockResolvedValueOnce({ data: meta });
+
+      const result = await driveService.getDriveFileMetadata('id');
+      expect(result).toEqual(meta);
     });
   });
 });

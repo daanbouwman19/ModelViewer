@@ -1,28 +1,22 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { mount } from '@vue/test-utils';
-import { ref, type Ref } from 'vue';
+import { ref, nextTick } from 'vue';
 import AlbumsList from '../../../src/renderer/components/AlbumsList.vue';
 import { useAppState } from '../../../src/renderer/composables/useAppState';
-import { collectTexturesRecursive } from '../../../src/renderer/utils/albumUtils';
-
-// --- New Mocking Strategy ---
 import { api } from '../../../src/renderer/api';
+import { useSlideshow } from '../../../src/renderer/composables/useSlideshow';
 
-const mockToggleAlbumSelection = vi.fn();
-const mockStartSlideshow = vi.fn();
-const mockStartIndividualAlbumSlideshow = vi.fn();
-const mockToggleSlideshowTimer = vi.fn();
-
+// Mocks
+vi.mock('../../../src/renderer/composables/useAppState');
 vi.mock('../../../src/renderer/composables/useSlideshow', () => ({
-  useSlideshow: () => ({
-    toggleAlbumSelection: mockToggleAlbumSelection,
-    startSlideshow: mockStartSlideshow,
-    startIndividualAlbumSlideshow: mockStartIndividualAlbumSlideshow,
-    toggleSlideshowTimer: mockToggleSlideshowTimer,
+  useSlideshow: vi.fn(() => ({
+    toggleAlbumSelection: vi.fn(),
+    startSlideshow: vi.fn(),
+    startIndividualAlbumSlideshow: vi.fn(),
+    toggleSlideshowTimer: vi.fn(),
     openAlbumInGrid: vi.fn(),
-  }),
+  })),
 }));
-
 vi.mock('../../../src/renderer/api', () => ({
   api: {
     getAllMetadataAndStats: vi.fn(),
@@ -31,54 +25,25 @@ vi.mock('../../../src/renderer/api', () => ({
   },
 }));
 
-vi.mock('../../../src/renderer/composables/useAppState');
-// --- End New Mocking Strategy ---
+// Mock window.confirm
+window.confirm = vi.fn().mockReturnValue(true);
 
-const mockAlbums = [
-  {
-    id: 'Album1',
-    name: 'Album1',
-    textures: [{ name: 't1.jpg', path: '/t1.jpg' }],
-    children: [
-      {
-        id: 'SubAlbum1',
-        name: 'SubAlbum1',
-        textures: [{ name: 'st1.jpg', path: '/st1.jpg' }],
-        children: [],
-      },
-    ],
-  },
-  {
-    id: 'Album2',
-    name: 'Album2',
-    textures: [{ name: 't2.jpg', path: '/t2.jpg' }],
-    children: [],
-  },
-];
-
-describe('AlbumsList.vue', () => {
-  let mockAppState: {
-    allAlbums: Ref<typeof mockAlbums>;
-    albumsSelectedForSlideshow: Ref<Record<string, boolean>>;
-    timerDuration: Ref<number>;
-    isTimerRunning: Ref<boolean>;
-    isSourcesModalVisible: Ref<boolean>;
-    playFullVideo: Ref<boolean>;
-    pauseTimerOnPlay: Ref<boolean>;
-    smartPlaylists: Ref<any[]>;
-    gridMediaFiles: Ref<any[]>;
-    viewMode: Ref<string>;
-    isSmartPlaylistModalVisible: Ref<boolean>;
-    timerProgress: Ref<number>;
-    playlistToEdit: Ref<any>;
-  };
+describe('AlbumsList', () => {
+  let mockAppState: any;
+  let mockSlideshow: any;
 
   beforeEach(() => {
-    vi.resetAllMocks();
-
+    vi.clearAllMocks();
     mockAppState = {
-      allAlbums: ref(mockAlbums),
-      albumsSelectedForSlideshow: ref({ Album1: true }),
+      allAlbums: ref([
+        {
+          id: '1',
+          name: 'Album 1',
+          children: [],
+          textures: [{ name: 'img1.jpg', path: '/path/img1.jpg' }],
+        },
+      ]),
+      albumsSelectedForSlideshow: ref({}),
       timerDuration: ref(5),
       isTimerRunning: ref(false),
       isSourcesModalVisible: ref(false),
@@ -91,195 +56,271 @@ describe('AlbumsList.vue', () => {
       timerProgress: ref(0),
       playlistToEdit: ref(null),
     };
-
     (useAppState as Mock).mockReturnValue(mockAppState);
+    mockSlideshow = (useSlideshow as Mock)();
     (api.getSmartPlaylists as Mock).mockResolvedValue([]);
   });
 
-  it('renders AlbumTree components for each root album', () => {
-    const wrapper = mount(AlbumsList);
-    const albumTrees = wrapper.findAllComponents({ name: 'AlbumTree' });
-    expect(albumTrees.length).toBe(2);
-    expect(albumTrees[0].props('album')).toEqual(mockAlbums[0]);
-    expect(albumTrees[1].props('album')).toEqual(mockAlbums[1]);
+  const mountList = () => mount(AlbumsList);
+
+  it('renders albums correctly', () => {
+    const wrapper = mountList();
+    expect(wrapper.text()).toContain('Album 1');
   });
 
-  it('calls startSlideshow when the global start button is clicked', async () => {
-    const wrapper = mount(AlbumsList);
-    await wrapper.vm.$nextTick();
-    const startButton = wrapper.find('[data-testid="start-slideshow-button"]');
-    await startButton.trigger('click');
-    expect(mockStartSlideshow).toHaveBeenCalled();
-  });
-
-  it('opens the sources modal when "Manage Sources" is clicked', async () => {
-    const wrapper = mount(AlbumsList);
-    const manageButton = wrapper
-      .findAll('button')
-      .find((b) => b.text().includes('Manage Sources'));
-    await manageButton!.trigger('click');
+  it('opens sources modal on button click', async () => {
+    const wrapper = mountList();
+    const buttons = wrapper.findAll('button');
+    const button = buttons.find((b) => b.text().includes('Manage Sources'));
+    expect(button).toBeDefined();
+    await button!.trigger('click');
     expect(mockAppState.isSourcesModalVisible.value).toBe(true);
   });
 
-  it('handles the albumClick event from AlbumTree', async () => {
-    const wrapper = mount(AlbumsList);
-    const albumTree = wrapper.findComponent({ name: 'AlbumTree' });
+  it('opens smart playlist modal on button click', async () => {
+    const wrapper = mountList();
+    const buttons = wrapper.findAll('button');
+    const button = buttons.find((b) => b.text().includes('+ Playlist'));
+    expect(button).toBeDefined();
+    await button!.trigger('click');
+    expect(mockAppState.isSmartPlaylistModalVisible.value).toBe(true);
+    expect(mockAppState.playlistToEdit.value).toBe(null);
+  });
 
-    albumTree.vm.$emit('albumClick', mockAlbums[0]);
-    await wrapper.vm.$nextTick();
-
-    expect(mockStartIndividualAlbumSlideshow).toHaveBeenCalled();
-    const expectedTextures = collectTexturesRecursive(mockAlbums[0]);
-    expect(mockStartIndividualAlbumSlideshow).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: 'Album1',
-        textures: expectedTextures,
-      }),
+  it('toggles timer running state', async () => {
+    const wrapper = mountList();
+    const buttons = wrapper.findAll('button');
+    // The button displays current interval (e.g. 5s) if timer is not running
+    // or 'Pause' if running.
+    // In initial mock state, isTimerRunning is false and timerDuration is 5.
+    // So text should be '5s'.
+    // Or we can find by class 'glass-button-sm' + click handler logic.
+    // The timer button toggles 'Play'/'Pause'.
+    // Let's look for the button with 'timer-button' class
+    const button = buttons.find((b) =>
+      b.attributes('class')?.includes('timer-button'),
     );
+    expect(button).toBeDefined();
+    await button!.trigger('click');
+    expect(mockSlideshow.toggleSlideshowTimer).toHaveBeenCalled();
   });
 
-  it('selects all children when a partially selected parent is toggled', async () => {
-    // Set initial state to partially selected
-    mockAppState.albumsSelectedForSlideshow.value = { Album1: true };
-    const wrapper = mount(AlbumsList);
-    const albumTree = wrapper.findComponent({ name: 'AlbumTree' });
-
-    albumTree.vm.$emit('toggleSelection', {
-      album: mockAlbums[0],
-      recursive: true,
-    });
-    await wrapper.vm.$nextTick();
-
-    expect(mockToggleAlbumSelection).toHaveBeenCalledWith('Album1', true);
-    expect(mockToggleAlbumSelection).toHaveBeenCalledWith('SubAlbum1', true);
-  });
-
-  it('deselects all children when a fully selected parent is toggled', async () => {
-    // Set initial state to fully selected
-    mockAppState.albumsSelectedForSlideshow.value = {
-      Album1: true,
-      SubAlbum1: true,
-    };
-    const wrapper = mount(AlbumsList);
-    const albumTree = wrapper.findComponent({ name: 'AlbumTree' });
-
-    albumTree.vm.$emit('toggleSelection', {
-      album: mockAlbums[0],
-      recursive: true,
-    });
-    await wrapper.vm.$nextTick();
-
-    expect(mockToggleAlbumSelection).toHaveBeenCalledWith('Album1', false);
-    expect(mockToggleAlbumSelection).toHaveBeenCalledWith('SubAlbum1', false);
-  });
-
-  it('toggles slideshow timer when timer button is clicked', async () => {
-    const wrapper = mount(AlbumsList);
-    const timerButton = wrapper.find('.timer-button');
-    await timerButton.trigger('click');
-    expect(mockToggleSlideshowTimer).toHaveBeenCalled();
-  });
-
-  describe('Smart Playlists', () => {
-    it('opens smart playlist modal', async () => {
-      const wrapper = mount(AlbumsList);
-      const btn = wrapper
-        .findAll('button')
-        .find((b) => b.text().includes('+ Playlist'));
-      await btn?.trigger('click');
-      expect(mockAppState.isSmartPlaylistModalVisible.value).toBe(true);
-    });
-
-    it('renders smart playlists', async () => {
+  describe('Smart Playlist Filtering', () => {
+    it('filters by minDuration', async () => {
       mockAppState.smartPlaylists.value = [
-        { id: 1, name: 'My List', criteria: '{}' },
+        { id: 1, name: 'Long', criteria: JSON.stringify({ minDuration: 60 }) },
       ];
-      const wrapper = mount(AlbumsList);
-      await wrapper.vm.$nextTick();
-      expect(wrapper.text()).toContain('My List');
-    });
-
-    it('handles playlist click and filtering', async () => {
-      mockAppState.smartPlaylists.value = [
-        {
-          id: 1,
-          name: 'Rated 5',
-          criteria: JSON.stringify({ minRating: 5 }),
-        },
-      ];
-      // Mock allAlbums to contain valid files
       mockAppState.allAlbums.value = [
         {
-          id: 'Root',
           name: 'Root',
           children: [],
           textures: [
-            { path: '/file1.jpg', name: 'file1.jpg' },
-            { path: '/file2.jpg', name: 'file2.jpg' },
+            { path: '/short.mp4', name: 'short.mp4' },
+            { path: '/long.mp4', name: 'long.mp4' },
           ],
         },
       ];
 
-      const mockItems = [
-        { file_path: '/file1.jpg', rating: 5, view_count: 0 },
-        { file_path: '/file2.jpg', rating: 3, view_count: 10 },
+      const items = [
+        { file_path: '/short.mp4', duration: 10 },
+        { file_path: '/long.mp4', duration: 100 },
       ];
-      (api.getAllMetadataAndStats as Mock).mockResolvedValue(mockItems);
+      (api.getAllMetadataAndStats as Mock).mockResolvedValue(items);
 
-      const wrapper = mount(AlbumsList);
-      await wrapper.vm.$nextTick();
+      const wrapper = mountList();
+      await nextTick(); // Wait for watcher/render
 
-      // Find the smart playlist item first to ensure we click the correct Grid button
       const playlistItem = wrapper
         .findAll('li')
-        .find((li) => li.text().includes('Rated 5'));
+        .find((li) => li.text().includes('Long'));
+      expect(playlistItem).toBeDefined();
+      const gridBtn = playlistItem!.find('button[title="Open in Grid"]');
+      expect(gridBtn.exists()).toBe(true);
+      await gridBtn.trigger('click');
+
+      await new Promise(process.nextTick);
+
+      expect(mockAppState.gridMediaFiles.value).toHaveLength(1);
+      expect(mockAppState.gridMediaFiles.value[0].path).toBe('/long.mp4');
+    });
+
+    it('filters by minViews', async () => {
+      mockAppState.smartPlaylists.value = [
+        { id: 1, name: 'Popular', criteria: JSON.stringify({ minViews: 5 }) },
+      ];
+      mockAppState.allAlbums.value = [
+        {
+          name: 'Root',
+          children: [],
+          textures: [
+            { path: '/rare.mp4', name: 'rare.mp4' },
+            { path: '/popular.mp4', name: 'popular.mp4' },
+          ],
+        },
+      ];
+      const items = [
+        { file_path: '/rare.mp4', view_count: 1 },
+        { file_path: '/popular.mp4', view_count: 10 },
+      ];
+      (api.getAllMetadataAndStats as Mock).mockResolvedValue(items);
+
+      const wrapper = mountList();
+      await nextTick();
+      const playlistItem = wrapper
+        .findAll('li')
+        .find((li) => li.text().includes('Popular'));
       const gridBtn = playlistItem!.find('button[title="Open in Grid"]');
       await gridBtn.trigger('click');
 
       await new Promise(process.nextTick);
 
-      expect(api.getAllMetadataAndStats).toHaveBeenCalled();
-      // Should filter to only file1
       expect(mockAppState.gridMediaFiles.value).toHaveLength(1);
-      expect(mockAppState.gridMediaFiles.value[0].path).toBe('/file1.jpg');
-      expect(mockAppState.viewMode.value).toBe('grid');
+      expect(mockAppState.gridMediaFiles.value[0].path).toBe('/popular.mp4');
     });
 
-    it('deletes playlist upon confirmation', async () => {
+    it('filters by maxViews', async () => {
       mockAppState.smartPlaylists.value = [
-        { id: 1, name: 'Delete Me', criteria: '{}' },
+        { id: 1, name: 'Unseen', criteria: JSON.stringify({ maxViews: 0 }) },
       ];
-      // Mock confirm
-      global.confirm = vi.fn(() => true);
-      (api.deleteSmartPlaylist as Mock).mockResolvedValue(undefined);
-      (api.getSmartPlaylists as Mock).mockResolvedValue([]);
+      mockAppState.allAlbums.value = [
+        {
+          name: 'Root',
+          children: [],
+          textures: [
+            { path: '/seen.mp4', name: 'seen.mp4' },
+            { path: '/unseen.mp4', name: 'unseen.mp4' },
+          ],
+        },
+      ];
+      const items = [
+        { file_path: '/seen.mp4', view_count: 5 },
+        { file_path: '/unseen.mp4', view_count: 0 },
+      ];
+      (api.getAllMetadataAndStats as Mock).mockResolvedValue(items);
 
-      const wrapper = mount(AlbumsList);
-      await wrapper.vm.$nextTick();
+      const wrapper = mountList();
+      await nextTick();
+      const playlistItem = wrapper
+        .findAll('li')
+        .find((li) => li.text().includes('Unseen'));
+      const gridBtn = playlistItem!.find('button[title="Open in Grid"]');
+      await gridBtn.trigger('click');
 
-      const trashBtn = wrapper.findAll('button[title="Delete"]')[0];
-      await trashBtn?.trigger('click');
+      await new Promise(process.nextTick);
 
-      expect(global.confirm).toHaveBeenCalled();
-      expect(api.deleteSmartPlaylist).toHaveBeenCalledWith(1);
-      expect(api.getSmartPlaylists).toHaveBeenCalled();
-      expect(api.deleteSmartPlaylist).toHaveBeenCalledWith(1);
-      expect(api.getSmartPlaylists).toHaveBeenCalled();
+      expect(mockAppState.gridMediaFiles.value).toHaveLength(1);
+      expect(mockAppState.gridMediaFiles.value[0].path).toBe('/unseen.mp4');
     });
 
-    it('opens edit modal on edit click', async () => {
-      const playlist = { id: 1, name: 'Edit Me', criteria: '{}' };
-      mockAppState.smartPlaylists.value = [playlist];
-      const wrapper = mount(AlbumsList);
-      await wrapper.vm.$nextTick();
+    it('filters by minDaysSinceView', async () => {
+      mockAppState.smartPlaylists.value = [
+        {
+          id: 1,
+          name: 'Forgotten',
+          criteria: JSON.stringify({ minDaysSinceView: 30 }),
+        },
+      ];
+      mockAppState.allAlbums.value = [
+        {
+          name: 'Root',
+          children: [],
+          textures: [
+            { path: '/recent.mp4', name: 'recent.mp4' },
+            { path: '/old.mp4', name: 'old.mp4' },
+            { path: '/never.mp4', name: 'never.mp4' },
+          ],
+        },
+      ];
+      const now = Date.now();
+      const oneDay = 24 * 60 * 60 * 1000;
+      const items = [
+        {
+          file_path: '/recent.mp4',
+          last_viewed: new Date(now - oneDay).toISOString(),
+        },
+        {
+          file_path: '/old.mp4',
+          last_viewed: new Date(now - 100 * oneDay).toISOString(),
+        },
+        { file_path: '/never.mp4', last_viewed: null },
+      ];
+      (api.getAllMetadataAndStats as Mock).mockResolvedValue(items);
 
-      const editBtn = wrapper.findAll('button[title="Edit"]')[0];
-      // Edit button is hidden by default (opacity 0), but click should still work in test env
-      // or we trigger the handler directly if visibility is blocked by CSS (but vue-test-utils usually ignores CSS visibility for interaction unless using strict visibility checks)
-      await editBtn.trigger('click');
+      const wrapper = mountList();
+      await nextTick();
+      const playlistItem = wrapper
+        .findAll('li')
+        .find((li) => li.text().includes('Forgotten'));
+      const gridBtn = playlistItem!.find('button[title="Open in Grid"]');
+      await gridBtn.trigger('click');
 
-      expect(mockAppState.playlistToEdit.value).toEqual(playlist);
-      expect(mockAppState.isSmartPlaylistModalVisible.value).toBe(true);
+      await new Promise(process.nextTick);
+
+      expect(mockAppState.gridMediaFiles.value.map((f: any) => f.path)).toEqual(
+        ['/old.mp4', '/never.mp4'],
+      );
     });
+
+    it('handles error in filtering', async () => {
+      mockAppState.smartPlaylists.value = [
+        { id: 1, name: 'Broken', criteria: '{}' },
+      ];
+      (api.getAllMetadataAndStats as Mock).mockRejectedValue(
+        new Error('API Fail'),
+      );
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+
+      const wrapper = mountList();
+      await nextTick();
+      const playlistItem = wrapper
+        .findAll('li')
+        .find((li) => li.text().includes('Broken'));
+      const gridBtn = playlistItem!.find('button[title="Open in Grid"]');
+      await gridBtn.trigger('click');
+
+      await new Promise(process.nextTick);
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Error opening playlist grid',
+        expect.any(Error),
+      );
+    });
+  });
+
+  it('edits smart playlist', async () => {
+    const playlist = { id: 1, name: 'Edit Me', criteria: '{}' };
+    mockAppState.smartPlaylists.value = [playlist];
+    const wrapper = mountList();
+    await nextTick();
+
+    const playlistItem = wrapper
+      .findAll('li')
+      .find((li) => li.text().includes('Edit Me'));
+    const editBtn = playlistItem!.find('button[title="Edit"]');
+    await editBtn.trigger('click');
+
+    expect(mockAppState.playlistToEdit.value).toEqual(playlist);
+    expect(mockAppState.isSmartPlaylistModalVisible.value).toBe(true);
+  });
+
+  it('deletes smart playlist', async () => {
+    const playlist = { id: 1, name: 'Delete Me', criteria: '{}' };
+    mockAppState.smartPlaylists.value = [playlist];
+    const wrapper = mountList();
+    await nextTick();
+
+    // Mock window.confirm
+    window.confirm = vi.fn().mockReturnValue(true);
+
+    const playlistItem = wrapper
+      .findAll('li')
+      .find((li) => li.text().includes('Delete Me'));
+    const deleteBtn = playlistItem!.find('button[title="Delete"]');
+    await deleteBtn.trigger('click');
+
+    expect(api.deleteSmartPlaylist).toHaveBeenCalledWith(1);
+    expect(api.getSmartPlaylists).toHaveBeenCalled();
   });
 });

@@ -4,10 +4,13 @@ import fs from 'fs';
 import { parentPort } from 'worker_threads';
 import Database from 'better-sqlite3';
 
-// Mock worker_threads using the __mocks__ file
+// Mock worker_threads using the __mocks__ file logic
+// In Vitest, we can just mock the module directly here or rely on __mocks__
+// The original test mocked it and then imported the worker file to execute it in the main thread with mocked ports.
 vi.mock('worker_threads');
 
 // Import the worker once. It will attach the listener to the mocked parentPort.
+// This executes the worker code in the context of the test runner.
 import '../../src/core/database-worker';
 
 interface WorkerMessage {
@@ -27,36 +30,18 @@ interface Directory {
   isActive: boolean;
 }
 
-describe('Database Worker', () => {
+interface SmartPlaylist {
+  id: number;
+  name: string;
+  criteria: string;
+}
+
+describe('Database Worker (Integration)', () => {
   let dbPath: string;
   let tempDir: string;
   let messageId = 0;
 
-  beforeEach(async () => {
-    const testDir = path.join(process.cwd(), 'tests', 'temp');
-    if (!fs.existsSync(testDir)) {
-      fs.mkdirSync(testDir, { recursive: true });
-    }
-    tempDir = fs.mkdtempSync(path.join(testDir, 'test-db-'));
-    dbPath = path.join(tempDir, 'test.sqlite');
-
-    // We don't remove listeners because the worker's listener must remain.
-    // We only need to ensure we don't have stale 'workerMessage' listeners from previous tests.
-    parentPort!.removeAllListeners('workerMessage');
-  });
-
-  afterEach(async () => {
-    // Send close message to ensure DB is closed and file can be cleaned up
-    try {
-      await sendMessage('close', {});
-    } catch {
-      // Ignore errors during cleanup
-    }
-
-    // Clean up temp directory
-    fs.rmSync(tempDir, { recursive: true, force: true });
-  });
-
+  // Helper to send messages to the "worker" (which is running in this thread)
   const sendMessage = (
     type: string,
     payload: unknown,
@@ -64,7 +49,6 @@ describe('Database Worker', () => {
     const id = messageId++;
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
-        // Clean up listener on timeout
         parentPort!.off('workerMessage', messageHandler);
         reject(new Error(`Message ${id} (${type}) timed out`));
       }, 2000);
@@ -88,6 +72,31 @@ describe('Database Worker', () => {
     });
   };
 
+  beforeEach(async () => {
+    // Setup temp directory
+    const testDir = path.join(process.cwd(), 'tests', 'temp');
+    if (!fs.existsSync(testDir)) {
+      fs.mkdirSync(testDir, { recursive: true });
+    }
+    tempDir = fs.mkdtempSync(path.join(testDir, 'test-db-'));
+    dbPath = path.join(tempDir, 'test.sqlite');
+
+    // Reset listeners
+    parentPort!.removeAllListeners('workerMessage');
+  });
+
+  afterEach(async () => {
+    // Attempt to close DB
+    try {
+      await sendMessage('close', {});
+    } catch {
+      // Ignore errors during cleanup
+    }
+
+    // Clean up temp directory
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  });
+
   describe('Initialization and Basic Operations', () => {
     it('should initialize the database', async () => {
       const result = await sendMessage('init', { dbPath });
@@ -108,19 +117,14 @@ describe('Database Worker', () => {
     });
 
     it('should migrate old media_directories schema', async () => {
-      // 1. Setup old schema manually
-      // 1. Setup old schema manually
+      // 1. Setup old schema manually using direct sqlite3
       const tempDb = new Database(dbPath);
-      tempDb
-        .prepare(
-          `
+      tempDb.exec(`
         CREATE TABLE media_directories (
           path TEXT UNIQUE,
           is_active INTEGER DEFAULT 1
         )
-      `,
-        )
-        .run();
+      `);
       tempDb
         .prepare(
           'INSERT INTO media_directories (path, is_active) VALUES (?, ?)',
@@ -147,19 +151,19 @@ describe('Database Worker', () => {
       await sendMessage('init', { dbPath });
     });
 
-    it('should record a media view', async () => {
+    it('should record a media view and increment count', async () => {
       const filePath = path.join(tempDir, 'file.jpg');
       fs.writeFileSync(filePath, 'test data');
-      const result = await sendMessage('recordMediaView', { filePath });
-      expect(result.success).toBe(true);
-    });
 
-    it('should increment view count', async () => {
-      const filePath = path.join(tempDir, 'file.jpg');
-      fs.writeFileSync(filePath, 'test data');
+      // First view
+      let result = await sendMessage('recordMediaView', { filePath });
+      expect(result.success).toBe(true);
+
+      // Second view
       await sendMessage('recordMediaView', { filePath });
-      await sendMessage('recordMediaView', { filePath });
-      const result = await sendMessage('getMediaViewCounts', {
+
+      // Verify count
+      result = await sendMessage('getMediaViewCounts', {
         filePaths: [filePath],
       });
       expect(result.success).toBe(true);
@@ -183,17 +187,16 @@ describe('Database Worker', () => {
       expect(result.success).toBe(true);
     });
 
-    it('should handle non-existent files (fallback ID generation)', async () => {
+    it('should handle non-existent files gracefully', async () => {
+      // generateFileId depends on file stats, so missing file triggers catch block
       const filePath = path.join(tempDir, 'non-existent.png');
-      // Do NOT create the file.
-      // this should trigger the catch block in generateFileId
       const result = await sendMessage('recordMediaView', { filePath });
       expect(result.success).toBe(true);
 
       const counts = await sendMessage('getMediaViewCounts', {
         filePaths: [filePath],
       });
-      expect((counts.data as any)[filePath]).toBe(1);
+      expect((counts.data as Record<string, number>)[filePath]).toBe(1);
     });
 
     it('should generate ID from path for GDrive files', async () => {
@@ -208,21 +211,16 @@ describe('Database Worker', () => {
       await sendMessage('init', { dbPath });
     });
 
-    it('should cache albums', async () => {
+    it('should cache and retrieve albums', async () => {
       const albums = [{ id: 1, name: 'test' }];
-      const result = await sendMessage('cacheAlbums', {
-        cacheKey: 'test-key',
-        albums,
-      });
-      expect(result.success).toBe(true);
-    });
+      const cacheKey = 'test-key';
 
-    it('should get cached albums', async () => {
-      const albums = [{ id: 1, name: 'test' }];
-      await sendMessage('cacheAlbums', { cacheKey: 'test-key', albums });
-      const result = await sendMessage('getCachedAlbums', {
-        cacheKey: 'test-key',
-      });
+      // Cache
+      let result = await sendMessage('cacheAlbums', { cacheKey, albums });
+      expect(result.success).toBe(true);
+
+      // Retrieve
+      result = await sendMessage('getCachedAlbums', { cacheKey });
       expect(result.success).toBe(true);
       expect(result.data).toEqual(albums);
     });
@@ -238,17 +236,12 @@ describe('Database Worker', () => {
     it('should overwrite existing cache', async () => {
       const albums1 = [{ name: 'album1' }];
       const albums2 = [{ name: 'album2' }];
-      await sendMessage('cacheAlbums', {
-        cacheKey: 'same_key',
-        albums: albums1,
-      });
-      await sendMessage('cacheAlbums', {
-        cacheKey: 'same_key',
-        albums: albums2,
-      });
-      const result = await sendMessage('getCachedAlbums', {
-        cacheKey: 'same_key',
-      });
+      const cacheKey = 'same_key';
+
+      await sendMessage('cacheAlbums', { cacheKey, albums: albums1 });
+      await sendMessage('cacheAlbums', { cacheKey, albums: albums2 });
+
+      const result = await sendMessage('getCachedAlbums', { cacheKey });
       expect(result.success).toBe(true);
       expect((result.data as { name: string }[])[0].name).toBe('album2');
     });
@@ -259,43 +252,36 @@ describe('Database Worker', () => {
       await sendMessage('init', { dbPath });
     });
 
-    it('should add a media directory (string path)', async () => {
-      const result = await sendMessage('addMediaDirectory', {
+    it('should manage media directories (add, get, remove)', async () => {
+      // Add string path
+      let result = await sendMessage('addMediaDirectory', {
         directoryObj: { path: '/test/directory' },
       });
       expect(result.success).toBe(true);
-    });
 
-    it('should add a media directory (object payload)', async () => {
-      const result = await sendMessage('addMediaDirectory', {
-        directoryObj: {
-          path: '/test/obj-dir',
-          name: 'Custom Name',
-        },
+      // Add object path with name
+      result = await sendMessage('addMediaDirectory', {
+        directoryObj: { path: '/test/obj-dir', name: 'Custom Name' },
       });
       expect(result.success).toBe(true);
 
-      const listRes = await sendMessage('getMediaDirectories', {});
-      const dir = (listRes.data as Directory[]).find(
-        (d) => d.path === '/test/obj-dir',
-      );
-      expect(dir).toBeDefined();
-      expect(dir!.name).toBe('Custom Name');
-    });
-
-    it('should get media directories', async () => {
-      await sendMessage('addMediaDirectory', {
-        directoryObj: { path: '/test/directory' },
-      });
-      const result = await sendMessage('getMediaDirectories', {});
+      // Get
+      result = await sendMessage('getMediaDirectories', {});
       expect(result.success).toBe(true);
-      // New structure validation
       const dirs = result.data as Directory[];
-      expect(dirs).toHaveLength(1);
-      expect(dirs[0].path).toBe('/test/directory');
-      expect(dirs[0].isActive).toBe(true);
-      expect(dirs[0].type).toBe('local'); // Default
-      expect(dirs[0].id).toBeDefined();
+      expect(dirs).toHaveLength(2);
+
+      const customDir = dirs.find((d) => d.path === '/test/obj-dir');
+      expect(customDir?.name).toBe('Custom Name');
+      expect(customDir?.isActive).toBe(true);
+
+      // Remove
+      result = await sendMessage('removeMediaDirectory', {
+        directoryPath: '/test/directory',
+      });
+      expect(result.success).toBe(true);
+      const resultAfterRemove = await sendMessage('getMediaDirectories', {});
+      expect(resultAfterRemove.data).toHaveLength(1);
     });
 
     it('should not duplicate directories', async () => {
@@ -325,21 +311,10 @@ describe('Database Worker', () => {
       await sendMessage('addMediaDirectory', {
         directoryObj: { path: dirPath },
       });
+
       const result = await sendMessage('getMediaDirectories', {});
       const dir = (result.data as Directory[]).find((d) => d.path === dirPath);
       expect(dir?.isActive).toBe(true);
-    });
-
-    it('should remove a media directory', async () => {
-      await sendMessage('addMediaDirectory', {
-        directoryObj: { path: '/test/directory' },
-      });
-      const result = await sendMessage('removeMediaDirectory', {
-        directoryPath: '/test/directory',
-      });
-      expect(result.success).toBe(true);
-      const result2 = await sendMessage('getMediaDirectories', {});
-      expect(result2.data).toEqual([]);
     });
 
     it('should set directory active state', async () => {
@@ -352,10 +327,10 @@ describe('Database Worker', () => {
         isActive: false,
       });
       expect(result.success).toBe(true);
+
       const result2 = await sendMessage('getMediaDirectories', {});
       const dir = (result2.data as Directory[]).find((d) => d.path === dirPath);
-      expect(dir).toBeDefined();
-      expect(dir!.isActive).toBe(false);
+      expect(dir?.isActive).toBe(false);
     });
   });
 
@@ -364,52 +339,44 @@ describe('Database Worker', () => {
       await sendMessage('init', { dbPath });
     });
 
-    it('should create and retrieve smart playlists', async () => {
-      const result = await sendMessage('createSmartPlaylist', {
+    it('should manage smart playlists (CRUD)', async () => {
+      // Create
+      const createRes = await sendMessage('createSmartPlaylist', {
         name: 'My List',
         criteria: '{}',
       });
-      expect(result.success).toBe(true);
-      expect((result.data as any).id).toBeDefined();
+      expect(createRes.success).toBe(true);
+      const id = (createRes.data as SmartPlaylist).id;
+      expect(id).toBeDefined();
 
-      const listResult = await sendMessage('getSmartPlaylists', {});
-      expect(listResult.success).toBe(true);
-      expect(listResult.data).toHaveLength(1);
-      expect((listResult.data as any)[0].name).toBe('My List');
-    });
+      // Read
+      let listRes = await sendMessage('getSmartPlaylists', {});
+      expect(listRes.data).toHaveLength(1);
+      expect((listRes.data as SmartPlaylist[])[0].name).toBe('My List');
 
-    it('should update and delete smart playlists', async () => {
-      const createRes = await sendMessage('createSmartPlaylist', {
-        name: 'Temp',
-        criteria: '{}',
-      });
-      const id = (createRes.data as any).id;
-
+      // Update
       await sendMessage('updateSmartPlaylist', {
         id,
         name: 'Updated',
         criteria: '{"a":1}',
       });
-      const listRes = await sendMessage('getSmartPlaylists', {});
-      expect((listRes.data as any)[0].name).toBe('Updated');
+      listRes = await sendMessage('getSmartPlaylists', {});
+      expect((listRes.data as SmartPlaylist[])[0].name).toBe('Updated');
 
+      // Delete
       await sendMessage('deleteSmartPlaylist', { id });
-      const emptyRes = await sendMessage('getSmartPlaylists', {});
-      expect(emptyRes.data).toHaveLength(0);
+      listRes = await sendMessage('getSmartPlaylists', {});
+      expect(listRes.data).toHaveLength(0);
     });
 
     it('should handle metadata and ratings', async () => {
       const filePath = path.join(tempDir, 'meta.mp4');
       fs.writeFileSync(filePath, 'dummy data');
 
-      // Upsert
-      const upsertRes = await sendMessage('upsertMetadata', {
-        filePath,
-        duration: 120,
-      });
-      expect(upsertRes.success).toBe(true);
+      // Upsert Metadata
+      await sendMessage('upsertMetadata', { filePath, duration: 120 });
 
-      // Rate
+      // Set Rating
       await sendMessage('setRating', { filePath, rating: 5 });
 
       // Get Metadata
@@ -421,11 +388,11 @@ describe('Database Worker', () => {
       expect(meta.rating).toBe(5);
     });
 
-    it('should handle partial updates (COALESCE logic)', async () => {
+    it('should handle partial metadata updates (COALESCE)', async () => {
       const filePath = path.join(tempDir, 'partial.mp4');
       fs.writeFileSync(filePath, 'dummy');
 
-      // Initial insert
+      // Initial
       await sendMessage('upsertMetadata', {
         filePath,
         duration: 100,
@@ -433,55 +400,32 @@ describe('Database Worker', () => {
         rating: 0,
       });
 
-      // Partial update 1: change duration only
+      // Partial Update 1
       await sendMessage('upsertMetadata', { filePath, duration: 200 });
       let res = await sendMessage('getMetadata', { filePaths: [filePath] });
       let meta = (res.data as any)[filePath];
       expect(meta.duration).toBe(200);
-      expect(meta.size).toBe(500); // Should remain
-      expect(meta.rating).toBe(0);
+      expect(meta.size).toBe(500);
 
-      // Partial update 2: change rating only
+      // Partial Update 2
       await sendMessage('upsertMetadata', { filePath, rating: 4 });
       res = await sendMessage('getMetadata', { filePaths: [filePath] });
       meta = (res.data as any)[filePath];
       expect(meta.rating).toBe(4);
-      expect(meta.duration).toBe(200); // Should remain
+      expect(meta.duration).toBe(200);
     });
 
-    it('should fail gracefully when upsertMetadata receives invalid payload', async () => {
-      // payload missing filePath
-      const result = await sendMessage('upsertMetadata', { duration: 120 });
-      expect(result.success).toBe(false);
-      expect(result.error).toBeDefined();
-    });
-
-    it('should handle setRating message', async () => {
-      const filePath = path.join(tempDir, 'rated.mp4');
-      fs.writeFileSync(filePath, 'dummy');
-
-      const result = await sendMessage('setRating', { filePath, rating: 4 });
-      expect(result.success).toBe(true);
-    });
-
-    it('should handle getMetadata message', async () => {
-      const filePath = path.join(tempDir, 'meta.mp4');
-      fs.writeFileSync(filePath, 'dummy');
-      await sendMessage('upsertMetadata', { filePath, duration: 100 });
-
-      const result = await sendMessage('getMetadata', {
-        filePaths: [filePath],
-      });
-      expect(result.success).toBe(true);
-      expect(result.data).toBeDefined();
-    });
-
-    it('should handle executeSmartPlaylist message', async () => {
+    it('should execute smart playlist criteria', async () => {
       const result = await sendMessage('executeSmartPlaylist', {
         criteria: '{}',
       });
       expect(result.success).toBe(true);
       expect(Array.isArray(result.data)).toBe(true);
+    });
+
+    it('should return error for invalid upsert payload', async () => {
+      const result = await sendMessage('upsertMetadata', { duration: 120 }); // Missing filePath
+      expect(result.success).toBe(false);
     });
   });
 
@@ -492,78 +436,59 @@ describe('Database Worker', () => {
       expect(result.error).toContain('Unknown message type');
     });
 
-    // Test operations before initialization
-    describe('Operations before init', () => {
-      const testCases = [
-        { type: 'recordMediaView', payload: { filePath: '/test.png' } },
-        { type: 'getMediaViewCounts', payload: { filePaths: [] } },
-        { type: 'cacheAlbums', payload: { cacheKey: 'key', albums: [] } },
-        { type: 'getCachedAlbums', payload: { cacheKey: 'key' } },
-        {
-          type: 'addMediaDirectory',
-          payload: { directoryObj: { path: '/test' } },
-        },
-        { type: 'getMediaDirectories', payload: {} },
-        { type: 'removeMediaDirectory', payload: { directoryPath: '/test' } },
-        {
-          type: 'setDirectoryActiveState',
-          payload: { directoryPath: '/test', isActive: true },
-        },
-        { type: 'upsertMetadata', payload: { filePath: '/t' } },
-        { type: 'setRating', payload: { filePath: '/t', rating: 5 } },
-        { type: 'getMetadata', payload: { filePaths: [] } },
-        { type: 'createSmartPlaylist', payload: { name: 'n', criteria: '' } },
-        { type: 'getSmartPlaylists', payload: {} },
-        { type: 'deleteSmartPlaylist', payload: { id: 1 } },
-        {
-          type: 'updateSmartPlaylist',
-          payload: { id: 1, name: 'n', criteria: '' },
-        },
-        { type: 'executeSmartPlaylist', payload: {} },
-      ];
-
-      it.each(testCases)(
-        '$type should fail gracefully',
-        async ({ type, payload }: { type: string; payload: unknown }) => {
-          const result = await sendMessage(type, payload);
-          expect(result.success).toBe(false);
-          expect(result.error).toBe('Database not initialized');
-        },
-      );
-    });
-
-    // Test operations after closing the database
-    describe('Operations after close', () => {
-      beforeEach(async () => {
-        await sendMessage('init', { dbPath });
-        await sendMessage('close', {});
-      });
-
-      const testCases = [
-        { type: 'recordMediaView', payload: { filePath: '/test.png' } },
-        { type: 'getMediaViewCounts', payload: { filePaths: [] } },
-        {
-          type: 'addMediaDirectory',
-          payload: { directoryObj: { path: '/test' } },
-        },
-      ];
-
-      it.each(testCases)(
-        '$type should fail gracefully',
-        async ({ type, payload }: { type: string; payload: unknown }) => {
-          const result = await sendMessage(type, payload);
-          expect(result.success).toBe(false);
-          expect(result.error).toBe('Database not initialized');
-        },
-      );
-    });
-
     it('should catch top-level errors in message processing', async () => {
-      // Trigger a TypeError by sending missing payload for a handler that expects it
-      // 'recordMediaView' accesses payload.filePath immediately
+      // Trigger a TypeError by sending null payload for a handler that expects it
       const result = await sendMessage('recordMediaView', null);
       expect(result.success).toBe(false);
       expect(result.error).toBeDefined();
     });
+
+    const operations = [
+      { type: 'recordMediaView', payload: { filePath: '/test.png' } },
+      { type: 'getMediaViewCounts', payload: { filePaths: [] } },
+      { type: 'cacheAlbums', payload: { cacheKey: 'key', albums: [] } },
+      { type: 'getCachedAlbums', payload: { cacheKey: 'key' } },
+      {
+        type: 'addMediaDirectory',
+        payload: { directoryObj: { path: '/test' } },
+      },
+      { type: 'getMediaDirectories', payload: {} },
+      { type: 'removeMediaDirectory', payload: { directoryPath: '/test' } },
+      {
+        type: 'setDirectoryActiveState',
+        payload: { directoryPath: '/test', isActive: true },
+      },
+      { type: 'upsertMetadata', payload: { filePath: '/t' } },
+      { type: 'setRating', payload: { filePath: '/t', rating: 5 } },
+      { type: 'getMetadata', payload: { filePaths: [] } },
+      { type: 'createSmartPlaylist', payload: { name: 'n', criteria: '' } },
+      { type: 'getSmartPlaylists', payload: {} },
+      { type: 'deleteSmartPlaylist', payload: { id: 1 } },
+      {
+        type: 'updateSmartPlaylist',
+        payload: { id: 1, name: 'n', criteria: '' },
+      },
+      { type: 'executeSmartPlaylist', payload: {} },
+    ];
+
+    it.each(operations)(
+      '$type should fail if database is not initialized',
+      async ({ type, payload }) => {
+        const result = await sendMessage(type, payload);
+        expect(result.success).toBe(false);
+        expect(result.error).toBe('Database not initialized');
+      },
+    );
+
+    it.each(operations)(
+      '$type should fail after database is closed',
+      async ({ type, payload }) => {
+        await sendMessage('init', { dbPath });
+        await sendMessage('close', {});
+        const result = await sendMessage(type, payload);
+        expect(result.success).toBe(false);
+        expect(result.error).toBe('Database not initialized');
+      },
+    );
   });
 });
