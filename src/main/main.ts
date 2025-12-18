@@ -7,7 +7,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import { app, BrowserWindow } from 'electron';
-import log from 'electron-log/main';
+import log from 'electron-log/main.js';
 import path from 'path';
 import fs from 'fs/promises';
 
