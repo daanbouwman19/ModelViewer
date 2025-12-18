@@ -844,4 +844,32 @@ describe('MediaDisplay.vue', () => {
       expect((wrapper.vm as any).isTranscodingMode).toBe(true);
     });
   });
+
+  describe('Regression Tests', () => {
+    it('should NOT unmount video element when buffering (Fix for seeking restart)', async () => {
+      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
+      (api.loadFileAsDataURL as Mock).mockResolvedValue({
+        type: 'http-url',
+        url: 'http://localhost/test.mp4',
+      });
+
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      // Ensure video is mounted
+      expect(wrapper.find('video').exists()).toBe(true);
+
+      // Trigger buffering
+      await wrapper.find('video').trigger('waiting');
+
+      // Check state
+      expect((wrapper.vm as any).isBuffering).toBe(true);
+
+      // Video should STILL be mounted
+      expect(wrapper.find('video').exists()).toBe(true);
+
+      // Overlay should be visible
+      expect(wrapper.text()).toContain('Buffering...');
+    });
+  });
 });
