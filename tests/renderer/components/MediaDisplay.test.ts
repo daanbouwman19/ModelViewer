@@ -860,8 +860,7 @@ describe('MediaDisplay.vue', () => {
       expect(wrapper.find('video').exists()).toBe(true);
 
       // Trigger buffering
-      (wrapper.vm as any).handleVideoWaiting();
-      await wrapper.vm.$nextTick();
+      await wrapper.find('video').trigger('waiting');
 
       // Check state
       expect((wrapper.vm as any).isBuffering).toBe(true);
