@@ -159,9 +159,9 @@ describe('MediaDisplay Race Condition', () => {
     await flushPromises();
 
     // Check flags
-    // isLoading is true (from initial load)
+    // isLoading becomes false after handoff to transcoding
     // isTranscodingLoading is true (from tryTranscoding)
-    expect(vm.isLoading).toBe(true);
+    expect(vm.isLoading).toBe(false);
     expect(vm.isTranscodingLoading).toBe(true);
 
     // UI ASSERTION:
