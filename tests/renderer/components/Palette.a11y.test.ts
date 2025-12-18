@@ -316,13 +316,15 @@ describe('Palette Accessibility Improvements', () => {
       // Initial state (collapsed)
       expect(toggleBtn.attributes('aria-label')).toBe('Expand Root Album');
       expect(toggleBtn.attributes('aria-expanded')).toBe('false');
-      expect(toggleBtn.text()).toBe('▶');
+      expect(toggleBtn.text()).toBe('▼');
+      expect(toggleBtn.find('span').classes()).toContain('-rotate-90');
 
       // Click to expand
       await toggleBtn.trigger('click');
       expect(toggleBtn.attributes('aria-label')).toBe('Collapse Root Album');
       expect(toggleBtn.attributes('aria-expanded')).toBe('true');
       expect(toggleBtn.text()).toBe('▼');
+      expect(toggleBtn.find('span').classes()).toContain('rotate-0');
     });
 
     it('checkbox should have accessible label', () => {
@@ -339,7 +341,7 @@ describe('Palette Accessibility Improvements', () => {
         },
       });
 
-      const checkbox = wrapper.find('input[type="checkbox"]');
+      const checkbox = wrapper.find('[data-testid="album-checkbox"]');
       expect(checkbox.attributes('aria-label')).toBe('Select Test Album');
     });
   });

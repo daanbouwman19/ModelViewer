@@ -116,10 +116,10 @@ describe('App.vue', () => {
     // But findComponent returns a wrapper even if it doesn't exist? verify exists()
     expect(albumsList.exists()).toBe(false);
 
-    expect(wrapper.text()).toContain('Show Albums');
+    expect(toggleBtn.attributes('aria-label')).toBe('Show Albums');
     expect(wrapper.text()).not.toContain('Hide Albums');
 
     await toggleBtn.trigger('click');
-    expect(wrapper.text()).toContain('Hide Albums');
+    expect(toggleBtn.attributes('aria-label')).toBe('Hide Albums');
   });
 });

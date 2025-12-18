@@ -15,7 +15,7 @@
       <!-- Toggle Button (Triangle) -->
       <button
         v-if="isFolder"
-        class="flex items-center justify-center w-6 h-6 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors focus:outline-none"
+        class="toggle-button flex items-center justify-center w-6 h-6 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors focus:outline-none"
         :aria-expanded="isOpen"
         :aria-label="isOpen ? `Collapse ${album.name}` : `Expand ${album.name}`"
         @click.stop="toggle"
@@ -31,6 +31,8 @@
       <!-- Selection Checkbox -->
       <button
         class="flex items-center justify-center w-5 h-5 rounded hover:bg-white/10 transition-colors"
+        data-testid="album-checkbox"
+        :aria-label="`Select ${album.name}`"
         @click.stop="handleToggleSelection(album, $event)"
       >
         <div
@@ -79,7 +81,10 @@
       </span>
 
       <!-- Action buttons -->
-      <div class="flex items-center gap-1 opacity-100 transition-opacity">
+      <div
+        class="album-controls flex items-center gap-1 opacity-100 transition-opacity"
+        @click.stop
+      >
         <!-- Play Button for Folder/Album -->
         <button
           class="shrink-0 text-gray-500 hover:text-white p-1 rounded"

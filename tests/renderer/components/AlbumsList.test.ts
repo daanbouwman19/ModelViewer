@@ -107,17 +107,15 @@ describe('AlbumsList.vue', () => {
   it('calls startSlideshow when the global start button is clicked', async () => {
     const wrapper = mount(AlbumsList);
     await wrapper.vm.$nextTick();
-    const startButton = wrapper.find('[data-testid="start-slideshow-button"]');
+    const startButton = wrapper.find('[data-testid="timer-button"]');
     await startButton.trigger('click');
-    expect(mockStartSlideshow).toHaveBeenCalled();
+    expect(mockToggleSlideshowTimer).toHaveBeenCalled();
   });
 
   it('opens the sources modal when "Manage Sources" is clicked', async () => {
     const wrapper = mount(AlbumsList);
-    const manageButton = wrapper
-      .findAll('button')
-      .find((b) => b.text().includes('Manage Sources'));
-    await manageButton!.trigger('click');
+    const manageButton = wrapper.find('button[title="Manage Sources"]');
+    await manageButton.trigger('click');
     expect(mockAppState.isSourcesModalVisible.value).toBe(true);
   });
 
@@ -183,10 +181,8 @@ describe('AlbumsList.vue', () => {
   describe('Smart Playlists', () => {
     it('opens smart playlist modal', async () => {
       const wrapper = mount(AlbumsList);
-      const btn = wrapper
-        .findAll('button')
-        .find((b) => b.text().includes('+ Playlist'));
-      await btn?.trigger('click');
+      const btn = wrapper.find('button[title="Add Playlist"]');
+      await btn.trigger('click');
       expect(mockAppState.isSmartPlaylistModalVisible.value).toBe(true);
     });
 

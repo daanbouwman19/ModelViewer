@@ -178,7 +178,8 @@
 
       <!-- Primary Play Action -->
       <button
-        class="h-10 w-14 shrink-0 flex items-center justify-center rounded-lg glass-button-primary"
+        class="timer-button h-10 w-14 shrink-0 flex items-center justify-center rounded-lg glass-button-primary"
+        data-testid="timer-button"
         :title="isTimerRunning ? 'Pause Slideshow' : 'Start/Resume Slideshow'"
         @click="handleToggleTimer"
       >
@@ -190,6 +191,7 @@
       <div
         v-if="isTimerRunning"
         class="absolute bottom-0 left-0 w-full h-1 bg-gray-800"
+        data-testid="slideshow-progress"
       >
         <div
           class="h-full bg-indigo-500 transition-all duration-100 ease-linear"
