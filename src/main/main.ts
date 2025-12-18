@@ -7,8 +7,11 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import { app, BrowserWindow } from 'electron';
+import log from 'electron-log/main';
 import path from 'path';
 import fs from 'fs/promises';
+
+log.initialize();
 
 import { initDatabase, closeDatabase } from './database';
 import {
@@ -56,14 +59,12 @@ function createWindow() {
     mainWindow
       .loadURL(devServerURL)
       .catch((err) =>
-        console.error('[main.js] Failed to load development server:', err),
+        log.error('[main.js] Failed to load development server:', err),
       );
   } else {
     mainWindow
       .loadFile(path.join(__dirname, '../renderer/index.html'))
-      .catch((err) =>
-        console.error('[main.js] Failed to load index.html:', err),
-      );
+      .catch((err) => log.error('[main.js] Failed to load index.html:', err));
   }
 
   mainWindow.on('closed', () => {
@@ -89,11 +90,11 @@ app.on('ready', () => {
       await fs.mkdir(cacheDir, { recursive: true });
 
       startLocalServer(cacheDir, () => {
-        console.log('[main.js] Local server started in background.');
+        log.info('[main.js] Local server started in background.');
       });
     })
     .catch((error) => {
-      console.error(
+      log.error(
         '[main.js] Database initialization failed during app ready sequence:',
         error,
       );
@@ -119,7 +120,7 @@ app.on('activate', () => {
 
 app.on('will-quit', () => {
   stopLocalServer(() => {
-    console.log('[main.js] Local server stopped during will-quit.');
+    log.info('[main.js] Local server stopped during will-quit.');
   });
   stopAuthServer();
   closeDatabase();
