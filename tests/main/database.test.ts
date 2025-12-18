@@ -55,7 +55,7 @@ class MockWorker extends EventEmitter {
       (message: { id: string; type: string; payload: any }) => {
         const { id, type, payload } = message;
         let resultData: unknown = undefined;
-        const success = true; // Use let so we can modify it? actually const is fine if we don't change it. Coverage tests might change it logic via override.
+        const success = true;
 
         if (type === 'init') {
           // success
