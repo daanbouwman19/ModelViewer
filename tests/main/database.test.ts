@@ -1,4 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  vi,
+  type Mock,
+} from 'vitest';
 import { EventEmitter } from 'events';
 
 // Define types for mock data
@@ -29,9 +37,15 @@ const mockDb: MockDB = {
   directories: [],
 };
 
+// Module-scoped variable to hold the latest mock worker instance
+let mockWorkerInstance: MockWorker | null = null;
+function setMockWorkerInstance(instance: MockWorker) {
+  mockWorkerInstance = instance;
+}
+
 class MockWorker extends EventEmitter {
-  terminate: ReturnType<typeof vi.fn>;
-  postMessage: ReturnType<typeof vi.fn>;
+  terminate: Mock;
+  postMessage: Mock;
 
   constructor() {
     super();
@@ -41,7 +55,7 @@ class MockWorker extends EventEmitter {
       (message: { id: string; type: string; payload: any }) => {
         const { id, type, payload } = message;
         let resultData: unknown = undefined;
-        const success = true;
+        const success = true; // Use let so we can modify it? actually const is fine if we don't change it. Coverage tests might change it logic via override.
 
         if (type === 'init') {
           // success
@@ -93,6 +107,20 @@ class MockWorker extends EventEmitter {
         });
       },
     );
+    setMockWorkerInstance(this);
+  }
+
+  // Helper methods
+  simulateMessage(message: unknown) {
+    this.emit('message', message);
+  }
+
+  simulateError(error: unknown) {
+    this.emit('error', error);
+  }
+
+  simulateExit(code: number) {
+    this.emit('exit', code);
   }
 }
 
@@ -122,6 +150,9 @@ describe('Database', () => {
     mockDb.directories = [];
 
     vi.resetModules();
+    // Ensure mockWorkerInstance is reset implicitly by calls, or explicitly if needed, although new worker is created on initDatabase
+    mockWorkerInstance = null;
+
     // Import fresh module
     db = await import('../../src/main/database');
 
@@ -429,5 +460,323 @@ describe('Database', () => {
       const result = await db.getMediaViewCounts(['/test/path.jpg']);
       expect(result).toEqual({});
     });
+  });
+});
+
+interface WorkerMessage {
+  id: string;
+  type: string;
+  payload: unknown;
+}
+
+describe('database.js additional coverage - uninitialized', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    mockWorkerInstance = null;
+  });
+
+  it('should reject if dbWorker is not initialized', async () => {
+    const freshDb = await import('../../src/main/database');
+    await expect(freshDb.addMediaDirectory('/test/path')).rejects.toThrow(
+      'Database worker not initialized',
+    );
+  });
+});
+
+describe('Additional Function Coverage', () => {
+  let db: typeof import('../../src/main/database');
+
+  beforeEach(async () => {
+    vi.resetModules();
+    mockWorkerInstance = null;
+
+    db = await import('../../src/main/database');
+    await db.initDatabase();
+  });
+
+  afterEach(async () => {
+    await db.closeDatabase();
+  });
+
+  it.each([
+    {
+      funcName: 'setRating',
+      msgType: 'setRating',
+      args: ['/file.mp4', 5],
+      errorMsg: 'Rating error',
+    },
+    {
+      funcName: 'upsertMetadata',
+      msgType: 'upsertMetadata',
+      args: ['/file.mp4', { size: 100 }],
+      errorMsg: 'Metadata error',
+    },
+    {
+      funcName: 'createSmartPlaylist',
+      msgType: 'createSmartPlaylist',
+      args: ['Test', '{}'],
+      errorMsg: 'Create playlist error',
+    },
+    {
+      funcName: 'updateSmartPlaylist',
+      msgType: 'updateSmartPlaylist',
+      args: [1, 'Test', '{}'],
+      errorMsg: 'Update playlist error',
+    },
+    {
+      funcName: 'deleteSmartPlaylist',
+      msgType: 'deleteSmartPlaylist',
+      args: [1],
+      errorMsg: 'Delete playlist error',
+    },
+  ])(
+    'should handle $funcName errors',
+    async ({ funcName, msgType, args, errorMsg }) => {
+      const fn = (db as any)[funcName];
+
+      const originalPostMessage = mockWorkerInstance!.postMessage;
+      mockWorkerInstance!.postMessage = vi.fn((message: WorkerMessage) => {
+        if (message.type === msgType) {
+          process.nextTick(() => {
+            mockWorkerInstance!.simulateMessage({
+              id: message.id,
+              result: { success: false, error: errorMsg },
+            });
+          });
+        } else {
+          originalPostMessage.call(mockWorkerInstance, message);
+        }
+      });
+
+      await expect(fn(...args)).rejects.toThrow(errorMsg);
+      mockWorkerInstance!.postMessage = originalPostMessage;
+    },
+  );
+
+  it('should return empty array on getSmartPlaylists error', async () => {
+    const originalPostMessage = mockWorkerInstance!.postMessage;
+    mockWorkerInstance!.postMessage = vi.fn((message: WorkerMessage) => {
+      if (message.type === 'getSmartPlaylists') {
+        process.nextTick(() => {
+          mockWorkerInstance!.simulateMessage({
+            id: message.id,
+            result: { success: false, error: 'Get playlists error' },
+          });
+        });
+      } else {
+        originalPostMessage.call(mockWorkerInstance, message);
+      }
+    });
+
+    const result = await db.getSmartPlaylists();
+    expect(result).toEqual([]);
+    mockWorkerInstance!.postMessage = originalPostMessage;
+  });
+
+  it('should return empty array on getAllMetadataAndStats error', async () => {
+    const originalPostMessage = mockWorkerInstance!.postMessage;
+    mockWorkerInstance!.postMessage = vi.fn((message: WorkerMessage) => {
+      if (message.type === 'executeSmartPlaylist') {
+        process.nextTick(() => {
+          mockWorkerInstance!.simulateMessage({
+            id: message.id,
+            result: { success: false, error: 'Get metadata error' },
+          });
+        });
+      } else {
+        originalPostMessage.call(mockWorkerInstance, message);
+      }
+    });
+
+    const result = await db.getAllMetadataAndStats();
+    expect(result).toEqual([]);
+    mockWorkerInstance!.postMessage = originalPostMessage;
+  });
+
+  it('should return empty object on getMetadata error', async () => {
+    const originalPostMessage = mockWorkerInstance!.postMessage;
+    mockWorkerInstance!.postMessage = vi.fn((message: WorkerMessage) => {
+      if (message.type === 'getMetadata') {
+        process.nextTick(() => {
+          mockWorkerInstance!.simulateMessage({
+            id: message.id,
+            result: { success: false, error: 'Get metadata error' },
+          });
+        });
+      } else {
+        originalPostMessage.call(mockWorkerInstance, message);
+      }
+    });
+
+    const result = await db.getMetadata(['/file.mp4']);
+    expect(result).toEqual({});
+    mockWorkerInstance!.postMessage = originalPostMessage;
+  });
+
+  it('logs an error when worker exits unexpectedly', async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+
+    expect(mockWorkerInstance).toBeDefined();
+    expect(mockWorkerInstance).not.toBeNull();
+
+    // Simulate an unexpected exit with a non-zero code
+    mockWorkerInstance!.simulateExit(1);
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '[database.js] Database worker exited unexpectedly with code 1',
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('logs a warning for recordMediaView errors in non-test environment', async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'development';
+
+    const consoleWarnSpy = vi
+      .spyOn(console, 'warn')
+      .mockImplementation(() => {});
+
+    expect(mockWorkerInstance).toBeDefined();
+    expect(mockWorkerInstance).not.toBeNull();
+
+    const originalPostMessage = mockWorkerInstance!.postMessage;
+    // Simulate a failure in worker communication for the recordMediaView call
+    const postMessageSpy = vi
+      .spyOn(mockWorkerInstance!, 'postMessage')
+      .mockImplementation((message: any) => {
+        if (message.type === 'recordMediaView') {
+          throw new Error('Test worker error');
+        }
+        // Let other messages pass
+        originalPostMessage.call(mockWorkerInstance, message);
+      });
+
+    await db.recordMediaView('/some/file.jpg');
+
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      '[database.js] Error recording media view: Test worker error',
+    );
+
+    // Cleanup
+    postMessageSpy.mockRestore();
+    consoleWarnSpy.mockRestore();
+    process.env.NODE_ENV = originalNodeEnv;
+  });
+
+  it('rejects pending messages when worker emits an error', async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+
+    const addDirPromise = db.addMediaDirectory('/test/dir');
+    const getViewCountsPromise = db.getMediaViewCounts(['/file.txt']);
+
+    const testError = new Error('Test worker crash');
+    mockWorkerInstance!.simulateError(testError);
+
+    await expect(addDirPromise).rejects.toThrow(testError);
+    await expect(getViewCountsPromise).resolves.toEqual({});
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '[database.js] Database worker error:',
+      testError,
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('getMediaDirectories should return [] on falsy worker response', async () => {
+    const originalPostMessage = mockWorkerInstance!.postMessage;
+    const postMessageSpy = vi.spyOn(mockWorkerInstance!, 'postMessage');
+
+    postMessageSpy.mockImplementation((message: any) => {
+      if (message.type === 'getMediaDirectories') {
+        mockWorkerInstance!.simulateMessage({
+          id: message.id,
+          result: { success: true, data: null },
+        });
+      } else {
+        originalPostMessage.call(mockWorkerInstance, message);
+      }
+    });
+
+    const directories = await db.getMediaDirectories();
+    expect(directories).toEqual([]);
+    postMessageSpy.mockRestore();
+  });
+
+  it('should handle errors when terminating the worker during close', async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    const terminateError = new Error('Failed to terminate');
+    mockWorkerInstance!.terminate.mockRejectedValue(terminateError);
+
+    await db.closeDatabase();
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '[database.js] Error closing database worker:',
+      terminateError,
+    );
+
+    await expect(db.addMediaDirectory('/test/path')).rejects.toThrow(
+      'Database worker not initialized',
+    );
+
+    consoleErrorSpy.mockRestore();
+    await db.initDatabase();
+  });
+
+  it('sendMessageToWorker handles synchronous postMessage error', async () => {
+    await db.closeDatabase();
+    await db.initDatabase();
+
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+
+    mockWorkerInstance!.postMessage.mockImplementation(() => {
+      throw new Error('Sync postMessage error');
+    });
+
+    await expect(db.addMediaDirectory('/test')).rejects.toThrow(
+      'Sync postMessage error',
+    );
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        '[database.js] Error posting message to worker: Sync postMessage error',
+      ),
+    );
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('closeDatabase logs warning if close message fails in non-test env', async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'development';
+
+    await db.closeDatabase();
+    await db.initDatabase();
+
+    const consoleWarnSpy = vi
+      .spyOn(console, 'warn')
+      .mockImplementation(() => {});
+
+    mockWorkerInstance!.postMessage.mockImplementation((msg: any) => {
+      if (msg.type === 'close') throw new Error('Close message failed');
+    });
+
+    await db.closeDatabase();
+
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      '[database.js] Warning during worker shutdown:',
+      expect.any(Error),
+    );
+
+    consoleWarnSpy.mockRestore();
+    process.env.NODE_ENV = originalNodeEnv;
   });
 });

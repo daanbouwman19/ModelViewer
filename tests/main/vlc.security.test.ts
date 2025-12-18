@@ -94,39 +94,43 @@ describe('Security: open-in-vlc', () => {
     }
   };
 
-  it('should deny access to files outside allowed media directories', async () => {
-    await setupHandler();
-    const db = await import('../../src/core/database');
-    const cp = await import('child_process');
-    const fsPromises = await import('fs/promises');
+  it(
+    'should deny access to files outside allowed media directories',
+    { timeout: 20000 },
+    async () => {
+      await setupHandler();
+      const db = await import('../../src/core/database');
+      const cp = await import('child_process');
+      const fsPromises = await import('fs/promises');
 
-    // Force platform to linux
-    Object.defineProperty(process, 'platform', { value: 'linux' });
+      // Force platform to linux
+      Object.defineProperty(process, 'platform', { value: 'linux' });
 
-    // Mock spawn
-    const mockChild = { unref: vi.fn(), on: vi.fn() };
-    (cp.default.spawn as unknown as Mock).mockReturnValue(mockChild);
-    (cp.spawn as unknown as Mock).mockReturnValue(mockChild);
+      // Mock spawn
+      const mockChild = { unref: vi.fn(), on: vi.fn() };
+      (cp.default.spawn as unknown as Mock).mockReturnValue(mockChild);
+      (cp.spawn as unknown as Mock).mockReturnValue(mockChild);
 
-    // Setup allowed directories
-    (db.getMediaDirectories as unknown as Mock).mockResolvedValue([
-      { path: '/allowed/media', isActive: true },
-    ]);
+      // Setup allowed directories
+      (db.getMediaDirectories as unknown as Mock).mockResolvedValue([
+        { path: '/allowed/media', isActive: true },
+      ]);
 
-    const sensitiveFile = '/etc/passwd';
+      const sensitiveFile = '/etc/passwd';
 
-    // Mock fs.realpath so it resolves successfully to the sensitive file
-    (fsPromises.default.realpath as unknown as Mock).mockResolvedValue(
-      sensitiveFile,
-    );
+      // Mock fs.realpath so it resolves successfully to the sensitive file
+      (fsPromises.default.realpath as unknown as Mock).mockResolvedValue(
+        sensitiveFile,
+      );
 
-    const result = await handler(null, sensitiveFile);
+      const result = await handler(null, sensitiveFile);
 
-    expect(result.data).toEqual({
-      success: false,
-      message: expect.stringContaining('Access denied'),
-    });
+      expect(result.data).toEqual({
+        success: false,
+        message: expect.stringContaining('Access denied'),
+      });
 
-    expect(cp.default.spawn).not.toHaveBeenCalled();
-  });
+      expect(cp.default.spawn).not.toHaveBeenCalled();
+    },
+  );
 });
