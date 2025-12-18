@@ -39,6 +39,8 @@
                   v-if="dir.type === 'google_drive'"
                   class="mr-2 text-blue-400"
                   title="Google Drive"
+                  role="img"
+                  aria-label="Google Drive Source"
                 >
                   <!-- Simple Cloud/Drive Icon -->
                   <svg
@@ -46,6 +48,7 @@
                     class="h-5 w-5"
                     viewBox="0 0 20 20"
                     fill="currentColor"
+                    aria-hidden="true"
                   >
                     <path
                       d="M5.5 16a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.977A4.5 4.5 0 1113.5 16h-8z"
@@ -56,6 +59,7 @@
                   type="checkbox"
                   :checked="dir.isActive"
                   class="source-checkbox mr-2"
+                  :aria-label="'Toggle ' + (dir.name || dir.path)"
                   @change="
                     handleToggleActive(
                       dir.path,
@@ -74,7 +78,7 @@
               </div>
               <button
                 class="ml-2 action-button remove-button"
-                :aria-label="'Remove ' + dir.path"
+                :aria-label="'Remove ' + (dir.name || dir.path)"
                 @click="handleRemove(dir.path)"
               >
                 Remove
