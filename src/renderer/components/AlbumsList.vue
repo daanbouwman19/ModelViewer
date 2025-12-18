@@ -86,18 +86,7 @@
                 >
                   <span class="text-indigo-500">
                     <!-- Small Playlist Icon -->
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                      class="w-4 h-4"
-                    >
-                      <path
-                        fill-rule="evenodd"
-                        d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zm0 10.5a.75.75 0 01.75-.75h7.5a.75.75 0 010 1.5h-7.5a.75.75 0 01-.75-.75zM2 10a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 10z"
-                        clip-rule="evenodd"
-                      />
-                    </svg>
+                    <PlaylistIcon class="w-4 h-4" />
                   </span>
                   <span class="truncate">{{ playlist.name }}</span>
                 </div>
@@ -112,34 +101,21 @@
                     title="Open in Grid"
                     @click.stop="handleSmartPlaylistGrid(playlist)"
                   >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke-width="1.5"
-                      stroke="currentColor"
-                      class="w-4 h-4"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"
-                      />
-                    </svg>
+                    <GridIcon class="w-4 h-4" />
                   </button>
                   <button
                     class="text-xs text-gray-500 hover:text-blue-400 p-1"
                     title="Edit"
                     @click.stop="editPlaylist(playlist)"
                   >
-                    ✎
+                    <EditIcon class="w-3.5 h-3.5" />
                   </button>
                   <button
                     class="text-xs text-gray-500 hover:text-red-400 p-1"
                     title="Delete"
                     @click.stop="deletePlaylist(playlist.id)"
                   >
-                    ×
+                    <DeleteIcon class="w-4 h-4" />
                   </button>
                 </div>
               </div>
@@ -218,6 +194,10 @@ import PlayIcon from './icons/PlayIcon.vue';
 import PauseIcon from './icons/PauseIcon.vue';
 import SettingsIcon from './icons/SettingsIcon.vue';
 import PlaylistAddIcon from './icons/PlaylistAddIcon.vue';
+import PlaylistIcon from './icons/PlaylistIcon.vue';
+import GridIcon from './icons/GridIcon.vue';
+import EditIcon from './icons/EditIcon.vue';
+import DeleteIcon from './icons/DeleteIcon.vue';
 import { api } from '../api';
 import {
   getAlbumAndChildrenIds,
@@ -242,6 +222,7 @@ const {
   gridMediaFiles,
   viewMode,
   playlistToEdit,
+  isSlideshowActive,
 } = useAppState();
 
 defineEmits(['close']);
@@ -291,6 +272,9 @@ const handleClickAlbum = (album: Album) => {
  * Toggles the slideshow timer (play/pause).
  */
 const handleToggleTimer = () => {
+  if (!isSlideshowActive.value) {
+    slideshow.startSlideshow();
+  }
   slideshow.toggleSlideshowTimer();
 };
 

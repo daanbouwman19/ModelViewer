@@ -80,9 +80,8 @@
         {{ totalTextureCount }}
       </span>
 
-      <!-- Action buttons -->
       <div
-        class="album-controls flex items-center gap-1 opacity-100 transition-opacity"
+        class="album-controls flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
         @click.stop
       >
         <!-- Play Button for Folder/Album -->
@@ -91,18 +90,7 @@
           title="Play Album"
           @click.stop="handleClickAlbum(album)"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            class="w-4 h-4"
-          >
-            <path
-              fill-rule="evenodd"
-              d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z"
-              clip-rule="evenodd"
-            />
-          </svg>
+          <PlayIcon class="w-4 h-4" />
         </button>
 
         <!-- Grid Button -->
@@ -111,20 +99,7 @@
           title="Open in Grid"
           @click.stop="handleOpenGrid(album)"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke-width="1.5"
-            stroke="currentColor"
-            class="w-4 h-4"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"
-            />
-          </svg>
+          <GridIcon class="w-4 h-4" />
         </button>
       </div>
     </div>
@@ -152,6 +127,8 @@
 import { ref, computed } from 'vue';
 import { countTextures, getAlbumAndChildrenIds } from '../utils/albumUtils';
 import { useSlideshow } from '../composables/useSlideshow';
+import PlayIcon from './icons/PlayIcon.vue';
+import GridIcon from './icons/GridIcon.vue';
 import type { Album } from '../../core/types';
 
 const props = withDefaults(

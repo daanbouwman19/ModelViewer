@@ -71,6 +71,7 @@ describe('AlbumsList.vue', () => {
     isSmartPlaylistModalVisible: Ref<boolean>;
     timerProgress: Ref<number>;
     playlistToEdit: Ref<any>;
+    isSlideshowActive: Ref<boolean>;
   };
 
   beforeEach(() => {
@@ -90,6 +91,7 @@ describe('AlbumsList.vue', () => {
       viewMode: ref('player'),
       timerProgress: ref(0),
       playlistToEdit: ref(null),
+      isSlideshowActive: ref(false),
     };
 
     (useAppState as Mock).mockReturnValue(mockAppState);
@@ -104,11 +106,22 @@ describe('AlbumsList.vue', () => {
     expect(albumTrees[1].props('album')).toEqual(mockAlbums[1]);
   });
 
-  it('calls startSlideshow when the global start button is clicked', async () => {
+  it('calls startSlideshow then toggleSlideshowTimer when the global start button is clicked and no slideshow is active', async () => {
     const wrapper = mount(AlbumsList);
     await wrapper.vm.$nextTick();
     const startButton = wrapper.find('[data-testid="timer-button"]');
     await startButton.trigger('click');
+    expect(mockStartSlideshow).toHaveBeenCalled();
+    expect(mockToggleSlideshowTimer).toHaveBeenCalled();
+  });
+
+  it('calls only toggleSlideshowTimer when the global start button is clicked and a slideshow is already active', async () => {
+    mockAppState.isSlideshowActive.value = true;
+    const wrapper = mount(AlbumsList);
+    await wrapper.vm.$nextTick();
+    const startButton = wrapper.find('[data-testid="timer-button"]');
+    await startButton.trigger('click');
+    expect(mockStartSlideshow).not.toHaveBeenCalled();
     expect(mockToggleSlideshowTimer).toHaveBeenCalled();
   });
 
