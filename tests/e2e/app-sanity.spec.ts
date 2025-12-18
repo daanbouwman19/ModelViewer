@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Locator } from '@playwright/test';
 
 test('app sanity check', async ({ page, isMobile }) => {
   // Navigate to the home page
@@ -8,6 +8,22 @@ test('app sanity check', async ({ page, isMobile }) => {
   await expect(
     page.getByRole('heading', { name: 'MediaPlayer' }),
   ).toBeVisible();
+
+  const testSidebarToggle = async (openBtn: Locator, closeBtn: Locator) => {
+    // Handle either initial state
+    if (await closeBtn.isVisible()) {
+      // Starts open: close it, then open it again.
+      await closeBtn.click();
+      await expect(openBtn).toBeVisible();
+      await openBtn.click();
+      await expect(closeBtn).toBeVisible();
+    } else {
+      // Starts closed: open it.
+      await expect(openBtn).toBeVisible();
+      await openBtn.click();
+      await expect(closeBtn).toBeVisible();
+    }
+  };
 
   if (isMobile) {
     // On mobile, the sidebar is an overlay.
@@ -21,23 +37,7 @@ test('app sanity check', async ({ page, isMobile }) => {
       .first();
     const showAlbumsBtn = page.getByRole('button', { name: 'Show Albums' });
 
-    // Handle initial state
-    if (await closeSidebarBtn.isVisible()) {
-      // Sidebar is Open. Close it.
-      await closeSidebarBtn.click();
-
-      // Sidebar should disappear, Top Bar should appear with "Show Albums"
-      await expect(showAlbumsBtn).toBeVisible();
-
-      // Open it again
-      await showAlbumsBtn.click();
-      await expect(closeSidebarBtn).toBeVisible();
-    } else {
-      // Sidebar started Closed
-      await expect(showAlbumsBtn).toBeVisible();
-      await showAlbumsBtn.click();
-      await expect(closeSidebarBtn).toBeVisible();
-    }
+    await testSidebarToggle(showAlbumsBtn, closeSidebarBtn);
   } else {
     // Desktop: Sidebar is static (side-by-side). The top bar toggle is always visible.
     // Its label changes between "Hide Albums" and "Show Albums".
@@ -45,20 +45,6 @@ test('app sanity check', async ({ page, isMobile }) => {
     const hideAlbumsBtn = page.getByRole('button', { name: 'Hide Albums' });
     const showAlbumsBtn = page.getByRole('button', { name: 'Show Albums' });
 
-    // Check initial state
-    if (await hideAlbumsBtn.isVisible()) {
-      // Sidebar is Open
-      await hideAlbumsBtn.click();
-      await expect(showAlbumsBtn).toBeVisible();
-
-      // Open it back
-      await showAlbumsBtn.click();
-      await expect(hideAlbumsBtn).toBeVisible();
-    } else {
-      // Sidebar started Closed
-      await expect(showAlbumsBtn).toBeVisible();
-      await showAlbumsBtn.click();
-      await expect(hideAlbumsBtn).toBeVisible();
-    }
+    await testSidebarToggle(showAlbumsBtn, hideAlbumsBtn);
   }
 });

@@ -29,7 +29,7 @@
 
     <div
       class="smart-timer-controls-media z-20 transition-transform-opacity duration-500 ease-in-out will-change-transform flex flex-row justify-center gap-4 w-full mb-2 md:absolute md:top-4 md:right-4 md:flex-col md:gap-2 md:w-auto md:items-end md:mb-0"
-      :class="!isControlsVisible ? 'opacity-0 md:-translate-y-20' : ''"
+      :class="{ 'opacity-0 md:-translate-y-20': !isControlsVisible }"
     >
       <label class="glass-toggle" title="Play Full Video">
         <input v-model="playFullVideo" type="checkbox" />

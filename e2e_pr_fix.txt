@@ -1,0 +1,8 @@
+
+Running 4 tests using 2 workers
+
+[1A[2K[1/4] [chromium] › tests/e2e/visual.spec.ts:3:1 › MediaGrid visual regression
+[1A[2K[2/4] [chromium] › tests/e2e/app-sanity.spec.ts:3:1 › app sanity check
+[1A[2K[3/4] [Mobile Chrome] › tests/e2e/app-sanity.spec.ts:3:1 › app sanity check
+[1A[2K[4/4] [Mobile Chrome] › tests/e2e/visual.spec.ts:3:1 › MediaGrid visual regression
+[1A[2K  4 passed (14.8s)
