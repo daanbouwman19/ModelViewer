@@ -8,7 +8,7 @@
       class="flex flex-wrap justify-center items-center mb-2 mt-4 shrink-0 z-10 gap-4"
     >
       <h2
-        class="text-xl font-semibold text-center album-title whitespace-nowrap"
+        class="text-lg md:text-xl font-semibold text-center album-title truncate max-w-[60vw] md:max-w-none"
       >
         {{ displayTitle }}
       </h2>
@@ -16,7 +16,7 @@
         <button
           v-for="filter in filters"
           :key="filter"
-          class="filter-button whitespace-nowrap"
+          class="filter-button whitespace-nowrap text-sm md:text-base"
           :class="{ active: mediaFilter === filter }"
           :aria-pressed="mediaFilter === filter"
           @click="setFilter(filter)"
@@ -67,10 +67,10 @@
         v-else-if="!isVideoSupported && !isImage && !isTranscodingMode"
         class="absolute inset-0 flex flex-col items-center justify-center bg-black/80 z-10 p-6 text-center"
       >
-        <p class="text-xl font-bold text-red-400 mb-2">
+        <p class="text-lg md:text-xl font-bold text-red-400 mb-2">
           Video Format Not Supported
         </p>
-        <p class="text-gray-300 mb-4">
+        <p class="text-gray-300 mb-4 text-sm md:text-base">
           This video codec (likely HEVC) cannot be played natively.
         </p>
         <button
@@ -159,16 +159,16 @@
     >
       <label class="glass-toggle" title="Play Full Video">
         <input v-model="playFullVideo" type="checkbox" />
-        <span class="toggle-label">Play Full Video</span>
+        <span class="toggle-label text-xs md:text-sm">Play Full Video</span>
       </label>
       <label class="glass-toggle" title="Pause Timer on Play">
         <input v-model="pauseTimerOnPlay" type="checkbox" />
-        <span class="toggle-label">Pause Timer on Play</span>
+        <span class="toggle-label text-xs md:text-sm">Pause Timer on Play</span>
       </label>
     </div>
 
     <div
-      class="floating-controls absolute bottom-8 left-1/2 transform -translate-x-1/2 flex justify-between items-center gap-6 z-20 transition-transform-opacity duration-500 ease-in-out will-change-transform"
+      class="floating-controls absolute bottom-4 md:bottom-8 left-1/2 transform -translate-x-1/2 flex justify-between items-center gap-4 md:gap-6 z-20 transition-transform-opacity duration-500 ease-in-out will-change-transform w-[90%] md:w-auto"
       :class="{ 'translate-y-48 opacity-0': !isControlsVisible }"
     >
       <button

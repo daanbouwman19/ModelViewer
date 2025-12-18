@@ -1,104 +1,202 @@
 <template>
-  <div
-    class="glass-panel rounded-xl p-4 flex flex-col overflow-y-auto custom-scrollbar"
-  >
-    <div class="header-controls">
+  <!-- Overall Container: Transparent Flexbox to space out 3 glass segments -->
+  <div class="h-full flex flex-col relative gap-4">
+    <!-- 1. HEADER PANEL: Matched to Top Bar -->
+    <div
+      class="shrink-0 flex items-center justify-between p-3 glass-panel rounded-lg z-10"
+    >
+      <!-- Mobile Close Button (only visible on mobile) -->
       <button
-        class="action-button"
-        data-testid="start-slideshow-button"
-        @click="handleStartSlideshow"
+        class="md:hidden text-gray-400 hover:text-white mr-2"
+        @click="$emit('close')"
       >
-        Start Slideshow
+        <CloseIcon class="w-5 h-5" />
       </button>
-      <div class="timer-controls">
-        <label for="timer-duration">Timer (s):</label>
+
+      <h2 class="text-gray-200 font-bold tracking-tight text-sm uppercase">
+        Library
+      </h2>
+
+      <div class="flex items-center gap-1">
+        <button
+          class="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition-colors"
+          title="Manage Sources"
+          @click="openModal"
+        >
+          <SettingsIcon class="w-5 h-5" />
+        </button>
+
+        <button
+          class="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition-colors"
+          title="Add Playlist"
+          @click="openSmartPlaylistModal"
+        >
+          <PlaylistAddIcon class="w-5 h-5" />
+        </button>
+      </div>
+    </div>
+
+    <!-- 2. CONTENT PANEL: Matched to Media Display -->
+    <div
+      class="grow glass-panel rounded-xl overflow-hidden relative flex flex-col min-h-0"
+    >
+      <!-- SCROLLABLE LIST -->
+      <div class="grow overflow-y-auto px-2 py-4 custom-scrollbar">
+        <!-- SECTION: ALBUMS -->
+        <div class="mb-6">
+          <h3
+            class="px-3 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2"
+          >
+            Albums
+          </h3>
+          <ul class="space-y-0.5">
+            <li
+              v-if="allAlbums.length === 0"
+              class="px-3 text-sm text-gray-600 italic"
+            >
+              No albums found. Add sources.
+            </li>
+            <AlbumTree
+              v-for="album in allAlbums"
+              :key="album.id"
+              :album="album"
+              :selection="albumsSelectedForSlideshow"
+              @toggle-selection="handleToggleSelection"
+              @album-click="handleClickAlbum"
+            />
+          </ul>
+        </div>
+
+        <!-- SECTION: SMART PLAYLISTS -->
+        <div class="mb-4">
+          <h3
+            class="px-3 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2"
+          >
+            Playlists
+          </h3>
+          <ul class="space-y-0.5">
+            <li v-for="playlist in smartPlaylists" :key="playlist.id">
+              <div
+                class="group flex items-center justify-between px-3 py-2 rounded-md hover:bg-white/5 cursor-pointer transition-colors"
+                @click="handleSmartPlaylistSlideshow(playlist)"
+              >
+                <!-- Name -->
+                <div
+                  class="flex items-center gap-2 truncate text-sm text-gray-300 group-hover:text-white"
+                >
+                  <span class="text-indigo-500">
+                    <!-- Small Playlist Icon -->
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      class="w-4 h-4"
+                    >
+                      <path
+                        fill-rule="evenodd"
+                        d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zm0 10.5a.75.75 0 01.75-.75h7.5a.75.75 0 010 1.5h-7.5a.75.75 0 01-.75-.75zM2 10a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 10z"
+                        clip-rule="evenodd"
+                      />
+                    </svg>
+                  </span>
+                  <span class="truncate">{{ playlist.name }}</span>
+                </div>
+
+                <!-- Controls on Hover -->
+                <div
+                  class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <!-- Grid Button for Playlist -->
+                  <button
+                    class="text-xs text-gray-500 hover:text-white p-1"
+                    title="Open in Grid"
+                    @click.stop="handleSmartPlaylistGrid(playlist)"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke-width="1.5"
+                      stroke="currentColor"
+                      class="w-4 h-4"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    class="text-xs text-gray-500 hover:text-blue-400 p-1"
+                    title="Edit"
+                    @click.stop="editPlaylist(playlist)"
+                  >
+                    ✎
+                  </button>
+                  <button
+                    class="text-xs text-gray-500 hover:text-red-400 p-1"
+                    title="Delete"
+                    @click.stop="deletePlaylist(playlist.id)"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            </li>
+            <li
+              v-if="smartPlaylists.length === 0"
+              class="px-3 text-sm text-gray-600 italic"
+            >
+              No playlists created.
+            </li>
+          </ul>
+        </div>
+      </div>
+      <!-- End of content panel list part -->
+    </div>
+    <!-- End of second glass pane -->
+
+    <!-- 3. TIMER PANEL: Matched to Top Bar style -->
+    <div
+      class="shrink-0 p-3 glass-panel rounded-lg flex items-end gap-3 z-20 relative overflow-hidden"
+    >
+      <div class="flex flex-col gap-1 grow">
+        <label
+          for="timer-input"
+          class="text-[10px] font-bold text-gray-500 uppercase tracking-widest"
+          >Timer (s)</label
+        >
         <input
-          id="timer-duration"
+          id="timer-input"
           v-model.number="timerDuration"
           type="number"
           min="1"
-          class="timer-input"
+          class="w-full glass-input text-sm px-3 py-2 rounded-lg"
         />
-        <button class="timer-button" @click="handleToggleTimer">
-          {{ isTimerRunning ? 'Pause' : 'Play' }}
-        </button>
       </div>
 
-      <button class="action-button" @click="openModal">Manage Sources</button>
-      <button class="action-button" @click="openSmartPlaylistModal">
-        + Playlist
-      </button>
-    </div>
-    <div
-      v-if="isTimerRunning"
-      class="progress-bar-container"
-      data-testid="slideshow-progress-bar"
-    >
-      <div class="progress-bar" :style="{ width: `${timerProgress}%` }"></div>
-    </div>
-    <h2 class="albums-list-header">Albums</h2>
-    <ul class="space-y-1 grow pr-2 albums-list">
-      <li v-if="allAlbums.length === 0" class="text-gray-400">
-        Loading albums...
-      </li>
-      <AlbumTree
-        v-for="album in allAlbums"
-        :key="album.id"
-        :album="album"
-        :selection="albumsSelectedForSlideshow"
-        @toggle-selection="handleToggleSelection"
-        @album-click="handleClickAlbum"
-      />
-    </ul>
-
-    <!-- Smart Playlists Section -->
-    <h2 class="albums-list-header mt-4">Smart Playlists</h2>
-    <ul class="space-y-1 grow pr-2 albums-list">
-      <li v-for="playlist in smartPlaylists" :key="playlist.id">
-        <div
-          class="group flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-800 transition-colors"
-        >
-          <button
-            class="grow text-left text-gray-300 hover:text-white flex items-center gap-2"
-            @click="handleSmartPlaylistSlideshow(playlist)"
-          >
-            <span class="text-pink-500">▶</span>
-            {{ playlist.name }}
-          </button>
-          <button
-            class="text-xs text-gray-400 hover:text-white ml-2 p-1 rounded border border-gray-600 hover:bg-gray-700 opacity-0 group-hover:opacity-100 transition-opacity"
-            title="Open in Grid"
-            @click.stop="handleSmartPlaylistGrid(playlist)"
-          >
-            Grid
-          </button>
-          <div
-            class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
-          >
-            <button
-              class="text-xs text-blue-400 hover:text-blue-300"
-              title="Edit"
-              @click.stop="editPlaylist(playlist)"
-            >
-              ✎
-            </button>
-            <button
-              class="text-xs text-gray-500 hover:text-red-400"
-              title="Delete"
-              @click.stop="deletePlaylist(playlist.id)"
-            >
-              x
-            </button>
-          </div>
-        </div>
-      </li>
-      <li
-        v-if="smartPlaylists.length === 0"
-        class="text-gray-500 italic text-sm px-2"
+      <!-- Primary Play Action -->
+      <button
+        class="h-10 w-14 shrink-0 flex items-center justify-center rounded-lg glass-button-primary"
+        :title="isTimerRunning ? 'Pause Slideshow' : 'Start/Resume Slideshow'"
+        @click="handleToggleTimer"
       >
-        No smart playlists
-      </li>
-    </ul>
+        <PauseIcon v-if="isTimerRunning" class="w-6 h-6 fill-current" />
+        <PlayIcon v-else class="w-6 h-6 fill-current ml-1" />
+      </button>
+
+      <!-- Global Progress Bar (if running, inside timer pane bottom) -->
+      <div
+        v-if="isTimerRunning"
+        class="absolute bottom-0 left-0 w-full h-1 bg-gray-800"
+      >
+        <div
+          class="h-full bg-indigo-500 transition-all duration-100 ease-linear"
+          :style="{ width: `${timerProgress}%` }"
+        ></div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -113,6 +211,11 @@ import { nextTick } from 'vue';
 import { useAppState } from '../composables/useAppState';
 import { useSlideshow } from '../composables/useSlideshow';
 import AlbumTree from './AlbumTree.vue';
+import CloseIcon from './icons/CloseIcon.vue';
+import PlayIcon from './icons/PlayIcon.vue';
+import PauseIcon from './icons/PauseIcon.vue';
+import SettingsIcon from './icons/SettingsIcon.vue';
+import PlaylistAddIcon from './icons/PlaylistAddIcon.vue';
 import { api } from '../api';
 import {
   getAlbumAndChildrenIds,
@@ -138,6 +241,8 @@ const {
   viewMode,
   playlistToEdit,
 } = useAppState();
+
+defineEmits(['close']);
 
 const slideshow = useSlideshow();
 
@@ -178,13 +283,6 @@ const handleClickAlbum = (album: Album) => {
   const textures = collectTexturesRecursive(album);
   const albumWithAllTextures = { ...album, textures };
   slideshow.startIndividualAlbumSlideshow(albumWithAllTextures);
-};
-
-/**
- * Starts the global slideshow.
- */
-const handleStartSlideshow = () => {
-  slideshow.startSlideshow();
 };
 
 /**
@@ -323,93 +421,3 @@ const editPlaylist = (playlist: SmartPlaylist) => {
   isSmartPlaylistModalVisible.value = true;
 };
 </script>
-
-<style scoped>
-/* Scoped styles from the original AlbumsList.vue */
-/* .panel removed in favor of utility class */
-
-.header-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-  margin-bottom: 1rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--border-color);
-}
-
-.header-controls > * {
-  flex-shrink: 0;
-}
-
-.timer-controls {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.timer-controls label {
-  color: var(--text-muted);
-  font-weight: 700;
-  font-size: 0.85rem;
-}
-
-.timer-input {
-  background-color: var(--primary-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  color: var(--text-color);
-  font-weight: 500;
-  width: 65px;
-  padding: 0.4rem 0.5rem;
-  text-align: center;
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-.timer-input:focus {
-  outline: none;
-  border-color: var(--accent-color);
-  box-shadow: 0 0 0 2px var(--accent-color);
-}
-
-.checkbox-input {
-  accent-color: var(--accent-color);
-  width: 16px;
-  height: 16px;
-}
-
-.albums-list-header {
-  font-family: var(--body-font);
-  text-transform: uppercase;
-  font-size: 1.1rem;
-  letter-spacing: 0.08em;
-  color: var(--text-muted);
-  font-weight: 700;
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--border-color);
-  margin-bottom: 0.75rem;
-}
-
-.albums-list {
-  list-style: none;
-  padding: 0;
-}
-
-.progress-bar-container {
-  height: 6px;
-  background-color: var(--tertiary-bg);
-  border-radius: 3px;
-  margin-bottom: 1rem;
-  overflow: hidden;
-  width: 100%;
-}
-
-.progress-bar {
-  height: 100%;
-  background-color: var(--accent-color);
-  border-radius: 3px;
-  transition: width 0.05s linear;
-}
-</style>
