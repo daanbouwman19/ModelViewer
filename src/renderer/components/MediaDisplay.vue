@@ -29,46 +29,39 @@
     <div
       class="media-display-area mb-3 grow w-full flex items-center justify-center relative"
     >
-      <!-- Local Ambient Canvas Removed -->
+      <!-- State Handling: Mutually Exclusive Blocks -->
+
+      <!-- 1. Placeholder (No Item & Not Loading) -->
       <p
         v-if="!currentMediaItem && !isLoading"
         class="text-gray-500 placeholder"
       >
         Media will appear here.
       </p>
-      <p
-        v-if="isLoading"
-        class="absolute inset-0 flex items-center justify-center text-gray-400 placeholder z-20 bg-black/50"
+
+      <!-- 2. Loading / Transcoding / Buffering Overlay -->
+      <div
+        v-if="isLoading || isTranscodingLoading || isBuffering"
+        class="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-20 pointer-events-none"
       >
-        Loading media...
-      </p>
-      <p v-if="error" class="text-red-400 placeholder">
+        <div
+          class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-accent mb-4"
+        ></div>
+        <p class="text-white font-semibold">
+          <template v-if="isTranscodingLoading">Transcoding...</template>
+          <template v-else-if="isBuffering">Buffering...</template>
+          <template v-else>Loading media...</template>
+        </p>
+      </div>
+
+      <!-- 3. Error Message (Only if not loading) -->
+      <p v-else-if="error" class="text-red-400 placeholder z-10 text-center px-4">
         {{ error }}
       </p>
-      <img
-        v-if="currentMediaItem && mediaUrl && isImage"
-        :src="mediaUrl"
-        :alt="currentMediaItem.name"
-        @error="handleMediaError"
-      />
-      <video
-        v-if="currentMediaItem && mediaUrl && !isImage"
-        ref="videoElement"
-        :src="mediaUrl"
-        autoplay
-        @error="handleMediaError"
-        @ended="handleVideoEnded"
-        @play="handleVideoPlay"
-        @playing="handleVideoPlaying"
-        @pause="handleVideoPause"
-        @timeupdate="handleVideoTimeUpdate"
-        @loadedmetadata="handleVideoLoadedMetadata"
-        @waiting="handleVideoWaiting"
-        @canplay="handleVideoCanPlay"
-        @progress="handleVideoProgress"
-      />
+
+      <!-- 4. Unsupported Format Message (Only if not loading/transcoding) -->
       <div
-        v-if="!isVideoSupported && !isImage && !isTranscodingMode"
+        v-else-if="!isVideoSupported && !isImage && !isTranscodingMode"
         class="absolute inset-0 flex flex-col items-center justify-center bg-black/80 z-10 p-6 text-center"
       >
         <p class="text-xl font-bold text-red-400 mb-2">
@@ -90,22 +83,35 @@
         >
           Try Transcoding
         </button>
+      </div>
 
-        <p v-if="isTranscodingLoading" class="text-accent mt-2 animate-pulse">
-          Transcoding...
-        </p>
-      </div>
-      <div
-        v-if="isTranscodingLoading || isBuffering"
-        class="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-10 pointer-events-none"
-      >
-        <div
-          class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-accent mb-4"
-        ></div>
-        <p class="text-white font-semibold">
-          {{ isTranscodingLoading ? 'Transcoding...' : 'Buffering...' }}
-        </p>
-      </div>
+      <!-- 5. Media Content -->
+      <template v-else>
+        <img
+          v-if="currentMediaItem && mediaUrl && isImage"
+          :src="mediaUrl"
+          :alt="currentMediaItem.name"
+          @error="handleMediaError"
+        />
+        <video
+          v-if="currentMediaItem && mediaUrl && !isImage"
+          ref="videoElement"
+          :src="mediaUrl"
+          autoplay
+          @error="handleMediaError"
+          @ended="handleVideoEnded"
+          @play="handleVideoPlay"
+          @playing="handleVideoPlaying"
+          @pause="handleVideoPause"
+          @timeupdate="handleVideoTimeUpdate"
+          @loadedmetadata="handleVideoLoadedMetadata"
+          @waiting="handleVideoWaiting"
+          @canplay="handleVideoCanPlay"
+          @progress="handleVideoProgress"
+        />
+      </template>
+
+      <!-- Controls (always available if item exists) -->
       <div
         v-if="currentMediaItem && !isImage"
         data-testid="video-progress-bar"
@@ -248,7 +254,7 @@
  * It handles loading the media from the main process, displaying loading/error states,
  * and providing navigation controls to move between media items.
  */
-import { ref, computed, watch, onMounted } from 'vue'; // Added onMounted
+import { ref, computed, watch, onMounted } from 'vue';
 import { useAppState } from '../composables/useAppState';
 import { useSlideshow } from '../composables/useSlideshow';
 import { api } from '../api';
@@ -320,6 +326,9 @@ const videoStreamUrlGenerator = ref<
   ((filePath: string, startTime?: number) => string) | null
 >(null);
 
+// Request tracking to prevent race conditions
+let currentLoadRequestId = 0;
+
 let videoStreamGeneratorInitPromise: Promise<
   (filePath: string, startTime?: number) => string
 > | null = null;
@@ -353,14 +362,6 @@ onMounted(() => {
     // Already logged in ensureVideoStreamGenerator
   });
 });
-
-/* Removed local ambient lighting logic */
-/* const ambientCanvas = ref<HTMLCanvasElement | null>(null); */
-/* updateAmbientLighting, startVideoAmbientLoop, etc. removed */
-
-/**
- * Handles errors from the <img> or <video> elements.
- */
 
 /**
  * A computed property that determines if the current media item is an image.
@@ -413,18 +414,34 @@ const canNavigate = computed(() => {
 /**
  * Attempts to transcode the current video file starting from a specific time.
  * @param startTime - The time to start transcoding from (in seconds).
+ * @param requestId - The request ID associated with this operation (optional).
  */
-const tryTranscoding = async (startTime = 0) => {
+const tryTranscoding = async (startTime = 0, requestId?: number) => {
+  // If no specific requestId was passed, assume this is a user action and we should respect the current one,
+  // OR it's a new "intent" (like a button click) which conceptually updates the state of the *current* item.
+  // Ideally, button clicks on the *same* item shouldn't increment request ID, but loadMediaUrl does.
+  // So we just check against currentLoadRequestId.
+
   if (!currentMediaItem.value) return;
+
+  const effectiveRequestId = requestId !== undefined ? requestId : currentLoadRequestId;
+
+  // Guard: If we are running part of an old request sequence, stop.
+  if (effectiveRequestId !== currentLoadRequestId) return;
+
   isTranscodingMode.value = true;
   isTranscodingLoading.value = true;
-  error.value = null; // Clear previous errors
+  // Don't clear error globally here, as we might be recovering from one.
+  // But usually starting a new attempt clears old errors.
+  error.value = null;
+
   currentTranscodeStartTime.value = startTime;
 
   try {
     const generator = await ensureVideoStreamGenerator();
+    if (effectiveRequestId !== currentLoadRequestId) return;
 
-    const encodedPath = currentMediaItem.value.path; // API handles encoding? Generator logic encodes it.
+    const encodedPath = currentMediaItem.value.path;
 
     // Fetch duration if not already known
     if (transcodedDuration.value === 0) {
@@ -437,10 +454,10 @@ const tryTranscoding = async (startTime = 0) => {
         // Failed to fetch metadata
       }
     }
+    if (effectiveRequestId !== currentLoadRequestId) return;
 
     let transcodeUrl = generator(encodedPath, startTime);
 
-    // Force transcode flag for backend
     if (transcodeUrl.includes('?')) {
       transcodeUrl += '&transcode=true';
     } else {
@@ -448,13 +465,12 @@ const tryTranscoding = async (startTime = 0) => {
     }
 
     console.log('Transcoding URL:', transcodeUrl);
-
-    // Update mediaUrl to point to the transcoding stream
     mediaUrl.value = transcodeUrl;
 
-    // Reset flags to allow video element to try again
     isVideoSupported.value = true;
   } catch (e) {
+    if (effectiveRequestId !== currentLoadRequestId) return;
+
     console.error('Transcoding failed', e);
     isTranscodingMode.value = false;
     isTranscodingLoading.value = false;
@@ -468,6 +484,10 @@ const tryTranscoding = async (startTime = 0) => {
  * Asynchronously loads the URL for the current media item.
  */
 const loadMediaUrl = async () => {
+  // Increment ID to invalidate any pending requests
+  currentLoadRequestId++;
+  const requestId = currentLoadRequestId;
+
   if (!currentMediaItem.value) {
     mediaUrl.value = null;
     return;
@@ -475,13 +495,7 @@ const loadMediaUrl = async () => {
 
   isLoading.value = true;
 
-  // Cleanup previous video stream explicitly to prevent pending requests
-  if (videoElement.value) {
-    videoElement.value.pause();
-    videoElement.value.removeAttribute('src'); // Remove src attribute directly
-    videoElement.value.load(); // Force browser to cancel pending download
-  }
-
+  // Reset all state flags for the new item
   error.value = null;
   isVideoSupported.value = true;
   isTranscodingMode.value = false;
@@ -493,22 +507,35 @@ const loadMediaUrl = async () => {
   currentVideoTime.value = 0;
   currentVideoDuration.value = 0;
 
+  // Cleanup previous video stream explicitly to prevent pending requests
+  if (videoElement.value) {
+    videoElement.value.pause();
+    videoElement.value.removeAttribute('src'); // Remove src attribute directly
+    videoElement.value.load(); // Force browser to cancel pending download
+  }
+
   // Proactively transcode formats that often fail in browsers or have poor performance (e.g. MOOV at end)
-  // Use .name because .path for Drive files is gdrive://ID which has no extension
   const fileName = currentMediaItem.value.name
     ? currentMediaItem.value.name.toLowerCase()
     : '';
   const legacyFormats = ['.mov', '.avi', '.wmv', '.mkv', '.flv'];
+
   if (legacyFormats.some((ext) => fileName.endsWith(ext))) {
     console.log('Proactively transcoding legacy format:', fileName);
+    await tryTranscoding(0, requestId);
 
-    await tryTranscoding(0);
-    isLoading.value = false;
+    // Only turn off loading if this request is still active
+    if (requestId === currentLoadRequestId) {
+      isLoading.value = false;
+    }
     return;
   }
 
   try {
     const result = await api.loadFileAsDataURL(currentMediaItem.value.path);
+
+    if (requestId !== currentLoadRequestId) return;
+
     if (result.type === 'error') {
       error.value = result.message || 'Unknown error';
       mediaUrl.value = null;
@@ -516,11 +543,15 @@ const loadMediaUrl = async () => {
       mediaUrl.value = result.url || null;
     }
   } catch (err) {
+    if (requestId !== currentLoadRequestId) return;
+
     console.error('Error loading media:', err);
     error.value = 'Failed to load media file.';
     mediaUrl.value = null;
   } finally {
-    isLoading.value = false;
+    if (requestId === currentLoadRequestId) {
+      isLoading.value = false;
+    }
   }
 };
 
@@ -530,7 +561,7 @@ const loadMediaUrl = async () => {
 const handleMediaError = () => {
   if (!isTranscodingMode.value) {
     console.log('Media playback error, attempting auto-transcode...');
-    tryTranscoding(0);
+    tryTranscoding(0); // Uses currentLoadRequestId implicitly
   } else {
     error.value = 'Failed to display media file.';
   }
@@ -562,17 +593,13 @@ const setFilter = async (filter: 'All' | 'Images' | 'Videos') => {
 const setRating = async (rating: number) => {
   if (!currentMediaItem.value) return;
 
-  // Toggle: If clicking same rating (e.g. 5 on a 5-star item), reset to 0
   const newRating = currentMediaItem.value.rating === rating ? 0 : rating;
-
-  // Optimistic update
   currentMediaItem.value.rating = newRating;
 
   try {
     await api.setRating(currentMediaItem.value.path, newRating);
   } catch (e) {
     console.error('Failed to set rating', e);
-    // Revert on error could go here
   }
 };
 
@@ -612,7 +639,6 @@ watch(videoElement, (el) => {
 
 /**
  * Handles the end of video playback.
- * If 'Play Full Video' is enabled, it automatically navigates to the next item.
  */
 const handleVideoEnded = () => {
   if (playFullVideo.value) {
@@ -622,7 +648,6 @@ const handleVideoEnded = () => {
 
 /**
  * Handles the video play event.
- * Pauses the slideshow timer if needed.
  */
 const handleVideoPlay = () => {
   if (isTimerRunning.value && (playFullVideo.value || pauseTimerOnPlay.value)) {
@@ -632,7 +657,6 @@ const handleVideoPlay = () => {
 
 /**
  * Handles the video pause event.
- * Resumes the slideshow timer if 'Pause Timer on Play' is active.
  */
 const handleVideoPause = () => {
   if (!isTimerRunning.value && pauseTimerOnPlay.value && !playFullVideo.value) {
@@ -642,14 +666,12 @@ const handleVideoPause = () => {
 
 /**
  * Updates the video progress bar based on the video's current time and duration.
- * @param event - The timeupdate event from the <video> element.
  */
 const handleVideoTimeUpdate = (event: Event) => {
   const target = event.target as HTMLVideoElement;
   const { currentTime, duration } = target;
 
   if (isTranscodingMode.value && transcodedDuration.value > 0) {
-    // For transcoding, currentTime is relative to the segment start
     const realCurrentTime = currentTranscodeStartTime.value + currentTime;
     videoProgress.value = (realCurrentTime / transcodedDuration.value) * 100;
     currentVideoTime.value = realCurrentTime;
@@ -667,8 +689,6 @@ const handleVideoTimeUpdate = (event: Event) => {
 
 /**
  * Formats a time in seconds to HH:MM:SS or MM:SS string.
- * @param seconds - The time in seconds.
- * @returns The formatted time string.
  */
 const formatTime = (seconds: number) => {
   if (!seconds || isNaN(seconds)) return '00:00';
@@ -689,7 +709,6 @@ const formattedDuration = computed(() =>
 
 /**
  * Handles clicks on the video progress bar to seek.
- * @param event - The mouse event.
  */
 const handleProgressBarClick = (event: MouseEvent) => {
   if (!currentMediaItem.value) return;
@@ -711,8 +730,6 @@ const handleProgressBarClick = (event: MouseEvent) => {
 
 /**
  * Handles keyboard navigation on the progress bar.
- * Allows seeking with Left/Right arrows (5s step).
- * @param event - The keyboard event.
  */
 const handleProgressBarKeydown = (event: KeyboardEvent) => {
   if (!currentMediaItem.value) return;
@@ -743,18 +760,14 @@ const handleProgressBarKeydown = (event: KeyboardEvent) => {
 
 /**
  * Handles the loadedmetadata event for the video element.
- * Checks for unsupported formats (like HEVC audio-only playback) and triggers transcoding if needed.
- * @param event - The event object.
  */
 const handleVideoLoadedMetadata = (event: Event) => {
   const video = event.target as HTMLVideoElement;
-  // Check if video has valid dimensions. If 0, it's likely an unsupported codec (HEVC) playing audio only.
   if (
     (video.videoWidth === 0 || video.videoHeight === 0) &&
     !isTranscodingMode.value
   ) {
     isVideoSupported.value = false;
-    // Auto-try transcoding if native playback fails
     tryTranscoding(0);
   }
 };
@@ -791,17 +804,11 @@ const handleVideoProgress = (event: Event) => {
 };
 
 /**
- * Attempts to transcode the current video file starting from a specific time.
- * @param startTime - The time to start transcoding from (in seconds).
- */
-
-/**
  * Opens the current media file in VLC Media Player.
  */
 const openInVlc = async () => {
   if (!currentMediaItem.value) return;
 
-  // Pause the current video
   if (videoElement.value) {
     videoElement.value.pause();
   }
@@ -837,13 +844,10 @@ const handleMouseLeave = () => {
 
 <style scoped>
 .media-display-area {
-  /* Removed border and background for cleaner look */
   border: none;
   background-color: transparent;
-  /* overflow: hidden; Removed to prevent clipping of sliding controls */
   width: 100%;
-  /* height: 100%; Removed to prevent overflow with header */
-  min-height: 0; /* Allow shrinking */
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -855,7 +859,7 @@ const handleMouseLeave = () => {
   max-height: 100%;
   object-fit: contain;
   border-radius: 12px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8); /* Deeper shadow */
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
 }
 
 .glass-button {
@@ -873,7 +877,7 @@ const handleMouseLeave = () => {
   background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(16px);
   padding: 0.75rem 1.5rem;
-  border-radius: 9999px; /* Pill shape */
+  border-radius: 9999px;
   border: 1px solid rgba(255, 255, 255, 0.15);
   transition:
     opacity 0.3s ease,
@@ -882,7 +886,6 @@ const handleMouseLeave = () => {
 
 .floating-controls:hover {
   background: rgba(0, 0, 0, 0.8);
-  /* Transform removed to keep it stable */
 }
 
 .vlc-button {
@@ -900,7 +903,7 @@ const handleMouseLeave = () => {
 
 .vlc-button:hover {
   background-color: rgba(255, 255, 255, 0.1);
-  color: #ff9800; /* VLC Orange */
+  color: #ff9800;
 }
 
 .glass-toggle {
@@ -924,9 +927,8 @@ const handleMouseLeave = () => {
   border-color: rgba(255, 255, 255, 0.3);
 }
 
-/* Active state for the toggle wrapper */
 .glass-toggle:has(input:checked) {
-  background: rgba(99, 102, 241, 0.2); /* Indigo tint */
+  background: rgba(99, 102, 241, 0.2);
   border-color: var(--accent-color);
   color: white;
   box-shadow: 0 0 15px rgba(99, 102, 241, 0.3);
