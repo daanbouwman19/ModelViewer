@@ -37,26 +37,39 @@ async function getThumbnailQueue() {
   return thumbnailQueue;
 }
 
+function getThumbnailArgs(filePath: string, cacheFile: string): string[] {
+  return [
+    '-y',
+    '-ss',
+    '1',
+    '-i',
+    filePath,
+    '-frames:v',
+    '1',
+    '-q:v',
+    '5',
+    '-update',
+    '1',
+    cacheFile,
+  ];
+}
+
+function parseDurationFromStderr(stderr: string): number | null {
+  const match = stderr.match(/Duration:\s+(\d+):(\d+):(\d+(?:\.\d+)?)/);
+  if (!match) return null;
+  const hours = parseFloat(match[1]);
+  const minutes = parseFloat(match[2]);
+  const seconds = parseFloat(match[3]);
+  return hours * 3600 + minutes * 60 + seconds;
+}
+
 function runFFmpegThumbnail(
   filePath: string,
   cacheFile: string,
   ffmpegPath: string,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    const generateArgs = [
-      '-y',
-      '-ss',
-      '1',
-      '-i',
-      filePath,
-      '-frames:v',
-      '1',
-      '-q:v',
-      '5',
-      '-update',
-      '1',
-      cacheFile,
-    ];
+    const generateArgs = getThumbnailArgs(filePath, cacheFile);
     const genProcess = spawn(ffmpegPath, generateArgs);
     let stderr = '';
     if (genProcess.stderr) {
@@ -101,12 +114,8 @@ export async function getVideoDuration(
     });
 
     ffmpegProcess.on('close', () => {
-      const match = stderrData.match(/Duration:\s+(\d+):(\d+):(\d+(?:\.\d+)?)/);
-      if (match) {
-        const hours = parseFloat(match[1]);
-        const minutes = parseFloat(match[2]);
-        const seconds = parseFloat(match[3]);
-        const duration = hours * 3600 + minutes * 60 + seconds;
+      const duration = parseDurationFromStderr(stderrData);
+      if (duration !== null) {
         resolve({ duration });
       } else {
         resolve({ error: 'Could not determine duration' });
@@ -229,13 +238,34 @@ export async function serveTranscodedStream(
     'Content-Type': 'video/mp4',
   });
 
-  const ffmpegArgs = [];
+  const ffmpegArgs = getTranscodeArgs(inputPath, startTime);
+  const ffmpegProcess = spawn(ffmpegPath, ffmpegArgs);
 
+  ffmpegProcess.stdout.pipe(res);
+
+  const stderrReader = createInterface({ input: ffmpegProcess.stderr });
+  stderrReader.on('line', (line) => {
+    console.error(`[Transcode] FFmpeg Stderr: ${line}`);
+  });
+
+  ffmpegProcess.on('error', (err) => {
+    console.error('[Transcode] Spawn Error:', err);
+  });
+
+  req.on('close', () => {
+    ffmpegProcess.kill('SIGKILL');
+  });
+}
+
+function getTranscodeArgs(
+  inputPath: string,
+  startTime: string | null,
+): string[] {
+  const args = [];
   if (startTime) {
-    ffmpegArgs.push('-ss', startTime);
+    args.push('-ss', startTime);
   }
-
-  ffmpegArgs.push(
+  args.push(
     '-analyzeduration',
     '100M',
     '-probesize',
@@ -258,23 +288,7 @@ export async function serveTranscodedStream(
     'yuv420p',
     'pipe:1',
   );
-
-  const ffmpegProcess = spawn(ffmpegPath, ffmpegArgs);
-
-  ffmpegProcess.stdout.pipe(res);
-
-  const stderrReader = createInterface({ input: ffmpegProcess.stderr });
-  stderrReader.on('line', (line) => {
-    console.error(`[Transcode] FFmpeg Stderr: ${line}`);
-  });
-
-  ffmpegProcess.on('error', (err) => {
-    console.error('[Transcode] Spawn Error:', err);
-  });
-
-  req.on('close', () => {
-    ffmpegProcess.kill('SIGKILL');
-  });
+  return args;
 }
 
 /**
