@@ -96,7 +96,7 @@ import { useAppState } from '../composables/useAppState';
 import type { MediaFile } from '../../core/types';
 import { api } from '../api';
 
-const { state } = useAppState();
+const { state, imageExtensionsSet, videoExtensionsSet } = useAppState();
 
 // Reactive reference to the full list from state
 const allMediaFiles = computed(() => state.gridMediaFiles);
@@ -186,7 +186,7 @@ const getExtension = (nameOrPath: string) => {
 const isImage = (item: MediaFile) => {
   // Use name if available as it's more reliable for non-filesystem paths (e.g. gdrive)
   const ext = getExtension(item.name || item.path);
-  return state.supportedExtensions.images.includes(ext);
+  return imageExtensionsSet.value.has(ext);
 };
 
 /**
@@ -196,7 +196,7 @@ const isImage = (item: MediaFile) => {
  */
 const isVideo = (item: MediaFile) => {
   const ext = getExtension(item.name || item.path);
-  return state.supportedExtensions.videos.includes(ext);
+  return videoExtensionsSet.value.has(ext);
 };
 
 /**

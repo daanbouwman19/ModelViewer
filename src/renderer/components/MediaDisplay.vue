@@ -272,7 +272,7 @@ const {
   isSlideshowActive,
   mediaFilter,
   totalMediaInPool,
-  supportedExtensions,
+  imageExtensionsSet,
   playFullVideo,
   pauseTimerOnPlay,
   isTimerRunning,
@@ -372,7 +372,6 @@ onMounted(() => {
  */
 const isImage = computed(() => {
   if (!currentMediaItem.value) return false;
-  const imageExtensions = supportedExtensions.value.images;
 
   // For Google Drive (or paths without extension), rely on the name
   const sourceString = currentMediaItem.value.path.startsWith('gdrive://')
@@ -383,7 +382,7 @@ const isImage = computed(() => {
   if (lastDotIndex === -1) return false; // No extension found
 
   const ext = sourceString.slice(lastDotIndex).toLowerCase();
-  return imageExtensions.includes(ext);
+  return imageExtensionsSet.value.has(ext);
 });
 
 /**

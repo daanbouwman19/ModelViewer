@@ -79,6 +79,8 @@ describe('Progress Bars', () => {
       mediaFilter: ref('All'),
       totalMediaInPool: ref(0),
       supportedExtensions: ref({ images: ['.jpg'], videos: ['.mp4'] }),
+      imageExtensionsSet: ref(new Set(['.jpg'])),
+      videoExtensionsSet: ref(new Set(['.mp4'])),
       playFullVideo: ref(false),
       pauseTimerOnPlay: ref(false),
 

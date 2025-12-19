@@ -30,6 +30,8 @@ const mockState = {
 vi.mock('@/composables/useAppState', () => ({
   useAppState: () => ({
     state: mockState,
+    imageExtensionsSet: { value: new Set(['.jpg', '.png']) },
+    videoExtensionsSet: { value: new Set(['.mp4', '.webm']) },
   }),
 }));
 

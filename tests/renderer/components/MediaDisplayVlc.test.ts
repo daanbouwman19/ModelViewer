@@ -52,6 +52,8 @@ describe('MediaDisplay.vue', () => {
         images: ['.jpg', '.png', '.gif'],
         videos: ['.mp4', '.webm'],
       }),
+      imageExtensionsSet: ref(new Set(['.jpg', '.png', '.gif'])),
+      videoExtensionsSet: ref(new Set(['.mp4', '.webm'])),
       allAlbums: ref([]),
       albumsSelectedForSlideshow: ref({}),
       globalMediaPoolForSelection: ref([]),
