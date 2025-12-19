@@ -37,6 +37,11 @@ async function getThumbnailQueue() {
   return thumbnailQueue;
 }
 
+function isValidTimeFormat(time: string): boolean {
+  // Allow simple seconds (e.g., "10", "10.5") or timestamps (e.g., "00:00:10", "00:10.5")
+  return /^\d+(\.\d+)?$/.test(time) || /^(\d+:)+\d+(\.\d+)?$/.test(time);
+}
+
 function runFFmpegThumbnail(
   filePath: string,
   cacheFile: string,
@@ -232,6 +237,9 @@ export async function serveTranscodedStream(
   const ffmpegArgs = [];
 
   if (startTime) {
+    if (!isValidTimeFormat(startTime)) {
+      throw new Error('Invalid start time format');
+    }
     ffmpegArgs.push('-ss', startTime);
   }
 
