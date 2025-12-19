@@ -37,7 +37,15 @@ describe('MediaGrid.vue Coverage', () => {
       (path: string) => `thumb://${path}`,
     );
 
-    (useAppState as any).mockReturnValue({ state: mockState });
+    (useAppState as any).mockReturnValue({
+      state: mockState,
+      imageExtensionsSet: {
+        value: new Set(mockState.supportedExtensions.images),
+      },
+      videoExtensionsSet: {
+        value: new Set(mockState.supportedExtensions.videos),
+      },
+    });
   });
 
   it('getExtension edge cases: no dot', () => {

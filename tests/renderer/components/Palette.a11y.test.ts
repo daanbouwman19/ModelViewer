@@ -46,6 +46,8 @@ describe('Palette Accessibility Improvements', () => {
       mediaFilter: ref('All'),
       totalMediaInPool: ref(1),
       supportedExtensions: ref({ images: ['.jpg'], videos: ['.mp4'] }),
+      imageExtensionsSet: ref(new Set(['.jpg'])),
+      videoExtensionsSet: ref(new Set(['.mp4'])),
       playFullVideo: ref(false),
       pauseTimerOnPlay: ref(false),
       isTimerRunning: ref(false),

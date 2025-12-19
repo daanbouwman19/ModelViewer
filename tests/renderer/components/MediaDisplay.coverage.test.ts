@@ -42,6 +42,8 @@ describe('MediaDisplay.vue Additional Coverage', () => {
       isSlideshowActive: ref(false),
       isTimerRunning: ref(false),
       supportedExtensions: ref({ images: [], videos: ['.mp4'] }),
+      imageExtensionsSet: ref(new Set([])),
+      videoExtensionsSet: ref(new Set(['.mp4'])),
       playFullVideo: ref(false),
       pauseTimerOnPlay: ref(false),
       mainVideoElement: ref(null),

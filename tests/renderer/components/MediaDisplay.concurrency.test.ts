@@ -45,6 +45,8 @@ describe('MediaDisplay Race Condition', () => {
         videos: ['.mp4', '.mkv', '.avi'],
         all: ['.jpg', '.png', '.mp4', '.mkv', '.avi'],
       }),
+      imageExtensionsSet: ref(new Set(['.jpg', '.png'])),
+      videoExtensionsSet: ref(new Set(['.mp4', '.mkv', '.avi'])),
       playFullVideo: ref(false),
       pauseTimerOnPlay: ref(false),
       isTimerRunning: ref(true),
