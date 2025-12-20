@@ -15,3 +15,5 @@ cache
 coverage
 playwright-report
 test-results
+.env
+media
