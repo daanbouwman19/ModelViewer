@@ -11,7 +11,9 @@ import {
   upsertMetadata,
   getPendingMetadata,
 } from './database';
-import { performFullMediaScan } from './media-scanner';
+import { Worker } from 'worker_threads';
+import { app } from 'electron';
+import path from 'path';
 import { getVideoDuration } from './media-handler';
 import type { Album, MediaMetadata } from './types';
 import fs from 'fs/promises';
@@ -35,7 +37,48 @@ export async function scanDiskForAlbumsAndCache(
     return [];
   }
 
-  const albums = await performFullMediaScan(activeDirectories);
+  // Determine worker path
+  let workerPath: string | URL;
+  if (app.isPackaged) {
+    workerPath = path.join(__dirname, 'scan-worker.js');
+  } else {
+    // In dev, the worker is built to out/main/scan-worker.js
+    // We can rely on electron-vite's dev server or just point to the object URL if handled that way,
+    // but the database.ts example suggests passing a URL object relative to import.meta.url works.
+    workerPath = new URL('./scan-worker.js', import.meta.url);
+  }
+
+  // Run scan in a worker
+  const albums = await new Promise<Album[]>((resolve, reject) => {
+    const worker = new Worker(workerPath);
+
+    worker.on('message', (message) => {
+      if (message.type === 'SCAN_COMPLETE') {
+        resolve(message.albums);
+        worker.terminate();
+      } else if (message.type === 'SCAN_ERROR') {
+        reject(new Error(message.error));
+        worker.terminate();
+      }
+    });
+
+    worker.on('error', (err) => {
+      reject(err);
+      worker.terminate();
+    });
+
+    worker.on('exit', (code) => {
+      if (code !== 0) {
+        reject(new Error(`Worker stopped with exit code ${code}`));
+      }
+    });
+
+    worker.postMessage({
+      type: 'START_SCAN',
+      directories: activeDirectories,
+    });
+  });
+
   await cacheAlbums(albums || []);
 
   // Trigger metadata extraction in background if ffmpegPath is provided
