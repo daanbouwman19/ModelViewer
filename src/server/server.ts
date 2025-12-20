@@ -286,6 +286,40 @@ export async function createApp() {
   app.post('/api/directories', async (req, res) => {
     const { path: dirPath } = req.body;
     if (!dirPath) return res.status(400).send('Missing path');
+
+    // [SECURITY] Block sensitive system directories
+    const sensitivePaths =
+      process.platform === 'win32'
+        ? [
+            'C:\\',
+            'C:\\Windows',
+            'C:\\Program Files',
+            'C:\\Program Files (x86)',
+          ]
+        : [
+            '/',
+            '/etc',
+            '/usr',
+            '/var',
+            '/bin',
+            '/sbin',
+            '/root',
+            '/sys',
+            '/proc',
+            '/dev',
+            '/boot',
+          ];
+
+    const normalizedPath = path.resolve(dirPath);
+    if (sensitivePaths.some((p) => path.resolve(p) === normalizedPath)) {
+      console.warn(
+        `[Security] Blocked attempt to add sensitive directory: ${normalizedPath}`,
+      );
+      return res
+        .status(403)
+        .json({ error: 'Access restricted for sensitive system directories' });
+    }
+
     try {
       try {
         await fs.stat(dirPath);
