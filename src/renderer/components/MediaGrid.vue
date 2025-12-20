@@ -190,17 +190,15 @@ const processItem = (item: MediaFile): ProcessedMediaItem => {
 
   let url = '';
   if (mediaUrlGenerator.value) {
-    if (isImg && thumbnailUrlGenerator.value) {
-      // For images, use thumbnail by default for better performance
+    if (isVid) {
+      // For videos, use the full media URL with a time fragment to generate a thumbnail frame.
+      url = mediaUrlGenerator.value(item.path) + '#t=0.001';
+    } else if (isImg && thumbnailUrlGenerator.value) {
+      // For images, prefer the pre-generated thumbnail for performance.
       url = thumbnailUrlGenerator.value(item.path);
     } else {
+      // Fallback for images without a thumbnail generator or other file types.
       url = mediaUrlGenerator.value(item.path);
-    }
-
-    // For videos, add a time fragment to force a thumbnail frame
-    if (isVid) {
-      // Ensure we are using the full media URL for videos, not the thumbnail generator logic above if it leaked
-      url = mediaUrlGenerator.value!(item.path) + '#t=0.001';
     }
   }
 
