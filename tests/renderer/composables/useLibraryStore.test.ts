@@ -86,4 +86,14 @@ describe('useLibraryStore', () => {
     expect(store.globalMediaPoolForSelection.value).toEqual([]);
     expect(store.albumsSelectedForSlideshow.value).toEqual({});
   });
+
+  it('should clear only media pool', () => {
+    store.globalMediaPoolForSelection.value = [{ path: 'test' } as any];
+    store.albumsSelectedForSlideshow.value = { '1': true };
+
+    store.clearMediaPool();
+
+    expect(store.globalMediaPoolForSelection.value).toEqual([]);
+    expect(store.albumsSelectedForSlideshow.value).toEqual({ '1': true });
+  });
 });

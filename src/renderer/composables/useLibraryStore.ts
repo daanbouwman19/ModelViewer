@@ -101,6 +101,9 @@ export function useLibraryStore() {
     videoExtensionsSet,
     loadInitialData,
     selectAllAlbumsRecursively,
+    clearMediaPool: () => {
+      state.globalMediaPoolForSelection = [];
+    },
     resetLibraryState: () => {
       state.globalMediaPoolForSelection = [];
       state.albumsSelectedForSlideshow = {};

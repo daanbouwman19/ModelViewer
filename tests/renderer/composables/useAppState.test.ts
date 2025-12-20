@@ -182,7 +182,7 @@ describe('useAppState', () => {
   });
 
   describe('resetState', () => {
-    it('should reset all slideshow-related state', () => {
+    it('should reset all slideshow-related state but preserve selections', () => {
       // Set up some state
       appState.state.isSlideshowActive = true;
       appState.state.displayedMediaFiles = [
@@ -202,6 +202,7 @@ describe('useAppState', () => {
           path: '/path/file3.jpg',
         } as any,
       ];
+      appState.state.albumsSelectedForSlideshow = { 'album-1': true };
 
       appState.resetState();
 
@@ -209,6 +210,20 @@ describe('useAppState', () => {
       expect(appState.state.displayedMediaFiles).toEqual([]);
       expect(appState.state.currentMediaIndex).toBe(-1);
       expect(appState.state.currentMediaItem).toBe(null);
+      expect(appState.state.globalMediaPoolForSelection).toEqual([]);
+      // Selection should be preserved!
+      expect(appState.state.albumsSelectedForSlideshow['album-1']).toBe(true);
+    });
+  });
+
+  describe('resetInternalState', () => {
+    it('should reset player state and clear media pool', () => {
+      appState.state.isSlideshowActive = true;
+      appState.state.globalMediaPoolForSelection = [{ path: '/t' } as any];
+
+      appState.resetInternalState();
+
+      expect(appState.state.isSlideshowActive).toBe(false);
       expect(appState.state.globalMediaPoolForSelection).toEqual([]);
     });
   });

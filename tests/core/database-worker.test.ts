@@ -505,25 +505,19 @@ describe('Database Worker', () => {
       expect((getRes.data as any)[filePath].duration).toBe(300);
     });
 
-    it('should handle bulkUpsertMetadata transaction rollback on error', async () => {
+    it('should not insert any data if ID generation fails for one item (atomic preparation)', async () => {
       const filePath = path.join(tempDir, 'rollback.mp4');
       fs.writeFileSync(filePath, 'rollback data');
 
-      // We need to trigger an error INSIDE the transaction.
-      // One way is to send a payload that will cause a constraint violation or similar,
-      // but better-sqlite3 transactions in this worker are synchronous once started.
-      // However, upsertMetadata.run might fail if we pass something invalid if we had stricter constraints.
-      // Let's try to mock generateFileId to fail for the second item or similar.
-      // Actually, bulkUpsertMetadata pre-calculates IDs.
-
-      // If we pass a payload that is invalid AFTER ID calculation:
+      // This fails during generateFileId (Promise.all), so the transaction never starts.
+      // It still demonstrates atomic preparation: if one ID fails, no transaction is executed.
       const result = await sendMessage('bulkUpsertMetadata', [
         { filePath, duration: 100 },
-        { filePath: undefined as any, duration: 200 }, // This should crash during transaction or ID generation
+        { filePath: undefined as any, duration: 200 },
       ]);
       expect(result.success).toBe(false);
 
-      // Verify first item was NOT saved (rolled back)
+      // Verify first item was NOT saved
       const getRes = await sendMessage('getMetadata', {
         filePaths: [filePath],
       });

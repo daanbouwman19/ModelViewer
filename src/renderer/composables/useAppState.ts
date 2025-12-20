@@ -92,7 +92,7 @@ export function useAppState() {
   const resetInternalState = () => {
     // legacy support for testing
     playerStore.resetPlayerState();
-    // libraryStore doesn't have a reset, but maybe we don't need it or can add it if tests fail
+    libraryStore.clearMediaPool();
   };
 
   return {
@@ -103,7 +103,7 @@ export function useAppState() {
     initializeApp: libraryStore.loadInitialData,
     resetState: () => {
       playerStore.resetPlayerState();
-      libraryStore.resetLibraryState();
+      libraryStore.clearMediaPool();
     },
     stopSlideshow: playerStore.stopSlideshow,
     resetInternalState,
