@@ -206,6 +206,59 @@ describe('AlbumTree.vue', () => {
     });
   });
 
+  it('has correct accessibility attributes on checkbox', async () => {
+    // None selected
+    const wrapper = mount(AlbumTree, {
+      props: { album: testAlbum, selection: {} },
+    });
+    const checkbox = wrapper.find('[data-testid="album-checkbox"]');
+    expect(checkbox.attributes('role')).toBe('checkbox');
+    expect(checkbox.attributes('aria-checked')).toBe('false');
+
+    // All selected
+    const wrapperAll = mount(AlbumTree, {
+      props: {
+        album: testAlbum,
+        selection: {
+          'root-id': true,
+          'child1-id': true,
+          'child2-id': true,
+          'grandchild-id': true,
+        },
+      },
+    });
+    expect(
+      wrapperAll
+        .find('[data-testid="album-checkbox"]')
+        .attributes('aria-checked'),
+    ).toBe('true');
+
+    // Mixed selection
+    const wrapperSome = mount(AlbumTree, {
+      props: {
+        album: testAlbum,
+        selection: { 'child1-id': true },
+      },
+    });
+    expect(
+      wrapperSome
+        .find('[data-testid="album-checkbox"]')
+        .attributes('aria-checked'),
+    ).toBe('mixed');
+  });
+
+  it('has correct accessibility labels on action buttons', () => {
+    const wrapper = mount(AlbumTree, {
+      props: { album: testAlbum, selection: {} },
+    });
+
+    const playBtn = wrapper.find('button[title="Play Album"]');
+    expect(playBtn.attributes('aria-label')).toBe('Play root');
+
+    const gridBtn = wrapper.find('button[title="Open in Grid"]');
+    expect(gridBtn.attributes('aria-label')).toBe('Open root in Grid');
+  });
+
   it('re-emits toggleSelection from child component', async () => {
     // Need to expand to see children
     const wrapper = mount(AlbumTree, {

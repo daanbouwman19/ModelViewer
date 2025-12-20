@@ -32,6 +32,14 @@
       <button
         class="flex items-center justify-center w-5 h-5 rounded hover:bg-white/10 transition-colors"
         data-testid="album-checkbox"
+        role="checkbox"
+        :aria-checked="
+          selectionState === 'all'
+            ? 'true'
+            : selectionState === 'some'
+              ? 'mixed'
+              : 'false'
+        "
         :aria-label="`Select ${album.name}`"
         @click.stop="handleToggleSelection(album, $event)"
       >
@@ -88,6 +96,7 @@
         <button
           class="shrink-0 text-gray-500 hover:text-white p-1 rounded"
           title="Play Album"
+          :aria-label="'Play ' + album.name"
           @click.stop="handleClickAlbum(album)"
         >
           <PlayIcon class="w-4 h-4" />
@@ -97,6 +106,7 @@
         <button
           class="shrink-0 text-gray-500 hover:text-white p-1 rounded"
           title="Open in Grid"
+          :aria-label="'Open ' + album.name + ' in Grid'"
           @click.stop="handleOpenGrid(album)"
         >
           <GridIcon class="w-4 h-4" />
