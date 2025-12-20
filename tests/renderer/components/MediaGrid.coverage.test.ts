@@ -263,7 +263,32 @@ describe('MediaGrid.vue Coverage', () => {
     await flushPromises();
     await nextTick();
 
-    expect(wrapper.find('img').attributes('src')).toBe('url');
+    expect(wrapper.find('img').attributes('src')).toBe('thumb:///img.jpg');
+  });
+
+  it('handleImageError fallback to full URL', async () => {
+    mockState.gridMediaFiles = [{ name: 'img.jpg', path: '/img.jpg' }];
+    const wrapper = mountGrid();
+    await flushPromises();
+
+    // Trigger Resize
+    const calls = (ResizeObserverMock as any).mock.calls;
+    const observerCallback = calls[calls.length - 1][0];
+    observerCallback([
+      { contentRect: { width: 1000 }, contentBoxSize: [{ inlineSize: 1000 }] },
+    ]);
+    await wrapper.vm.$nextTick();
+
+    const img = wrapper.find('img');
+    expect(img.attributes('src')).toBe('thumb:///img.jpg');
+
+    // Trigger error
+    await img.trigger('error');
+
+    // Since handleImageError modifies the DOM element directly, we check the element property
+    // However, jsdom might not update 'attributes' via vue-test-utils automatically for direct DOM manip.
+    // Let's check the element's src property directly.
+    expect(img.element.src).toBe('url:///img.jpg');
   });
 
   it('getDisplayName fallback to path parsing', async () => {

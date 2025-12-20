@@ -57,6 +57,7 @@
                   alt=""
                   class="h-full w-full object-cover rounded"
                   loading="lazy"
+                  @error="handleImageError($event, mediaItem)"
                 />
               </template>
               <template v-else-if="mediaItem.isVideo">
@@ -189,10 +190,15 @@ const processItem = (item: MediaFile): ProcessedMediaItem => {
 
   let url = '';
   if (mediaUrlGenerator.value) {
-    url = mediaUrlGenerator.value(item.path);
-    // For videos, add a time fragment to force a thumbnail frame
     if (isVid) {
-      url += '#t=0.001';
+      // For videos, use the full media URL with a time fragment to generate a thumbnail frame.
+      url = mediaUrlGenerator.value(item.path) + '#t=0.001';
+    } else if (isImg && thumbnailUrlGenerator.value) {
+      // For images, prefer the pre-generated thumbnail for performance.
+      url = thumbnailUrlGenerator.value(item.path);
+    } else {
+      // Fallback for images without a thumbnail generator or other file types.
+      url = mediaUrlGenerator.value(item.path);
     }
   }
 
@@ -211,6 +217,18 @@ const processItem = (item: MediaFile): ProcessedMediaItem => {
     posterUrl: poster,
     displayName,
   };
+};
+
+const handleImageError = (event: Event, item: ProcessedMediaItem) => {
+  if (!mediaUrlGenerator.value) return;
+
+  const imgElement = event.target as HTMLImageElement;
+  const fullUrl = mediaUrlGenerator.value(item.path);
+
+  // Prevent infinite loop if full URL also fails
+  if (imgElement.src !== fullUrl) {
+    imgElement.src = fullUrl;
+  }
 };
 
 // Processed list of ALL items
