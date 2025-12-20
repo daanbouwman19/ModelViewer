@@ -29,27 +29,27 @@
         class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-4"
       >
         <button
-          v-for="item in visibleMediaFiles"
+          v-for="item in visibleItems"
           :key="item.path"
           type="button"
           class="relative group grid-item cursor-pointer w-full h-full text-left bg-transparent border-0 p-0 block focus:outline-none focus:ring-2 focus:ring-pink-500 rounded"
-          :aria-label="`View ${getDisplayName(item)}`"
+          :aria-label="`View ${item.displayName}`"
           @click="handleItemClick(item)"
         >
-          <template v-if="isImage(item)">
+          <template v-if="item.isImage">
             <img
-              :src="getMediaUrl(item)"
+              :src="item.mediaUrl"
               alt=""
               class="h-full w-full object-cover rounded"
               loading="lazy"
             />
           </template>
-          <template v-else-if="isVideo(item)">
+          <template v-else-if="item.isVideo">
             <video
-              :src="getMediaUrl(item)"
+              :src="item.mediaUrl"
               muted
               preload="metadata"
-              :poster="getPosterUrl(item)"
+              :poster="item.posterUrl"
               class="h-full w-full object-cover rounded"
             ></video>
             <div
@@ -69,13 +69,13 @@
             class="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
           >
             <p class="text-white text-xs truncate">
-              {{ getDisplayName(item) }}
+              {{ item.displayName }}
             </p>
           </div>
         </button>
 
         <div
-          v-if="visibleCount < allMediaFiles.length"
+          v-if="visibleItems.length < allMediaFiles.length"
           class="col-span-full py-4 text-center text-gray-500"
         >
           Loading more...
@@ -89,9 +89,9 @@
 /**
  * @file Displays a grid of media items (images and videos).
  * Supports hover-to-preview for videos and click-to-play functionality.
- * Uses incremental rendering (infinite scroll) for performance.
+ * Uses incremental rendering (infinite scroll) and pre-calculated metadata for performance.
  */
-import { ref, onMounted, computed, watch } from 'vue';
+import { ref, onMounted, computed, watch, shallowRef } from 'vue';
 import { useAppState } from '../composables/useAppState';
 import type { MediaFile } from '../../core/types';
 import { api } from '../api';
@@ -101,12 +101,124 @@ const { state, imageExtensionsSet, videoExtensionsSet } = useAppState();
 // Reactive reference to the full list from state
 const allMediaFiles = computed(() => state.gridMediaFiles);
 
+/**
+ * Extended interface for cached media item properties.
+ * Using this prevents repeated string parsing and extension lookups during render.
+ */
+interface ProcessedMediaItem extends MediaFile {
+  isImage: boolean;
+  isVideo: boolean;
+  mediaUrl: string;
+  posterUrl: string;
+  displayName: string;
+}
+
 // -- Infinite Scroll Logic --
 const visibleCount = ref(24); // Initial number of items to render (balanced for scrolling + 60fps)
 const BATCH_SIZE = 24; // Items to add per scroll event
 
-const visibleMediaFiles = computed(() => {
-  return allMediaFiles.value.slice(0, visibleCount.value);
+// Use shallowRef for performance: we treat the array as immutable chunks
+const visibleItems = shallowRef<ProcessedMediaItem[]>([]);
+
+/**
+ * Helper to extract file extension efficiently.
+ * @param nameOrPath - The file path or name.
+ * @returns The extension including the dot, or empty string if none.
+ */
+const getExtension = (nameOrPath: string) => {
+  const lastDotIndex = nameOrPath.lastIndexOf('.');
+  if (lastDotIndex === -1) return '';
+
+  const lastSlashIndex = Math.max(
+    nameOrPath.lastIndexOf('/'),
+    nameOrPath.lastIndexOf('\\'),
+  );
+  if (lastDotIndex < lastSlashIndex) return ''; // Dot is in directory name
+  if (lastDotIndex === lastSlashIndex + 1) return ''; // Dotfile (e.g. .gitignore)
+
+  return nameOrPath.substring(lastDotIndex).toLowerCase();
+};
+
+const mediaUrlGenerator = ref<((path: string) => string) | null>(null);
+const thumbnailUrlGenerator = ref<((path: string) => string) | null>(null);
+
+/**
+ * Transforms a MediaFile into a ProcessedMediaItem with pre-calculated fields.
+ * This runs only once per item when it first becomes visible, rather than on every render.
+ */
+const processItem = (item: MediaFile): ProcessedMediaItem => {
+  const nameOrPath = item.name || item.path;
+  const ext = getExtension(nameOrPath);
+  const isImg = imageExtensionsSet.value.has(ext);
+  const isVid = videoExtensionsSet.value.has(ext);
+
+  let url = '';
+  if (mediaUrlGenerator.value) {
+    url = mediaUrlGenerator.value(item.path);
+    // For videos, add a time fragment to force a thumbnail frame
+    if (isVid) {
+      url += '#t=0.001';
+    }
+  }
+
+  let poster = '';
+  if (thumbnailUrlGenerator.value) {
+    poster = thumbnailUrlGenerator.value(item.path);
+  }
+
+  const displayName = item.name || item.path.replace(/^.*[\\/]/, '');
+
+  return {
+    ...item,
+    isImage: isImg,
+    isVideo: isVid,
+    mediaUrl: url,
+    posterUrl: poster,
+    displayName,
+  };
+};
+
+// Watchers for data changes
+
+// 1. Handle full list changes or dependency updates (generators)
+watch(
+  [allMediaFiles, mediaUrlGenerator, thumbnailUrlGenerator],
+  () => {
+    // Reset count
+    visibleCount.value = BATCH_SIZE;
+
+    // Rebuild the initial batch
+    const initialBatch = allMediaFiles.value.slice(0, BATCH_SIZE);
+    visibleItems.value = initialBatch.map(processItem);
+
+    // Scroll to top when album changes
+    const container = document.querySelector('.media-grid-container');
+    if (container) container.scrollTop = 0;
+  },
+  { immediate: true },
+);
+
+// 2. Handle infinite scroll (append-only update for O(1) performance)
+watch(visibleCount, (newCount, oldCount) => {
+  if (newCount > oldCount) {
+    // Append new items
+    const newSlice = allMediaFiles.value.slice(oldCount, newCount);
+    const processed = newSlice.map(processItem);
+    // Assign a new array to trigger shallowRef update
+    visibleItems.value = [...visibleItems.value, ...processed];
+  } else if (newCount < oldCount) {
+    // Shrink (rare, but correct for safety)
+    visibleItems.value = visibleItems.value.slice(0, newCount);
+  }
+});
+
+// Also watch extensions in case they change dynamically (unlikely but safe)
+watch([imageExtensionsSet, videoExtensionsSet], () => {
+  // Force full re-process of current items
+  // Since we only store visibleItems, we re-process them from source
+  const currentCount = visibleCount.value;
+  const currentSlice = allMediaFiles.value.slice(0, currentCount);
+  visibleItems.value = currentSlice.map(processItem);
 });
 
 /**
@@ -150,62 +262,6 @@ const handleScrollInternal = (e: Event) => {
 // Throttled version of scroll handler (fires at most every 150ms)
 const handleScroll = throttle(handleScrollInternal, 150);
 
-// Reset visible count when the underlying data changes (e.g. new album opened)
-watch(allMediaFiles, () => {
-  visibleCount.value = BATCH_SIZE;
-  // Scroll to top when album changes
-  const container = document.querySelector('.media-grid-container');
-  if (container) container.scrollTop = 0;
-});
-// -- End Infinite Scroll Logic --
-
-/**
- * Helper to extract file extension efficiently.
- * @param nameOrPath - The file path or name.
- * @returns The extension including the dot, or empty string if none.
- */
-const getExtension = (nameOrPath: string) => {
-  const lastDotIndex = nameOrPath.lastIndexOf('.');
-  if (lastDotIndex === -1) return '';
-
-  const lastSlashIndex = Math.max(
-    nameOrPath.lastIndexOf('/'),
-    nameOrPath.lastIndexOf('\\'),
-  );
-  if (lastDotIndex < lastSlashIndex) return ''; // Dot is in directory name
-  if (lastDotIndex === lastSlashIndex + 1) return ''; // Dotfile (e.g. .gitignore)
-
-  return nameOrPath.substring(lastDotIndex).toLowerCase();
-};
-
-/**
- * Checks if the file is an image based on extension.
- * @param item - The media item.
- * @returns True if it is an image.
- */
-const isImage = (item: MediaFile) => {
-  // Use name if available as it's more reliable for non-filesystem paths (e.g. gdrive)
-  const ext = getExtension(item.name || item.path);
-  return imageExtensionsSet.value.has(ext);
-};
-
-/**
- * Checks if the file is a video based on extension.
- * @param item - The media item.
- * @returns True if it is a video.
- */
-const isVideo = (item: MediaFile) => {
-  const ext = getExtension(item.name || item.path);
-  return videoExtensionsSet.value.has(ext);
-};
-
-/**
- * Generates a URL for the media item.
- * Uses the new 'preferHttp' option to get an HTTP URL for grid performance.
- */
-const mediaUrlGenerator = ref<((path: string) => string) | null>(null);
-const thumbnailUrlGenerator = ref<((path: string) => string) | null>(null);
-
 onMounted(async () => {
   try {
     mediaUrlGenerator.value = await api.getMediaUrlGenerator();
@@ -214,30 +270,6 @@ onMounted(async () => {
     console.error('Failed to initialize media URL generators', e);
   }
 });
-
-const getMediaUrl = (item: MediaFile) => {
-  if (mediaUrlGenerator.value) {
-    let url = mediaUrlGenerator.value(item.path);
-    // For videos, add a time fragment to force a thumbnail frame
-    if (isVideo(item)) {
-      url += '#t=0.001';
-    }
-    return url;
-  }
-  return '';
-};
-
-const getPosterUrl = (item: MediaFile) => {
-  if (thumbnailUrlGenerator.value) {
-    return thumbnailUrlGenerator.value(item.path);
-  }
-  return '';
-};
-
-const getDisplayName = (item: MediaFile) => {
-  if (item.name) return item.name;
-  return item.path.replace(/^.*[\\/]/, '');
-};
 
 /**
  * Handlers for interactions
@@ -249,7 +281,7 @@ const handleItemClick = async (item: MediaFile) => {
     (f) => f.path === item.path,
   );
   state.currentMediaIndex = index;
-  state.currentMediaItem = item;
+  state.currentMediaItem = item; // MediaFile compatible
   state.viewMode = 'player';
   state.isSlideshowActive = true;
   state.isTimerRunning = false;
