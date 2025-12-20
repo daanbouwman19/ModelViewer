@@ -14,9 +14,11 @@
         Close
       </button>
     </div>
+
+    <!-- Virtual Scroller Container -->
     <div
-      class="media-grid-container p-4 grow overflow-y-auto custom-scrollbar"
-      @scroll="handleScroll"
+      ref="scrollerContainer"
+      class="media-grid-container p-4 grow overflow-hidden"
     >
       <div
         v-if="allMediaFiles.length === 0"
@@ -24,63 +26,71 @@
       >
         No media files found in this album.
       </div>
-      <div
-        v-else
-        class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 md:gap-4"
-      >
-        <button
-          v-for="item in visibleItems"
-          :key="item.path"
-          type="button"
-          class="relative group grid-item cursor-pointer w-full h-full text-left bg-transparent border-0 p-0 block focus:outline-none focus:ring-2 focus:ring-pink-500 rounded"
-          :aria-label="`View ${item.displayName}`"
-          @click="handleItemClick(item)"
-        >
-          <template v-if="item.isImage">
-            <img
-              :src="item.mediaUrl"
-              alt=""
-              class="h-full w-full object-cover rounded"
-              loading="lazy"
-            />
-          </template>
-          <template v-else-if="item.isVideo">
-            <video
-              :src="item.mediaUrl"
-              muted
-              preload="metadata"
-              :poster="item.posterUrl"
-              class="h-full w-full object-cover rounded"
-            ></video>
-            <div
-              class="absolute top-2 right-2 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded flex items-center pointer-events-none"
-            >
-              VIDEO
-            </div>
-          </template>
-          <!-- Rating Overlay -->
-          <div
-            v-if="item.rating"
-            class="absolute top-2 left-2 bg-black/60 text-yellow-400 text-xs px-1.5 py-0.5 rounded flex items-center pointer-events-none gap-1"
-          >
-            <span>★</span> {{ item.rating }}
-          </div>
-          <div
-            class="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
-          >
-            <p class="text-white text-xs truncate">
-              {{ item.displayName }}
-            </p>
-          </div>
-        </button>
 
-        <div
-          v-if="visibleItems.length < allMediaFiles.length"
-          class="col-span-full py-4 text-center text-gray-500"
-        >
-          Loading more...
-        </div>
-      </div>
+      <RecycleScroller
+        v-else
+        class="h-full custom-scrollbar"
+        :items="chunkedItems"
+        :item-size="rowHeight"
+        key-field="id"
+      >
+        <template #default="{ item: row }">
+          <div
+            class="grid w-full h-full"
+            :style="{
+              gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+              gap: `${gap}px`,
+              marginBottom: `${gap}px` /* Visual gap between rows */,
+            }"
+          >
+            <button
+              v-for="mediaItem in row.items"
+              :key="mediaItem.path"
+              type="button"
+              class="relative group grid-item cursor-pointer w-full h-full text-left bg-transparent border-0 p-0 block focus:outline-none focus:ring-2 focus:ring-pink-500 rounded"
+              :aria-label="`View ${mediaItem.displayName}`"
+              @click="handleItemClick(mediaItem)"
+            >
+              <template v-if="mediaItem.isImage">
+                <img
+                  :src="mediaItem.mediaUrl"
+                  alt=""
+                  class="h-full w-full object-cover rounded"
+                  loading="lazy"
+                />
+              </template>
+              <template v-else-if="mediaItem.isVideo">
+                <video
+                  :src="mediaItem.mediaUrl"
+                  muted
+                  preload="metadata"
+                  :poster="mediaItem.posterUrl"
+                  class="h-full w-full object-cover rounded"
+                ></video>
+                <div
+                  class="absolute top-2 right-2 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded flex items-center pointer-events-none"
+                >
+                  VIDEO
+                </div>
+              </template>
+              <!-- Rating Overlay -->
+              <div
+                v-if="mediaItem.rating"
+                class="absolute top-2 left-2 bg-black/60 text-yellow-400 text-xs px-1.5 py-0.5 rounded flex items-center pointer-events-none gap-1"
+              >
+                <span>★</span> {{ mediaItem.rating }}
+              </div>
+              <div
+                class="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
+              >
+                <p class="text-white text-xs truncate">
+                  {{ mediaItem.displayName }}
+                </p>
+              </div>
+            </button>
+          </div>
+        </template>
+      </RecycleScroller>
     </div>
   </div>
 </template>
@@ -89,9 +99,9 @@
 /**
  * @file Displays a grid of media items (images and videos).
  * Supports hover-to-preview for videos and click-to-play functionality.
- * Uses incremental rendering (infinite scroll) and pre-calculated metadata for performance.
+ * Uses vue-virtual-scroller for performance on large albums.
  */
-import { ref, onMounted, computed, watch, shallowRef } from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch, shallowRef } from 'vue';
 import { useAppState } from '../composables/useAppState';
 import type { MediaFile } from '../../core/types';
 import { api } from '../api';
@@ -113,12 +123,37 @@ interface ProcessedMediaItem extends MediaFile {
   displayName: string;
 }
 
-// -- Infinite Scroll Logic --
-const visibleCount = ref(24); // Initial number of items to render (balanced for scrolling + 60fps)
-const BATCH_SIZE = 24; // Items to add per scroll event
+interface GridRow {
+  id: string;
+  items: ProcessedMediaItem[];
+}
 
-// Use shallowRef for performance: we treat the array as immutable chunks
-const visibleItems = shallowRef<ProcessedMediaItem[]>([]);
+const scrollerContainer = ref<HTMLElement | null>(null);
+const containerWidth = ref(1024); // Default fallback
+
+// -- Grid Dimensions Logic --
+const columnCount = computed(() => {
+  const w = containerWidth.value;
+  if (w < 640) return 2; // grid-cols-2
+  if (w < 1024) return 3; // sm:grid-cols-3 and md:grid-cols-3
+  if (w < 1280) return 4; // lg:grid-cols-4
+  return 5; // xl:grid-cols-5
+});
+
+const gap = computed(() => {
+  // Matching gap-2 (8px) and md:gap-4 (16px)
+  return containerWidth.value < 768 ? 8 : 16;
+});
+
+// Calculate row height to maintain square aspect ratio for items
+const rowHeight = computed(() => {
+  const PADDING_PX = 16; // p-4 = 1rem = 16px
+  const totalGapWidth = gap.value * (columnCount.value - 1);
+  const availableWidth = containerWidth.value - PADDING_PX * 2;
+  const itemWidth = (availableWidth - totalGapWidth) / columnCount.value;
+  // Add gap to height because RecycleScroller packs rows tightly, we simulate gap with marginBottom
+  return itemWidth + gap.value;
+});
 
 /**
  * Helper to extract file extension efficiently.
@@ -178,89 +213,54 @@ const processItem = (item: MediaFile): ProcessedMediaItem => {
   };
 };
 
-// Watchers for data changes
+// Processed list of ALL items
+const allProcessedItems = shallowRef<ProcessedMediaItem[]>([]);
 
-// 1. Handle full list changes or dependency updates (generators)
 watch(
-  [allMediaFiles, mediaUrlGenerator, thumbnailUrlGenerator],
+  [
+    allMediaFiles,
+    mediaUrlGenerator,
+    thumbnailUrlGenerator,
+    imageExtensionsSet,
+    videoExtensionsSet,
+  ],
   () => {
-    // Reset count
-    visibleCount.value = BATCH_SIZE;
-
-    // Rebuild the initial batch
-    const initialBatch = allMediaFiles.value.slice(0, BATCH_SIZE);
-    visibleItems.value = initialBatch.map(processItem);
-
-    // Scroll to top when album changes
-    const container = document.querySelector('.media-grid-container');
-    if (container) container.scrollTop = 0;
+    allProcessedItems.value = allMediaFiles.value.map(processItem);
   },
   { immediate: true },
 );
 
-// 2. Handle infinite scroll (append-only update for O(1) performance)
-watch(visibleCount, (newCount, oldCount) => {
-  if (newCount > oldCount) {
-    // Append new items
-    const newSlice = allMediaFiles.value.slice(oldCount, newCount);
-    const processed = newSlice.map(processItem);
-    // Assign a new array to trigger shallowRef update
-    visibleItems.value = [...visibleItems.value, ...processed];
-  } else if (newCount < oldCount) {
-    // Shrink (rare, but correct for safety)
-    visibleItems.value = visibleItems.value.slice(0, newCount);
+// Chunk items into rows for the scroller
+const chunkedItems = computed<GridRow[]>(() => {
+  const items = allProcessedItems.value;
+  const cols = columnCount.value;
+  const rows: GridRow[] = [];
+
+  for (let i = 0; i < items.length; i += cols) {
+    rows.push({
+      id: `row-${i}`,
+      items: items.slice(i, i + cols),
+    });
   }
+  return rows;
 });
 
-// Also watch extensions in case they change dynamically (unlikely but safe)
-watch([imageExtensionsSet, videoExtensionsSet], () => {
-  // Force full re-process of current items
-  // Since we only store visibleItems, we re-process them from source
-  const currentCount = visibleCount.value;
-  const currentSlice = allMediaFiles.value.slice(0, currentCount);
-  visibleItems.value = currentSlice.map(processItem);
-});
+// Resize Observer
+let resizeObserver: ResizeObserver | null = null;
 
-/**
- * Throttle helper function to limit how often a function can be called
- * @param func - The function to throttle
- * @param delay - Delay in milliseconds
- * @returns Throttled function
- */
-const throttle = <A extends unknown[]>(
-  func: (...args: A) => void,
-  delay: number,
-) => {
-  let inThrottle: boolean;
-  return function (this: unknown, ...args: A) {
-    if (!inThrottle) {
-      func.apply(this, args);
-      inThrottle = true;
-      setTimeout(() => (inThrottle = false), delay);
-    }
-  };
-};
-
-/**
- * Handles scroll events to load more items incrementally
- */
-const handleScrollInternal = (e: Event) => {
-  const target = e.target as HTMLElement;
-  const { scrollTop, scrollHeight, clientHeight } = target;
-
-  // Load more when the user scrolls within 300px of the bottom
-  if (scrollTop + clientHeight >= scrollHeight - 300) {
-    if (visibleCount.value < allMediaFiles.value.length) {
-      visibleCount.value = Math.min(
-        visibleCount.value + BATCH_SIZE,
-        allMediaFiles.value.length,
-      );
-    }
+const setupResizeObserver = () => {
+  if (scrollerContainer.value && !resizeObserver) {
+    resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentBoxSize) {
+          // Use content box width to match how CSS grid calculates available space
+          containerWidth.value = entry.contentRect.width;
+        }
+      }
+    });
+    resizeObserver.observe(scrollerContainer.value);
   }
 };
-
-// Throttled version of scroll handler (fires at most every 150ms)
-const handleScroll = throttle(handleScrollInternal, 150);
 
 onMounted(async () => {
   try {
@@ -269,13 +269,28 @@ onMounted(async () => {
   } catch (e) {
     console.error('Failed to initialize media URL generators', e);
   }
+
+  // Initial setup attempt
+  setupResizeObserver();
+});
+
+// Watch for the container appearing (e.g. when items are loaded)
+watch(scrollerContainer, () => {
+  setupResizeObserver();
+});
+
+onUnmounted(() => {
+  if (resizeObserver) {
+    resizeObserver.disconnect();
+    resizeObserver = null;
+  }
 });
 
 /**
  * Handlers for interactions
  */
 const handleItemClick = async (item: MediaFile) => {
-  // When clicking an item, we pass the FULL list to the player, not just visible ones
+  // When clicking an item, we pass the FULL list to the player
   state.displayedMediaFiles = [...allMediaFiles.value];
   const index = state.displayedMediaFiles.findIndex(
     (f) => f.path === item.path,
