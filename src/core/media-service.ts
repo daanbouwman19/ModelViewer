@@ -15,6 +15,7 @@ import { performFullMediaScan } from './media-scanner';
 import { getVideoDuration } from './media-handler';
 import type { Album, MediaMetadata } from './types';
 import fs from 'fs/promises';
+import PQueue from 'p-queue';
 
 /**
  * Scans active media directories for albums, caches the result in the database,
@@ -149,48 +150,51 @@ export async function extractAndSaveMetadata(
   filePaths: string[],
   ffmpegPath: string,
 ): Promise<void> {
-  // Process sequentially to verify stability, or use a concurrency limit
-  // For now simple loop
+  const queue = new PQueue({ concurrency: 5 });
+
   for (const filePath of filePaths) {
-    // Defensive check
     if (!filePath) {
       continue;
     }
 
-    try {
-      if (filePath.startsWith('gdrive://')) {
-        continue;
-      }
-
-      // Mark as processing (optional, or we just rely on pending default)
-      // await upsertMetadata(filePath, { status: 'processing' });
-
-      const stats = await fs.stat(filePath);
-      const metadata: MediaMetadata = {
-        size: stats.size,
-        createdAt: stats.birthtime.toISOString(),
-        status: 'processing',
-      };
-
-      const result = await getVideoDuration(filePath, ffmpegPath);
-      if ('duration' in result) {
-        metadata.duration = result.duration;
-      }
-
-      // Mark success
-      metadata.status = 'success';
-      await upsertMetadata(filePath, metadata);
-    } catch (error) {
-      console.warn(
-        `[media-service] Error extracting metadata for ${filePath}:`,
-        error,
-      );
-      // Mark failed
+    queue.add(async () => {
       try {
-        await upsertMetadata(filePath, { status: 'failed' });
-      } catch {
-        /* ignore */
+        if (filePath.startsWith('gdrive://')) {
+          return;
+        }
+
+        // Mark as processing (optional, or we just rely on pending default)
+        // await upsertMetadata(filePath, { status: 'processing' });
+
+        const stats = await fs.stat(filePath);
+        const metadata: MediaMetadata = {
+          size: stats.size,
+          createdAt: stats.birthtime.toISOString(),
+          status: 'processing',
+        };
+
+        const result = await getVideoDuration(filePath, ffmpegPath);
+        if ('duration' in result) {
+          metadata.duration = result.duration;
+        }
+
+        // Mark success
+        metadata.status = 'success';
+        await upsertMetadata(filePath, metadata);
+      } catch (error) {
+        console.warn(
+          `[media-service] Error extracting metadata for ${filePath}:`,
+          error,
+        );
+        // Mark failed
+        try {
+          await upsertMetadata(filePath, { status: 'failed' });
+        } catch {
+          /* ignore */
+        }
       }
-    }
+    });
   }
+
+  await queue.onIdle();
 }

@@ -4,13 +4,24 @@ import {
   getAlbumsFromCacheOrDisk,
   getAlbumsWithViewCountsAfterScan,
   getAlbumsWithViewCounts,
+  extractAndSaveMetadata,
 } from '../../src/core/media-service';
 import * as database from '../../src/core/database';
 import * as mediaScanner from '../../src/core/media-scanner';
+import * as mediaHandler from '../../src/core/media-handler';
+import fs from 'fs/promises';
 
 // Mock dependencies
 vi.mock('../../src/core/database');
 vi.mock('../../src/core/media-scanner');
+vi.mock('../../src/core/media-handler');
+
+// Explicitly mock fs/promises
+vi.mock('fs/promises', () => ({
+  default: {
+    stat: vi.fn(),
+  },
+}));
 
 describe('media-service', () => {
   beforeEach(() => {
@@ -142,5 +153,65 @@ describe('media-service', () => {
     const result = await scanDiskForAlbumsAndCache();
     expect(database.cacheAlbums).toHaveBeenCalledWith([]);
     expect(result).toEqual([]);
+  });
+
+  describe('extractAndSaveMetadata', () => {
+    it('processes valid paths and handles errors gracefully', async () => {
+      const filePaths = ['/valid/file1.mp4', '/error/file2.mp4'];
+      const ffmpegPath = '/usr/bin/ffmpeg';
+
+      // Mock fs.stat
+      vi.mocked(fs.stat).mockImplementation(async (path) => {
+        if (path === '/valid/file1.mp4') {
+          return {
+            size: 1024,
+            birthtime: new Date('2023-01-01'),
+          } as any;
+        }
+        if (path === '/error/file2.mp4') {
+          throw new Error('File not found');
+        }
+        return {} as any;
+      });
+
+      // Mock getVideoDuration
+      vi.mocked(mediaHandler.getVideoDuration).mockImplementation(
+        async (path) => {
+          if (path === '/valid/file1.mp4') {
+            return { duration: 120 };
+          }
+          return { error: 'Should not reach here for file2' };
+        },
+      );
+
+      await extractAndSaveMetadata(filePaths, ffmpegPath);
+
+      // Verify valid file processing
+      expect(fs.stat).toHaveBeenCalledWith('/valid/file1.mp4');
+      expect(mediaHandler.getVideoDuration).toHaveBeenCalledWith(
+        '/valid/file1.mp4',
+        ffmpegPath,
+      );
+      expect(database.upsertMetadata).toHaveBeenCalledWith('/valid/file1.mp4', {
+        size: 1024,
+        createdAt: new Date('2023-01-01').toISOString(),
+        status: 'success',
+        duration: 120,
+      });
+
+      // Verify error handling for file2
+      // It should try to extract, fail at fs.stat, log warning (console.warn mocked implicitly?), and upsert 'failed'
+      expect(fs.stat).toHaveBeenCalledWith('/error/file2.mp4');
+      expect(database.upsertMetadata).toHaveBeenCalledWith('/error/file2.mp4', {
+        status: 'failed',
+      });
+    });
+
+    it('skips gdrive paths', async () => {
+      const filePaths = ['gdrive://some-id'];
+      await extractAndSaveMetadata(filePaths, 'ffmpeg');
+      expect(fs.stat).not.toHaveBeenCalled();
+      expect(database.upsertMetadata).not.toHaveBeenCalled();
+    });
   });
 });
