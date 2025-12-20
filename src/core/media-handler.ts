@@ -75,7 +75,7 @@ function runFFmpegThumbnail(
   });
 }
 
-function getFFmpegDuration(
+export function getFFmpegDuration(
   filePath: string,
   ffmpegPath: string,
 ): Promise<number> {
