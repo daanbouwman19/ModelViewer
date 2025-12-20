@@ -124,6 +124,7 @@ interface GridRow {
 
 const scrollerContainer = ref<HTMLElement | null>(null);
 const containerWidth = ref(1024); // Default fallback
+const MIN_CONTAINER_WIDTH = 320;
 
 // -- Grid Dimensions Logic --
 const columnCount = computed(() => {
@@ -280,7 +281,10 @@ const setupResizeObserver = () => {
         if (entry.contentBoxSize) {
           // Use content box width to match how CSS grid calculates available space
           // Ensure we never have 0 width to avoid layout collapse
-          containerWidth.value = Math.max(320, entry.contentRect.width);
+          containerWidth.value = Math.max(
+            MIN_CONTAINER_WIDTH,
+            entry.contentRect.width,
+          );
         }
       }
     });
