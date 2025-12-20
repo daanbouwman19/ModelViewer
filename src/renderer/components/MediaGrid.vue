@@ -135,8 +135,7 @@ const containerWidth = ref(1024); // Default fallback
 const columnCount = computed(() => {
   const w = containerWidth.value;
   if (w < 640) return 2; // grid-cols-2
-  if (w < 768) return 3; // sm:grid-cols-3
-  if (w < 1024) return 3; // md:grid-cols-3
+  if (w < 1024) return 3; // sm:grid-cols-3 and md:grid-cols-3
   if (w < 1280) return 4; // lg:grid-cols-4
   return 5; // xl:grid-cols-5
 });
@@ -148,8 +147,9 @@ const gap = computed(() => {
 
 // Calculate row height to maintain square aspect ratio for items
 const rowHeight = computed(() => {
+  const PADDING_PX = 16; // p-4 = 1rem = 16px
   const totalGapWidth = gap.value * (columnCount.value - 1);
-  const availableWidth = containerWidth.value - 32; // Subtract padding (p-4 = 1rem = 16px * 2)
+  const availableWidth = containerWidth.value - PADDING_PX * 2;
   const itemWidth = (availableWidth - totalGapWidth) / columnCount.value;
   // Add gap to height because RecycleScroller packs rows tightly, we simulate gap with marginBottom
   return itemWidth + gap.value;
