@@ -12,6 +12,9 @@ import MediaGrid from '@/components/MediaGrid.vue';
 import { api } from '@/api';
 
 // Shared mock state
+// Note: In Vitest, this variable is accessible in the mock factory because
+// the factory is executed when the component calls useAppState, which happens
+// during mount(), well after this module has executed.
 const mockState = {
   gridMediaFiles: [] as { path: string; name: string }[],
   supportedExtensions: {
@@ -27,13 +30,18 @@ const mockState = {
 };
 
 // Mock useAppState
-vi.mock('@/composables/useAppState', () => ({
-  useAppState: () => ({
-    state: mockState,
-    imageExtensionsSet: { value: new Set(['.jpg', '.png']) },
-    videoExtensionsSet: { value: new Set(['.mp4', '.webm']) },
-  }),
-}));
+// We use an async factory to import 'vue' dynamically so we can use real refs
+// to satisfy the watch source requirement.
+vi.mock('@/composables/useAppState', async () => {
+  const { ref } = await import('vue');
+  return {
+    useAppState: () => ({
+      state: mockState,
+      imageExtensionsSet: ref(new Set(['.jpg', '.png'])),
+      videoExtensionsSet: ref(new Set(['.mp4', '.webm'])),
+    }),
+  };
+});
 
 // Mock api
 vi.mock('@/api', () => ({
@@ -47,6 +55,8 @@ describe('MediaGrid.vue', () => {
   beforeEach(() => {
     mockState.gridMediaFiles = [];
     mockState.viewMode = 'grid';
+    mockState.displayedMediaFiles = [];
+    mockState.currentMediaItem = null;
 
     vi.clearAllMocks();
 
@@ -110,7 +120,8 @@ describe('MediaGrid.vue', () => {
 
     expect(mockState.viewMode).toBe('player');
     expect(mockState.isSlideshowActive).toBe(true);
-    expect(mockState.currentMediaItem).toEqual(item1);
+    // Use objectContaining because the component enriches the item with metadata
+    expect(mockState.currentMediaItem).toEqual(expect.objectContaining(item1));
     expect(mockState.displayedMediaFiles).toHaveLength(1);
   });
 
