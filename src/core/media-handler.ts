@@ -75,6 +75,37 @@ function runFFmpegThumbnail(
   });
 }
 
+function getFFmpegDuration(
+  filePath: string,
+  ffmpegPath: string,
+): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const ffmpegProcess = spawn(ffmpegPath, ['-i', filePath]);
+    let stderrData = '';
+
+    ffmpegProcess.stderr.on('data', (data: Buffer) => {
+      stderrData += data.toString();
+    });
+
+    ffmpegProcess.on('close', () => {
+      const match = stderrData.match(/Duration:\s+(\d+):(\d+):(\d+(?:\.\d+)?)/);
+      if (match) {
+        const hours = parseFloat(match[1]);
+        const minutes = parseFloat(match[2]);
+        const seconds = parseFloat(match[3]);
+        resolve(hours * 3600 + minutes * 60 + seconds);
+      } else {
+        reject(new Error('Could not determine duration'));
+      }
+    });
+
+    ffmpegProcess.on('error', (err) => {
+      console.error('[Metadata] FFmpeg spawn error:', err);
+      reject(new Error('FFmpeg execution failed'));
+    });
+  });
+}
+
 /**
  * Retrieves video duration using ffmpeg or provider metadata.
  */
@@ -98,31 +129,12 @@ export async function getVideoDuration(
     return { error: 'Duration not available' };
   }
 
-  return new Promise((resolve) => {
-    const ffmpegProcess = spawn(ffmpegPath, ['-i', filePath]);
-    let stderrData = '';
-    ffmpegProcess.stderr.on('data', (data: Buffer) => {
-      stderrData += data.toString();
-    });
-
-    ffmpegProcess.on('close', () => {
-      const match = stderrData.match(/Duration:\s+(\d+):(\d+):(\d+(?:\.\d+)?)/);
-      if (match) {
-        const hours = parseFloat(match[1]);
-        const minutes = parseFloat(match[2]);
-        const seconds = parseFloat(match[3]);
-        const duration = hours * 3600 + minutes * 60 + seconds;
-        resolve({ duration });
-      } else {
-        resolve({ error: 'Could not determine duration' });
-      }
-    });
-
-    ffmpegProcess.on('error', (err) => {
-      console.error('[Metadata] FFmpeg spawn error:', err);
-      resolve({ error: 'FFmpeg execution failed' });
-    });
-  });
+  try {
+    const duration = await getFFmpegDuration(filePath, ffmpegPath);
+    return { duration };
+  } catch (error: unknown) {
+    return { error: (error as Error).message };
+  }
 }
 
 /**
