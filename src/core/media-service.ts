@@ -150,7 +150,8 @@ export async function extractAndSaveMetadata(
   filePaths: string[],
   ffmpegPath: string,
 ): Promise<void> {
-  const queue = new PQueue({ concurrency: 5 });
+  const METADATA_EXTRACTION_CONCURRENCY = 5;
+  const queue = new PQueue({ concurrency: METADATA_EXTRACTION_CONCURRENCY });
 
   for (const filePath of filePaths) {
     if (!filePath) {
