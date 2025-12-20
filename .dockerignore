@@ -13,6 +13,5 @@ media-library.db-wal
 tests/temp/
 cache
 coverage
-release
 playwright-report
 test-results
