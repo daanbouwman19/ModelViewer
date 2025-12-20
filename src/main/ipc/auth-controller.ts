@@ -36,7 +36,7 @@ export function registerAuthHandlers() {
         type: 'google_drive',
         name: res.data.name || 'Google Drive Folder',
       });
-      return { name: res.data.name };
+      return { name: res.data.name || undefined };
     },
   );
 }

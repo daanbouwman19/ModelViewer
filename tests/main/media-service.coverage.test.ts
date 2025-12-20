@@ -32,10 +32,12 @@ describe('media-service coverage', () => {
       expect.stringContaining('Error extracting metadata'),
       expect.any(Error),
     );
-    expect(db.upsertMetadata).toHaveBeenCalledWith(
-      testFile,
-      expect.objectContaining({ status: 'failed' }),
-    );
+    expect(db.bulkUpsertMetadata).toHaveBeenCalledWith([
+      expect.objectContaining({
+        filePath: testFile,
+        status: 'failed',
+      }),
+    ]);
   });
 
   it('extractAndSaveMetadata handles upsertMetadata errors', async () => {
@@ -44,14 +46,14 @@ describe('media-service coverage', () => {
       birthtime: new Date(),
     });
     (mediaHandler.getVideoDuration as any).mockResolvedValue({ duration: 60 });
-    (db.upsertMetadata as any).mockRejectedValue(new Error('DB Error'));
+    (db.bulkUpsertMetadata as any).mockRejectedValue(new Error('DB Error'));
 
-    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     await extractAndSaveMetadata([testFile], mockFfmpegPath);
 
     expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Error extracting metadata'),
+      expect.stringContaining('Failed to bulk upsert metadata'),
       expect.any(Error),
     );
   });
@@ -65,13 +67,13 @@ describe('media-service coverage', () => {
 
     await extractAndSaveMetadata([testFile], mockFfmpegPath);
 
-    expect(db.upsertMetadata).toHaveBeenCalledWith(
-      testFile,
+    expect(db.bulkUpsertMetadata).toHaveBeenCalledWith([
       expect.objectContaining({
+        filePath: testFile,
         duration: 120,
         size: 1000,
       }),
-    );
+    ]);
   });
 
   it('extractAndSaveMetadata skips duration if unavailable', async () => {
@@ -85,17 +87,16 @@ describe('media-service coverage', () => {
 
     await extractAndSaveMetadata([testFile], mockFfmpegPath);
 
-    expect(db.upsertMetadata).toHaveBeenCalledWith(
-      testFile,
+    expect(db.bulkUpsertMetadata).toHaveBeenCalledWith([
       expect.objectContaining({
+        filePath: testFile,
         size: 500,
       }),
-    );
-    expect(db.upsertMetadata).toHaveBeenCalledWith(
-      testFile,
+    ]);
+    expect(db.bulkUpsertMetadata).toHaveBeenCalledWith([
       expect.not.objectContaining({
         duration: expect.anything(),
       }),
-    );
+    ]);
   });
 });

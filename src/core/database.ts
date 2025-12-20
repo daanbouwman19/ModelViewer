@@ -403,6 +403,20 @@ async function upsertMetadata(
 }
 
 /**
+ * Bulk upserts metadata for multiple files.
+ */
+async function bulkUpsertMetadata(
+  payloads: ({ filePath: string } & MediaMetadata)[],
+): Promise<void> {
+  try {
+    await sendMessageToWorker<void>('bulkUpsertMetadata', payloads);
+  } catch (error) {
+    console.error('[database.js] Error bulk upserting metadata:', error);
+    throw error;
+  }
+}
+
+/**
  * Sets the rating for a file.
  */
 async function setRating(filePath: string, rating: number): Promise<void> {
@@ -527,6 +541,7 @@ export {
   setDirectoryActiveState,
   setOperationTimeout,
   upsertMetadata,
+  bulkUpsertMetadata,
   setRating,
   getMetadata,
   createSmartPlaylist,

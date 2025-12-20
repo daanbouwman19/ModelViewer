@@ -10,3 +10,4 @@ dist-server
 media-library.db
 media-library.db-shm
 media-library.db-wal
+tests/temp/
