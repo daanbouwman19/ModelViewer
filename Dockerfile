@@ -28,4 +28,4 @@ EXPOSE 3000
 ENV NODE_ENV=production
 
 # Define command
-CMD ["node", "dist-server/index.js"]
+CMD ["node", "dist/server/index.js"]
