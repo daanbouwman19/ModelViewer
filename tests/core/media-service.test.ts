@@ -7,7 +7,6 @@ import {
   extractAndSaveMetadata,
 } from '../../src/core/media-service';
 import * as database from '../../src/core/database';
-import * as mediaScanner from '../../src/core/media-scanner';
 import * as mediaHandler from '../../src/core/media-handler';
 import fs from 'fs/promises';
 
@@ -23,12 +22,75 @@ vi.mock('fs/promises', () => ({
   },
 }));
 
+// Mock Electron
+const electronMocks = vi.hoisted(() => ({
+  app: {
+    isPackaged: false,
+    getPath: vi.fn(),
+  },
+}));
+
+vi.mock('electron', () => electronMocks);
+
+// Mock Worker Threads
+const mocks = vi.hoisted(() => {
+  const on = vi.fn();
+  const postMessage = vi.fn();
+  const terminate = vi.fn();
+  const Worker = vi.fn(function () {
+    return {
+      on,
+      postMessage,
+      terminate,
+      removeAllListeners: vi.fn(),
+    };
+  });
+  return { Worker, on, postMessage, terminate };
+});
+
+vi.mock('worker_threads', () => ({
+  Worker: mocks.Worker,
+  default: { Worker: mocks.Worker },
+}));
+
 describe('media-service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   describe('scanDiskForAlbumsAndCache', () => {
+    beforeEach(() => {
+      // Reset callback implementation
+      mocks.on.mockImplementation(() => {});
+    });
+
+    it('uses correct worker path in packaged app', async () => {
+      electronMocks.app.isPackaged = true;
+
+      vi.mocked(database.getMediaDirectories).mockResolvedValue([
+        { path: '/dir', isActive: true },
+      ] as any);
+
+      // Start the function
+      const promise = scanDiskForAlbumsAndCache();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(mocks.Worker).toHaveBeenCalledWith(
+        expect.stringContaining('scan-worker.js'),
+      );
+
+      // Complete the scan to resolve promise
+      const callback = mocks.on.mock.calls.find(
+        (call) => call[0] === 'message',
+      )?.[1];
+      if (callback) callback({ type: 'SCAN_COMPLETE', albums: [] });
+      await promise;
+
+      // Restore
+      electronMocks.app.isPackaged = false;
+      mocks.terminate.mockClear();
+    });
+
     it('scans and caches albums if directories exist', async () => {
       const dirs = [
         { path: '/dir1', isActive: true },
@@ -36,16 +98,36 @@ describe('media-service', () => {
       ];
       vi.mocked(database.getMediaDirectories).mockResolvedValue(dirs as any);
       const albums = [{ id: 1, name: 'Album1' }];
-      vi.mocked(mediaScanner.performFullMediaScan).mockResolvedValue(
-        albums as any,
-      );
 
-      const result = await scanDiskForAlbumsAndCache();
+      // Capture message callback
+      let messageCallback: ((msg: any) => void) | undefined;
+      mocks.on.mockImplementation((event, cb) => {
+        if (event === 'message') messageCallback = cb;
+      });
+
+      // Start the function
+      const promise = scanDiskForAlbumsAndCache();
+
+      // The worker should be instantiated
+      await new Promise((resolve) => setTimeout(resolve, 0)); // Let the microtask run to creating worker
+      expect(mocks.Worker).toHaveBeenCalled();
+
+      // Trigger worker message
+      expect(mocks.postMessage).toHaveBeenCalledWith({
+        type: 'START_SCAN',
+        directories: ['/dir1'],
+      });
+
+      if (messageCallback) {
+        messageCallback({ type: 'SCAN_COMPLETE', albums });
+      }
+
+      const result = await promise;
 
       expect(database.getMediaDirectories).toHaveBeenCalled();
-      expect(mediaScanner.performFullMediaScan).toHaveBeenCalledWith(['/dir1']);
       expect(database.cacheAlbums).toHaveBeenCalledWith(albums);
       expect(result).toEqual(albums);
+      expect(mocks.terminate).toHaveBeenCalled();
     });
 
     it('returns empty list if no active directories', async () => {
@@ -55,9 +137,134 @@ describe('media-service', () => {
 
       const result = await scanDiskForAlbumsAndCache();
 
-      expect(mediaScanner.performFullMediaScan).not.toHaveBeenCalled();
+      expect(mocks.Worker).not.toHaveBeenCalled();
       expect(database.cacheAlbums).toHaveBeenCalledWith([]);
       expect(result).toEqual([]);
+    });
+
+    it('handles worker errors', async () => {
+      vi.mocked(database.getMediaDirectories).mockResolvedValue([
+        { path: '/dir1', isActive: true },
+      ] as any);
+
+      let messageCallback: ((msg: any) => void) | undefined;
+      mocks.on.mockImplementation((event, cb) => {
+        if (event === 'message') messageCallback = cb;
+      });
+
+      const promise = scanDiskForAlbumsAndCache();
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(mocks.postMessage).toHaveBeenCalled();
+
+      if (messageCallback) {
+        messageCallback({ type: 'SCAN_ERROR', error: 'Worker failed' });
+      }
+
+      await expect(promise).rejects.toThrow('Worker failed');
+      expect(mocks.terminate).toHaveBeenCalled();
+    });
+
+    it('handles worker system error', async () => {
+      vi.mocked(database.getMediaDirectories).mockResolvedValue([
+        { path: '/dir1', isActive: true },
+      ] as any);
+
+      let errorCallback: ((err: any) => void) | undefined;
+      mocks.on.mockImplementation((event, cb) => {
+        if (event === 'error') errorCallback = cb;
+      });
+
+      const promise = scanDiskForAlbumsAndCache();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      if (errorCallback) {
+        errorCallback(new Error('System error'));
+      }
+
+      await expect(promise).rejects.toThrow('System error');
+      expect(mocks.terminate).toHaveBeenCalled();
+    });
+
+    it('handles worker non-zero exit', async () => {
+      vi.mocked(database.getMediaDirectories).mockResolvedValue([
+        { path: '/dir1', isActive: true },
+      ] as any);
+
+      let exitCallback: ((code: number) => void) | undefined;
+      mocks.on.mockImplementation((event, cb) => {
+        if (event === 'exit') exitCallback = cb;
+      });
+
+      const promise = scanDiskForAlbumsAndCache();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      if (exitCallback) {
+        exitCallback(1);
+      }
+
+      await expect(promise).rejects.toThrow('Worker stopped with exit code 1');
+    });
+
+    it('handles worker zero exit without result', async () => {
+      vi.mocked(database.getMediaDirectories).mockResolvedValue([
+        { path: '/dir1', isActive: true },
+      ] as any);
+
+      let exitCallback: ((code: number) => void) | undefined;
+      mocks.on.mockImplementation((event, cb) => {
+        if (event === 'exit') exitCallback = cb;
+      });
+
+      const promise = scanDiskForAlbumsAndCache();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      if (exitCallback) {
+        exitCallback(0);
+      }
+
+      await expect(promise).rejects.toThrow(
+        'Worker exited without sending a result',
+      );
+    });
+
+    it('triggers metadata extraction when ffmpegPath is provided', async () => {
+      vi.mocked(database.getMediaDirectories).mockResolvedValue([
+        { path: '/dir1', isActive: true },
+      ] as any);
+      const albums = [
+        {
+          id: 1,
+          textures: [{ path: '/new/file.mp4' }],
+        },
+      ];
+
+      let messageCallback: ((msg: any) => void) | undefined;
+      mocks.on.mockImplementation((event, cb) => {
+        if (event === 'message') messageCallback = cb;
+      });
+
+      // Mock getPendingMetadata
+      vi.mocked(database.getPendingMetadata).mockResolvedValue([
+        '/pending/file.mkv',
+      ]);
+
+      const promise = scanDiskForAlbumsAndCache('/usr/bin/ffmpeg');
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      if (messageCallback) messageCallback({ type: 'SCAN_COMPLETE', albums });
+
+      await promise;
+
+      // Allow background microtasks to run
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(database.getPendingMetadata).toHaveBeenCalled();
+
+      // We can check if internal extractAndSaveMetadata logic ran.
+      // It calls fs.stat for validation.
+      expect(fs.stat).toHaveBeenCalledWith('/new/file.mp4');
+      expect(fs.stat).toHaveBeenCalledWith('/pending/file.mkv');
     });
   });
 
@@ -74,11 +281,28 @@ describe('media-service', () => {
 
     it('scans if cache empty', async () => {
       vi.mocked(database.getCachedAlbums).mockResolvedValue([]);
-      vi.mocked(database.getMediaDirectories).mockResolvedValue([] as any); // To prevent crash in scan
 
-      await getAlbumsFromCacheOrDisk();
+      // Setup for scan
+      vi.mocked(database.getMediaDirectories).mockResolvedValue([
+        { path: '/d', isActive: true },
+      ] as any);
 
-      expect(database.getMediaDirectories).toHaveBeenCalled(); // via scanDiskForAlbumsAndCache
+      let messageCallback: ((msg: any) => void) | undefined;
+      mocks.on.mockImplementation((event, cb) => {
+        if (event === 'message') messageCallback = cb;
+      });
+
+      // Start call
+      const promise = getAlbumsFromCacheOrDisk();
+
+      // wait for worker
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      if (messageCallback)
+        messageCallback({ type: 'SCAN_COMPLETE', albums: [] });
+
+      await promise;
+      expect(database.getMediaDirectories).toHaveBeenCalled();
+      expect(mocks.Worker).toHaveBeenCalled();
     });
   });
 
@@ -121,24 +345,41 @@ describe('media-service', () => {
       vi.mocked(database.getMediaDirectories).mockResolvedValue([
         { path: '/d', isActive: true },
       ] as any);
-      vi.mocked(mediaScanner.performFullMediaScan).mockResolvedValue(
-        albums as any,
-      );
       vi.mocked(database.getMediaViewCounts).mockResolvedValue({ p1: 99 });
 
-      const result = await getAlbumsWithViewCountsAfterScan();
+      let messageCallback: ((msg: any) => void) | undefined;
+      mocks.on.mockImplementation((event, cb) => {
+        if (event === 'message') messageCallback = cb;
+      });
+
+      const promise = getAlbumsWithViewCountsAfterScan();
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(mocks.Worker).toHaveBeenCalled();
+      if (messageCallback) messageCallback({ type: 'SCAN_COMPLETE', albums });
+
+      const result = await promise;
 
       expect(result[0].textures[0].viewCount).toBe(99);
-      expect(mediaScanner.performFullMediaScan).toHaveBeenCalled();
     });
 
     it('returns empty if scan returns empty', async () => {
       vi.mocked(database.getMediaDirectories).mockResolvedValue([
         { path: '/d', isActive: true },
       ] as any);
-      vi.mocked(mediaScanner.performFullMediaScan).mockResolvedValue([] as any);
 
-      const result = await getAlbumsWithViewCountsAfterScan();
+      let messageCallback: ((msg: any) => void) | undefined;
+      mocks.on.mockImplementation((event, cb) => {
+        if (event === 'message') messageCallback = cb;
+      });
+
+      const promise = getAlbumsWithViewCountsAfterScan();
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      if (messageCallback)
+        messageCallback({ type: 'SCAN_COMPLETE', albums: [] });
+
+      const result = await promise;
       expect(result).toEqual([]);
     });
   });
@@ -148,9 +389,22 @@ describe('media-service', () => {
     vi.mocked(database.getMediaDirectories).mockResolvedValue([
       { path: '/d', isActive: true },
     ] as any);
-    vi.mocked(mediaScanner.performFullMediaScan).mockResolvedValue(null as any);
 
-    const result = await scanDiskForAlbumsAndCache();
+    let messageCallback: ((msg: any) => void) | undefined;
+    mocks.on.mockImplementation((event, cb) => {
+      if (event === 'message') messageCallback = cb;
+    });
+
+    const promise = scanDiskForAlbumsAndCache();
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    // Simulate worker returning null or just not returning anything properly?
+    // scanDiskForAlbumsAndCache expects 'SCAN_COMPLETE' with albums.
+    // If albums is null in the payload?
+    if (messageCallback)
+      messageCallback({ type: 'SCAN_COMPLETE', albums: null });
+
+    const result = await promise;
     expect(database.cacheAlbums).toHaveBeenCalledWith([]);
     expect(result).toEqual([]);
   });

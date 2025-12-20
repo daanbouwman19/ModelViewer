@@ -11,7 +11,9 @@ import {
   upsertMetadata,
   getPendingMetadata,
 } from './database';
-import { performFullMediaScan } from './media-scanner';
+import { Worker } from 'worker_threads';
+import { app } from 'electron';
+import path from 'path';
 import { getVideoDuration } from './media-handler';
 import type { Album, MediaMetadata } from './types';
 import fs from 'fs/promises';
@@ -35,7 +37,58 @@ export async function scanDiskForAlbumsAndCache(
     return [];
   }
 
-  const albums = await performFullMediaScan(activeDirectories);
+  // Determine worker path
+  let workerPath: string | URL;
+  if (app.isPackaged) {
+    workerPath = path.join(__dirname, 'scan-worker.js');
+  } else {
+    // In dev, the worker is built to out/main/scan-worker.js
+    // We can rely on electron-vite's dev server or just point to the object URL if handled that way,
+    // but the database.ts example suggests passing a URL object relative to import.meta.url works.
+    workerPath = new URL('./scan-worker.js', import.meta.url);
+  }
+
+  // Run scan in a worker
+  const albums = await new Promise<Album[]>((resolve, reject) => {
+    const worker = new Worker(workerPath);
+
+    const cleanup = () => {
+      worker.removeAllListeners();
+      worker.terminate();
+    };
+
+    worker.on('message', (message) => {
+      cleanup();
+      if (message.type === 'SCAN_COMPLETE') {
+        resolve(message.albums);
+      } else if (message.type === 'SCAN_ERROR') {
+        reject(new Error(message.error));
+      }
+    });
+
+    worker.on('error', (err) => {
+      cleanup();
+      reject(err);
+    });
+
+    worker.on('exit', (code) => {
+      cleanup();
+      // This is a fallback. If we get here, it means the worker exited without
+      // sending a message or emitting an 'error' event.
+      if (code !== 0) {
+        reject(new Error(`Worker stopped with exit code ${code}`));
+      } else {
+        // A clean exit without a message is an error for us, as the promise would otherwise hang.
+        reject(new Error('Worker exited without sending a result.'));
+      }
+    });
+
+    worker.postMessage({
+      type: 'START_SCAN',
+      directories: activeDirectories,
+    });
+  });
+
   await cacheAlbums(albums || []);
 
   // Trigger metadata extraction in background if ffmpegPath is provided
