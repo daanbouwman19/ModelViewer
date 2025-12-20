@@ -40,7 +40,7 @@
             :style="{
               gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
               gap: `${gap}px`,
-              marginBottom: `${gap}px` /* Visual gap between rows */
+              marginBottom: `${gap}px` /* Visual gap between rows */,
             }"
           >
             <button
@@ -136,7 +136,7 @@ const columnCount = computed(() => {
   const w = containerWidth.value;
   if (w < 640) return 2; // grid-cols-2
   if (w < 768) return 3; // sm:grid-cols-3
-  if (w < 1024) return 3; // md:grid-cols-3 (Tailwind default at md is same as sm unless overridden, checking template: md:grid-cols-3)
+  if (w < 1024) return 3; // md:grid-cols-3
   if (w < 1280) return 4; // lg:grid-cols-4
   return 5; // xl:grid-cols-5
 });
@@ -154,7 +154,6 @@ const rowHeight = computed(() => {
   // Add gap to height because RecycleScroller packs rows tightly, we simulate gap with marginBottom
   return itemWidth + gap.value;
 });
-
 
 /**
  * Helper to extract file extension efficiently.
@@ -218,11 +217,17 @@ const processItem = (item: MediaFile): ProcessedMediaItem => {
 const allProcessedItems = shallowRef<ProcessedMediaItem[]>([]);
 
 watch(
-  [allMediaFiles, mediaUrlGenerator, thumbnailUrlGenerator, imageExtensionsSet, videoExtensionsSet],
+  [
+    allMediaFiles,
+    mediaUrlGenerator,
+    thumbnailUrlGenerator,
+    imageExtensionsSet,
+    videoExtensionsSet,
+  ],
   () => {
     allProcessedItems.value = allMediaFiles.value.map(processItem);
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 // Chunk items into rows for the scroller
@@ -234,7 +239,7 @@ const chunkedItems = computed<GridRow[]>(() => {
   for (let i = 0; i < items.length; i += cols) {
     rows.push({
       id: `row-${i}`,
-      items: items.slice(i, i + cols)
+      items: items.slice(i, i + cols),
     });
   }
   return rows;
@@ -242,6 +247,20 @@ const chunkedItems = computed<GridRow[]>(() => {
 
 // Resize Observer
 let resizeObserver: ResizeObserver | null = null;
+
+const setupResizeObserver = () => {
+  if (scrollerContainer.value && !resizeObserver) {
+    resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentBoxSize) {
+          // Use content box width to match how CSS grid calculates available space
+          containerWidth.value = entry.contentRect.width;
+        }
+      }
+    });
+    resizeObserver.observe(scrollerContainer.value);
+  }
+};
 
 onMounted(async () => {
   try {
@@ -251,22 +270,19 @@ onMounted(async () => {
     console.error('Failed to initialize media URL generators', e);
   }
 
-  if (scrollerContainer.value) {
-    resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        if (entry.contentBoxSize) {
-           // Use content box width to match how CSS grid calculates available space
-           containerWidth.value = entry.contentRect.width;
-        }
-      }
-    });
-    resizeObserver.observe(scrollerContainer.value);
-  }
+  // Initial setup attempt
+  setupResizeObserver();
+});
+
+// Watch for the container appearing (e.g. when items are loaded)
+watch(scrollerContainer, () => {
+  setupResizeObserver();
 });
 
 onUnmounted(() => {
   if (resizeObserver) {
     resizeObserver.disconnect();
+    resizeObserver = null;
   }
 });
 

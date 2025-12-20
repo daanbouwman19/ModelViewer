@@ -13,7 +13,7 @@ class ResizeObserverMock {
   observe = vi.fn();
   unobserve = vi.fn();
   disconnect = vi.fn();
-  constructor(callback) {
+  constructor(callback: ResizeObserverCallback) {
     (ResizeObserverMock as any).lastCallback = callback;
   }
 }
@@ -32,11 +32,21 @@ const RecycleScrollerStub = {
       </div>
     </div>
   `,
-  props: ['items', 'itemSize', 'keyField']
+  props: ['items', 'itemSize', 'keyField'],
 };
 
+interface MockState {
+  gridMediaFiles: Array<{ path: string; name: string }>;
+  displayedMediaFiles: Array<{ path: string; name: string }>;
+  currentMediaIndex: number;
+  currentMediaItem: { path: string; name: string } | null;
+  viewMode: string;
+  isSlideshowActive: boolean;
+  isTimerRunning: boolean;
+}
+
 describe('MediaGrid.vue (Virtual Scrolling)', () => {
-  let mockState;
+  let mockState: MockState;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -57,17 +67,21 @@ describe('MediaGrid.vue (Virtual Scrolling)', () => {
       videoExtensionsSet: { value: new Set(['.mp4']) },
     });
 
-    (api.getMediaUrlGenerator as any).mockResolvedValue((path: string) => `url://${path}`);
-    (api.getThumbnailUrlGenerator as any).mockResolvedValue((path: string) => `thumb://${path}`);
+    (api.getMediaUrlGenerator as any).mockResolvedValue(
+      (path: string) => `url://${path}`,
+    );
+    (api.getThumbnailUrlGenerator as any).mockResolvedValue(
+      (path: string) => `thumb://${path}`,
+    );
   });
 
   it('renders "No media files" when list is empty', async () => {
     const wrapper = mount(MediaGrid, {
       global: {
         components: {
-          RecycleScroller: RecycleScrollerStub
-        }
-      }
+          RecycleScroller: RecycleScrollerStub,
+        },
+      },
     });
 
     await flushPromises();
@@ -85,9 +99,9 @@ describe('MediaGrid.vue (Virtual Scrolling)', () => {
     const wrapper = mount(MediaGrid, {
       global: {
         components: {
-          RecycleScroller: RecycleScrollerStub
-        }
-      }
+          RecycleScroller: RecycleScrollerStub,
+        },
+      },
     });
 
     await flushPromises();
@@ -97,7 +111,9 @@ describe('MediaGrid.vue (Virtual Scrolling)', () => {
     const observerCallback = (ResizeObserverMock as any).lastCallback;
 
     // Simulate width < 640 (2 columns)
-    observerCallback([{ contentRect: { width: 500 }, contentBoxSize: [{ inlineSize: 500 }] }]);
+    observerCallback([
+      { contentRect: { width: 500 }, contentBoxSize: [{ inlineSize: 500 }] },
+    ]);
     await wrapper.vm.$nextTick();
 
     // Check computed property indirectly by looking at how items are chunked in the stub
@@ -107,7 +123,9 @@ describe('MediaGrid.vue (Virtual Scrolling)', () => {
     expect(scroller.props('items')[0].items).toHaveLength(2); // 2 items per row
 
     // Simulate width > 1280 (5 columns)
-    observerCallback([{ contentRect: { width: 1300 }, contentBoxSize: [{ inlineSize: 1300 }] }]);
+    observerCallback([
+      { contentRect: { width: 1300 }, contentBoxSize: [{ inlineSize: 1300 }] },
+    ]);
     await wrapper.vm.$nextTick();
 
     // With 10 items and 5 columns, we expect 2 rows
@@ -125,9 +143,9 @@ describe('MediaGrid.vue (Virtual Scrolling)', () => {
     const wrapper = mount(MediaGrid, {
       global: {
         components: {
-          RecycleScroller: RecycleScrollerStub
-        }
-      }
+          RecycleScroller: RecycleScrollerStub,
+        },
+      },
     });
 
     await flushPromises();
@@ -139,7 +157,9 @@ describe('MediaGrid.vue (Virtual Scrolling)', () => {
     // Total gap = 16 * 2 = 32
     // Item width = (968 - 32) / 3 = 312
     // Row height = 312 + 16 (gap) = 328
-    observerCallback([{ contentRect: { width: 1000 }, contentBoxSize: [{ inlineSize: 1000 }] }]);
+    observerCallback([
+      { contentRect: { width: 1000 }, contentBoxSize: [{ inlineSize: 1000 }] },
+    ]);
     await wrapper.vm.$nextTick();
 
     const scroller = wrapper.findComponent(RecycleScrollerStub);
@@ -155,9 +175,9 @@ describe('MediaGrid.vue (Virtual Scrolling)', () => {
     const wrapper = mount(MediaGrid, {
       global: {
         components: {
-          RecycleScroller: RecycleScrollerStub
-        }
-      }
+          RecycleScroller: RecycleScrollerStub,
+        },
+      },
     });
 
     await flushPromises();
@@ -166,7 +186,7 @@ describe('MediaGrid.vue (Virtual Scrolling)', () => {
     const btn = wrapper.find('button[aria-label="View test.jpg"]');
     await btn.trigger('click');
 
-    expect(mockState.currentMediaItem.path).toBe(item.path);
+    expect(mockState.currentMediaItem?.path).toBe(item.path);
     expect(mockState.viewMode).toBe('player');
   });
 });
