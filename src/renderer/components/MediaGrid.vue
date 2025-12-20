@@ -29,25 +29,19 @@
 
       <RecycleScroller
         v-else
+        :key="columnCount"
         class="h-full custom-scrollbar"
         :items="chunkedItems"
         :item-size="rowHeight"
         key-field="id"
       >
         <template #default="{ item: row }">
-          <div
-            class="grid w-full h-full"
-            :style="{
-              gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
-              gap: `${gap}px`,
-              marginBottom: `${gap}px` /* Visual gap between rows */,
-            }"
-          >
+          <div class="grid w-full h-full" :style="gridStyle">
             <button
               v-for="mediaItem in row.items"
               :key="mediaItem.path"
               type="button"
-              class="relative group grid-item cursor-pointer w-full h-full text-left bg-transparent border-0 p-0 block focus:outline-none focus:ring-2 focus:ring-pink-500 rounded"
+              class="relative group grid-item cursor-pointer w-full h-full text-left bg-transparent border-0 p-0 block focus:outline-none focus:ring-2 focus:ring-pink-500 rounded overflow-hidden"
               :aria-label="`View ${mediaItem.displayName}`"
               @click="handleItemClick(mediaItem)"
             >
@@ -55,8 +49,7 @@
                 <img
                   :src="mediaItem.mediaUrl"
                   alt=""
-                  class="h-full w-full object-cover rounded"
-                  loading="lazy"
+                  class="h-full w-full object-cover rounded block"
                   @error="handleImageError($event, mediaItem)"
                 />
               </template>
@@ -66,7 +59,7 @@
                   muted
                   preload="metadata"
                   :poster="mediaItem.posterUrl"
-                  class="h-full w-full object-cover rounded"
+                  class="h-full w-full object-cover rounded block"
                 ></video>
                 <div
                   class="absolute top-2 right-2 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded flex items-center pointer-events-none"
@@ -146,15 +139,29 @@ const gap = computed(() => {
   return containerWidth.value < 768 ? 8 : 16;
 });
 
+// Calculate item width (square)
+const itemWidth = computed(() => {
+  const totalGapWidth = gap.value * (columnCount.value - 1);
+  const availableWidth = containerWidth.value;
+  // Use floor to ensure we fit in the container without sub-pixel overflow
+  return Math.floor((availableWidth - totalGapWidth) / columnCount.value);
+});
+
 // Calculate row height to maintain square aspect ratio for items
 const rowHeight = computed(() => {
-  const PADDING_PX = 16; // p-4 = 1rem = 16px
-  const totalGapWidth = gap.value * (columnCount.value - 1);
-  const availableWidth = containerWidth.value - PADDING_PX * 2;
-  const itemWidth = (availableWidth - totalGapWidth) / columnCount.value;
-  // Add gap to height because RecycleScroller packs rows tightly, we simulate gap with marginBottom
-  return itemWidth + gap.value;
+  // Total row height is the square item height PLUS the vertical gap
+  return itemWidth.value + gap.value;
 });
+
+// Update styles to use explicit height
+// We set the height of the content row to exactly itemWidth.
+// The RecycleScroller item-size (rowHeight) is itemWidth + gap.
+// This leaves exactly 'gap' pixels of empty space at the bottom of each row.
+const gridStyle = computed(() => ({
+  gridTemplateColumns: `repeat(${columnCount.value}, minmax(0, 1fr))`,
+  gap: `${gap.value}px`,
+  height: `${itemWidth.value}px`,
+}));
 
 /**
  * Helper to extract file extension efficiently.
@@ -272,7 +279,8 @@ const setupResizeObserver = () => {
       for (const entry of entries) {
         if (entry.contentBoxSize) {
           // Use content box width to match how CSS grid calculates available space
-          containerWidth.value = entry.contentRect.width;
+          // Ensure we never have 0 width to avoid layout collapse
+          containerWidth.value = Math.max(320, entry.contentRect.width);
         }
       }
     });
@@ -328,10 +336,6 @@ const closeGrid = () => {
 <style scoped>
 /* Performance-critical optimizations for grid items */
 .grid-item {
-  /* Use content-visibility for better rendering performance */
-  content-visibility: auto;
-  contain-intrinsic-size: 200px;
-
   /* Enable GPU acceleration */
   will-change: border-color;
   transform: translateZ(0);
