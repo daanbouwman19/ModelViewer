@@ -8,7 +8,7 @@ import {
   cacheAlbums,
   getCachedAlbums,
   getMediaViewCounts,
-  upsertMetadata,
+  bulkUpsertMetadata, // Added for batching
   getPendingMetadata,
 } from './database';
 import { Worker } from 'worker_threads';
@@ -206,6 +206,20 @@ export async function extractAndSaveMetadata(
   const METADATA_EXTRACTION_CONCURRENCY = 5;
   const queue = new PQueue({ concurrency: METADATA_EXTRACTION_CONCURRENCY });
 
+  // Batching logic
+  const pendingUpdates: ({ filePath: string } & MediaMetadata)[] = [];
+  const BATCH_SIZE = 50;
+
+  const flush = async () => {
+    if (pendingUpdates.length === 0) return;
+    const batch = pendingUpdates.splice(0, pendingUpdates.length);
+    try {
+      await bulkUpsertMetadata(batch);
+    } catch (e) {
+      console.error('[media-service] Failed to bulk upsert metadata:', e);
+    }
+  };
+
   for (const filePath of filePaths) {
     if (!filePath) {
       continue;
@@ -216,9 +230,6 @@ export async function extractAndSaveMetadata(
         if (filePath.startsWith('gdrive://')) {
           return;
         }
-
-        // Mark as processing (optional, or we just rely on pending default)
-        // await upsertMetadata(filePath, { status: 'processing' });
 
         const stats = await fs.stat(filePath);
         const metadata: MediaMetadata = {
@@ -234,21 +245,27 @@ export async function extractAndSaveMetadata(
 
         // Mark success
         metadata.status = 'success';
-        await upsertMetadata(filePath, metadata);
+
+        // Add to batch
+        pendingUpdates.push({ filePath, ...metadata });
+
+        if (pendingUpdates.length >= BATCH_SIZE) {
+          await flush();
+        }
       } catch (error) {
         console.warn(
           `[media-service] Error extracting metadata for ${filePath}:`,
           error,
         );
-        // Mark failed
-        try {
-          await upsertMetadata(filePath, { status: 'failed' });
-        } catch {
-          /* ignore */
+        // Add failure to batch
+        pendingUpdates.push({ filePath, status: 'failed' });
+        if (pendingUpdates.length >= BATCH_SIZE) {
+          await flush();
         }
       }
     });
   }
 
   await queue.onIdle();
+  await flush();
 }

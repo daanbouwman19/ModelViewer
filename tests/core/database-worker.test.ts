@@ -53,8 +53,15 @@ describe('Database Worker', () => {
       // Ignore errors during cleanup
     }
 
+    // Small delay for Windows to release file handles
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
     // Clean up temp directory
-    fs.rmSync(tempDir, { recursive: true, force: true });
+    try {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    } catch (e) {
+      console.warn(`Failed to clean up temp dir ${tempDir}:`, e);
+    }
   });
 
   const sendMessage = (
@@ -482,6 +489,166 @@ describe('Database Worker', () => {
       });
       expect(result.success).toBe(true);
       expect(Array.isArray(result.data)).toBe(true);
+    });
+
+    it('should handle bulkUpsertMetadata', async () => {
+      const filePath = path.join(tempDir, 'bulk.mp4');
+      fs.writeFileSync(filePath, 'bulk data');
+      const result = await sendMessage('bulkUpsertMetadata', [
+        { filePath, duration: 300 },
+      ]);
+      expect(result.success).toBe(true);
+
+      const getRes = await sendMessage('getMetadata', {
+        filePaths: [filePath],
+      });
+      expect((getRes.data as any)[filePath].duration).toBe(300);
+    });
+
+    it('should handle bulkUpsertMetadata transaction rollback on error', async () => {
+      const filePath = path.join(tempDir, 'rollback.mp4');
+      fs.writeFileSync(filePath, 'rollback data');
+
+      // We need to trigger an error INSIDE the transaction.
+      // One way is to send a payload that will cause a constraint violation or similar,
+      // but better-sqlite3 transactions in this worker are synchronous once started.
+      // However, upsertMetadata.run might fail if we pass something invalid if we had stricter constraints.
+      // Let's try to mock generateFileId to fail for the second item or similar.
+      // Actually, bulkUpsertMetadata pre-calculates IDs.
+
+      // If we pass a payload that is invalid AFTER ID calculation:
+      const result = await sendMessage('bulkUpsertMetadata', [
+        { filePath, duration: 100 },
+        { filePath: undefined as any, duration: 200 }, // This should crash during transaction or ID generation
+      ]);
+      expect(result.success).toBe(false);
+
+      // Verify first item was NOT saved (rolled back)
+      const getRes = await sendMessage('getMetadata', {
+        filePaths: [filePath],
+      });
+      expect((getRes.data as any)[filePath]).toBeUndefined();
+    });
+
+    it('should handle migrations for media_metadata missing columns', async () => {
+      const migDbPath = path.join(
+        tempDir,
+        `mig-test-${Math.random().toString(36).substring(7)}.sqlite`,
+      );
+
+      // Setup DB without the new columns
+      const tempDb = new Database(migDbPath);
+      tempDb
+        .prepare(
+          `
+        CREATE TABLE media_metadata (
+          file_path_hash TEXT PRIMARY KEY,
+          duration REAL
+        )
+      `,
+        )
+        .run();
+      tempDb.close();
+
+      // Delay to ensure file handle is released
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      const result = await sendMessage('init', { dbPath: migDbPath });
+      expect(result.success, `Init failed: ${result.error}`).toBe(true);
+
+      // Verify columns added
+      const filePath = path.join(tempDir, 'migrated.mp4');
+      fs.writeFileSync(filePath, 'migrated');
+      await sendMessage('upsertMetadata', {
+        filePath,
+        status: 'completed',
+        size: 1024,
+      });
+
+      const getRes = await sendMessage('getMetadata', {
+        filePaths: [filePath],
+      });
+      const meta = (getRes.data as any)[filePath];
+      expect(meta.extraction_status).toBe('completed');
+      expect(meta.size).toBe(1024);
+    });
+  });
+
+  describe('Edge Cases', () => {
+    beforeEach(async () => {
+      await sendMessage('init', { dbPath });
+    });
+
+    it('generateFileId handles filesystem errors other than ENOENT', async () => {
+      // Create a directory where the file should be, making stat return an error (or similar)
+      const folderPath = path.join(tempDir, 'not-a-file');
+      fs.mkdirSync(folderPath);
+
+      // recordMediaView on a directory might work or fail depending on OS,
+      // but we want to hit the console.error line in database-worker.ts line 45-50.
+      const result = await sendMessage('recordMediaView', {
+        filePath: folderPath,
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('getMetadata with empty array', async () => {
+      const result = await sendMessage('getMetadata', { filePaths: [] });
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual({});
+    });
+
+    it('getMediaViewCounts with empty/null array', async () => {
+      const result1 = await sendMessage('getMediaViewCounts', {
+        filePaths: [],
+      });
+      expect(result1.success).toBe(true);
+
+      const result2 = await sendMessage('getMediaViewCounts', {
+        filePaths: null,
+      });
+      expect(result2.success).toBe(true);
+    });
+
+    it('addMediaDirectory with defaults', async () => {
+      const result = await sendMessage('addMediaDirectory', {
+        directoryObj: { path: '/default/test' },
+      });
+      expect(result.success).toBe(true);
+
+      const listRes = await sendMessage('getMediaDirectories', {});
+      const dir = (listRes.data as any[]).find(
+        (d) => d.path === '/default/test',
+      );
+      expect(dir.id).toBeDefined();
+      expect(dir.name).toBe('test');
+    });
+
+    it('cacheAlbums error handling', async () => {
+      // Force error by closing DB then calling cacheAlbums
+      await sendMessage('close', {});
+      const result = await sendMessage('cacheAlbums', {
+        cacheKey: 'k',
+        albums: {},
+      });
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Database not initialized');
+    });
+
+    it('should handle getPendingMetadata', async () => {
+      await sendMessage('init', { dbPath });
+      const filePath = path.join(tempDir, 'pending.mp4');
+      fs.writeFileSync(filePath, 'pending');
+
+      // Insert with pending status
+      await sendMessage('upsertMetadata', {
+        filePath,
+        status: 'pending',
+      });
+
+      const result = await sendMessage('getPendingMetadata', {});
+      expect(result.success).toBe(true);
+      expect(result.data).toContain(filePath);
     });
   });
 

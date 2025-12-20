@@ -168,26 +168,31 @@ function initDatabase(dbPath: string): WorkerResult {
       )`,
     ).run();
 
-    // Migration: Add file_path or extraction_status to media_metadata if it doesn't exist
+    // Migration: Add missing columns to media_metadata if they don't exist
     try {
       const tableInfo = db
         .prepare('PRAGMA table_info(media_metadata)')
         .all() as { name: string }[];
 
-      const hasFilePath = tableInfo.some((col) => col.name === 'file_path');
-      if (!hasFilePath) {
-        db.prepare(
-          'ALTER TABLE media_metadata ADD COLUMN file_path TEXT',
-        ).run();
-      }
+      const columns = new Set(tableInfo.map((col) => col.name));
 
-      const hasStatus = tableInfo.some(
-        (col) => col.name === 'extraction_status',
-      );
-      if (!hasStatus) {
-        db.prepare(
-          "ALTER TABLE media_metadata ADD COLUMN extraction_status TEXT DEFAULT 'pending'",
-        ).run();
+      const migrations = [
+        { name: 'file_path', type: 'TEXT' },
+        { name: 'size', type: 'INTEGER' },
+        { name: 'created_at', type: 'TEXT' },
+        { name: 'rating', type: 'INTEGER DEFAULT 0' },
+        { name: 'extraction_status', type: "TEXT DEFAULT 'pending'" },
+      ];
+
+      for (const col of migrations) {
+        if (!columns.has(col.name)) {
+          console.log(
+            `[worker] Adding missing column ${col.name} to media_metadata...`,
+          );
+          db.prepare(
+            `ALTER TABLE media_metadata ADD COLUMN ${col.name} ${col.type}`,
+          ).run();
+        }
       }
     } catch (err) {
       console.error('Error migrating media_metadata table:', err);
@@ -317,6 +322,43 @@ async function setRating(
   try {
     const fileId = await generateFileId(filePath);
     statements.updateRating.run(fileId, rating);
+    return { success: true };
+  } catch (error: unknown) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+/**
+ * Bulk upserts metadata for multiple files.
+ */
+async function bulkUpsertMetadata(
+  payloads: MetadataPayload[],
+): Promise<WorkerResult> {
+  if (!db) return { success: false, error: 'Database not initialized' };
+  try {
+    // Pre-calculate file IDs concurrently
+    const itemsWithIds = await Promise.all(
+      payloads.map(async (p) => ({
+        ...p,
+        fileId: await generateFileId(p.filePath),
+      })),
+    );
+
+    const transaction = db.transaction((items: typeof itemsWithIds) => {
+      for (const item of items) {
+        statements.upsertMetadata.run(
+          item.fileId,
+          item.filePath,
+          item.duration === undefined ? null : item.duration,
+          item.size === undefined ? null : item.size,
+          item.createdAt === undefined ? null : item.createdAt,
+          item.rating === undefined ? null : item.rating,
+          item.status === undefined ? null : item.status,
+        );
+      }
+    });
+
+    transaction(itemsWithIds);
     return { success: true };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
@@ -736,6 +778,9 @@ if (parentPort) {
           break;
         case 'upsertMetadata':
           result = await upsertMetadata(payload);
+          break;
+        case 'bulkUpsertMetadata':
+          result = await bulkUpsertMetadata(payload);
           break;
         case 'setRating':
           result = await setRating(payload.filePath, payload.rating);

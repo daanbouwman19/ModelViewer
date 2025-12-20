@@ -154,11 +154,11 @@ describe('MediaGrid.vue (Virtual Scrolling)', () => {
 
     const observerCallback = (ResizeObserverMock as any).lastCallback;
 
-    // Width 1000px (3 cols), padding 32px (NOT SUBTRACTED), gap 16px
-    // Available = 1000
+    // Width 1000px (3 cols), padding 32px (16px each side), gap 16px
+    // Available = 1000 - 32 = 968
     // Total gap = 16 * 2 = 32
-    // Item width = (1000 - 32) / 3 = 322.66 -> floor(322)
-    // Row height = 322 + 16 (gap) = 338
+    // Item width = (968 - 32) / 3 = 312
+    // Row height = 312 + 16 (gap) = 328
     observerCallback([
       { contentRect: { width: 1000 }, contentBoxSize: [{ inlineSize: 1000 }] },
     ]);
@@ -167,7 +167,7 @@ describe('MediaGrid.vue (Virtual Scrolling)', () => {
     const scroller = wrapper.findComponent(RecycleScrollerStub);
     const height = scroller.props('itemSize');
 
-    expect(height).toBeCloseTo(338, 0);
+    expect(height).toBeCloseTo(328, 0);
   });
 
   it('handles item clicks correctly', async () => {

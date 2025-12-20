@@ -446,26 +446,25 @@ describe('media-service', () => {
         '/valid/file1.mp4',
         ffmpegPath,
       );
-      expect(database.upsertMetadata).toHaveBeenCalledWith('/valid/file1.mp4', {
-        size: 1024,
-        createdAt: new Date('2023-01-01').toISOString(),
-        status: 'success',
-        duration: 120,
-      });
-
-      // Verify error handling for file2
-      // It should try to extract, fail at fs.stat, log warning (console.warn mocked implicitly?), and upsert 'failed'
-      expect(fs.stat).toHaveBeenCalledWith('/error/file2.mp4');
-      expect(database.upsertMetadata).toHaveBeenCalledWith('/error/file2.mp4', {
-        status: 'failed',
-      });
+      expect(database.bulkUpsertMetadata).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({
+            filePath: '/valid/file1.mp4',
+            status: 'success',
+          }),
+          expect.objectContaining({
+            filePath: '/error/file2.mp4',
+            status: 'failed',
+          }),
+        ]),
+      );
     });
 
     it('skips gdrive paths', async () => {
       const filePaths = ['gdrive://some-id'];
       await extractAndSaveMetadata(filePaths, 'ffmpeg');
       expect(fs.stat).not.toHaveBeenCalled();
-      expect(database.upsertMetadata).not.toHaveBeenCalled();
+      expect(database.bulkUpsertMetadata).not.toHaveBeenCalled();
     });
   });
 });

@@ -106,7 +106,7 @@ describe('useAppState', () => {
       await appState.initializeApp();
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        '[useAppState] Error during initial load:',
+        '[useLibraryStore] Error during initial load:',
         expect.any(Error),
       );
 

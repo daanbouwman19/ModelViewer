@@ -1,14 +1,14 @@
-import { defineConfig, externalizeDepsPlugin } from 'electron-vite';
+import { defineConfig } from 'electron-vite';
 import vue from '@vitejs/plugin-vue';
 import tailwindcss from '@tailwindcss/vite';
 import { resolve } from 'path';
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
     build: {
       sourcemap: false,
       rollupOptions: {
+        external: [/^electron(\/.*)?$/, 'better-sqlite3'],
         input: {
           index: resolve(__dirname, 'src/main/main.ts'),
           // database-worker must be a separate entry because Node.js Worker requires a file path
@@ -19,10 +19,10 @@ export default defineConfig({
     },
   },
   preload: {
-    plugins: [externalizeDepsPlugin()],
     build: {
       sourcemap: false,
       rollupOptions: {
+        external: [/^electron(\/.*)?$/],
         input: {
           preload: resolve(__dirname, 'src/preload/preload.ts'),
         },

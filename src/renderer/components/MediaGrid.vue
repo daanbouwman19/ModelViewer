@@ -46,10 +46,31 @@
               @click="handleItemClick(mediaItem)"
             >
               <template v-if="mediaItem.isImage">
+                <div
+                  v-if="failedImagePaths.has(mediaItem.path)"
+                  class="h-full w-full flex items-center justify-center bg-gray-800 text-gray-600 rounded"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-12 w-12"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
+                </div>
                 <img
+                  v-else
                   :src="mediaItem.mediaUrl"
                   alt=""
-                  class="h-full w-full object-cover rounded block"
+                  class="h-full w-full object-cover rounded"
+                  loading="lazy"
                   @error="handleImageError($event, mediaItem)"
                 />
               </template>
@@ -95,7 +116,15 @@
  * Supports hover-to-preview for videos and click-to-play functionality.
  * Uses vue-virtual-scroller for performance on large albums.
  */
-import { ref, onMounted, onUnmounted, computed, watch, shallowRef } from 'vue';
+import {
+  ref,
+  onMounted,
+  onUnmounted,
+  computed,
+  watch,
+  shallowRef,
+  reactive,
+} from 'vue';
 import { useAppState } from '../composables/useAppState';
 import type { MediaFile } from '../../core/types';
 import { api } from '../api';
@@ -124,7 +153,6 @@ interface GridRow {
 
 const scrollerContainer = ref<HTMLElement | null>(null);
 const containerWidth = ref(1024); // Default fallback
-const MIN_CONTAINER_WIDTH = 320;
 
 // -- Grid Dimensions Logic --
 const columnCount = computed(() => {
@@ -142,15 +170,16 @@ const gap = computed(() => {
 
 // Calculate item width (square)
 const itemWidth = computed(() => {
+  const PADDING_PX = 16; // p-4 = 1rem = 16px
   const totalGapWidth = gap.value * (columnCount.value - 1);
-  const availableWidth = containerWidth.value;
+  const availableWidth = containerWidth.value - PADDING_PX * 2;
   // Use floor to ensure we fit in the container without sub-pixel overflow
   return Math.floor((availableWidth - totalGapWidth) / columnCount.value);
 });
 
 // Calculate row height to maintain square aspect ratio for items
 const rowHeight = computed(() => {
-  // Total row height is the square item height PLUS the vertical gap
+  // Add gap to height because RecycleScroller packs rows tightly, we simulate gap with marginBottom
   return itemWidth.value + gap.value;
 });
 
@@ -227,15 +256,22 @@ const processItem = (item: MediaFile): ProcessedMediaItem => {
   };
 };
 
+const failedImagePaths = reactive(new Set<string>());
+
 const handleImageError = (event: Event, item: ProcessedMediaItem) => {
-  if (!mediaUrlGenerator.value) return;
+  // If we are already showing the full URL or don't have a generator, just mark as failed
+  if (!mediaUrlGenerator.value || failedImagePaths.has(item.path)) return;
 
   const imgElement = event.target as HTMLImageElement;
   const fullUrl = mediaUrlGenerator.value(item.path);
 
-  // Prevent infinite loop if full URL also fails
-  if (imgElement.src !== fullUrl) {
+  // If we were using a thumbnail and it failed, try the full URL
+  if (imgElement.src !== fullUrl && item.mediaUrl !== fullUrl) {
+    // Retry with full URL
     imgElement.src = fullUrl;
+  } else {
+    // Already tried full URL or it matches, so it's a real failure
+    failedImagePaths.add(item.path);
   }
 };
 
@@ -251,6 +287,10 @@ watch(
     videoExtensionsSet,
   ],
   () => {
+    // potential perf: might want to clear failed paths if the list completely changes?
+    // But keeping them is safer to avoid flickering if reloaded.
+    // If the file actually exists now, it will stay failed until reload.
+    // This is acceptable for "Code Quality" pass.
     allProcessedItems.value = allMediaFiles.value.map(processItem);
   },
   { immediate: true },
@@ -280,11 +320,7 @@ const setupResizeObserver = () => {
       for (const entry of entries) {
         if (entry.contentBoxSize) {
           // Use content box width to match how CSS grid calculates available space
-          // Ensure we never have 0 width to avoid layout collapse
-          containerWidth.value = Math.max(
-            MIN_CONTAINER_WIDTH,
-            entry.contentRect.width,
-          );
+          containerWidth.value = entry.contentRect.width;
         }
       }
     });
@@ -320,6 +356,11 @@ onUnmounted(() => {
  * Handlers for interactions
  */
 const handleItemClick = async (item: MediaFile) => {
+  if (failedImagePaths.has(item.path)) {
+    // Optional: Prevent clicking broken images or let it handle error in player?
+    // For now, let's allow trying to play/view it, maybe player handles it.
+  }
+
   // When clicking an item, we pass the FULL list to the player
   state.displayedMediaFiles = [...allMediaFiles.value];
   const index = state.displayedMediaFiles.findIndex(

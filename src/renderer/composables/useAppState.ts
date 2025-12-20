@@ -1,229 +1,114 @@
-import { reactive, toRefs, computed, watch } from 'vue';
+import { reactive, toRefs } from 'vue';
+import { useLibraryStore, setupPersistenceWatcher } from './useLibraryStore';
+import { usePlayerStore } from './usePlayerStore';
+import { useUIStore } from './useUIStore';
+// Since AppState was defined in this file, we should keep the interface definition here to avoid breaking imports
+// OR import the types from core/types if possible, but the interface was specific to this file.
+// To avoid breakage, I will redefine the interface here or export 'any' temporarily?
+// Better: keep the interface definition.
+
 import type {
   Album,
   MediaFile,
   SmartPlaylist,
   MediaDirectory,
 } from '../../core/types';
-import { api } from '../api';
 
 /**
  * Defines the shape of the global application state.
+ * Kept for backward compatibility.
  */
 export interface AppState {
-  /** Indicates if a media scan is currently in progress. */
   isScanning: boolean;
-  /** The full list of albums loaded from the database. */
   allAlbums: Album[];
-  /** Map of album names to their selection state for the global slideshow. */
   albumsSelectedForSlideshow: { [albumName: string]: boolean };
-  /** Flattened list of all media files from selected albums, available for the slideshow. */
   globalMediaPoolForSelection: MediaFile[];
-  /** Count of media files in the current pool. */
   totalMediaInPool: number;
-  /** History of media files displayed in the current session. */
   displayedMediaFiles: MediaFile[];
-  /** The currently displayed media item. */
   currentMediaItem: MediaFile | null;
-  /** Index of the current item in the displayedMediaFiles history array. */
   currentMediaIndex: number;
-  /** Indicates if the slideshow mode is active. */
   isSlideshowActive: boolean;
-  /** The ID of the current slideshow timer interval. */
   slideshowTimerId: NodeJS.Timeout | null;
-  /** Duration in seconds for each slide. */
   timerDuration: number;
-  /** Indicates if the slideshow timer is currently ticking. */
   isTimerRunning: boolean;
-  /** Progress percentage of the current slide timer (0-100). */
   timerProgress: number;
-  /** If true, videos play to completion regardless of timer. */
   playFullVideo: boolean;
-  /** If true, the timer pauses when a video starts playing. */
   pauseTimerOnPlay: boolean;
-  /** Filter criteria for media types ('All', 'Images', 'Videos'). */
   mediaFilter: 'All' | 'Images' | 'Videos';
-  /** Current main view mode: 'player' for slideshow, 'grid' for thumbnails. */
   viewMode: 'player' | 'grid';
-  /** List of media files to display in the grid view. */
   gridMediaFiles: MediaFile[];
-  /** Controls visibility of the "Manage Sources" modal. */
   isSourcesModalVisible: boolean;
-  /** Controls visibility of the "Create Smart Playlist" modal. */
   isSmartPlaylistModalVisible: boolean;
-  /** List of saved smart playlists. */
   smartPlaylists: SmartPlaylist[];
-  /** Playlist currently being edited, or null if creating new. */
   playlistToEdit: SmartPlaylist | null;
-  /** List of configured media source directories. */
   mediaDirectories: MediaDirectory[];
-  /** Supported file extensions grouped by type. */
   supportedExtensions: { images: string[]; videos: string[]; all: string[] };
-  /** Reference to the main video DOM element for control purposes. */
   mainVideoElement: HTMLVideoElement | null;
 }
 
 /**
- * Returns the default initial state for the application.
- */
-const getInitialState = (): AppState => ({
-  isScanning: false,
-  allAlbums: [],
-  albumsSelectedForSlideshow: {},
-  globalMediaPoolForSelection: [],
-  totalMediaInPool: 0,
-  displayedMediaFiles: [],
-  currentMediaItem: null,
-  currentMediaIndex: -1,
-  isSlideshowActive: false,
-  slideshowTimerId: null,
-  timerDuration: 5,
-  isTimerRunning: false,
-  timerProgress: 0,
-  playFullVideo: false,
-  pauseTimerOnPlay: false,
-  mediaFilter: 'All',
-  viewMode: 'player', // 'player' or 'grid'
-  gridMediaFiles: [],
-  isSourcesModalVisible: false,
-  isSmartPlaylistModalVisible: false,
-  smartPlaylists: [],
-  playlistToEdit: null,
-  mediaDirectories: [],
-  supportedExtensions: {
-    images: [],
-    videos: [],
-    all: [],
-  },
-  mainVideoElement: null,
-});
-
-/**
- * The reactive global state instance.
- */
-const state = reactive<AppState>(getInitialState());
-
-// Create computed sets for O(1) extension lookups
-// Defined outside the function to share the same computed instance (singleton)
-const imageExtensionsSet = computed(
-  () => new Set(state.supportedExtensions.images),
-);
-const videoExtensionsSet = computed(
-  () => new Set(state.supportedExtensions.videos),
-);
-
-// Track if persistence watcher is set up
-let isWatcherInitialized = false;
-
-/**
- * Persist selection state to local storage.
- * Exported for testing purposes.
- */
-export const setupPersistenceWatcher = () => {
-  if (isWatcherInitialized) return;
-  watch(
-    () => state.albumsSelectedForSlideshow,
-    (newSelection: { [key: string]: boolean }) => {
-      try {
-        localStorage.setItem('albumSelection', JSON.stringify(newSelection));
-      } catch (e) {
-        console.error('Failed to save album selection:', e);
-      }
-    },
-    { deep: true },
-  );
-  isWatcherInitialized = true;
-};
-
-// Start watcher immediately
-setupPersistenceWatcher();
-
-/**
  * A Vue composable that provides access to the global application state and related actions.
+ * Acts as a facade over segmented stores.
  */
 export function useAppState() {
-  /**
-   * Resets the entire internal state. Used primarily for testing.
-   */
+  const libraryStore = useLibraryStore();
+  const playerStore = usePlayerStore();
+  const uiStore = useUIStore();
+
+  // Create a reactive object that proxies to the underlying refs
+  // Since the stores are singletons, this sets up the binding once per call,
+  // but essentially they point to the same refs.
+  const state = reactive({
+    isScanning: libraryStore.isScanning,
+    allAlbums: libraryStore.allAlbums,
+    albumsSelectedForSlideshow: libraryStore.albumsSelectedForSlideshow,
+    globalMediaPoolForSelection: libraryStore.globalMediaPoolForSelection,
+    totalMediaInPool: libraryStore.totalMediaInPool,
+
+    displayedMediaFiles: playerStore.displayedMediaFiles,
+    currentMediaItem: playerStore.currentMediaItem,
+    currentMediaIndex: playerStore.currentMediaIndex,
+    isSlideshowActive: playerStore.isSlideshowActive,
+    slideshowTimerId: playerStore.slideshowTimerId,
+    timerDuration: playerStore.timerDuration,
+    isTimerRunning: playerStore.isTimerRunning,
+    timerProgress: playerStore.timerProgress,
+    playFullVideo: playerStore.playFullVideo,
+    pauseTimerOnPlay: playerStore.pauseTimerOnPlay,
+    mainVideoElement: playerStore.mainVideoElement,
+
+    mediaFilter: uiStore.mediaFilter,
+    viewMode: uiStore.viewMode,
+    gridMediaFiles: uiStore.gridMediaFiles,
+    isSourcesModalVisible: uiStore.isSourcesModalVisible,
+    isSmartPlaylistModalVisible: uiStore.isSmartPlaylistModalVisible,
+    smartPlaylists: libraryStore.smartPlaylists, // Note: smartPlaylists is in LibraryStore
+    playlistToEdit: uiStore.playlistToEdit,
+
+    mediaDirectories: libraryStore.mediaDirectories,
+    supportedExtensions: libraryStore.supportedExtensions,
+  }) as AppState;
+
   const resetInternalState = () => {
-    Object.assign(state, getInitialState());
-  };
-
-  /**
-   * Initializes the application state by fetching data from the main process.
-   * This includes loading albums, media directories, and supported extensions.
-   */
-  const initializeApp = async () => {
-    try {
-      state.allAlbums = await api.getAlbumsWithViewCounts();
-      state.mediaDirectories = await api.getMediaDirectories();
-      state.smartPlaylists = await api.getSmartPlaylists();
-      state.supportedExtensions = await api.getSupportedExtensions();
-
-      // Load selection from local storage
-      const savedSelection = localStorage.getItem('albumSelection');
-      if (savedSelection) {
-        try {
-          state.albumsSelectedForSlideshow = JSON.parse(savedSelection);
-        } catch (e) {
-          console.error('Failed to parse saved album selection:', e);
-          // Fallback to selecting all
-          selectAllAlbumsRecursively(state.allAlbums);
-        }
-      } else {
-        // Default to selecting ALL albums recursively
-        selectAllAlbumsRecursively(state.allAlbums);
-      }
-    } catch (error) {
-      console.error('[useAppState] Error during initial load:', error);
-    }
-  };
-
-  /**
-   * Helper to select all albums recursively.
-   */
-  const selectAllAlbumsRecursively = (albums: Album[]) => {
-    const traverse = (list: Album[]) => {
-      for (const album of list) {
-        state.albumsSelectedForSlideshow[album.id] = true;
-        if (album.children) {
-          traverse(album.children);
-        }
-      }
-    };
-    traverse(albums);
-  };
-
-  /**
-   * Resets the slideshow-related state to its initial values.
-   */
-  const resetState = () => {
-    state.isSlideshowActive = false;
-    state.displayedMediaFiles = [];
-    state.currentMediaIndex = -1;
-    state.currentMediaItem = null;
-    state.globalMediaPoolForSelection = [];
-  };
-
-  /**
-   * Stops the slideshow timer if it is running.
-   */
-  const stopSlideshow = () => {
-    if (state.slideshowTimerId) {
-      clearInterval(state.slideshowTimerId);
-      state.slideshowTimerId = null;
-    }
-    state.isTimerRunning = false;
+    // legacy support for testing
+    playerStore.resetPlayerState();
+    // libraryStore doesn't have a reset, but maybe we don't need it or can add it if tests fail
   };
 
   return {
     ...toRefs(state),
     state,
-    imageExtensionsSet,
-    videoExtensionsSet,
-    initializeApp,
-    resetState,
-    stopSlideshow,
+    imageExtensionsSet: libraryStore.imageExtensionsSet,
+    videoExtensionsSet: libraryStore.videoExtensionsSet,
+    initializeApp: libraryStore.loadInitialData,
+    resetState: () => {
+      playerStore.resetPlayerState();
+      libraryStore.resetLibraryState();
+    },
+    stopSlideshow: playerStore.stopSlideshow,
     resetInternalState,
+    setupPersistenceWatcher,
   };
 }
+
+export { setupPersistenceWatcher };

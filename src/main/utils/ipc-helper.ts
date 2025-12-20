@@ -1,14 +1,17 @@
 import { ipcMain, IpcMainInvokeEvent } from 'electron';
+import { IpcContract } from '../../shared/ipc-contract';
 
 export interface IpcOptions {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   validators?: ((...args: any[]) => Promise<void> | void)[];
 }
 
-export function handleIpc<T>(
-  channel: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  handler: (event: IpcMainInvokeEvent, ...args: any[]) => Promise<T> | T,
+export function handleIpc<K extends keyof IpcContract>(
+  channel: K,
+  handler: (
+    event: IpcMainInvokeEvent,
+    ...args: IpcContract[K]['payload']
+  ) => Promise<IpcContract[K]['response']> | IpcContract[K]['response'],
   options: IpcOptions = {},
 ) {
   ipcMain.handle(channel, async (event, ...args) => {
@@ -18,7 +21,8 @@ export function handleIpc<T>(
           await validator(...args);
         }
       }
-      const data = await handler(event, ...args);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = await handler(event, ...(args as any));
       return { success: true, data };
     } catch (error: unknown) {
       console.error(`[IPC] Error on ${channel}:`, error);

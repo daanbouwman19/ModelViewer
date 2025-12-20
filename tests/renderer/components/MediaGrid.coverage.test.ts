@@ -11,9 +11,9 @@ vi.mock('../../../src/renderer/api');
 
 // Mock ResizeObserver
 class ResizeObserverMock {
-  observe = vi.fn();
-  unobserve = vi.fn();
-  disconnect = vi.fn();
+  observe() {}
+  unobserve() {}
+  disconnect() {}
   constructor(callback: any) {
     (ResizeObserverMock as any).mock.calls.push([callback]);
   }
@@ -306,5 +306,81 @@ describe('MediaGrid.vue Coverage', () => {
     await wrapper.vm.$nextTick();
 
     expect(wrapper.text()).toContain('file.jpg');
+  });
+
+  it('handleImageError final failure state', async () => {
+    const item = { name: 'img.jpg', path: '/img.jpg' };
+    mockState.gridMediaFiles = [item];
+    const wrapper = mountGrid();
+    await flushPromises();
+
+    // Resize for rendering
+    const calls = (ResizeObserverMock as any).mock.calls;
+    const observerCallback = calls[calls.length - 1][0];
+    observerCallback([
+      { contentRect: { width: 1000 }, contentBoxSize: [{ inlineSize: 1000 }] },
+    ]);
+    await wrapper.vm.$nextTick();
+
+    const img = wrapper.find('img');
+    // Set src to match fullUrl to trigger final failure branch
+    img.element.src = 'url:///img.jpg';
+    await img.trigger('error');
+
+    await wrapper.vm.$nextTick();
+    // Should now show failure placeholder (svg)
+    expect(wrapper.find('svg').exists()).toBe(true);
+    expect(wrapper.find('img').exists()).toBe(false);
+  });
+
+  it('renders rating overlay when present', async () => {
+    const item = { name: 'img.jpg', path: '/img.jpg', rating: 5 };
+    mockState.gridMediaFiles = [item];
+    const wrapper = mountGrid();
+    await flushPromises();
+
+    // Resize
+    const calls = (ResizeObserverMock as any).mock.calls;
+    const observerCallback = calls[calls.length - 1][0];
+    observerCallback([
+      { contentRect: { width: 1000 }, contentBoxSize: [{ inlineSize: 1000 }] },
+    ]);
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.text()).toContain('5');
+    expect(wrapper.find('.text-yellow-400').exists()).toBe(true);
+  });
+
+  it('disconnects ResizeObserver on unmount', async () => {
+    const wrapper = mountGrid();
+    await flushPromises();
+
+    const disconnectSpy = vi.spyOn(ResizeObserverMock.prototype, 'disconnect');
+    wrapper.unmount();
+    expect(disconnectSpy).toHaveBeenCalled();
+  });
+
+  it('handleItemClick works even if image failed', async () => {
+    const item = { name: 'img.jpg', path: '/img.jpg' };
+    mockState.gridMediaFiles = [item];
+    const wrapper = mountGrid();
+    await flushPromises();
+
+    // Resize and trigger error
+    const calls = (ResizeObserverMock as any).mock.calls;
+    const observerCallback = calls[calls.length - 1][0];
+    observerCallback([
+      { contentRect: { width: 1000 }, contentBoxSize: [{ inlineSize: 1000 }] },
+    ]);
+    await wrapper.vm.$nextTick();
+
+    const img = wrapper.find('img');
+    img.element.src = 'url:///img.jpg';
+    await img.trigger('error');
+    await wrapper.vm.$nextTick();
+
+    // Click the failed item (which is now represented by the fallback div)
+    await wrapper.find('button.grid-item').trigger('click');
+    expect(mockState.currentMediaItem.path).toBe('/img.jpg');
   });
 });
