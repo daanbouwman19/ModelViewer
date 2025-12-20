@@ -52,24 +52,34 @@ export async function scanDiskForAlbumsAndCache(
   const albums = await new Promise<Album[]>((resolve, reject) => {
     const worker = new Worker(workerPath);
 
+    const cleanup = () => {
+      worker.removeAllListeners();
+      worker.terminate();
+    };
+
     worker.on('message', (message) => {
+      cleanup();
       if (message.type === 'SCAN_COMPLETE') {
         resolve(message.albums);
-        worker.terminate();
       } else if (message.type === 'SCAN_ERROR') {
         reject(new Error(message.error));
-        worker.terminate();
       }
     });
 
     worker.on('error', (err) => {
+      cleanup();
       reject(err);
-      worker.terminate();
     });
 
     worker.on('exit', (code) => {
+      cleanup();
+      // This is a fallback. If we get here, it means the worker exited without
+      // sending a message or emitting an 'error' event.
       if (code !== 0) {
         reject(new Error(`Worker stopped with exit code ${code}`));
+      } else {
+        // A clean exit without a message is an error for us, as the promise would otherwise hang.
+        reject(new Error('Worker exited without sending a result.'));
       }
     });
 

@@ -42,6 +42,7 @@ const mocks = vi.hoisted(() => {
       on,
       postMessage,
       terminate,
+      removeAllListeners: vi.fn(),
     };
   });
   return { Worker, on, postMessage, terminate };
@@ -162,6 +163,108 @@ describe('media-service', () => {
 
       await expect(promise).rejects.toThrow('Worker failed');
       expect(mocks.terminate).toHaveBeenCalled();
+    });
+
+    it('handles worker system error', async () => {
+      vi.mocked(database.getMediaDirectories).mockResolvedValue([
+        { path: '/dir1', isActive: true },
+      ] as any);
+
+      let errorCallback: ((err: any) => void) | undefined;
+      mocks.on.mockImplementation((event, cb) => {
+        if (event === 'error') errorCallback = cb;
+      });
+
+      const promise = scanDiskForAlbumsAndCache();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      if (errorCallback) {
+        errorCallback(new Error('System error'));
+      }
+
+      await expect(promise).rejects.toThrow('System error');
+      expect(mocks.terminate).toHaveBeenCalled();
+    });
+
+    it('handles worker non-zero exit', async () => {
+      vi.mocked(database.getMediaDirectories).mockResolvedValue([
+        { path: '/dir1', isActive: true },
+      ] as any);
+
+      let exitCallback: ((code: number) => void) | undefined;
+      mocks.on.mockImplementation((event, cb) => {
+        if (event === 'exit') exitCallback = cb;
+      });
+
+      const promise = scanDiskForAlbumsAndCache();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      if (exitCallback) {
+        exitCallback(1);
+      }
+
+      await expect(promise).rejects.toThrow('Worker stopped with exit code 1');
+    });
+
+    it('handles worker zero exit without result', async () => {
+      vi.mocked(database.getMediaDirectories).mockResolvedValue([
+        { path: '/dir1', isActive: true },
+      ] as any);
+
+      let exitCallback: ((code: number) => void) | undefined;
+      mocks.on.mockImplementation((event, cb) => {
+        if (event === 'exit') exitCallback = cb;
+      });
+
+      const promise = scanDiskForAlbumsAndCache();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      if (exitCallback) {
+        exitCallback(0);
+      }
+
+      await expect(promise).rejects.toThrow(
+        'Worker exited without sending a result',
+      );
+    });
+
+    it('triggers metadata extraction when ffmpegPath is provided', async () => {
+      vi.mocked(database.getMediaDirectories).mockResolvedValue([
+        { path: '/dir1', isActive: true },
+      ] as any);
+      const albums = [
+        {
+          id: 1,
+          textures: [{ path: '/new/file.mp4' }],
+        },
+      ];
+
+      let messageCallback: ((msg: any) => void) | undefined;
+      mocks.on.mockImplementation((event, cb) => {
+        if (event === 'message') messageCallback = cb;
+      });
+
+      // Mock getPendingMetadata
+      vi.mocked(database.getPendingMetadata).mockResolvedValue([
+        '/pending/file.mkv',
+      ]);
+
+      const promise = scanDiskForAlbumsAndCache('/usr/bin/ffmpeg');
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      if (messageCallback) messageCallback({ type: 'SCAN_COMPLETE', albums });
+
+      await promise;
+
+      // Allow background microtasks to run
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(database.getPendingMetadata).toHaveBeenCalled();
+
+      // We can check if internal extractAndSaveMetadata logic ran.
+      // It calls fs.stat for validation.
+      expect(fs.stat).toHaveBeenCalledWith('/new/file.mp4');
+      expect(fs.stat).toHaveBeenCalledWith('/pending/file.mkv');
     });
   });
 
