@@ -263,7 +263,7 @@ describe('MediaGrid.vue Coverage', () => {
     await flushPromises();
     await nextTick();
 
-    expect(wrapper.find('img').attributes('src')).toBe('url');
+    expect(wrapper.find('img').attributes('src')).toBe('thumb:///img.jpg');
   });
 
   it('getDisplayName fallback to path parsing', async () => {
