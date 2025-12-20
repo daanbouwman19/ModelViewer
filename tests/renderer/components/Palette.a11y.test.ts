@@ -329,7 +329,7 @@ describe('Palette Accessibility Improvements', () => {
       expect(toggleBtn.find('span').classes()).toContain('rotate-0');
     });
 
-    it('checkbox should have accessible label', () => {
+    it('checkbox should have accessible role, label and state', () => {
       const album = {
         id: 'test-id',
         name: 'Test Album',
@@ -344,7 +344,37 @@ describe('Palette Accessibility Improvements', () => {
       });
 
       const checkbox = wrapper.find('[data-testid="album-checkbox"]');
+      expect(checkbox.attributes('role')).toBe('checkbox');
       expect(checkbox.attributes('aria-label')).toBe('Select Test Album');
+      expect(checkbox.attributes('aria-checked')).toBe('false');
+    });
+
+    it('action buttons should have accessible labels', async () => {
+      const album = {
+        id: 'test-id',
+        name: 'Test Album',
+        children: [],
+        textures: [],
+      };
+      const wrapper = mount(AlbumTree, {
+        props: {
+          album,
+          selection: {},
+        },
+      });
+
+      // Need to hover to see them (opacity 0), but in DOM they exist.
+      // We assume tests don't check opacity for existence unless verifying visibility.
+      // But we just check attribute presence here.
+
+      const playBtn = wrapper.find('button[title="Play Album"]');
+      const gridBtn = wrapper.find('button[title="Open in Grid"]');
+
+      expect(playBtn.exists()).toBe(true);
+      expect(playBtn.attributes('aria-label')).toBe('Play Test Album');
+
+      expect(gridBtn.exists()).toBe(true);
+      expect(gridBtn.attributes('aria-label')).toBe('Open Test Album in Grid');
     });
   });
 
