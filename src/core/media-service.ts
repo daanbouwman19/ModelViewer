@@ -253,7 +253,7 @@ export async function extractAndSaveMetadata(
         };
 
         const result = await getVideoDuration(filePath, ffmpegPath);
-        if ('duration' in result) {
+        if (result && 'duration' in result) {
           metadata.duration = result.duration;
         }
 
