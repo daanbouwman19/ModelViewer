@@ -75,10 +75,17 @@ describe('Path Restriction Security', () => {
 
   it('correctly identifies sensitive system directories (Windows)', () => {
     Object.defineProperty(process, 'platform', { value: 'win32' });
+    vi.stubEnv('SystemDrive', 'C:');
+    vi.stubEnv('SystemRoot', 'C:\\Windows');
+    vi.stubEnv('ProgramFiles', 'C:\\Program Files');
+    vi.stubEnv('ProgramFiles(x86)', 'C:\\Program Files (x86)');
+    vi.stubEnv('ProgramData', 'C:\\ProgramData');
+
     expect(isSensitiveDirectory('C:\\')).toBe(true);
     expect(isSensitiveDirectory('c:\\windows')).toBe(true);
     expect(isSensitiveDirectory('C:\\Program Files')).toBe(true);
     expect(isSensitiveDirectory('C:\\Users\\User\\Videos')).toBe(false);
+    vi.unstubAllEnvs();
   });
 
   it('correctly identifies sensitive system directories (Linux)', () => {
@@ -91,10 +98,17 @@ describe('Path Restriction Security', () => {
 
   it('correctly identifies restricted listing paths (Windows)', () => {
     Object.defineProperty(process, 'platform', { value: 'win32' });
+    vi.stubEnv('SystemDrive', 'C:');
+    vi.stubEnv('SystemRoot', 'C:\\Windows');
+    vi.stubEnv('ProgramFiles', 'C:\\Program Files');
+    vi.stubEnv('ProgramFiles(x86)', 'C:\\Program Files (x86)');
+    vi.stubEnv('ProgramData', 'C:\\ProgramData');
+
     expect(isRestrictedPath('C:\\Windows')).toBe(true);
     expect(isRestrictedPath('c:\\program files')).toBe(true);
     expect(isRestrictedPath('C:\\')).toBe(false); // Allowed for navigation
     expect(isRestrictedPath('C:\\Users')).toBe(false);
+    vi.unstubAllEnvs();
   });
 
   it('correctly identifies restricted listing paths (Linux)', () => {

@@ -71,6 +71,19 @@ export function escapeHtml(str: string): string {
 }
 
 /**
+ * Helper to get Windows restricted paths from environment or defaults.
+ */
+function getWindowsRestrictedPaths(): string[] {
+  const drive = process.env.SystemDrive || 'C:';
+  return [
+    process.env.SystemRoot || `${drive}\\Windows`,
+    process.env.ProgramFiles || `${drive}\\Program Files`,
+    process.env['ProgramFiles(x86)'] || `${drive}\\Program Files (x86)`,
+    process.env.ProgramData || `${drive}\\ProgramData`,
+  ];
+}
+
+/**
  * Checks if a path is restricted for listing contents.
  * Allows root listing for navigation, but blocks internal system folders.
  * @param dirPath - The path to check.
@@ -82,13 +95,8 @@ export function isRestrictedPath(dirPath: string): boolean {
   const normalized = p.resolve(dirPath);
 
   if (process.platform === 'win32') {
-    // Allow C:\ (to navigate), but block C:\Windows
-    const restricted = [
-      'C:\\Windows',
-      'C:\\Program Files',
-      'C:\\Program Files (x86)',
-      'C:\\ProgramData',
-    ];
+    // Allow C:\ (to navigate), but block C:\Windows etc.
+    const restricted = getWindowsRestrictedPaths();
     return restricted.some(
       (r) =>
         normalized.toLowerCase() === r.toLowerCase() ||
@@ -116,12 +124,8 @@ export function isSensitiveDirectory(dirPath: string): boolean {
 
   if (process.platform === 'win32') {
     // Block C:\, C:\Windows, C:\Program Files, etc.
-    const restricted = [
-      'C:\\',
-      'C:\\Windows',
-      'C:\\Program Files',
-      'C:\\Program Files (x86)',
-    ];
+    const drive = process.env.SystemDrive || 'C:';
+    const restricted = [`${drive}\\`, ...getWindowsRestrictedPaths()];
     return restricted.some(
       (r) =>
         normalized.toLowerCase() === r.toLowerCase() ||
