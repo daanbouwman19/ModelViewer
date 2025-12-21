@@ -35,17 +35,26 @@ RUN npm ci --omit=dev
 # Stage 3: Final Runtime
 FROM node:24-slim AS runtime
 
+# Create a non-root user and group for security
+RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 appuser
+
 WORKDIR /app
 
 # Copy only the necessary runtime artifacts from previous stages
 COPY --from=builder /app/dist ./dist
 COPY --from=prod-deps /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
+COPY --from=prod-deps /app/package.json ./package.json
+
+# Change ownership of the application directory to the non-root user
+RUN chown -R appuser:nodejs /app
 
 # Expose the application port
 EXPOSE 3000
 
 ENV NODE_ENV=production
+
+# Switch to the non-root user
+USER appuser
 
 # Define command
 CMD ["node", "dist/server/index.js"]

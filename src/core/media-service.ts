@@ -38,6 +38,8 @@ export async function scanDiskForAlbumsAndCache(
   }
 
   // Determine worker path
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
   let workerPath: string | URL;
   const isProduction = process.env.NODE_ENV === 'production';
   const isElectron = !!process.versions['electron'];
@@ -53,9 +55,6 @@ export async function scanDiskForAlbumsAndCache(
     // Web Server Environment
     if (isProduction) {
       // In production built server, workers are adjacent to the entry point.
-      // We use __dirname as a baseline.
-      const __filename = fileURLToPath(import.meta.url);
-      const __dirname = path.dirname(__filename);
       workerPath = path.join(__dirname, 'scan-worker.js');
     } else {
       // Development (tsx)
