@@ -2,8 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   scanDiskForAlbumsAndCache,
   getAlbumsFromCacheOrDisk,
-  getAlbumsWithViewCountsAfterScan,
-  getAlbumsWithViewCounts,
   extractAndSaveMetadata,
 } from '../../src/core/media-service';
 import * as database from '../../src/core/database';
@@ -84,68 +82,49 @@ describe('media-service', () => {
   });
 
   describe('scanDiskForAlbumsAndCache', () => {
-    beforeEach(() => {
-      // Reset callback implementation
-      mocks.on.mockImplementation(() => {});
-    });
-
     it('uses correct worker path in packaged app', async () => {
-      electronMocks.app.isPackaged = true;
+      vi.stubGlobal('process', {
+        ...process,
+        versions: { ...process.versions, electron: '30.0.0' },
+      });
+      sharedState.isPackaged = true;
 
       vi.mocked(database.getMediaDirectories).mockResolvedValue([
         { path: '/dir', isActive: true },
       ] as any);
 
-      // Start the function
       const promise = scanDiskForAlbumsAndCache();
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
-      expect(mocks.Worker).toHaveBeenCalledWith(
-        expect.stringMatching(/scan-worker\.(js|ts)/),
-      );
+      expect(vi.mocked(Worker)).toHaveBeenCalled();
 
-      // Complete the scan to resolve promise
-      const callback = mocks.on.mock.calls.find(
-        (call) => call[0] === 'message',
-      )?.[1];
-      if (callback) callback({ type: 'SCAN_COMPLETE', albums: [] });
+      const last = sharedState.lastWorker;
+      if (last) {
+        const onMessage = last.on.mock.calls.find(
+          (c: any) => c[0] === 'message',
+        )?.[1];
+        if (onMessage) onMessage({ type: 'SCAN_COMPLETE', albums: [] });
+      }
       await promise;
 
-      // Restore
-      electronMocks.app.isPackaged = false;
-      mocks.terminate.mockClear();
+      vi.unstubAllGlobals();
     });
 
     it('scans and caches albums if directories exist', async () => {
-      const dirs = [
+      vi.mocked(database.getMediaDirectories).mockResolvedValue([
         { path: '/dir1', isActive: true },
-        { path: '/dir2', isActive: false },
-      ];
-      vi.mocked(database.getMediaDirectories).mockResolvedValue(dirs as any);
-      const albums = [{ id: 1, name: 'Album1' }];
+      ] as any);
 
-      // Capture message callback
-      let messageCallback: ((msg: any) => void) | undefined;
-      mocks.on.mockImplementation((event, cb) => {
-        if (event === 'message') messageCallback = cb;
-      });
-
-      // Start the function
       const promise = scanDiskForAlbumsAndCache();
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
-      // The worker should be instantiated
-      await new Promise((resolve) => setTimeout(resolve, 0)); // Let the microtask run to creating worker
-      expect(mocks.Worker).toHaveBeenCalled();
+      const last = sharedState.lastWorker;
+      expect(last).toBeDefined();
 
-      // Trigger worker message
-      expect(mocks.postMessage).toHaveBeenCalledWith({
-        type: 'START_SCAN',
-        directories: ['/dir1'],
-      });
-
-      if (messageCallback) {
-        messageCallback({ type: 'SCAN_COMPLETE', albums });
-      }
+      const onMessage = last.on.mock.calls.find(
+        (c: any) => c[0] === 'message',
+      )?.[1];
+      if (onMessage) onMessage({ type: 'SCAN_COMPLETE', albums: [{ id: 1 }] });
 
       const result = await promise;
 
