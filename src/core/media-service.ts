@@ -12,8 +12,8 @@ import {
   getPendingMetadata,
 } from './database';
 import { Worker } from 'worker_threads';
-import { app } from 'electron';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { getVideoDuration } from './media-handler';
 import type { Album, MediaMetadata } from './types';
 import fs from 'fs/promises';
@@ -38,14 +38,28 @@ export async function scanDiskForAlbumsAndCache(
   }
 
   // Determine worker path
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
   let workerPath: string | URL;
-  if (app.isPackaged) {
-    workerPath = path.join(__dirname, 'scan-worker.js');
+  const isProduction = process.env.NODE_ENV === 'production';
+  const isElectron = !!process.versions['electron'];
+
+  if (isElectron) {
+    const { app } = await import('electron');
+    if (app.isPackaged) {
+      workerPath = path.join(__dirname, 'scan-worker.js');
+    } else {
+      workerPath = new URL('./scan-worker.js', import.meta.url);
+    }
   } else {
-    // In dev, the worker is built to out/main/scan-worker.js
-    // We can rely on electron-vite's dev server or just point to the object URL if handled that way,
-    // but the database.ts example suggests passing a URL object relative to import.meta.url works.
-    workerPath = new URL('./scan-worker.js', import.meta.url);
+    // Web Server Environment
+    if (isProduction) {
+      // In production built server, workers are adjacent to the entry point.
+      workerPath = path.join(__dirname, 'scan-worker.js');
+    } else {
+      // Development (tsx)
+      workerPath = new URL('./scan-worker.js', import.meta.url);
+    }
   }
 
   // Run scan in a worker
@@ -239,7 +253,7 @@ export async function extractAndSaveMetadata(
         };
 
         const result = await getVideoDuration(filePath, ffmpegPath);
-        if ('duration' in result) {
+        if (result && 'duration' in result) {
           metadata.duration = result.duration;
         }
 
