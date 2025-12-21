@@ -51,6 +51,8 @@ vi.mock('../../src/core/file-system', () => ({
 vi.mock('../../src/core/security', () => ({
   authorizeFilePath: mocks.mockAuthorizeFilePath,
   escapeHtml: (s: string) => s,
+  isRestrictedPath: vi.fn().mockReturnValue(false),
+  isSensitiveDirectory: vi.fn().mockReturnValue(false),
 }));
 
 vi.mock('../../src/main/google-drive-service', () => ({
