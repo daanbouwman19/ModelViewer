@@ -1,5 +1,5 @@
 # Stage 1: Build assets
-FROM node:24 AS builder
+FROM node:22 AS builder
 
 WORKDIR /app
 
@@ -7,7 +7,8 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 
 # Install ALL dependencies for building
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
 
 # Copy source code
 COPY . .
@@ -17,8 +18,8 @@ RUN npm run build:web
 RUN npm run build:server
 
 # Stage 2: Install production dependencies
-# We use the full node:24 image to ensure native modules like better-sqlite3 are correctly built
-FROM node:24 AS prod-deps
+# We use the full node:22 image to ensure native modules like better-sqlite3 are correctly built
+FROM node:22 AS prod-deps
 
 WORKDIR /app
 
@@ -30,10 +31,11 @@ COPY package.json package-lock.json ./
 RUN npm pkg delete scripts.prepare
 
 # Install ONLY production dependencies
-RUN npm ci --omit=dev
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --omit=dev
 
 # Stage 3: Final Runtime
-FROM node:24-slim AS runtime
+FROM node:22-slim AS runtime
 
 # Create a non-root user and group for security
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 appuser

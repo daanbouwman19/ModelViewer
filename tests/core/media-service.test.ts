@@ -65,12 +65,97 @@ vi.mock('worker_threads', () => {
 describe('media-service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+<<<<<<< HEAD
     vi.resetAllMocks();
     sharedState.lastWorker = null;
     sharedState.isPackaged = false;
   });
 
   describe('scanDiskForAlbumsAndCache', () => {
+=======
+    // Stub process.versions.electron for environment detection
+    vi.stubGlobal('process', {
+      ...process,
+      versions: {
+        ...process.versions,
+        electron: '30.0.0', // Faking an Electron version
+      },
+    });
+  });
+
+  describe('scanDiskForAlbumsAndCache', () => {
+    beforeEach(() => {
+      // Reset callback implementation
+      mocks.on.mockImplementation(() => {});
+    });
+
+    it('uses correct worker path in packaged app', async () => {
+      electronMocks.app.isPackaged = true;
+
+      vi.mocked(database.getMediaDirectories).mockResolvedValue([
+        { path: '/dir', isActive: true },
+      ] as any);
+
+      // Start the function
+      const promise = scanDiskForAlbumsAndCache();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(mocks.Worker).toHaveBeenCalledWith(
+        expect.stringMatching(/scan-worker\.(js|ts)/),
+      );
+
+      // Complete the scan to resolve promise
+      const callback = mocks.on.mock.calls.find(
+        (call) => call[0] === 'message',
+      )?.[1];
+      if (callback) callback({ type: 'SCAN_COMPLETE', albums: [] });
+      await promise;
+
+      // Restore
+      electronMocks.app.isPackaged = false;
+      mocks.terminate.mockClear();
+    });
+
+    it('scans and caches albums if directories exist', async () => {
+      const dirs = [
+        { path: '/dir1', isActive: true },
+        { path: '/dir2', isActive: false },
+      ];
+      vi.mocked(database.getMediaDirectories).mockResolvedValue(dirs as any);
+      const albums = [{ id: 1, name: 'Album1' }];
+
+      // Capture message callback
+      let messageCallback: ((msg: any) => void) | undefined;
+      mocks.on.mockImplementation((event, cb) => {
+        if (event === 'message') messageCallback = cb;
+      });
+
+      // Start the function
+      const promise = scanDiskForAlbumsAndCache();
+
+      // The worker should be instantiated
+      await new Promise((resolve) => setTimeout(resolve, 0)); // Let the microtask run to creating worker
+      expect(mocks.Worker).toHaveBeenCalled();
+
+      // Trigger worker message
+      expect(mocks.postMessage).toHaveBeenCalledWith({
+        type: 'START_SCAN',
+        directories: ['/dir1'],
+      });
+
+      if (messageCallback) {
+        messageCallback({ type: 'SCAN_COMPLETE', albums });
+      }
+
+      const result = await promise;
+
+      expect(database.getMediaDirectories).toHaveBeenCalled();
+      expect(database.cacheAlbums).toHaveBeenCalledWith(albums);
+      expect(result).toEqual(albums);
+      expect(mocks.terminate).toHaveBeenCalled();
+    });
+
+>>>>>>> 8b7b50f (test: add unit tests for media-service functions including scanning, caching, and view counts)
     it('returns empty list if no active directories', async () => {
       vi.mocked(database.getMediaDirectories).mockResolvedValue([
         { path: '/dir1', isActive: false },
