@@ -45,6 +45,9 @@ COPY --from=builder --chown=appuser:nodejs /app/dist ./dist
 COPY --from=prod-deps --chown=appuser:nodejs /app/node_modules ./node_modules
 COPY --from=prod-deps --chown=appuser:nodejs /app/package.json ./package.json
 
+# Ensure the app has write permissions for the database and cache
+RUN mkdir -p /app/cache && chown -R appuser:nodejs /app
+
 # Expose the application port
 EXPOSE 3000
 
