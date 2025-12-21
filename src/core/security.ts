@@ -69,3 +69,79 @@ export function escapeHtml(str: string): string {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+
+/**
+ * Checks if a path is restricted for listing contents.
+ * Allows root listing for navigation, but blocks internal system folders.
+ * @param dirPath - The path to check.
+ * @returns True if the path is restricted.
+ */
+export function isRestrictedPath(dirPath: string): boolean {
+  if (!dirPath) return true;
+  const normalized = path.resolve(dirPath);
+
+  if (process.platform === 'win32') {
+    // Allow C:\ (to navigate), but block C:\Windows
+    const restricted = [
+      'C:\\Windows',
+      'C:\\Program Files',
+      'C:\\Program Files (x86)',
+      'C:\\ProgramData',
+    ];
+    return restricted.some(
+      (r) =>
+        normalized.toLowerCase() === r.toLowerCase() ||
+        normalized.toLowerCase().startsWith(r.toLowerCase() + '\\'),
+    );
+  } else {
+    // Allow / (to navigate), but block /etc, /proc, /root
+    const restricted = ['/etc', '/proc', '/sys', '/root', '/boot', '/dev'];
+    return restricted.some(
+      (r) => normalized === r || normalized.startsWith(r + '/'),
+    );
+  }
+}
+
+/**
+ * Checks if a path is a sensitive system root that should not be scanned recursively.
+ * Used when adding media directories.
+ * @param dirPath - The path to check.
+ * @returns True if the path is sensitive.
+ */
+export function isSensitiveDirectory(dirPath: string): boolean {
+  if (!dirPath) return true;
+  const normalized = path.resolve(dirPath);
+
+  if (process.platform === 'win32') {
+    // Block C:\, C:\Windows, C:\Program Files, etc.
+    const restricted = [
+      'C:\\',
+      'C:\\Windows',
+      'C:\\Program Files',
+      'C:\\Program Files (x86)',
+    ];
+    return restricted.some(
+      (r) =>
+        normalized.toLowerCase() === r.toLowerCase() ||
+        normalized.toLowerCase().startsWith(r.toLowerCase() + '\\'),
+    );
+  } else {
+    // Block /, /etc, /usr, /var, etc.
+    const restricted = [
+      '/',
+      '/etc',
+      '/usr',
+      '/var',
+      '/bin',
+      '/sbin',
+      '/root',
+      '/sys',
+      '/proc',
+      '/dev',
+      '/boot',
+    ];
+    return restricted.some(
+      (r) => normalized === r || normalized.startsWith(r + '/'),
+    );
+  }
+}

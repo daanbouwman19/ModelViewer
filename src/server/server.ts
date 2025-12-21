@@ -38,7 +38,12 @@ import {
   ALL_SUPPORTED_EXTENSIONS,
 } from '../core/constants';
 import { listDirectory } from '../core/file-system';
-import { authorizeFilePath, escapeHtml } from '../core/security';
+import {
+  authorizeFilePath,
+  escapeHtml,
+  isRestrictedPath,
+  isSensitiveDirectory,
+} from '../core/security';
 import { initializeDriveCacheManager } from '../main/drive-cache-manager';
 import { generateAuthUrl, authenticateWithCode } from '../main/google-auth';
 import {
@@ -287,33 +292,9 @@ export async function createApp() {
     const { path: dirPath } = req.body;
     if (!dirPath) return res.status(400).send('Missing path');
 
-    // [SECURITY] Block sensitive system directories
-    const sensitivePaths =
-      process.platform === 'win32'
-        ? [
-            'C:\\',
-            'C:\\Windows',
-            'C:\\Program Files',
-            'C:\\Program Files (x86)',
-          ]
-        : [
-            '/',
-            '/etc',
-            '/usr',
-            '/var',
-            '/bin',
-            '/sbin',
-            '/root',
-            '/sys',
-            '/proc',
-            '/dev',
-            '/boot',
-          ];
-
-    const normalizedPath = path.resolve(dirPath);
-    if (sensitivePaths.some((p) => path.resolve(p) === normalizedPath)) {
+    if (isSensitiveDirectory(dirPath)) {
       console.warn(
-        `[Security] Blocked attempt to add sensitive directory: ${normalizedPath}`,
+        `[Security] Blocked attempt to add sensitive directory: ${dirPath}`,
       );
       return res
         .status(403)
@@ -358,8 +339,17 @@ export async function createApp() {
 
   // File System
   app.get('/api/fs/ls', async (req, res) => {
-    const dirPath = req.query.path as string;
-    if (!dirPath) return res.status(400).send('Missing path');
+    const dirPath = req.query.path;
+    if (!dirPath || typeof dirPath !== 'string')
+      return res.status(400).send('Missing path');
+
+    if (isRestrictedPath(dirPath)) {
+      console.warn(
+        `[Security] Blocked attempt to list restricted directory: ${dirPath}`,
+      );
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
     try {
       const contents = await listDirectory(dirPath);
       res.json(contents);
@@ -369,8 +359,9 @@ export async function createApp() {
   });
 
   app.get('/api/fs/parent', (req, res) => {
-    const dirPath = req.query.path as string;
-    if (!dirPath) return res.status(400).send('Missing path');
+    const dirPath = req.query.path;
+    if (!dirPath || typeof dirPath !== 'string')
+      return res.status(400).send('Missing path');
     const parent = path.dirname(dirPath);
     // If we are at root or at a drive root (e.g., C:\)
     // path.dirname('C:\\') returns 'C:\\' on Windows

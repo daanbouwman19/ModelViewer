@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { authorizeFilePath, escapeHtml } from '../../src/core/security';
+import {
+  authorizeFilePath,
+  escapeHtml,
+  isRestrictedPath,
+  isSensitiveDirectory,
+} from '../../src/core/security';
 import fs from 'fs/promises';
 import * as database from '../../src/core/database';
 
@@ -56,5 +61,39 @@ describe('escapeHtml Security', () => {
 
   it('handles strings without special characters', () => {
     expect(escapeHtml('hello world')).toBe('hello world');
+  });
+});
+
+describe('Path Restriction Security', () => {
+  it('correctly identifies sensitive system directories (Adding)', () => {
+    if (process.platform === 'win32') {
+      expect(isSensitiveDirectory('C:\\')).toBe(true);
+      expect(isSensitiveDirectory('c:\\windows')).toBe(true);
+      expect(isSensitiveDirectory('C:\\Users\\User\\Videos')).toBe(false);
+    } else {
+      expect(isSensitiveDirectory('/')).toBe(true);
+      expect(isSensitiveDirectory('/etc')).toBe(true);
+      expect(isSensitiveDirectory('/usr/bin')).toBe(true);
+      expect(isSensitiveDirectory('/home/user')).toBe(false);
+    }
+  });
+
+  it('correctly identifies restricted listing paths', () => {
+    if (process.platform === 'win32') {
+      expect(isRestrictedPath('C:\\Windows')).toBe(true);
+      expect(isRestrictedPath('c:\\program files')).toBe(true);
+      expect(isRestrictedPath('C:\\')).toBe(false); // Allowed for navigation
+      expect(isRestrictedPath('C:\\Users')).toBe(false);
+    } else {
+      expect(isRestrictedPath('/etc')).toBe(true);
+      expect(isRestrictedPath('/root')).toBe(true);
+      expect(isRestrictedPath('/')).toBe(false); // Allowed for navigation
+      expect(isRestrictedPath('/home')).toBe(false);
+    }
+  });
+
+  it('handles edge cases', () => {
+    expect(isSensitiveDirectory('')).toBe(true); // Fail safe
+    expect(isRestrictedPath('')).toBe(true);
   });
 });
