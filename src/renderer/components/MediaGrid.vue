@@ -280,13 +280,16 @@ const handleImageError = (event: Event, item: MediaFile) => {
   if (!mediaUrlGenerator.value || failedImagePaths.has(item.path)) return;
 
   const imgElement = event.target as HTMLImageElement;
-  const fullUrl = mediaUrlGenerator.value(item.path);
+  const rawFullUrl = mediaUrlGenerator.value(item.path);
+  // Resolve to absolute URL for robust comparison with imgElement.src
+  const fullUrlResolved = new URL(rawFullUrl, window.location.href).href;
   const props = getRenderProps(item);
 
   // If we were using a thumbnail and it failed, try the full URL
-  if (imgElement.src !== fullUrl && props.mediaUrl !== fullUrl) {
+  // Check both resolved URL (DOM) and intent (props) to avoid infinite loops
+  if (imgElement.src !== fullUrlResolved && props.mediaUrl !== rawFullUrl) {
     // Retry with full URL
-    imgElement.src = fullUrl;
+    imgElement.src = rawFullUrl;
   } else {
     // Already tried full URL or it matches, so it's a real failure
     failedImagePaths.add(item.path);
