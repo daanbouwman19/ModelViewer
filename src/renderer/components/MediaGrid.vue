@@ -297,13 +297,10 @@ const handleImageError = (event: Event, item: MediaFile) => {
 const chunkedItems = computed<GridRow[]>(() => {
   // Ensure we re-chunk if generators or extensions change,
   // to force re-render of slots with new RenderProps
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _deps = [
-    mediaUrlGenerator.value,
-    thumbnailUrlGenerator.value,
-    imageExtensionsSet.value,
-    videoExtensionsSet.value,
-  ];
+  void mediaUrlGenerator.value;
+  void thumbnailUrlGenerator.value;
+  void imageExtensionsSet.value;
+  void videoExtensionsSet.value;
 
   const items = allMediaFiles.value;
   const cols = columnCount.value;
