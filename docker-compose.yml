@@ -10,8 +10,12 @@ services:
       # You can add more mappings as needed.
       # Host path : Container path
       - ./media:/media
+      # Add this line to persist your google-token.json
+      - ./config:/app/.config/mediaplayer-app
     environment:
       - NODE_ENV=production
+      # Add this line so the app knows where "Home" is
+      - HOME=/app
     env_file:
       - .env
     restart: unless-stopped
