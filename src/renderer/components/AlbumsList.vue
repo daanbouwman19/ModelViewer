@@ -22,6 +22,7 @@
         <button
           class="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition-colors"
           title="Manage Sources"
+          aria-label="Manage Sources"
           @click="openModal"
         >
           <SettingsIcon class="w-5 h-5" />
@@ -30,6 +31,7 @@
         <button
           class="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition-colors"
           title="Add Playlist"
+          aria-label="Add Playlist"
           @click="openSmartPlaylistModal"
         >
           <PlaylistAddIcon class="w-5 h-5" />
@@ -100,6 +102,7 @@
                   <button
                     class="text-xs text-gray-500 hover:text-white p-1"
                     title="Open in Grid"
+                    :aria-label="'Open ' + playlist.name + ' in Grid'"
                     @click.stop="handleSmartPlaylistGrid(playlist)"
                   >
                     <GridIcon class="w-4 h-4" />
@@ -107,6 +110,7 @@
                   <button
                     class="text-xs text-gray-500 hover:text-blue-400 p-1"
                     title="Edit"
+                    :aria-label="'Edit ' + playlist.name"
                     @click.stop="editPlaylist(playlist)"
                   >
                     <EditIcon class="w-3.5 h-3.5" />
@@ -114,6 +118,7 @@
                   <button
                     class="text-xs text-gray-500 hover:text-red-400 p-1"
                     title="Delete"
+                    :aria-label="'Delete ' + playlist.name"
                     @click.stop="deletePlaylist(playlist.id)"
                   >
                     <DeleteIcon class="w-4 h-4" />
