@@ -78,7 +78,8 @@ export function escapeHtml(str: string): string {
  */
 export function isRestrictedPath(dirPath: string): boolean {
   if (!dirPath) return true;
-  const normalized = path.resolve(dirPath);
+  const p = process.platform === 'win32' ? path.win32 : path.posix;
+  const normalized = p.resolve(dirPath);
 
   if (process.platform === 'win32') {
     // Allow C:\ (to navigate), but block C:\Windows
@@ -110,7 +111,8 @@ export function isRestrictedPath(dirPath: string): boolean {
  */
 export function isSensitiveDirectory(dirPath: string): boolean {
   if (!dirPath) return true;
-  const normalized = path.resolve(dirPath);
+  const p = process.platform === 'win32' ? path.win32 : path.posix;
+  const normalized = p.resolve(dirPath);
 
   if (process.platform === 'win32') {
     // Block C:\, C:\Windows, C:\Program Files, etc.

@@ -65,31 +65,44 @@ describe('escapeHtml Security', () => {
 });
 
 describe('Path Restriction Security', () => {
-  it('correctly identifies sensitive system directories (Adding)', () => {
-    if (process.platform === 'win32') {
-      expect(isSensitiveDirectory('C:\\')).toBe(true);
-      expect(isSensitiveDirectory('c:\\windows')).toBe(true);
-      expect(isSensitiveDirectory('C:\\Users\\User\\Videos')).toBe(false);
-    } else {
-      expect(isSensitiveDirectory('/')).toBe(true);
-      expect(isSensitiveDirectory('/etc')).toBe(true);
-      expect(isSensitiveDirectory('/usr/bin')).toBe(true);
-      expect(isSensitiveDirectory('/home/user')).toBe(false);
-    }
+  const originalPlatform = process.platform;
+
+  afterEach(() => {
+    Object.defineProperty(process, 'platform', {
+      value: originalPlatform,
+    });
   });
 
-  it('correctly identifies restricted listing paths', () => {
-    if (process.platform === 'win32') {
-      expect(isRestrictedPath('C:\\Windows')).toBe(true);
-      expect(isRestrictedPath('c:\\program files')).toBe(true);
-      expect(isRestrictedPath('C:\\')).toBe(false); // Allowed for navigation
-      expect(isRestrictedPath('C:\\Users')).toBe(false);
-    } else {
-      expect(isRestrictedPath('/etc')).toBe(true);
-      expect(isRestrictedPath('/root')).toBe(true);
-      expect(isRestrictedPath('/')).toBe(false); // Allowed for navigation
-      expect(isRestrictedPath('/home')).toBe(false);
-    }
+  it('correctly identifies sensitive system directories (Windows)', () => {
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+    expect(isSensitiveDirectory('C:\\')).toBe(true);
+    expect(isSensitiveDirectory('c:\\windows')).toBe(true);
+    expect(isSensitiveDirectory('C:\\Program Files')).toBe(true);
+    expect(isSensitiveDirectory('C:\\Users\\User\\Videos')).toBe(false);
+  });
+
+  it('correctly identifies sensitive system directories (Linux)', () => {
+    Object.defineProperty(process, 'platform', { value: 'linux' });
+    expect(isSensitiveDirectory('/')).toBe(true);
+    expect(isSensitiveDirectory('/etc')).toBe(true);
+    expect(isSensitiveDirectory('/usr/bin')).toBe(true);
+    expect(isSensitiveDirectory('/home/user')).toBe(false);
+  });
+
+  it('correctly identifies restricted listing paths (Windows)', () => {
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+    expect(isRestrictedPath('C:\\Windows')).toBe(true);
+    expect(isRestrictedPath('c:\\program files')).toBe(true);
+    expect(isRestrictedPath('C:\\')).toBe(false); // Allowed for navigation
+    expect(isRestrictedPath('C:\\Users')).toBe(false);
+  });
+
+  it('correctly identifies restricted listing paths (Linux)', () => {
+    Object.defineProperty(process, 'platform', { value: 'linux' });
+    expect(isRestrictedPath('/etc')).toBe(true);
+    expect(isRestrictedPath('/root')).toBe(true);
+    expect(isRestrictedPath('/')).toBe(false); // Allowed for navigation
+    expect(isRestrictedPath('/home')).toBe(false);
   });
 
   it('handles edge cases', () => {
