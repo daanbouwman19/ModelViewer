@@ -55,6 +55,12 @@ export async function scanDiskForAlbumsAndCache(
     // Web Server Environment
     if (isProduction) {
       // In production built server, workers are adjacent to the entry point.
+<<<<<<< HEAD
+=======
+      // We use __dirname as a baseline.
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = path.dirname(__filename);
+>>>>>>> b700eee (feat: Introduce media scanning and metadata extraction service using a dedicated worker and optimize Docker build with multi-stage process.)
       workerPath = path.join(__dirname, 'scan-worker.js');
     } else {
       // Development (tsx)
