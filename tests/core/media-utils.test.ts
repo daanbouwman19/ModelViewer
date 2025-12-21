@@ -74,8 +74,7 @@ describe('media-utils', () => {
 
     it('returns image/jpeg for .jpg and .jpeg', () => {
       expect(getMimeType('photo.jpg')).toBe('image/jpeg');
-      expect(getMimeType('photo.jpeg')).toBe('image/jpeg'); // Assuming extension list handles this or .jpeg isn't in list?
-      // Looking at source: extension === 'jpg' ? 'jpeg' : extension.
+      expect(getMimeType('photo.jpeg')).toBe('image/jpeg');
     });
 
     it('returns video/mp4 for .mp4', () => {

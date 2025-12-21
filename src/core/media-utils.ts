@@ -7,6 +7,9 @@ import {
   SUPPORTED_VIDEO_EXTENSIONS,
 } from './constants';
 
+const FFMPEG_TRANSCODE_PRESET = 'ultrafast';
+const FFMPEG_TRANSCODE_CRF = '23';
+
 export function getMimeType(filePath: string): string {
   if (filePath.startsWith('gdrive://')) {
     return 'application/octet-stream';
@@ -114,9 +117,9 @@ export function getTranscodeArgs(
     '-movflags',
     'frag_keyframe+empty_moov',
     '-preset',
-    'ultrafast',
+    FFMPEG_TRANSCODE_PRESET,
     '-crf',
-    '23',
+    FFMPEG_TRANSCODE_CRF,
     '-pix_fmt',
     'yuv420p',
     'pipe:1',
