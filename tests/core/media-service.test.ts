@@ -56,6 +56,14 @@ vi.mock('worker_threads', () => ({
 describe('media-service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Stub process.versions.electron for environment detection
+    vi.stubGlobal('process', {
+      ...process,
+      versions: {
+        ...process.versions,
+        electron: '30.0.0', // Faking an Electron version
+      },
+    });
   });
 
   describe('scanDiskForAlbumsAndCache', () => {
@@ -76,7 +84,7 @@ describe('media-service', () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
 
       expect(mocks.Worker).toHaveBeenCalledWith(
-        expect.stringContaining('scan-worker.js'),
+        expect.stringMatching(/scan-worker\.(js|ts)/),
       );
 
       // Complete the scan to resolve promise
