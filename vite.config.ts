@@ -16,6 +16,7 @@ export default defineConfig(({ mode }) => {
           entry: {
             index: resolve(__dirname, 'src/server/server.ts'),
             worker: resolve(__dirname, 'src/core/database-worker.ts'),
+            'scan-worker': resolve(__dirname, 'src/core/scan-worker.ts'),
           },
           formats: ['es'],
         },
@@ -30,6 +31,7 @@ export default defineConfig(({ mode }) => {
             'cors',
             'ffmpeg-static',
             'dotenv',
+            'electron',
           ],
         },
         minify: false,

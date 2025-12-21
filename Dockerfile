@@ -1,14 +1,12 @@
-FROM node:24
+# Stage 1: Build assets
+FROM node:24 AS builder
 
 WORKDIR /app
-
-# Install dependencies needed for native module compilation (better-sqlite3)
-# The Node base image typically includes python3, make, and g++.
 
 # Copy package files
 COPY package.json package-lock.json ./
 
-# Install dependencies (including devDependencies to run build scripts)
+# Install ALL dependencies for building
 RUN npm ci
 
 # Copy source code
@@ -18,11 +16,33 @@ COPY . .
 RUN npm run build:web
 RUN npm run build:server
 
-# Prune dev dependencies to save space (optional, but keep it simple for now)
-RUN npm prune --production
-# We need esbuild during build but not runtime. 
-# Better-sqlite3 is a dependency.
+# Stage 2: Install production dependencies
+# We use the full node:24 image to ensure native modules like better-sqlite3 are correctly built
+FROM node:24 AS prod-deps
 
+WORKDIR /app
+
+# Copy package files
+COPY package.json package-lock.json ./
+
+# Remove husky prepare script to prevent failures during production-only install
+# Husky is a devDependency and won't be available here.
+RUN npm pkg delete scripts.prepare
+
+# Install ONLY production dependencies
+RUN npm ci --omit=dev
+
+# Stage 3: Final Runtime
+FROM node:24-slim AS runtime
+
+WORKDIR /app
+
+# Copy only the necessary runtime artifacts from previous stages
+COPY --from=builder /app/dist ./dist
+COPY --from=prod-deps /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
+
+# Expose the application port
 EXPOSE 3000
 
 ENV NODE_ENV=production
