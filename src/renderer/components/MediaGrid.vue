@@ -42,10 +42,10 @@
               :key="mediaItem.path"
               type="button"
               class="relative group grid-item cursor-pointer w-full h-full text-left bg-transparent border-0 p-0 block focus:outline-none focus:ring-2 focus:ring-pink-500 rounded overflow-hidden"
-              :aria-label="`View ${mediaItem.displayName}`"
+              :aria-label="`View ${getRenderProps(mediaItem).displayName}`"
               @click="handleItemClick(mediaItem)"
             >
-              <template v-if="mediaItem.isImage">
+              <template v-if="getRenderProps(mediaItem).isImage">
                 <div
                   v-if="failedImagePaths.has(mediaItem.path)"
                   class="h-full w-full flex items-center justify-center bg-gray-800 text-gray-600 rounded"
@@ -67,19 +67,19 @@
                 </div>
                 <img
                   v-else
-                  :src="mediaItem.mediaUrl"
+                  :src="getRenderProps(mediaItem).mediaUrl"
                   alt=""
                   class="h-full w-full object-cover rounded"
                   loading="lazy"
                   @error="handleImageError($event, mediaItem)"
                 />
               </template>
-              <template v-else-if="mediaItem.isVideo">
+              <template v-else-if="getRenderProps(mediaItem).isVideo">
                 <video
-                  :src="mediaItem.mediaUrl"
+                  :src="getRenderProps(mediaItem).mediaUrl"
                   muted
                   preload="metadata"
-                  :poster="mediaItem.posterUrl"
+                  :poster="getRenderProps(mediaItem).posterUrl"
                   class="h-full w-full object-cover rounded block"
                 ></video>
                 <div
@@ -99,7 +99,7 @@
                 class="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
               >
                 <p class="text-white text-xs truncate">
-                  {{ mediaItem.displayName }}
+                  {{ getRenderProps(mediaItem).displayName }}
                 </p>
               </div>
             </button>
@@ -116,15 +116,7 @@
  * Supports hover-to-preview for videos and click-to-play functionality.
  * Uses vue-virtual-scroller for performance on large albums.
  */
-import {
-  ref,
-  onMounted,
-  onUnmounted,
-  computed,
-  watch,
-  shallowRef,
-  reactive,
-} from 'vue';
+import { ref, onMounted, onUnmounted, computed, watch, reactive } from 'vue';
 import { useAppState } from '../composables/useAppState';
 import type { MediaFile } from '../../core/types';
 import { api } from '../api';
@@ -135,10 +127,9 @@ const { state, imageExtensionsSet, videoExtensionsSet } = useAppState();
 const allMediaFiles = computed(() => state.gridMediaFiles);
 
 /**
- * Extended interface for cached media item properties.
- * Using this prevents repeated string parsing and extension lookups during render.
+ * Properties derived from MediaFile for rendering.
  */
-interface ProcessedMediaItem extends MediaFile {
+interface RenderProps {
   isImage: boolean;
   isVideo: boolean;
   mediaUrl: string;
@@ -148,7 +139,7 @@ interface ProcessedMediaItem extends MediaFile {
 
 interface GridRow {
   id: string;
-  items: ProcessedMediaItem[];
+  items: MediaFile[];
 }
 
 const scrollerContainer = ref<HTMLElement | null>(null);
@@ -216,11 +207,21 @@ const getExtension = (nameOrPath: string) => {
 const mediaUrlGenerator = ref<((path: string) => string) | null>(null);
 const thumbnailUrlGenerator = ref<((path: string) => string) | null>(null);
 
+// WeakMap cache for derived render properties.
+// Keys are MediaFile objects (proxies), values are RenderProps.
+// This avoids O(N) allocation and computation when the list changes,
+// distributing the cost to render time (O(visible)).
+let itemCache = new WeakMap<object, RenderProps>();
+
 /**
- * Transforms a MediaFile into a ProcessedMediaItem with pre-calculated fields.
- * This runs only once per item when it first becomes visible, rather than on every render.
+ * Retrieves derived render properties for a media item.
+ * Uses a WeakMap cache to memoize results based on object identity.
  */
-const processItem = (item: MediaFile): ProcessedMediaItem => {
+const getRenderProps = (item: MediaFile): RenderProps => {
+  if (itemCache.has(item)) {
+    return itemCache.get(item)!;
+  }
+
   const nameOrPath = item.name || item.path;
   const ext = getExtension(nameOrPath);
   const isImg = imageExtensionsSet.value.has(ext);
@@ -247,59 +248,64 @@ const processItem = (item: MediaFile): ProcessedMediaItem => {
 
   const displayName = item.name || item.path.replace(/^.*[\\/]/, '');
 
-  return {
-    ...item,
+  const props: RenderProps = {
     isImage: isImg,
     isVideo: isVid,
     mediaUrl: url,
     posterUrl: poster,
     displayName,
   };
+
+  itemCache.set(item, props);
+  return props;
 };
 
-const failedImagePaths = reactive(new Set<string>());
-
-const handleImageError = (event: Event, item: ProcessedMediaItem) => {
-  // If we are already showing the full URL or don't have a generator, just mark as failed
-  if (!mediaUrlGenerator.value || failedImagePaths.has(item.path)) return;
-
-  const imgElement = event.target as HTMLImageElement;
-  const fullUrl = mediaUrlGenerator.value(item.path);
-
-  // If we were using a thumbnail and it failed, try the full URL
-  if (imgElement.src !== fullUrl && item.mediaUrl !== fullUrl) {
-    // Retry with full URL
-    imgElement.src = fullUrl;
-  } else {
-    // Already tried full URL or it matches, so it's a real failure
-    failedImagePaths.add(item.path);
-  }
-};
-
-// Processed list of ALL items
-const allProcessedItems = shallowRef<ProcessedMediaItem[]>([]);
-
+// Clear cache when generators or extensions change
 watch(
   [
-    allMediaFiles,
     mediaUrlGenerator,
     thumbnailUrlGenerator,
     imageExtensionsSet,
     videoExtensionsSet,
   ],
   () => {
-    // potential perf: might want to clear failed paths if the list completely changes?
-    // But keeping them is safer to avoid flickering if reloaded.
-    // If the file actually exists now, it will stay failed until reload.
-    // This is acceptable for "Code Quality" pass.
-    allProcessedItems.value = allMediaFiles.value.map(processItem);
+    itemCache = new WeakMap();
   },
-  { immediate: true },
 );
+
+const failedImagePaths = reactive(new Set<string>());
+
+const handleImageError = (event: Event, item: MediaFile) => {
+  // If we are already showing the full URL or don't have a generator, just mark as failed
+  if (!mediaUrlGenerator.value || failedImagePaths.has(item.path)) return;
+
+  const imgElement = event.target as HTMLImageElement;
+  const rawFullUrl = mediaUrlGenerator.value(item.path);
+  // Resolve to absolute URL for robust comparison with imgElement.src
+  const fullUrlResolved = new URL(rawFullUrl, window.location.href).href;
+  const props = getRenderProps(item);
+
+  // If we were using a thumbnail and it failed, try the full URL
+  // Check both resolved URL (DOM) and intent (props) to avoid infinite loops
+  if (imgElement.src !== fullUrlResolved && props.mediaUrl !== rawFullUrl) {
+    // Retry with full URL
+    imgElement.src = rawFullUrl;
+  } else {
+    // Already tried full URL or it matches, so it's a real failure
+    failedImagePaths.add(item.path);
+  }
+};
 
 // Chunk items into rows for the scroller
 const chunkedItems = computed<GridRow[]>(() => {
-  const items = allProcessedItems.value;
+  // Ensure we re-chunk if generators or extensions change,
+  // to force re-render of slots with new RenderProps
+  void mediaUrlGenerator.value;
+  void thumbnailUrlGenerator.value;
+  void imageExtensionsSet.value;
+  void videoExtensionsSet.value;
+
+  const items = allMediaFiles.value;
   const cols = columnCount.value;
   const rows: GridRow[] = [];
 
@@ -371,7 +377,7 @@ const handleItemClick = async (item: MediaFile) => {
     (f) => f.path === item.path,
   );
   state.currentMediaIndex = index;
-  state.currentMediaItem = item; // MediaFile compatible
+  state.currentMediaItem = item;
   state.viewMode = 'player';
   state.isSlideshowActive = true;
   state.isTimerRunning = false;
