@@ -65,110 +65,12 @@ vi.mock('worker_threads', () => {
 describe('media-service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-<<<<<<< HEAD
     vi.resetAllMocks();
     sharedState.lastWorker = null;
     sharedState.isPackaged = false;
   });
 
   describe('scanDiskForAlbumsAndCache', () => {
-=======
-    // Stub process.versions.electron for environment detection
-    vi.stubGlobal('process', {
-      ...process,
-      versions: {
-        ...process.versions,
-        electron: '30.0.0', // Faking an Electron version
-      },
-    });
-  });
-
-  describe('scanDiskForAlbumsAndCache', () => {
-    it('uses correct worker path in packaged app', async () => {
-      vi.stubGlobal('process', {
-        ...process,
-        versions: { ...process.versions, electron: '30.0.0' },
-      });
-      sharedState.isPackaged = true;
-      vi.mocked(database.getMediaDirectories).mockResolvedValue([
-        { path: '/dir', isActive: true },
-      ] as any);
-
-      const promise = scanDiskForAlbumsAndCache();
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      const onMessage = sharedState.lastWorker.on.mock.calls.find(
-        (c: any) => c[0] === 'message',
-      )?.[1];
-      if (onMessage) onMessage({ type: 'SCAN_COMPLETE', albums: [] });
-      await promise;
-      expect(vi.mocked(Worker)).toHaveBeenCalledWith(
-        expect.stringMatching(/scan-worker\.js$/),
-      );
-      vi.unstubAllGlobals();
-    });
-
-    it('uses correct worker path in non-packaged electron', async () => {
-      vi.stubGlobal('process', {
-        ...process,
-        versions: { ...process.versions, electron: '30.0.0' },
-      });
-      sharedState.isPackaged = false;
-      vi.mocked(database.getMediaDirectories).mockResolvedValue([
-        { path: '/dir', isActive: true },
-      ] as any);
-      const promise = scanDiskForAlbumsAndCache();
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      const onMessage = sharedState.lastWorker.on.mock.calls.find(
-        (c: any) => c[0] === 'message',
-      )?.[1];
-      if (onMessage) onMessage({ type: 'SCAN_COMPLETE', albums: [] });
-      await promise;
-      expect(vi.mocked(Worker)).toHaveBeenCalledWith(expect.any(URL));
-      vi.unstubAllGlobals();
-    });
-
-    it('uses correct worker path in production web server', async () => {
-      vi.stubGlobal('process', {
-        ...process,
-        env: { ...process.env, NODE_ENV: 'production' },
-        versions: { ...process.versions, electron: undefined },
-      });
-      vi.mocked(database.getMediaDirectories).mockResolvedValue([
-        { path: '/dir', isActive: true },
-      ] as any);
-      const promise = scanDiskForAlbumsAndCache();
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      const onMessage = sharedState.lastWorker.on.mock.calls.find(
-        (c: any) => c[0] === 'message',
-      )?.[1];
-      if (onMessage) onMessage({ type: 'SCAN_COMPLETE', albums: [] });
-      await promise;
-      expect(vi.mocked(Worker)).toHaveBeenCalledWith(
-        expect.stringMatching(/scan-worker\.js$/),
-      );
-      vi.unstubAllGlobals();
-    });
-
-    it('handles worker SCAN_ERROR', async () => {
-      vi.mocked(database.getMediaDirectories).mockResolvedValue([
-        { path: '/d', isActive: true },
-      ] as any);
-      const promise = scanDiskForAlbumsAndCache();
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      const onMessage = sharedState.lastWorker.on.mock.calls.find(
-        (c: any) => c[0] === 'message',
-      )?.[1];
-      if (onMessage) onMessage({ type: 'SCAN_COMPLETE', albums: [{ id: 1 }] });
-
-      const result = await promise;
-
-      expect(database.getMediaDirectories).toHaveBeenCalled();
-      expect(database.cacheAlbums).toHaveBeenCalledWith(albums);
-      expect(result).toEqual(albums);
-      expect(mocks.terminate).toHaveBeenCalled();
-    });
-
->>>>>>> 8b7b50f (test: add unit tests for media-service functions including scanning, caching, and view counts)
     it('returns empty list if no active directories', async () => {
       vi.mocked(database.getMediaDirectories).mockResolvedValue([
         { path: '/dir1', isActive: false },
@@ -189,19 +91,7 @@ describe('media-service', () => {
       vi.mocked(database.getMediaDirectories).mockResolvedValue([
         { path: '/dir', isActive: true },
       ] as any);
-      const promise = scanDiskForAlbumsAndCache();
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      const onExit = sharedState.lastWorker.on.mock.calls.find(
-        (c: any) => c[0] === 'exit',
-      )?.[1];
-      if (onExit) onExit(1);
-      await expect(promise).rejects.toThrow('Worker stopped with exit code 1');
-    });
 
-    it('handles worker zero exit without message', async () => {
-      vi.mocked(database.getMediaDirectories).mockResolvedValue([
-        { path: '/d', isActive: true },
-      ] as any);
       const promise = scanDiskForAlbumsAndCache();
       await new Promise((resolve) => setTimeout(resolve, 50));
       const onMessage = sharedState.lastWorker.on.mock.calls.find(

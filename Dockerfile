@@ -18,7 +18,7 @@ RUN npm run build:web
 RUN npm run build:server
 
 # Stage 2: Install production dependencies
-# We use the full node:22 image to ensure native modules like better-sqlite3 are correctly built
+# We use the full node:24 image to ensure native modules like better-sqlite3 are correctly built
 FROM node:22 AS prod-deps
 
 WORKDIR /app
