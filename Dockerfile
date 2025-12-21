@@ -41,12 +41,9 @@ RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 appuser
 WORKDIR /app
 
 # Copy only the necessary runtime artifacts from previous stages
-COPY --from=builder /app/dist ./dist
-COPY --from=prod-deps /app/node_modules ./node_modules
-COPY --from=prod-deps /app/package.json ./package.json
-
-# Change ownership of the application directory to the non-root user
-RUN chown -R appuser:nodejs /app
+COPY --from=builder --chown=appuser:nodejs /app/dist ./dist
+COPY --from=prod-deps --chown=appuser:nodejs /app/node_modules ./node_modules
+COPY --from=prod-deps --chown=appuser:nodejs /app/package.json ./package.json
 
 # Expose the application port
 EXPOSE 3000
