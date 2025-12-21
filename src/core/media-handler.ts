@@ -16,6 +16,8 @@ import {
   getThumbnailCachePath,
   checkThumbnailCache,
   getVlcPath,
+  getTranscodeArgs,
+  getThumbnailArgs,
 } from './media-utils';
 import { getProvider } from './fs-provider-factory';
 import { authorizeFilePath } from './security';
@@ -37,31 +39,13 @@ async function getThumbnailQueue() {
   return thumbnailQueue;
 }
 
-function isValidTimeFormat(time: string): boolean {
-  // Allow simple seconds (e.g., "10", "10.5") or timestamps (e.g., "00:00:10", "00:10.5")
-  return /^\d+(\.\d+)?$/.test(time) || /^(\d+:)+\d+(\.\d+)?$/.test(time);
-}
-
 function runFFmpegThumbnail(
   filePath: string,
   cacheFile: string,
   ffmpegPath: string,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    const generateArgs = [
-      '-y',
-      '-ss',
-      '1',
-      '-i',
-      filePath,
-      '-frames:v',
-      '1',
-      '-q:v',
-      '5',
-      '-update',
-      '1',
-      cacheFile,
-    ];
+    const generateArgs = getThumbnailArgs(filePath, cacheFile);
     const genProcess = spawn(ffmpegPath, generateArgs);
     let stderr = '';
     if (genProcess.stderr) {
@@ -246,39 +230,7 @@ export async function serveTranscodedStream(
     'Content-Type': 'video/mp4',
   });
 
-  const ffmpegArgs = [];
-
-  if (startTime) {
-    if (!isValidTimeFormat(startTime)) {
-      throw new Error('Invalid start time format');
-    }
-    ffmpegArgs.push('-ss', startTime);
-  }
-
-  ffmpegArgs.push(
-    '-analyzeduration',
-    '100M',
-    '-probesize',
-    '100M',
-    '-i',
-    inputPath,
-    '-f',
-    'mp4',
-    '-vcodec',
-    'libx264',
-    '-acodec',
-    'aac',
-    '-movflags',
-    'frag_keyframe+empty_moov',
-    '-preset',
-    'ultrafast',
-    '-crf',
-    '23',
-    '-pix_fmt',
-    'yuv420p',
-    'pipe:1',
-  );
-
+  const ffmpegArgs = getTranscodeArgs(inputPath, startTime);
   const ffmpegProcess = spawn(ffmpegPath, ffmpegArgs);
 
   ffmpegProcess.stdout.pipe(res);

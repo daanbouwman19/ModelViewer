@@ -1,4 +1,4 @@
-﻿import path from 'path';
+import path from 'path';
 import crypto from 'crypto';
 import fs from 'fs';
 
@@ -6,6 +6,9 @@ import {
   SUPPORTED_IMAGE_EXTENSIONS,
   SUPPORTED_VIDEO_EXTENSIONS,
 } from './constants';
+
+const FFMPEG_TRANSCODE_PRESET = 'ultrafast';
+const FFMPEG_TRANSCODE_CRF = '23';
 
 export function getMimeType(filePath: string): string {
   if (filePath.startsWith('gdrive://')) {
@@ -78,4 +81,69 @@ export async function getVlcPath(): Promise<string | null> {
   } else {
     return 'vlc';
   }
+}
+
+export function isValidTimeFormat(time: string): boolean {
+  // Allow simple seconds (e.g., "10", "10.5") or timestamps (e.g., "00:00:10", "00:10.5")
+  return /^\d+(\.\d+)?$/.test(time) || /^(\d+:)+\d+(\.\d+)?$/.test(time);
+}
+
+export function getTranscodeArgs(
+  inputPath: string,
+  startTime: string | null,
+): string[] {
+  const args: string[] = [];
+
+  if (startTime) {
+    if (!isValidTimeFormat(startTime)) {
+      throw new Error('Invalid start time format');
+    }
+    args.push('-ss', startTime);
+  }
+
+  args.push(
+    '-analyzeduration',
+    '100M',
+    '-probesize',
+    '100M',
+    '-i',
+    inputPath,
+    '-f',
+    'mp4',
+    '-vcodec',
+    'libx264',
+    '-acodec',
+    'aac',
+    '-movflags',
+    'frag_keyframe+empty_moov',
+    '-preset',
+    FFMPEG_TRANSCODE_PRESET,
+    '-crf',
+    FFMPEG_TRANSCODE_CRF,
+    '-pix_fmt',
+    'yuv420p',
+    'pipe:1',
+  );
+
+  return args;
+}
+
+export function getThumbnailArgs(
+  filePath: string,
+  cacheFile: string,
+): string[] {
+  return [
+    '-y',
+    '-ss',
+    '1',
+    '-i',
+    filePath,
+    '-frames:v',
+    '1',
+    '-q:v',
+    '5',
+    '-update',
+    '1',
+    cacheFile,
+  ];
 }
