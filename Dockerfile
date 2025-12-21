@@ -6,6 +6,12 @@ WORKDIR /app
 # Copy package files
 COPY package.json package-lock.json ./
 
+# Remove Electron-related devDependencies to prevent installation failures on non-X64 architectures
+# these are only needed for Electron packaging, not for the web/server build.
+RUN npm pkg delete devDependencies.electron \
+    && npm pkg delete devDependencies.electron-builder \
+    && npm pkg delete devDependencies.electron-vite
+
 # Install ALL dependencies for building
 RUN --mount=type=cache,target=/root/.npm \
     npm ci
