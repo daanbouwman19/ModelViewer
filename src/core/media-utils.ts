@@ -10,6 +10,17 @@ import {
 const FFMPEG_TRANSCODE_PRESET = 'ultrafast';
 const FFMPEG_TRANSCODE_CRF = '23';
 
+const KNOWN_MIME_TYPES: Record<string, string> = {
+  mp4: 'video/mp4',
+  webm: 'video/webm',
+  ogg: 'video/ogg',
+  mov: 'video/quicktime',
+  avi: 'video/x-msvideo',
+  mkv: 'video/x-matroska',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+};
+
 export function getMimeType(filePath: string): string {
   if (filePath.startsWith('gdrive://')) {
     return 'application/octet-stream';
@@ -17,25 +28,10 @@ export function getMimeType(filePath: string): string {
 
   const extension = path.extname(filePath).substring(1).toLowerCase();
   if (SUPPORTED_IMAGE_EXTENSIONS.includes(`.${extension}`)) {
-    return `image/${extension === 'jpg' ? 'jpeg' : extension}`;
+    return KNOWN_MIME_TYPES[extension] || `image/${extension}`;
   }
   if (SUPPORTED_VIDEO_EXTENSIONS.includes(`.${extension}`)) {
-    switch (extension) {
-      case 'mp4':
-        return 'video/mp4';
-      case 'webm':
-        return 'video/webm';
-      case 'ogg':
-        return 'video/ogg';
-      case 'mov':
-        return 'video/quicktime';
-      case 'avi':
-        return 'video/x-msvideo';
-      case 'mkv':
-        return 'video/x-matroska';
-      default:
-        return `video/${extension}`;
-    }
+    return KNOWN_MIME_TYPES[extension] || `video/${extension}`;
   }
   return 'application/octet-stream';
 }

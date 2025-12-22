@@ -72,17 +72,27 @@ describe('media-utils', () => {
       expect(getMimeType('gdrive://some-id')).toBe('application/octet-stream');
     });
 
-    it('returns image/jpeg for .jpg and .jpeg', () => {
+    it('returns correct mime type for supported images', () => {
       expect(getMimeType('photo.jpg')).toBe('image/jpeg');
       expect(getMimeType('photo.jpeg')).toBe('image/jpeg');
+      expect(getMimeType('photo.png')).toBe('image/png');
+      expect(getMimeType('photo.gif')).toBe('image/gif');
+      expect(getMimeType('photo.webp')).toBe('image/webp');
+      expect(getMimeType('icon.svg')).toBe('image/svg');
     });
 
-    it('returns video/mp4 for .mp4', () => {
+    it('returns correct mime type for supported videos', () => {
       expect(getMimeType('video.mp4')).toBe('video/mp4');
+      expect(getMimeType('video.webm')).toBe('video/webm');
+      expect(getMimeType('video.ogg')).toBe('video/ogg');
+      expect(getMimeType('video.mov')).toBe('video/quicktime');
+      expect(getMimeType('video.avi')).toBe('video/x-msvideo');
+      expect(getMimeType('video.mkv')).toBe('video/x-matroska');
     });
 
     it('returns application/octet-stream for unknown extensions', () => {
       expect(getMimeType('file.xyz')).toBe('application/octet-stream');
+      expect(getMimeType('file.m4v')).toBe('application/octet-stream');
     });
   });
 });
