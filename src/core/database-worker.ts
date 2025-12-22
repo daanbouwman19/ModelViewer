@@ -416,6 +416,8 @@ async function getMetadata(filePaths: string[]): Promise<WorkerResult> {
 
     for (let i = 0; i < allFileIds.length; i += SQL_BATCH_SIZE) {
       const batchIds = allFileIds.slice(i, i + SQL_BATCH_SIZE);
+      if (batchIds.length === 0) continue;
+
       const placeholders = batchIds.map(() => '?').join(',');
       const query = `SELECT * FROM media_metadata WHERE file_path_hash IN (${placeholders})`;
 
