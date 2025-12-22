@@ -52,6 +52,36 @@ async function generateFileId(filePath: string): Promise<string> {
   }
 }
 
+/**
+ * Helper to generate file IDs in batches to avoid EMFILE errors.
+ * @param filePaths - List of file paths.
+ * @returns Map of filePath to fileId.
+ */
+async function generateFileIdsBatched(
+  filePaths: string[],
+): Promise<Map<string, string>> {
+  const pathIdMap = new Map<string, string>();
+  const BATCH_SIZE = 50;
+
+  for (let i = 0; i < filePaths.length; i += BATCH_SIZE) {
+    const batch = filePaths.slice(i, i + BATCH_SIZE);
+    const results = await Promise.allSettled(
+      batch.map(async (filePath) => {
+        const fileId = await generateFileId(filePath);
+        return { filePath, fileId };
+      }),
+    );
+
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        const { filePath, fileId } = result.value;
+        pathIdMap.set(filePath, fileId);
+      }
+    }
+  }
+  return pathIdMap;
+}
+
 // Core Worker Functions
 
 /**
@@ -336,13 +366,16 @@ async function bulkUpsertMetadata(
 ): Promise<WorkerResult> {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
-    // Pre-calculate file IDs concurrently
-    const itemsWithIds = await Promise.all(
-      payloads.map(async (p) => ({
-        ...p,
-        fileId: await generateFileId(p.filePath),
-      })),
-    );
+    const idMap = await generateFileIdsBatched(payloads.map((p) => p.filePath));
+
+    // Map payloads to include fileId, failing if any ID is missing
+    const itemsWithIds = payloads.map((p) => {
+      const fileId = idMap.get(p.filePath);
+      if (!fileId) {
+        throw new Error(`Failed to generate ID for path: ${p.filePath}`);
+      }
+      return { ...p, fileId };
+    });
 
     const transaction = db.transaction((items: typeof itemsWithIds) => {
       for (const item of items) {
@@ -375,24 +408,31 @@ async function getMetadata(filePaths: string[]): Promise<WorkerResult> {
       return { success: true, data: {} };
     }
 
-    const fileIds = await Promise.all(
-      filePaths.map((filePath) => generateFileId(filePath)),
-    );
-
-    const placeholders = fileIds.map(() => '?').join(',');
-    const query = `SELECT * FROM media_metadata WHERE file_path_hash IN (${placeholders})`;
-
-    const rows = db.prepare(query).all(...fileIds) as {
-      file_path: string;
-      [key: string]: unknown;
-    }[];
+    const idMap = await generateFileIdsBatched(filePaths);
+    const allFileIds = Array.from(new Set(idMap.values()));
 
     const metadataMap: { [key: string]: unknown } = {};
-    for (const row of rows) {
-      if (row.file_path) {
-        metadataMap[row.file_path] = row;
+    const SQL_BATCH_SIZE = 900;
+
+    for (let i = 0; i < allFileIds.length; i += SQL_BATCH_SIZE) {
+      const batchIds = allFileIds.slice(i, i + SQL_BATCH_SIZE);
+      if (batchIds.length === 0) continue;
+
+      const placeholders = batchIds.map(() => '?').join(',');
+      const query = `SELECT * FROM media_metadata WHERE file_path_hash IN (${placeholders})`;
+
+      const rows = db.prepare(query).all(...batchIds) as {
+        file_path: string;
+        [key: string]: unknown;
+      }[];
+
+      for (const row of rows) {
+        if (row.file_path) {
+          metadataMap[row.file_path] = row;
+        }
       }
     }
+
     return { success: true, data: metadataMap };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
@@ -531,26 +571,7 @@ async function getMediaViewCounts(filePaths: string[]): Promise<WorkerResult> {
 
   try {
     const viewCountsMap: { [key: string]: number } = {};
-    const pathIdMap = new Map<string, string>();
-
-    // Optimization: Process file ID generation in parallel batches
-    const BATCH_SIZE = 50;
-    for (let i = 0; i < filePaths.length; i += BATCH_SIZE) {
-      const batch = filePaths.slice(i, i + BATCH_SIZE);
-      const results = await Promise.allSettled(
-        batch.map(async (filePath) => {
-          const fileId = await generateFileId(filePath);
-          return { filePath, fileId };
-        }),
-      );
-
-      for (const result of results) {
-        if (result.status === 'fulfilled') {
-          const { filePath, fileId } = result.value;
-          pathIdMap.set(filePath, fileId);
-        }
-      }
-    }
+    const pathIdMap = await generateFileIdsBatched(filePaths);
 
     const transaction = db.transaction((paths: string[]) => {
       paths.forEach((filePath) => {
