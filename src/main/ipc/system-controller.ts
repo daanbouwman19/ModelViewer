@@ -17,6 +17,7 @@ import { getServerPort } from '../local-server';
 import { openMediaInVlc } from '../../core/media-handler';
 import { listDirectory } from '../../core/file-system';
 import { handleIpc } from '../utils/ipc-helper';
+import { isSensitiveDirectory, isRestrictedPath } from '../../core/security';
 
 export function registerSystemHandlers() {
   handleIpc(
@@ -24,6 +25,13 @@ export function registerSystemHandlers() {
     async (_event: IpcMainInvokeEvent, targetPath?: string) => {
       if (targetPath) {
         try {
+          if (isSensitiveDirectory(targetPath)) {
+            console.warn(
+              `[Security] Blocked attempt to add sensitive directory: ${targetPath}`,
+            );
+            return null;
+          }
+
           try {
             await fs.access(targetPath);
           } catch {
@@ -113,6 +121,12 @@ export function registerSystemHandlers() {
   handleIpc(
     IPC_CHANNELS.LIST_DIRECTORY,
     async (_event: IpcMainInvokeEvent, directoryPath: string) => {
+      if (isRestrictedPath(directoryPath)) {
+        console.warn(
+          `[Security] Blocked attempt to list restricted directory: ${directoryPath}`,
+        );
+        throw new Error('Access denied');
+      }
       return listDirectory(directoryPath);
     },
   );
