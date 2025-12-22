@@ -191,6 +191,18 @@ describe('AlbumsList.vue', () => {
     expect(mockToggleSlideshowTimer).toHaveBeenCalled();
   });
 
+  it('Timer button has accessible name (aria-label)', async () => {
+    const wrapper = mount(AlbumsList);
+    const timerButton = wrapper.find('[data-testid="timer-button"]');
+
+    expect(timerButton.attributes('aria-label')).toBe('Start/Resume Slideshow');
+
+    mockAppState.isTimerRunning.value = true;
+    await wrapper.vm.$nextTick();
+
+    expect(timerButton.attributes('aria-label')).toBe('Pause Slideshow');
+  });
+
   describe('Smart Playlists', () => {
     it('opens smart playlist modal', async () => {
       const wrapper = mount(AlbumsList);

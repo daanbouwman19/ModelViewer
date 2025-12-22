@@ -163,6 +163,9 @@
         class="timer-button h-10 w-14 shrink-0 flex items-center justify-center rounded-lg glass-button-primary"
         data-testid="timer-button"
         :title="isTimerRunning ? 'Pause Slideshow' : 'Start/Resume Slideshow'"
+        :aria-label="
+          isTimerRunning ? 'Pause Slideshow' : 'Start/Resume Slideshow'
+        "
         @click="handleToggleTimer"
       >
         <PauseIcon v-if="isTimerRunning" class="w-6 h-6 fill-current" />

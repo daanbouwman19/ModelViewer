@@ -13,6 +13,7 @@
         </h2>
         <button
           class="text-gray-400 hover:text-white transition-colors text-2xl leading-none"
+          aria-label="Close"
           @click="close"
         >
           &times;
