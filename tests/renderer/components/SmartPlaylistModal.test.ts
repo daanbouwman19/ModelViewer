@@ -39,6 +39,16 @@ describe('SmartPlaylistModal.vue', () => {
     expect(wrapper.find('h2').text()).toBe('Create Smart Playlist');
   });
 
+  it('has an accessible close button', async () => {
+    mockAppState.isSmartPlaylistModalVisible.value = true;
+    const wrapper = mount(SmartPlaylistModal);
+    await wrapper.vm.$nextTick();
+
+    const closeButton = wrapper.find('button[aria-label="Close"]');
+    expect(closeButton.exists()).toBe(true);
+    expect(closeButton.text()).toBe('×');
+  });
+
   it('validates input and disables create button', async () => {
     mockAppState.isSmartPlaylistModalVisible.value = true;
     const wrapper = mount(SmartPlaylistModal);

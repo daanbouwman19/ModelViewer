@@ -22,3 +22,8 @@
 
 **Learning:** When converting file explorer items from `div` to `button`, the native `Enter` key triggers a `click` event, which typically only _selects_ the item. Keyboard users need a way to _open_ (navigate into) folders, which corresponds to `dblclick` for mouse users.
 **Action:** Explicitly bind `@keydown.enter.prevent` to the open/navigate action on the button. This allows Space to select (via standard click) and Enter to open, matching standard OS file explorer behavior.
+
+## 2025-10-28 - [Modal Close Button Patterns]
+
+**Learning:** Modal close buttons often use the generic "×" (&times;) character which screen readers may announce literally or ignore.
+**Action:** Always add `aria-label="Close"` to modal close buttons to ensure they are announced as an actionable control.
