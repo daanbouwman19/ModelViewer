@@ -116,16 +116,19 @@ async function generateLocalThumbnail(
     const auth = await authorizeFilePath(filePath);
     if (!auth.isAllowed) {
       res.writeHead(403);
-      return res.end('Access denied.');
+      res.end('Access denied.');
+      return;
     }
   } catch {
     res.writeHead(500);
-    return res.end('Internal Error');
+    res.end('Internal Error');
+    return;
   }
 
   if (!ffmpegPath) {
     res.writeHead(500);
-    return res.end('FFmpeg binary not found');
+    res.end('FFmpeg binary not found');
+    return;
   }
 
   try {
