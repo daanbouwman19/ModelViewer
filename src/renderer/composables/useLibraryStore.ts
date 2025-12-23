@@ -59,16 +59,43 @@ export const setupPersistenceWatcher = () => {
 setupPersistenceWatcher();
 
 export function useLibraryStore() {
+  /**
+   * Recursively selects all albums in the provided list.
+   * Optimized to minimize reactive updates by building the selection map first
+   * and assigning it in a single operation.
+   * Also uses iterative traversal to avoid stack overflow on deep trees.
+   * @param albums - The list of albums to select.
+   */
   const selectAllAlbumsRecursively = (albums: Album[]) => {
-    const traverse = (list: Album[]) => {
-      for (const album of list) {
-        state.albumsSelectedForSlideshow[album.id] = true;
-        if (album.children) {
-          traverse(album.children);
+    // Start with current selection to preserve existing keys if this is additive
+    // (though usually 'selectAll' implies setting state for the provided tree)
+    // The previous implementation was additive.
+    // However, since we are assigning to state.albumsSelectedForSlideshow, we should decide if we replace or merge.
+    // The previous implementation:
+    // state.albumsSelectedForSlideshow[album.id] = true;
+    // This preserves existing keys that are NOT in the new list.
+    // So we should clone the current state.
+
+    // If we are selecting *all* albums available (state.allAlbums), we might as well just create a new object if we want to clean up.
+    // But let's stick to the additive behavior to be safe and consistent with previous logic.
+    const newSelection = { ...state.albumsSelectedForSlideshow };
+
+    // Iterative stack-based traversal
+    const stack = [...albums];
+    while (stack.length > 0) {
+      const album = stack.pop()!;
+      newSelection[album.id] = true;
+
+      if (album.children && album.children.length > 0) {
+        // Push children in reverse order to maintain traversal order (though order doesn't matter for set)
+        for (let i = album.children.length - 1; i >= 0; i--) {
+          stack.push(album.children[i]);
         }
       }
-    };
-    traverse(albums);
+    }
+
+    // Single reactive update
+    state.albumsSelectedForSlideshow = newSelection;
   };
 
   const loadInitialData = async () => {
