@@ -117,7 +117,9 @@ describe('AlbumTree.vue', () => {
     });
 
     // Click the main action button (name + badge)
-    await wrapper.find(`button[aria-label="Play ${testAlbum.name}"]`).trigger('click');
+    await wrapper
+      .find(`button[aria-label="Play ${testAlbum.name}"]`)
+      .trigger('click');
 
     expect(wrapper.emitted().albumClick).toBeTruthy();
     expect((wrapper.emitted().albumClick as unknown[][])[0][0]).toEqual(
