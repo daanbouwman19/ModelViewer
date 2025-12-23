@@ -77,6 +77,7 @@ export const getAlbumAndChildrenIds = (album: Album): string[] => {
 
 /**
  * Recursively sets the selection state for all albums in a tree.
+ * Optimized to use iterative traversal to avoid stack overflow.
  * @param albums - The albums to traverse.
  * @param selectionMap - The selection map to modify.
  * @param isSelected - The selection state to set.
@@ -86,10 +87,16 @@ export const selectAllAlbums = (
   selectionMap: { [key: string]: boolean },
   isSelected: boolean,
 ): void => {
-  for (const album of albums) {
+  const stack = [...albums];
+  while (stack.length > 0) {
+    const album = stack.pop()!;
     selectionMap[album.id] = isSelected;
-    if (album.children) {
-      selectAllAlbums(album.children, selectionMap, isSelected);
+
+    if (album.children && album.children.length > 0) {
+      // Push children in reverse order for traversal order consistency
+      for (let i = album.children.length - 1; i >= 0; i--) {
+        stack.push(album.children[i]);
+      }
     }
   }
 };
