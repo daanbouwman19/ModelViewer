@@ -59,6 +59,96 @@ function runFFmpegThumbnail(
   });
 }
 
+/**
+ * Helper: Tries to serve a thumbnail from the local cache.
+ * Returns true if served, false otherwise.
+ */
+async function tryServeFromCache(
+  res: http.ServerResponse,
+  cacheFile: string,
+): Promise<boolean> {
+  const hit = await checkThumbnailCache(cacheFile);
+  if (hit) {
+    res.writeHead(200, {
+      'Content-Type': 'image/jpeg',
+      'Cache-Control': 'public, max-age=31536000',
+    });
+    fs.createReadStream(cacheFile).pipe(res);
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Helper: Tries to fetch and serve a thumbnail from the provider (e.g. Google Drive).
+ * Returns true if served, false otherwise.
+ */
+async function tryServeFromProvider(
+  res: http.ServerResponse,
+  filePath: string,
+  cacheFile: string,
+): Promise<boolean> {
+  try {
+    const provider = getProvider(filePath);
+    const stream = await provider.getThumbnailStream(filePath);
+    if (stream) {
+      const writeStream = fs.createWriteStream(cacheFile);
+      stream.pipe(writeStream);
+      stream.pipe(res);
+      return true;
+    }
+  } catch (e) {
+    console.warn('[Thumbnail] Provider fetch failed:', e);
+  }
+  return false;
+}
+
+/**
+ * Helper: Generates a thumbnail using local FFmpeg and serves it.
+ */
+async function generateLocalThumbnail(
+  res: http.ServerResponse,
+  filePath: string,
+  cacheFile: string,
+  ffmpegPath: string | null,
+): Promise<void> {
+  try {
+    const auth = await authorizeFilePath(filePath);
+    if (!auth.isAllowed) {
+      res.writeHead(403);
+      return res.end('Access denied.');
+    }
+  } catch {
+    res.writeHead(500);
+    return res.end('Internal Error');
+  }
+
+  if (!ffmpegPath) {
+    res.writeHead(500);
+    return res.end('FFmpeg binary not found');
+  }
+
+  try {
+    const queue = await getThumbnailQueue();
+    await queue.add(() => runFFmpegThumbnail(filePath, cacheFile, ffmpegPath));
+
+    // Verify file exists
+    await fsPromises.stat(cacheFile);
+
+    res.writeHead(200, {
+      'Content-Type': 'image/jpeg',
+      'Cache-Control': 'public, max-age=31536000',
+    });
+    fs.createReadStream(cacheFile).pipe(res);
+  } catch (err) {
+    console.error('[Thumbnail] Generation failed:', err);
+    if (!res.headersSent) {
+      res.writeHead(500);
+      res.end('Generation failed');
+    }
+  }
+}
+
 export function getFFmpegDuration(
   filePath: string,
   ffmpegPath: string,
@@ -261,39 +351,16 @@ export async function serveThumbnail(
 ) {
   // 1. Check Cache
   const cacheFile = getThumbnailCachePath(filePath, cacheDir);
-
-  const hit = await checkThumbnailCache(cacheFile);
-  if (hit) {
-    res.writeHead(200, {
-      'Content-Type': 'image/jpeg',
-      'Cache-Control': 'public, max-age=31536000',
-    });
-    fs.createReadStream(cacheFile).pipe(res);
+  if (await tryServeFromCache(res, cacheFile)) {
     return;
   }
 
   // 2. Try Provider (Drive)
-  try {
-    const provider = getProvider(filePath);
-    const stream = await provider.getThumbnailStream(filePath);
-    if (stream) {
-      const writeStream = fs.createWriteStream(cacheFile);
-      stream.pipe(writeStream);
-      stream.pipe(res);
-      return;
-    }
-  } catch (e) {
-    console.warn('[Thumbnail] Provider fetch failed:', e);
-    if (filePath.startsWith('gdrive://')) {
-      if (!res.headersSent) {
-        res.writeHead(404);
-        res.end();
-      }
-      return;
-    }
+  if (await tryServeFromProvider(res, filePath, cacheFile)) {
+    return;
   }
 
-  // Ensure GDrive files don't fall through to local FS
+  // Ensure GDrive files don't fall through to local FS if provider fetch failed
   if (filePath.startsWith('gdrive://')) {
     if (!res.headersSent) {
       res.writeHead(404);
@@ -303,41 +370,7 @@ export async function serveThumbnail(
   }
 
   // 3. Fallback to FFmpeg (Local)
-  try {
-    const auth = await authorizeFilePath(filePath);
-    if (!auth.isAllowed) {
-      res.writeHead(403);
-      return res.end('Access denied.');
-    }
-  } catch {
-    res.writeHead(500);
-    return res.end('Internal Error');
-  }
-
-  if (!ffmpegPath) {
-    res.writeHead(500);
-    return res.end('FFmpeg binary not found');
-  }
-
-  try {
-    const queue = await getThumbnailQueue();
-    await queue.add(() => runFFmpegThumbnail(filePath, cacheFile, ffmpegPath));
-
-    // Verify file exists
-    await fsPromises.stat(cacheFile);
-
-    res.writeHead(200, {
-      'Content-Type': 'image/jpeg',
-      'Cache-Control': 'public, max-age=31536000',
-    });
-    fs.createReadStream(cacheFile).pipe(res);
-  } catch (err) {
-    console.error('[Thumbnail] Generation failed:', err);
-    if (!res.headersSent) {
-      res.writeHead(500);
-      res.end('Generation failed');
-    }
-  }
+  await generateLocalThumbnail(res, filePath, cacheFile, ffmpegPath);
 }
 
 /**
