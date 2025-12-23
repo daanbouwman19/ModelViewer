@@ -21,3 +21,9 @@
 **Vulnerability:** While `addMediaDirectory` and `listDirectory` were secured in the Express server (`server.ts`), the corresponding Electron IPC handlers (`system-controller.ts`) were missing the `isSensitiveDirectory` and `isRestrictedPath` checks. This left the Desktop application vulnerable to the same issues (path traversal, system enumeration) that were fixed in the Web version.
 **Learning:** In dual-platform applications (Electron + Web), business logic and security checks must be centralized in the `core` or `shared` layer, or explicitly applied to both entry points (HTTP routes and IPC handlers). It is easy to fix one and forget the other.
 **Prevention:** Centralize the "Operation" logic (e.g. `System.addMediaDirectory`) into a service that performs the security checks, rather than checking in the controller layer. If controllers must handle it, enforce a "Contract Test" that verifies security on both interfaces.
+
+## 2024-05-23 - [Unauthenticated Directory Listing]
+
+**Vulnerability:** The local web server (`src/server/server.ts`) exposed the `/api/fs/ls` endpoint to the entire local network by binding to `0.0.0.0` without authentication. This allowed any device on the network to enumerate the host's directory structure (Information Disclosure).
+**Learning:** Development servers or "Personal" web apps often default to `0.0.0.0` for convenience (e.g., testing on mobile), but this is insecure when combined with unauthenticated sensitive endpoints.
+**Prevention:** Default to `127.0.0.1` (localhost) for all local servers. Require explicit configuration (e.g., `HOST=0.0.0.0`) to expose services to the network, and document the risks.

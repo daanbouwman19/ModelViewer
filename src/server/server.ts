@@ -605,8 +605,11 @@ export async function createApp() {
 
 export async function bootstrap() {
   const app = await createApp();
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running at http://localhost:${PORT}`);
+  // [SECURITY] Default to localhost to prevent exposing unauthenticated endpoints
+  // (like /api/fs/ls) to the local network. Use HOST=0.0.0.0 if network access is required.
+  const host = process.env.HOST || '127.0.0.1';
+  app.listen(PORT, host, () => {
+    console.log(`Server running at http://${host}:${PORT}`);
     console.log(`Environment: ${isDev ? 'Development' : 'Production'}`);
   });
 }
