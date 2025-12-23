@@ -27,3 +27,8 @@
 
 **Learning:** Modal close buttons often use the generic "×" (&times;) character which screen readers may announce literally or ignore.
 **Action:** Always add `aria-label="Close"` to modal close buttons to ensure they are announced as an actionable control.
+
+## 2025-10-29 - [Semantic Buttons in Tree Views]
+
+**Learning:** Tree items (`li`) with click handlers are not natively focusable. Wrapping the label content in a `<button>` (with `grow`) provides native keyboard support and better hit targets than patching `li` with ARIA.
+**Action:** Refactor clickable list/tree rows to contain a semantic `<button>` that wraps the text content, ensuring the button grows to fill available space.

@@ -1,13 +1,12 @@
 <template>
   <li
-    class="flex flex-col items-start p-1.5 rounded-md transition-colors duration-200 cursor-pointer mb-0.5"
+    class="flex flex-col items-start p-1.5 rounded-md transition-colors duration-200 mb-0.5"
     :class="{
       'bg-indigo-500/15 border-l-2 border-indigo-500':
         selectionState !== 'none',
       'hover:bg-white/5': selectionState === 'none',
     }"
     :style="{ marginLeft: `${depth * 20}px` }"
-    @click="handleClickAlbum(album)"
   >
     <div
       class="group flex items-center gap-2 w-full text-gray-300 hover:text-white"
@@ -15,7 +14,7 @@
       <!-- Toggle Button (Triangle) -->
       <button
         v-if="isFolder"
-        class="toggle-button flex items-center justify-center w-6 h-6 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors focus:outline-none"
+        class="toggle-button flex items-center justify-center w-6 h-6 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors focus:outline-none focus:ring-1 focus:ring-white/20"
         :aria-expanded="isOpen"
         :aria-label="isOpen ? `Collapse ${album.name}` : `Expand ${album.name}`"
         @click.stop="toggle"
@@ -26,11 +25,11 @@
           >▼</span
         >
       </button>
-      <div v-else class="w-6 h-6"></div>
+      <div v-else class="w-6 h-6 shrink-0"></div>
 
       <!-- Selection Checkbox -->
       <button
-        class="flex items-center justify-center w-5 h-5 rounded hover:bg-white/10 transition-colors"
+        class="flex items-center justify-center w-5 h-5 rounded hover:bg-white/10 transition-colors focus:outline-none focus:ring-1 focus:ring-white/20 shrink-0"
         data-testid="album-checkbox"
         role="checkbox"
         :aria-checked="
@@ -75,26 +74,33 @@
         </div>
       </button>
 
-      <!-- Album Name -->
-      <span class="grow text-sm font-medium truncate select-none">
-        {{ album.name }}
-      </span>
-
-      <!-- Badge for count -->
-      <span
-        v-if="totalTextureCount > 0"
-        class="shrink-0 bg-gray-800 text-gray-400 text-[10px] font-bold px-1.5 py-0.5 rounded-md"
+      <!-- Main Action Button (Name + Badge) -->
+      <button
+        class="grow flex items-center gap-2 text-left min-w-0 focus:outline-none focus:ring-1 focus:ring-white/20 rounded px-1 -ml-1 transition-colors hover:bg-white/5 cursor-pointer"
+        :aria-label="'Play ' + album.name"
+        @click="handleClickAlbum(album)"
       >
-        {{ totalTextureCount }}
-      </span>
+        <span class="truncate text-sm font-medium select-none">
+          {{ album.name }}
+        </span>
 
+        <!-- Badge for count -->
+        <span
+          v-if="totalTextureCount > 0"
+          class="shrink-0 bg-gray-800 text-gray-400 text-[10px] font-bold px-1.5 py-0.5 rounded-md"
+        >
+          {{ totalTextureCount }}
+        </span>
+      </button>
+
+      <!-- Hover Controls -->
       <div
         class="album-controls flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
         @click.stop
       >
         <!-- Play Button for Folder/Album -->
         <button
-          class="shrink-0 text-gray-500 hover:text-white p-1 rounded"
+          class="shrink-0 text-gray-500 hover:text-white p-1 rounded focus:outline-none focus:ring-1 focus:ring-white/20"
           title="Play Album"
           :aria-label="'Play ' + album.name"
           @click.stop="handleClickAlbum(album)"
@@ -104,7 +110,7 @@
 
         <!-- Grid Button -->
         <button
-          class="shrink-0 text-gray-500 hover:text-white p-1 rounded"
+          class="shrink-0 text-gray-500 hover:text-white p-1 rounded focus:outline-none focus:ring-1 focus:ring-white/20"
           title="Open in Grid"
           :aria-label="'Open ' + album.name + ' in Grid'"
           @click.stop="handleOpenGrid(album)"
