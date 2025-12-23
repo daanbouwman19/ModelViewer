@@ -4,6 +4,9 @@
   "description": "Media Player",
   "main": "out/main/index.js",
   "type": "module",
+  "engines": {
+    "node": ">=25.0.0"
+  },
   "scripts": {
     "predev": "rimraf node_modules/better-sqlite3/build && npx electron-builder install-app-deps",
     "dev": "electron-vite dev",

@@ -34,7 +34,7 @@ The application uses a standard Electron architecture:
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (LTS version recommended)
+- [Node.js](https://nodejs.org/) (version 25 or higher)
 - A C++ compiler and Python for rebuilding native modules. This is required for `sqlite3`. See the [node-gyp installation guide](https://github.com/nodejs/node-gyp#installation) for platform-specific instructions.
 
 ### Setup
