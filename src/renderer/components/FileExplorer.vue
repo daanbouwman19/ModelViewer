@@ -48,11 +48,21 @@
       <div
         v-if="isLoading"
         class="absolute inset-0 bg-gray-900/50 flex items-center justify-center z-10"
+        role="status"
+        aria-live="polite"
+        aria-label="Loading directory contents"
       >
-        <div class="text-white bg-black/75 p-3 rounded">Loading...</div>
+        <div
+          class="text-white bg-black/75 p-4 rounded flex flex-col items-center gap-2 shadow-lg"
+        >
+          <div
+            class="animate-spin rounded-full h-6 w-6 border-4 border-white border-t-transparent"
+          ></div>
+          <span>Loading...</span>
+        </div>
       </div>
 
-      <div v-if="error" class="text-center p-4 text-red-400">
+      <div v-if="error" class="text-center p-4 text-red-400" role="alert">
         {{ error }}
       </div>
 
