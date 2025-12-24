@@ -4,15 +4,39 @@
 import type { Album, MediaFile } from '../../core/types';
 
 /**
+ * Iterates over an album or list of albums and their children using a stack-based traversal.
+ * This generator yields each album node in the tree.
+ *
+ * @param roots - The root album or list of albums to traverse.
+ * @yields Each album node in the tree (depth-first order).
+ */
+export function* traverseAlbumTree(roots: Album | Album[]): Generator<Album> {
+  const stack = Array.isArray(roots) ? [...roots].reverse() : [roots];
+
+  while (stack.length > 0) {
+    const node = stack.pop()!;
+    yield node;
+
+    if (node.children && node.children.length > 0) {
+      // Push children in reverse order so they are processed in original order
+      for (let i = node.children.length - 1; i >= 0; i--) {
+        stack.push(node.children[i]);
+      }
+    }
+  }
+}
+
+/**
  * Recursively counts the total number of textures in an album and all its children.
+ * Optimized to use iterative traversal to avoid stack overflow.
  * @param album - The album to count textures for.
  * @returns The total number of textures found in the album tree.
  */
 export const countTextures = (album: Album): number => {
-  let count = album.textures.length;
-  if (album.children) {
-    for (const child of album.children) {
-      count += countTextures(child);
+  let count = 0;
+  for (const node of traverseAlbumTree(album)) {
+    if (node.textures) {
+      count += node.textures.length;
     }
   }
   return count;
@@ -25,28 +49,13 @@ export const countTextures = (album: Album): number => {
  */
 export const collectTexturesRecursive = (album: Album): MediaFile[] => {
   const results: MediaFile[] = [];
-
-  // Use a stack for iterative traversal to avoid call stack limits
-  // and avoid the performance penalty of array concatenation (O(n^2))
-  const stack = [album];
-
-  while (stack.length > 0) {
-    const node = stack.pop()!;
-
+  for (const node of traverseAlbumTree(album)) {
     if (node.textures) {
       for (const texture of node.textures) {
         results.push(texture);
       }
     }
-
-    if (node.children) {
-      // Push children in reverse order so they are processed in original order
-      for (let i = node.children.length - 1; i >= 0; i--) {
-        stack.push(node.children[i]);
-      }
-    }
   }
-
   return results;
 };
 
@@ -59,18 +68,8 @@ export const collectTexturesRecursive = (album: Album): MediaFile[] => {
  */
 export const getAlbumAndChildrenIds = (album: Album): string[] => {
   const ids: string[] = [];
-  const stack = [album];
-
-  while (stack.length > 0) {
-    const node = stack.pop()!;
+  for (const node of traverseAlbumTree(album)) {
     ids.push(node.id);
-
-    if (node.children) {
-      // Push children in reverse order so they are processed in original order
-      for (let i = node.children.length - 1; i >= 0; i--) {
-        stack.push(node.children[i]);
-      }
-    }
   }
   return ids;
 };
@@ -87,17 +86,8 @@ export const selectAllAlbums = (
   selectionMap: { [key: string]: boolean },
   isSelected: boolean,
 ): void => {
-  const stack = [...albums];
-  while (stack.length > 0) {
-    const album = stack.pop()!;
-    selectionMap[album.id] = isSelected;
-
-    if (album.children && album.children.length > 0) {
-      // Push children in reverse order for traversal order consistency
-      for (let i = album.children.length - 1; i >= 0; i--) {
-        stack.push(album.children[i]);
-      }
-    }
+  for (const node of traverseAlbumTree(albums)) {
+    selectionMap[node.id] = isSelected;
   }
 };
 
@@ -114,24 +104,9 @@ export const collectSelectedTextures = (
   selection: { [key: string]: boolean },
 ): MediaFile[] => {
   const textures: MediaFile[] = [];
-  // Use a stack for iterative traversal to avoid call stack limits
-  // We process the list in reverse so that popping from stack maintains order
-  const stack = [...albums].reverse();
-
-  while (stack.length > 0) {
-    const album = stack.pop()!;
-
-    if (selection[album.id] && album.textures) {
-      for (const texture of album.textures) {
-        textures.push(texture);
-      }
-    }
-
-    if (album.children && album.children.length > 0) {
-      // Push children in reverse order so they are processed in original order
-      for (let i = album.children.length - 1; i >= 0; i--) {
-        stack.push(album.children[i]);
-      }
+  for (const node of traverseAlbumTree(albums)) {
+    if (selection[node.id] && node.textures) {
+      textures.push(...node.textures);
     }
   }
   return textures;

@@ -1,0 +1,1 @@
+## 2024-05-22 - [Pattern Extraction] **Smell:** [Duplicate traversal logic] **Insight:** [4 functions implemented the same stack-based DFS independently] **Prevention:** [Use generator functions for common traversal patterns]
