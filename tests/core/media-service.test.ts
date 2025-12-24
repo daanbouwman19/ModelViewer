@@ -26,8 +26,8 @@ const sharedState = vi.hoisted(() => ({
   isPackaged: false,
 }));
 
-vi.mock('electron', () => ({
-  app: {
+vi.mock('electron', () => {
+  const app = {
     get isPackaged() {
       return sharedState.isPackaged;
     },
@@ -35,16 +35,13 @@ vi.mock('electron', () => ({
       sharedState.isPackaged = val;
     },
     getPath: vi.fn().mockReturnValue('/tmp'),
-  },
-  default: {
-    app: {
-      get isPackaged() {
-        return sharedState.isPackaged;
-      },
-    },
-  },
-  __esModule: true,
-}));
+  };
+
+  return {
+    app,
+    default: { app },
+  };
+});
 
 // Use a function that acts as a constructor and is a spy
 vi.mock('worker_threads', () => {

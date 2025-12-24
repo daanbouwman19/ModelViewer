@@ -169,7 +169,7 @@
     </div>
 
     <div
-      class="floating-controls absolute bottom-4 md:bottom-8 left-1/2 transform -translate-x-1/2 flex justify-between items-center gap-4 md:gap-6 z-20 transition-transform-opacity duration-500 ease-in-out will-change-transform w-[90%] md:w-auto"
+      class="floating-controls absolute bottom-4 md:bottom-8 left-1/2 transform -translate-x-1/2 flex justify-between items-center gap-4 md:gap-6 z-20 transition-transform-opacity duration-500 ease-in-out will-change-transform w-[90%] md:w-[600px]"
       :class="{ 'translate-y-48 opacity-0': !isControlsVisible }"
     >
       <button
@@ -181,9 +181,9 @@
         ←
       </button>
 
-      <div class="media-info text-center">
+      <div class="media-info text-center flex-1 min-w-0 px-4">
         <p
-          class="text-lg font-bold drop-shadow-md text-white max-w-75 truncate"
+          class="text-lg font-bold drop-shadow-md text-white truncate"
           :title="currentMediaItem ? currentMediaItem.name : ''"
         >
           {{ currentMediaItem ? currentMediaItem.name : 'Select an album' }}
