@@ -16,12 +16,6 @@ function createMockMediaFile(name: string): MediaFile {
   return {
     name,
     path: `/${name}`,
-    type: 'image',
-    size: 1024,
-    birthtime: new Date(),
-    mtime: new Date(),
-    isDirectory: false,
-    url: `file:///${name}`,
   };
 }
 
@@ -134,7 +128,7 @@ describe('albumUtils', () => {
         id: 'leaf-id',
         name: 'leaf',
         textures: [createMockMediaFile('img.jpg')],
-      } as Album; // Simulating malformed runtime data if necessary, or just rely on optionality logic
+      } as unknown as Album; // Simulating malformed runtime data
 
       expect(countTextures(album)).toBe(1);
     });
@@ -169,7 +163,7 @@ describe('albumUtils', () => {
         id: 'leaf-id',
         name: 'leaf',
         textures: [createMockMediaFile('img.jpg')],
-      } as Album;
+      } as unknown as Album;
 
       const textures = collectTexturesRecursive(album);
       expect(textures).toHaveLength(1);
@@ -243,7 +237,7 @@ describe('albumUtils', () => {
         id: 'leaf-id',
         name: 'leaf',
         textures: [],
-      } as Album;
+      } as unknown as Album;
       const selection = {};
 
       selectAllAlbums([album], selection, true);
