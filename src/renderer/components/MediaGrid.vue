@@ -44,12 +44,13 @@
                 type="button"
                 class="relative group grid-item cursor-pointer w-full h-full text-left bg-transparent border-0 p-0 block focus:outline-none focus:ring-2 focus:ring-pink-500 rounded overflow-hidden"
                 :aria-label="`View ${getRenderProps(allMediaFiles[row.startIndex + i - 1]).displayName}`"
-                @click="
-                  handleItemClick(allMediaFiles[row.startIndex + i - 1])
-                "
+                @click="handleItemClick(allMediaFiles[row.startIndex + i - 1])"
               >
                 <template
-                  v-if="getRenderProps(allMediaFiles[row.startIndex + i - 1]).isImage"
+                  v-if="
+                    getRenderProps(allMediaFiles[row.startIndex + i - 1])
+                      .isImage
+                  "
                 >
                   <div
                     v-if="
@@ -76,7 +77,10 @@
                   </div>
                   <img
                     v-else
-                    :src="getRenderProps(allMediaFiles[row.startIndex + i - 1]).mediaUrl"
+                    :src="
+                      getRenderProps(allMediaFiles[row.startIndex + i - 1])
+                        .mediaUrl
+                    "
                     alt=""
                     class="h-full w-full object-cover rounded"
                     loading="lazy"
@@ -89,14 +93,21 @@
                   />
                 </template>
                 <template
-                  v-else-if="getRenderProps(allMediaFiles[row.startIndex + i - 1]).isVideo"
+                  v-else-if="
+                    getRenderProps(allMediaFiles[row.startIndex + i - 1])
+                      .isVideo
+                  "
                 >
                   <video
-                    :src="getRenderProps(allMediaFiles[row.startIndex + i - 1]).mediaUrl"
+                    :src="
+                      getRenderProps(allMediaFiles[row.startIndex + i - 1])
+                        .mediaUrl
+                    "
                     muted
                     preload="metadata"
                     :poster="
-                      getRenderProps(allMediaFiles[row.startIndex + i - 1]).posterUrl
+                      getRenderProps(allMediaFiles[row.startIndex + i - 1])
+                        .posterUrl
                     "
                     class="h-full w-full object-cover rounded block"
                   ></video>
@@ -111,13 +122,17 @@
                   v-if="allMediaFiles[row.startIndex + i - 1].rating"
                   class="absolute top-2 left-2 bg-black/60 text-yellow-400 text-xs px-1.5 py-0.5 rounded flex items-center pointer-events-none gap-1"
                 >
-                  <span>★</span> {{ allMediaFiles[row.startIndex + i - 1].rating }}
+                  <span>★</span>
+                  {{ allMediaFiles[row.startIndex + i - 1].rating }}
                 </div>
                 <div
                   class="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
                 >
                   <p class="text-white text-xs truncate">
-                    {{ getRenderProps(allMediaFiles[row.startIndex + i - 1]).displayName }}
+                    {{
+                      getRenderProps(allMediaFiles[row.startIndex + i - 1])
+                        .displayName
+                    }}
                   </p>
                 </div>
               </button>
