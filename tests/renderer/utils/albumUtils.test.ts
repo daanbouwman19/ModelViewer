@@ -4,7 +4,10 @@ import {
   collectTexturesRecursive,
   getAlbumAndChildrenIds,
   selectAllAlbums,
+  collectSelectedTextures,
+  traverseAlbumTree,
 } from '../../../src/renderer/utils/albumUtils';
+import type { Album } from '../../../src/core/types';
 
 describe('albumUtils', () => {
   const mockAlbum = {
@@ -35,7 +38,22 @@ describe('albumUtils', () => {
         children: [],
       },
     ],
-  };
+  } as unknown as Album;
+
+  describe('traverseAlbumTree', () => {
+    it('should traverse all nodes in depth-first order', () => {
+      const nodes = Array.from(traverseAlbumTree(mockAlbum));
+      const ids = nodes.map(n => n.id);
+      expect(ids).toEqual(['root-id', 'child1-id', 'grandchild-id', 'child2-id']);
+    });
+
+    it('should handle array input', () => {
+      const album2 = { id: 'other-root', children: [] } as unknown as Album;
+      const nodes = Array.from(traverseAlbumTree([mockAlbum, album2]));
+      const ids = nodes.map(n => n.id);
+      expect(ids).toEqual(['root-id', 'child1-id', 'grandchild-id', 'child2-id', 'other-root']);
+    });
+  });
 
   describe('countTextures', () => {
     it('should recursively count all textures in an album and its children', () => {
@@ -48,7 +66,7 @@ describe('albumUtils', () => {
         name: 'empty',
         textures: [],
         children: [],
-      };
+      } as unknown as Album;
       expect(countTextures(emptyAlbum)).toBe(0);
     });
 
@@ -72,7 +90,7 @@ describe('albumUtils', () => {
             ],
           },
         ],
-      };
+      } as unknown as Album;
       expect(countTextures(album)).toBe(1);
     });
 
@@ -81,9 +99,9 @@ describe('albumUtils', () => {
         id: 'leaf-id',
         name: 'leaf',
         textures: [{ name: 'img.jpg' }],
-      };
+      } as unknown as Album;
 
-      expect(countTextures(album as any)).toBe(1);
+      expect(countTextures(album)).toBe(1);
     });
   });
 
@@ -108,7 +126,7 @@ describe('albumUtils', () => {
         name: 'empty',
         textures: [],
         children: [],
-      };
+      } as unknown as Album;
       const textures = collectTexturesRecursive(emptyAlbum);
       expect(textures).toHaveLength(0);
     });
@@ -118,9 +136,9 @@ describe('albumUtils', () => {
         id: 'leaf-id',
         name: 'leaf',
         textures: [{ name: 'img.jpg' }],
-      };
+      } as unknown as Album;
 
-      const textures = collectTexturesRecursive(album as any);
+      const textures = collectTexturesRecursive(album);
       expect(textures).toHaveLength(1);
       expect(textures[0].name).toBe('img.jpg');
     });
@@ -143,15 +161,15 @@ describe('albumUtils', () => {
         name: 'simple',
         textures: [],
         children: [],
-      };
+      } as unknown as Album;
       const ids = getAlbumAndChildrenIds(simpleAlbum);
       expect(ids).toEqual(['simple-id']);
     });
 
     it('should handle undefined children property', () => {
-      const simpleAlbum = { id: 'simple-id', name: 'simple', textures: [] };
+      const simpleAlbum = { id: 'simple-id', name: 'simple', textures: [] } as unknown as Album;
 
-      const ids = getAlbumAndChildrenIds(simpleAlbum as any);
+      const ids = getAlbumAndChildrenIds(simpleAlbum);
       expect(ids).toEqual(['simple-id']);
     });
   });
@@ -197,11 +215,38 @@ describe('albumUtils', () => {
     });
 
     it('should handle undefined children property', () => {
-      const album = { id: 'leaf-id', name: 'leaf', textures: [] };
+      const album = { id: 'leaf-id', name: 'leaf', textures: [] } as unknown as Album;
       const selection = {};
 
-      selectAllAlbums([album as any], selection, true);
+      selectAllAlbums([album], selection, true);
       expect(selection).toEqual({ 'leaf-id': true });
+    });
+  });
+
+  describe('collectSelectedTextures', () => {
+    it('should collect textures only from selected albums', () => {
+      const selection = {
+        'root-id': true,
+        'child1-id': false,
+        'grandchild-id': true,
+        'child2-id': false
+      };
+
+      const textures = collectSelectedTextures([mockAlbum], selection);
+
+      // Expected: root textures (2) + grandchild textures (1) = 3
+      expect(textures).toHaveLength(3);
+      const names = textures.map(t => t.name);
+      expect(names).toContain('root1.jpg');
+      expect(names).toContain('root2.jpg');
+      expect(names).toContain('grandchild.jpg');
+      expect(names).not.toContain('child1.jpg');
+    });
+
+    it('should return empty array if nothing is selected', () => {
+      const selection = {};
+      const textures = collectSelectedTextures([mockAlbum], selection);
+      expect(textures).toHaveLength(0);
     });
   });
 });
