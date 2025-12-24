@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, type Mock } from 'vitest';
+import { describe, it, expect, vi, type Mock, beforeEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { ref } from 'vue';
 import MediaDisplay from '@/components/MediaDisplay.vue';
@@ -31,8 +31,8 @@ vi.mock('@/api', () => ({
 }));
 
 describe('MediaDisplay.vue Layout', () => {
-  it('should have consistent width class on desktop', () => {
-    // Setup minimal state
+  beforeEach(() => {
+    // Default App State
     (useAppState as Mock).mockReturnValue({
       currentMediaItem: ref({ name: 'test.jpg', path: '/test.jpg' }),
       displayedMediaFiles: ref([{ name: 'test.jpg', path: '/test.jpg' }]),
@@ -47,6 +47,7 @@ describe('MediaDisplay.vue Layout', () => {
       mainVideoElement: ref(null),
     });
 
+    // Default Slideshow State
     (useSlideshow as Mock).mockReturnValue({
       navigateMedia: vi.fn(),
       reapplyFilter: vi.fn(),
@@ -55,26 +56,28 @@ describe('MediaDisplay.vue Layout', () => {
       filterMedia: vi.fn(),
     });
 
+    // Default API Success
     (api.getVideoStreamUrlGenerator as Mock).mockResolvedValue(() => 'url');
     (api.loadFileAsDataURL as Mock).mockResolvedValue({
       type: 'http-url',
       url: 'test.jpg',
     });
+  });
 
+  it('should have consistent width class on desktop', () => {
     const wrapper = mount(MediaDisplay);
 
     const controls = wrapper.find('.floating-controls');
     const classes = controls.classes();
 
     // Check for the new width class
-    // Note: vue-test-utils might parse 'md:w-[600px]' as a single class string if looking at class list or attributes
-    // .classes() returns an array.
     expect(classes).toContain('md:w-[600px]');
     // Should NOT contain the old auto class
     expect(classes).not.toContain('md:w-auto');
   });
 
   it('should have flex layout for title centering and truncation', () => {
+    // Override currentMediaItem for this specific test case to simulate a long title
     (useAppState as Mock).mockReturnValue({
       currentMediaItem: ref({
         name: 'Very Long Title That Should Truncate In The Middle Of The Screen Because It Is Too Long.jpg',
@@ -92,14 +95,7 @@ describe('MediaDisplay.vue Layout', () => {
       mainVideoElement: ref(null),
     });
 
-    (useSlideshow as Mock).mockReturnValue({
-      navigateMedia: vi.fn(),
-      reapplyFilter: vi.fn(),
-      pauseSlideshowTimer: vi.fn(),
-      resumeSlideshowTimer: vi.fn(),
-      filterMedia: vi.fn(),
-    });
-
+    // Re-mount with overridden state
     const wrapper = mount(MediaDisplay);
 
     const mediaInfo = wrapper.find('.media-info');
