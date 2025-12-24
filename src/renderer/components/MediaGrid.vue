@@ -37,72 +37,106 @@
       >
         <template #default="{ item: row }">
           <div class="grid w-full h-full" :style="gridStyle">
-            <button
-              v-for="mediaItem in row.items"
-              :key="mediaItem.path"
-              type="button"
-              class="relative group grid-item cursor-pointer w-full h-full text-left bg-transparent border-0 p-0 block focus:outline-none focus:ring-2 focus:ring-pink-500 rounded overflow-hidden"
-              :aria-label="`View ${getRenderProps(mediaItem).displayName}`"
-              @click="handleItemClick(mediaItem)"
-            >
-              <template v-if="getRenderProps(mediaItem).isImage">
-                <div
-                  v-if="failedImagePaths.has(mediaItem.path)"
-                  class="h-full w-full flex items-center justify-center bg-gray-800 text-gray-600 rounded"
+            <template v-for="i in columnCount" :key="row.startIndex + i">
+              <button
+                v-if="allMediaFiles[row.startIndex + i - 1]"
+                :key="allMediaFiles[row.startIndex + i - 1].path"
+                type="button"
+                class="relative group grid-item cursor-pointer w-full h-full text-left bg-transparent border-0 p-0 block focus:outline-none focus:ring-2 focus:ring-pink-500 rounded overflow-hidden"
+                :aria-label="`View ${getRenderProps(allMediaFiles[row.startIndex + i - 1]).displayName}`"
+                @click="handleItemClick(allMediaFiles[row.startIndex + i - 1])"
+              >
+                <template
+                  v-if="
+                    getRenderProps(allMediaFiles[row.startIndex + i - 1])
+                      .isImage
+                  "
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-12 w-12"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
+                  <div
+                    v-if="
+                      failedImagePaths.has(
+                        allMediaFiles[row.startIndex + i - 1].path,
+                      )
+                    "
+                    class="h-full w-full flex items-center justify-center bg-gray-800 text-gray-600 rounded"
                   >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                    />
-                  </svg>
-                </div>
-                <img
-                  v-else
-                  :src="getRenderProps(mediaItem).mediaUrl"
-                  alt=""
-                  class="h-full w-full object-cover rounded"
-                  loading="lazy"
-                  @error="handleImageError($event, mediaItem)"
-                />
-              </template>
-              <template v-else-if="getRenderProps(mediaItem).isVideo">
-                <video
-                  :src="getRenderProps(mediaItem).mediaUrl"
-                  muted
-                  preload="metadata"
-                  :poster="getRenderProps(mediaItem).posterUrl"
-                  class="h-full w-full object-cover rounded block"
-                ></video>
-                <div
-                  class="absolute top-2 right-2 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded flex items-center pointer-events-none"
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="h-12 w-12"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                      />
+                    </svg>
+                  </div>
+                  <img
+                    v-else
+                    :src="
+                      getRenderProps(allMediaFiles[row.startIndex + i - 1])
+                        .mediaUrl
+                    "
+                    alt=""
+                    class="h-full w-full object-cover rounded"
+                    loading="lazy"
+                    @error="
+                      handleImageError(
+                        $event,
+                        allMediaFiles[row.startIndex + i - 1],
+                      )
+                    "
+                  />
+                </template>
+                <template
+                  v-else-if="
+                    getRenderProps(allMediaFiles[row.startIndex + i - 1])
+                      .isVideo
+                  "
                 >
-                  VIDEO
+                  <video
+                    :src="
+                      getRenderProps(allMediaFiles[row.startIndex + i - 1])
+                        .mediaUrl
+                    "
+                    muted
+                    preload="metadata"
+                    :poster="
+                      getRenderProps(allMediaFiles[row.startIndex + i - 1])
+                        .posterUrl
+                    "
+                    class="h-full w-full object-cover rounded block"
+                  ></video>
+                  <div
+                    class="absolute top-2 right-2 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded flex items-center pointer-events-none"
+                  >
+                    VIDEO
+                  </div>
+                </template>
+                <!-- Rating Overlay -->
+                <div
+                  v-if="allMediaFiles[row.startIndex + i - 1].rating"
+                  class="absolute top-2 left-2 bg-black/60 text-yellow-400 text-xs px-1.5 py-0.5 rounded flex items-center pointer-events-none gap-1"
+                >
+                  <span>★</span>
+                  {{ allMediaFiles[row.startIndex + i - 1].rating }}
                 </div>
-              </template>
-              <!-- Rating Overlay -->
-              <div
-                v-if="mediaItem.rating"
-                class="absolute top-2 left-2 bg-black/60 text-yellow-400 text-xs px-1.5 py-0.5 rounded flex items-center pointer-events-none gap-1"
-              >
-                <span>★</span> {{ mediaItem.rating }}
-              </div>
-              <div
-                class="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
-              >
-                <p class="text-white text-xs truncate">
-                  {{ getRenderProps(mediaItem).displayName }}
-                </p>
-              </div>
-            </button>
+                <div
+                  class="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
+                >
+                  <p class="text-white text-xs truncate">
+                    {{
+                      getRenderProps(allMediaFiles[row.startIndex + i - 1])
+                        .displayName
+                    }}
+                  </p>
+                </div>
+              </button>
+            </template>
           </div>
         </template>
       </RecycleScroller>
@@ -139,7 +173,7 @@ interface RenderProps {
 
 interface GridRow {
   id: string;
-  items: MediaFile[];
+  startIndex: number;
 }
 
 const scrollerContainer = ref<HTMLElement | null>(null);
@@ -305,14 +339,16 @@ const chunkedItems = computed<GridRow[]>(() => {
   void imageExtensionsSet.value;
   void videoExtensionsSet.value;
 
-  const items = allMediaFiles.value;
+  const total = allMediaFiles.value.length;
   const cols = columnCount.value;
   const rows: GridRow[] = [];
 
-  for (let i = 0; i < items.length; i += cols) {
+  const rowCount = Math.ceil(total / cols);
+
+  for (let i = 0; i < rowCount; i++) {
     rows.push({
-      id: `row-${i}`,
-      items: items.slice(i, i + cols),
+      id: `row-${i * cols}`,
+      startIndex: i * cols,
     });
   }
   return rows;
