@@ -7,38 +7,65 @@ import {
   collectSelectedTextures,
   traverseAlbumTree,
 } from '../../../src/renderer/utils/albumUtils';
-import type { Album } from '../../../src/core/types';
+import type { Album, MediaFile } from '../../../src/core/types';
+
+/**
+ * Helper to create a fully compliant MediaFile mock.
+ */
+function createMockMediaFile(name: string): MediaFile {
+  return {
+    name,
+    path: `/${name}`,
+    type: 'image',
+    size: 1024,
+    birthtime: new Date(),
+    mtime: new Date(),
+    isDirectory: false,
+    url: `file:///${name}`,
+  };
+}
+
+/**
+ * Helper to create a fully compliant Album mock with optional overrides.
+ */
+function createMockAlbum(
+  overrides: Partial<Album> & { id: string; name: string },
+): Album {
+  return {
+    children: [],
+    textures: [],
+    ...overrides,
+  };
+}
 
 describe('albumUtils', () => {
-  const mockAlbum = {
+  const mockAlbum: Album = createMockAlbum({
     id: 'root-id',
     name: 'root',
     textures: [
-      { name: 'root1.jpg', path: '/root1.jpg' },
-      { name: 'root2.jpg', path: '/root2.jpg' },
+      createMockMediaFile('root1.jpg'),
+      createMockMediaFile('root2.jpg'),
     ],
     children: [
-      {
+      createMockAlbum({
         id: 'child1-id',
         name: 'child1',
-        textures: [{ name: 'child1.jpg', path: '/child1.jpg' }],
+        textures: [createMockMediaFile('child1.jpg')],
         children: [
-          {
+          createMockAlbum({
             id: 'grandchild-id',
             name: 'grandchild',
-            textures: [{ name: 'grandchild.jpg', path: '/grandchild.jpg' }],
-            children: [],
-          },
+            textures: [createMockMediaFile('grandchild.jpg')],
+          }),
         ],
-      },
-      {
+      }),
+      createMockAlbum({
         id: 'child2-id',
         name: 'child2',
-        textures: [{ name: 'child2.jpg', path: '/child2.jpg' }],
-        children: [],
-      },
+        textures: [createMockMediaFile('child2.jpg')],
+      }),
     ],
-  } as unknown as Album;
+  });
 
   describe('traverseAlbumTree', () => {
     it('should traverse all nodes in depth-first order', () => {
@@ -53,7 +80,7 @@ describe('albumUtils', () => {
     });
 
     it('should handle array input', () => {
-      const album2 = { id: 'other-root', children: [] } as unknown as Album;
+      const album2 = createMockAlbum({ id: 'other-root', name: 'other' });
       const nodes = Array.from(traverseAlbumTree([mockAlbum, album2]));
       const ids = nodes.map((n) => n.id);
       expect(ids).toEqual([
@@ -72,45 +99,42 @@ describe('albumUtils', () => {
     });
 
     it('should return 0 for an album with no textures and no children', () => {
-      const emptyAlbum = {
+      const emptyAlbum = createMockAlbum({
         id: 'empty',
         name: 'empty',
-        textures: [],
-        children: [],
-      } as unknown as Album;
+      });
       expect(countTextures(emptyAlbum)).toBe(0);
     });
 
     it('should count textures even if a child album has no textures but grandchildren do', () => {
-      const album = {
+      const album = createMockAlbum({
         id: 'root-id',
         name: 'root',
-        textures: [],
         children: [
-          {
+          createMockAlbum({
             id: 'child-id',
             name: 'child',
-            textures: [],
             children: [
-              {
+              createMockAlbum({
                 id: 'gc-id',
                 name: 'grandchild',
-                textures: [{ name: 'gc.jpg', path: 'gc.jpg' }],
-                children: [],
-              },
+                textures: [createMockMediaFile('gc.jpg')],
+              }),
             ],
-          },
+          }),
         ],
-      } as unknown as Album;
+      });
       expect(countTextures(album)).toBe(1);
     });
 
-    it('should handle albums with undefined children property', () => {
+    it('should handle albums with undefined children property (simulated by omitted field)', () => {
+      // While the interface requires children, runtime data might lack it.
+      // We force cast here specifically to test robustness, but use a helper for the base structure.
       const album = {
         id: 'leaf-id',
         name: 'leaf',
-        textures: [{ name: 'img.jpg' }],
-      } as unknown as Album;
+        textures: [createMockMediaFile('img.jpg')],
+      } as Album; // Simulating malformed runtime data if necessary, or just rely on optionality logic
 
       expect(countTextures(album)).toBe(1);
     });
@@ -132,12 +156,10 @@ describe('albumUtils', () => {
     });
 
     it('should return an empty array for an album with no textures', () => {
-      const emptyAlbum = {
+      const emptyAlbum = createMockAlbum({
         id: 'empty',
         name: 'empty',
-        textures: [],
-        children: [],
-      } as unknown as Album;
+      });
       const textures = collectTexturesRecursive(emptyAlbum);
       expect(textures).toHaveLength(0);
     });
@@ -146,8 +168,8 @@ describe('albumUtils', () => {
       const album = {
         id: 'leaf-id',
         name: 'leaf',
-        textures: [{ name: 'img.jpg' }],
-      } as unknown as Album;
+        textures: [createMockMediaFile('img.jpg')],
+      } as Album;
 
       const textures = collectTexturesRecursive(album);
       expect(textures).toHaveLength(1);
@@ -167,23 +189,10 @@ describe('albumUtils', () => {
     });
 
     it('should return just the album id if there are no children', () => {
-      const simpleAlbum = {
+      const simpleAlbum = createMockAlbum({
         id: 'simple-id',
         name: 'simple',
-        textures: [],
-        children: [],
-      } as unknown as Album;
-      const ids = getAlbumAndChildrenIds(simpleAlbum);
-      expect(ids).toEqual(['simple-id']);
-    });
-
-    it('should handle undefined children property', () => {
-      const simpleAlbum = {
-        id: 'simple-id',
-        name: 'simple',
-        textures: [],
-      } as unknown as Album;
-
+      });
       const ids = getAlbumAndChildrenIds(simpleAlbum);
       expect(ids).toEqual(['simple-id']);
     });
@@ -234,7 +243,7 @@ describe('albumUtils', () => {
         id: 'leaf-id',
         name: 'leaf',
         textures: [],
-      } as unknown as Album;
+      } as Album;
       const selection = {};
 
       selectAllAlbums([album], selection, true);

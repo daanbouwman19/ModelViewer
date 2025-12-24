@@ -106,9 +106,7 @@ export const collectSelectedTextures = (
   const textures: MediaFile[] = [];
   for (const node of traverseAlbumTree(albums)) {
     if (selection[node.id] && node.textures) {
-      for (const texture of node.textures) {
-        textures.push(texture);
-      }
+      textures.push(...node.textures);
     }
   }
   return textures;
