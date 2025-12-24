@@ -56,7 +56,10 @@ describe('MediaDisplay.vue Layout', () => {
     });
 
     (api.getVideoStreamUrlGenerator as Mock).mockResolvedValue(() => 'url');
-    (api.loadFileAsDataURL as Mock).mockResolvedValue({ type: 'http-url', url: 'test.jpg' });
+    (api.loadFileAsDataURL as Mock).mockResolvedValue({
+      type: 'http-url',
+      url: 'test.jpg',
+    });
 
     const wrapper = mount(MediaDisplay);
 
@@ -73,7 +76,10 @@ describe('MediaDisplay.vue Layout', () => {
 
   it('should have flex layout for title centering and truncation', () => {
     (useAppState as Mock).mockReturnValue({
-      currentMediaItem: ref({ name: 'Very Long Title That Should Truncate In The Middle Of The Screen Because It Is Too Long.jpg', path: '/test.jpg' }),
+      currentMediaItem: ref({
+        name: 'Very Long Title That Should Truncate In The Middle Of The Screen Because It Is Too Long.jpg',
+        path: '/test.jpg',
+      }),
       displayedMediaFiles: ref([{ name: 'test.jpg', path: '/test.jpg' }]),
       currentMediaIndex: ref(0),
       isSlideshowActive: ref(false),
