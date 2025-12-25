@@ -80,23 +80,24 @@
           <ul class="space-y-0.5">
             <li v-for="playlist in smartPlaylists" :key="playlist.id">
               <div
-                class="group flex items-center justify-between px-3 py-2 rounded-md hover:bg-white/5 cursor-pointer transition-colors"
-                @click="handleSmartPlaylistSlideshow(playlist)"
+                class="group flex items-center justify-between px-3 py-2 rounded-md hover:bg-white/5 transition-colors"
               >
-                <!-- Name -->
-                <div
-                  class="flex items-center gap-2 truncate text-sm text-gray-300 group-hover:text-white"
+                <!-- Name (Main Action) -->
+                <button
+                  class="grow flex items-center gap-2 truncate text-sm text-gray-300 group-hover:text-white text-left focus:outline-none focus:text-white cursor-pointer min-w-0"
+                  :aria-label="'Play ' + playlist.name"
+                  @click="handleSmartPlaylistSlideshow(playlist)"
                 >
-                  <span class="text-indigo-500">
+                  <span class="text-indigo-500 shrink-0">
                     <!-- Small Playlist Icon -->
                     <PlaylistIcon class="w-4 h-4" />
                   </span>
                   <span class="truncate">{{ playlist.name }}</span>
-                </div>
+                </button>
 
                 <!-- Controls on Hover -->
                 <div
-                  class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  class="flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity ml-2"
                 >
                   <!-- Grid Button for Playlist -->
                   <button
