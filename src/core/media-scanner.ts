@@ -11,33 +11,7 @@ import path from 'path';
 import { ALL_SUPPORTED_EXTENSIONS } from './constants';
 import type { Album, MediaFile } from './types';
 import { listDriveFiles } from '../main/google-drive-service';
-
-// Concurrency limiter logic
-class ConcurrencyLimiter {
-  private queue: (() => void)[] = [];
-  private activeCount = 0;
-  private readonly maxConcurrency: number;
-
-  constructor(maxConcurrency: number) {
-    this.maxConcurrency = maxConcurrency;
-  }
-
-  async run<T>(fn: () => Promise<T>): Promise<T> {
-    if (this.activeCount >= this.maxConcurrency) {
-      await new Promise<void>((resolve) => this.queue.push(resolve));
-    }
-    this.activeCount++;
-    try {
-      return await fn();
-    } finally {
-      this.activeCount--;
-      if (this.queue.length > 0) {
-        const next = this.queue.shift();
-        if (next) next();
-      }
-    }
-  }
-}
+import { ConcurrencyLimiter } from './utils/concurrency-limiter';
 
 // Limit concurrent file system scans to avoid EMFILE errors
 // Note: This limit applies only to the `readdir` call itself, not the whole recursion.
