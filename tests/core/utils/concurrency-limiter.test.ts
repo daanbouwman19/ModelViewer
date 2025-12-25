@@ -16,9 +16,7 @@ describe('ConcurrencyLimiter', () => {
     };
 
     // Run 10 tasks concurrently
-    const promises = Array.from({ length: 10 }).map(() =>
-      limiter.run(task)
-    );
+    const promises = Array.from({ length: 10 }).map(() => limiter.run(task));
 
     await Promise.all(promises);
 
@@ -35,7 +33,7 @@ describe('ConcurrencyLimiter', () => {
     };
 
     const promises = [1, 2, 3, 4, 5].map((id) =>
-      limiter.run(task(id)).then((res) => results.push(res))
+      limiter.run(task(id)).then((res) => results.push(res)),
     );
 
     await Promise.all(promises);
