@@ -15,15 +15,33 @@ vi.mock('@/components/AlbumTree.vue', () => ({
 }));
 
 // Mock Icons - Inline the template to avoid hoisting issues
-vi.mock('@/components/icons/CloseIcon.vue', () => ({ default: { template: '<svg></svg>' } }));
-vi.mock('@/components/icons/PlayIcon.vue', () => ({ default: { template: '<svg></svg>' } }));
-vi.mock('@/components/icons/PauseIcon.vue', () => ({ default: { template: '<svg></svg>' } }));
-vi.mock('@/components/icons/SettingsIcon.vue', () => ({ default: { template: '<svg></svg>' } }));
-vi.mock('@/components/icons/PlaylistAddIcon.vue', () => ({ default: { template: '<svg></svg>' } }));
-vi.mock('@/components/icons/PlaylistIcon.vue', () => ({ default: { template: '<svg></svg>' } }));
-vi.mock('@/components/icons/GridIcon.vue', () => ({ default: { template: '<svg></svg>' } }));
-vi.mock('@/components/icons/EditIcon.vue', () => ({ default: { template: '<svg></svg>' } }));
-vi.mock('@/components/icons/DeleteIcon.vue', () => ({ default: { template: '<svg></svg>' } }));
+vi.mock('@/components/icons/CloseIcon.vue', () => ({
+  default: { template: '<svg></svg>' },
+}));
+vi.mock('@/components/icons/PlayIcon.vue', () => ({
+  default: { template: '<svg></svg>' },
+}));
+vi.mock('@/components/icons/PauseIcon.vue', () => ({
+  default: { template: '<svg></svg>' },
+}));
+vi.mock('@/components/icons/SettingsIcon.vue', () => ({
+  default: { template: '<svg></svg>' },
+}));
+vi.mock('@/components/icons/PlaylistAddIcon.vue', () => ({
+  default: { template: '<svg></svg>' },
+}));
+vi.mock('@/components/icons/PlaylistIcon.vue', () => ({
+  default: { template: '<svg></svg>' },
+}));
+vi.mock('@/components/icons/GridIcon.vue', () => ({
+  default: { template: '<svg></svg>' },
+}));
+vi.mock('@/components/icons/EditIcon.vue', () => ({
+  default: { template: '<svg></svg>' },
+}));
+vi.mock('@/components/icons/DeleteIcon.vue', () => ({
+  default: { template: '<svg></svg>' },
+}));
 
 describe('AlbumsList Accessibility', () => {
   let mockRefs: any;
@@ -70,12 +88,15 @@ describe('AlbumsList Accessibility', () => {
     // The main button we add will have class 'grow'.
     const growButton = playlistItem.find('button.grow');
 
-    expect(growButton.exists(), 'Main playlist item should be a semantic button').toBe(true);
+    expect(
+      growButton.exists(),
+      'Main playlist item should be a semantic button',
+    ).toBe(true);
     expect(growButton.attributes('aria-label')).toBe('Play My Top Rated');
   });
 
   it('controls should be visible on focus within', async () => {
-     mockRefs.smartPlaylists.value = [
+    mockRefs.smartPlaylists.value = [
       { id: 1, name: 'Test List', criteria: '{}' },
     ];
 
