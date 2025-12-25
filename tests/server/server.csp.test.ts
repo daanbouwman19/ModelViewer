@@ -24,7 +24,6 @@ describe('Server CSP', () => {
   });
 
   it('should have Content-Security-Policy header', async () => {
-    const response = await request(app).get('/');
     // In dev, the server might not serve static files on /, but let's check headers on an API endpoint too
     // But Helmet middleware runs globally.
     // However, createApp serves static files only if !isDev.
@@ -40,7 +39,9 @@ describe('Server CSP', () => {
     // Check specific directives
     expect(csp).toContain("default-src 'self'");
     expect(csp).toContain("script-src 'self' 'unsafe-inline'");
-    expect(csp).toContain("style-src 'self' 'unsafe-inline' https://fonts.googleapis.com");
+    expect(csp).toContain(
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    );
     expect(csp).toContain("font-src 'self' https://fonts.gstatic.com");
     expect(csp).toContain("img-src 'self' data: blob:");
     expect(csp).toContain("media-src 'self' blob:");
