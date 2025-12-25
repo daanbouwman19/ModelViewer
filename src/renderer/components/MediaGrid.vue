@@ -38,104 +38,17 @@
         <template #default="{ item: row }">
           <div class="grid w-full h-full" :style="gridStyle">
             <template v-for="i in columnCount" :key="row.startIndex + i">
-              <button
+              <!-- Check if item exists -->
+              <MediaGridItem
                 v-if="allMediaFiles[row.startIndex + i - 1]"
-                :key="allMediaFiles[row.startIndex + i - 1].path"
-                type="button"
-                class="relative group grid-item cursor-pointer w-full h-full text-left bg-transparent border-0 p-0 block focus:outline-none focus:ring-2 focus:ring-pink-500 rounded overflow-hidden"
-                :aria-label="`View ${getRenderProps(allMediaFiles[row.startIndex + i - 1]).displayName}`"
-                @click="handleItemClick(allMediaFiles[row.startIndex + i - 1])"
-              >
-                <template
-                  v-if="
-                    getRenderProps(allMediaFiles[row.startIndex + i - 1])
-                      .isImage
-                  "
-                >
-                  <div
-                    v-if="
-                      failedImagePaths.has(
-                        allMediaFiles[row.startIndex + i - 1].path,
-                      )
-                    "
-                    class="h-full w-full flex items-center justify-center bg-gray-800 text-gray-600 rounded"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      class="h-12 w-12"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                      />
-                    </svg>
-                  </div>
-                  <img
-                    v-else
-                    :src="
-                      getRenderProps(allMediaFiles[row.startIndex + i - 1])
-                        .mediaUrl
-                    "
-                    alt=""
-                    class="h-full w-full object-cover rounded"
-                    loading="lazy"
-                    @error="
-                      handleImageError(
-                        $event,
-                        allMediaFiles[row.startIndex + i - 1],
-                      )
-                    "
-                  />
-                </template>
-                <template
-                  v-else-if="
-                    getRenderProps(allMediaFiles[row.startIndex + i - 1])
-                      .isVideo
-                  "
-                >
-                  <video
-                    :src="
-                      getRenderProps(allMediaFiles[row.startIndex + i - 1])
-                        .mediaUrl
-                    "
-                    muted
-                    preload="metadata"
-                    :poster="
-                      getRenderProps(allMediaFiles[row.startIndex + i - 1])
-                        .posterUrl
-                    "
-                    class="h-full w-full object-cover rounded block"
-                  ></video>
-                  <div
-                    class="absolute top-2 right-2 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded flex items-center pointer-events-none"
-                  >
-                    VIDEO
-                  </div>
-                </template>
-                <!-- Rating Overlay -->
-                <div
-                  v-if="allMediaFiles[row.startIndex + i - 1].rating"
-                  class="absolute top-2 left-2 bg-black/60 text-yellow-400 text-xs px-1.5 py-0.5 rounded flex items-center pointer-events-none gap-1"
-                >
-                  <span>★</span>
-                  {{ allMediaFiles[row.startIndex + i - 1].rating }}
-                </div>
-                <div
-                  class="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
-                >
-                  <p class="text-white text-xs truncate">
-                    {{
-                      getRenderProps(allMediaFiles[row.startIndex + i - 1])
-                        .displayName
-                    }}
-                  </p>
-                </div>
-              </button>
+                :item="allMediaFiles[row.startIndex + i - 1]"
+                :image-extensions-set="imageExtensionsSet"
+                :video-extensions-set="videoExtensionsSet"
+                :media-url-generator="mediaUrlGenerator"
+                :thumbnail-url-generator="thumbnailUrlGenerator"
+                :failed-image-paths="failedImagePaths"
+                @click="handleItemClick"
+              />
             </template>
           </div>
         </template>
@@ -154,22 +67,12 @@ import { ref, onMounted, onUnmounted, computed, watch, reactive } from 'vue';
 import { useAppState } from '../composables/useAppState';
 import type { MediaFile } from '../../core/types';
 import { api } from '../api';
+import MediaGridItem from './MediaGridItem.vue';
 
 const { state, imageExtensionsSet, videoExtensionsSet } = useAppState();
 
 // Reactive reference to the full list from state
 const allMediaFiles = computed(() => state.gridMediaFiles);
-
-/**
- * Properties derived from MediaFile for rendering.
- */
-interface RenderProps {
-  isImage: boolean;
-  isVideo: boolean;
-  mediaUrl: string;
-  posterUrl: string;
-  displayName: string;
-}
 
 interface GridRow {
   id: string;
@@ -219,116 +122,10 @@ const gridStyle = computed(() => ({
   height: `${itemWidth.value}px`,
 }));
 
-/**
- * Helper to extract file extension efficiently.
- * @param nameOrPath - The file path or name.
- * @returns The extension including the dot, or empty string if none.
- */
-const getExtension = (nameOrPath: string) => {
-  const lastDotIndex = nameOrPath.lastIndexOf('.');
-  if (lastDotIndex === -1) return '';
-
-  const lastSlashIndex = Math.max(
-    nameOrPath.lastIndexOf('/'),
-    nameOrPath.lastIndexOf('\\'),
-  );
-  if (lastDotIndex < lastSlashIndex) return ''; // Dot is in directory name
-  if (lastDotIndex === lastSlashIndex + 1) return ''; // Dotfile (e.g. .gitignore)
-
-  return nameOrPath.substring(lastDotIndex).toLowerCase();
-};
-
 const mediaUrlGenerator = ref<((path: string) => string) | null>(null);
 const thumbnailUrlGenerator = ref<((path: string) => string) | null>(null);
 
-// WeakMap cache for derived render properties.
-// Keys are MediaFile objects (proxies), values are RenderProps.
-// This avoids O(N) allocation and computation when the list changes,
-// distributing the cost to render time (O(visible)).
-let itemCache = new WeakMap<object, RenderProps>();
-
-/**
- * Retrieves derived render properties for a media item.
- * Uses a WeakMap cache to memoize results based on object identity.
- */
-const getRenderProps = (item: MediaFile): RenderProps => {
-  if (itemCache.has(item)) {
-    return itemCache.get(item)!;
-  }
-
-  const nameOrPath = item.name || item.path;
-  const ext = getExtension(nameOrPath);
-  const isImg = imageExtensionsSet.value.has(ext);
-  const isVid = videoExtensionsSet.value.has(ext);
-
-  let url = '';
-  if (mediaUrlGenerator.value) {
-    if (isVid) {
-      // For videos, use the full media URL with a time fragment to generate a thumbnail frame.
-      url = mediaUrlGenerator.value(item.path) + '#t=0.001';
-    } else if (isImg && thumbnailUrlGenerator.value) {
-      // For images, prefer the pre-generated thumbnail for performance.
-      url = thumbnailUrlGenerator.value(item.path);
-    } else {
-      // Fallback for images without a thumbnail generator or other file types.
-      url = mediaUrlGenerator.value(item.path);
-    }
-  }
-
-  let poster = '';
-  if (thumbnailUrlGenerator.value) {
-    poster = thumbnailUrlGenerator.value(item.path);
-  }
-
-  const displayName = item.name || item.path.replace(/^.*[\\/]/, '');
-
-  const props: RenderProps = {
-    isImage: isImg,
-    isVideo: isVid,
-    mediaUrl: url,
-    posterUrl: poster,
-    displayName,
-  };
-
-  itemCache.set(item, props);
-  return props;
-};
-
-// Clear cache when generators or extensions change
-watch(
-  [
-    mediaUrlGenerator,
-    thumbnailUrlGenerator,
-    imageExtensionsSet,
-    videoExtensionsSet,
-  ],
-  () => {
-    itemCache = new WeakMap();
-  },
-);
-
 const failedImagePaths = reactive(new Set<string>());
-
-const handleImageError = (event: Event, item: MediaFile) => {
-  // If we are already showing the full URL or don't have a generator, just mark as failed
-  if (!mediaUrlGenerator.value || failedImagePaths.has(item.path)) return;
-
-  const imgElement = event.target as HTMLImageElement;
-  const rawFullUrl = mediaUrlGenerator.value(item.path);
-  // Resolve to absolute URL for robust comparison with imgElement.src
-  const fullUrlResolved = new URL(rawFullUrl, window.location.href).href;
-  const props = getRenderProps(item);
-
-  // If we were using a thumbnail and it failed, try the full URL
-  // Check both resolved URL (DOM) and intent (props) to avoid infinite loops
-  if (imgElement.src !== fullUrlResolved && props.mediaUrl !== rawFullUrl) {
-    // Retry with full URL
-    imgElement.src = rawFullUrl;
-  } else {
-    // Already tried full URL or it matches, so it's a real failure
-    failedImagePaths.add(item.path);
-  }
-};
 
 // Chunk items into rows for the scroller
 const chunkedItems = computed<GridRow[]>(() => {
@@ -423,32 +220,3 @@ const closeGrid = () => {
   state.viewMode = 'player';
 };
 </script>
-
-<style scoped>
-/* Performance-critical optimizations for grid items */
-.grid-item {
-  /* Enable GPU acceleration */
-  will-change: border-color;
-  transform: translateZ(0);
-
-  /* Optimize rendering */
-  backface-visibility: hidden;
-  -webkit-font-smoothing: antialiased;
-}
-
-/* Simplified hover effect - no transitions */
-.grid-item:hover {
-  border-color: #ec4899;
-}
-
-/* Optimize image rendering */
-.grid-item img,
-.grid-item video {
-  /* Force GPU acceleration */
-  transform: translateZ(0);
-
-  /* Optimize image rendering */
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
-}
-</style>
