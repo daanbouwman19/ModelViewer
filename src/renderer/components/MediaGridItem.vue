@@ -98,25 +98,31 @@ const getExtension = (nameOrPath: string) => {
   return nameOrPath.substring(lastDotIndex).toLowerCase();
 };
 
-const ext = computed(() =>
-  getExtension(props.item.name || props.item.path),
-);
+const ext = computed(() => getExtension(props.item.name || props.item.path));
 
 // We need to handle the case where props.imageExtensionsSet might be wrapped in a Ref/Object if passed incorrectly,
 // OR simply ensure we access it correctly.
 const isImage = computed(() => {
   // Defensive coding to handle potential non-unwrapped refs in tests/edge cases
-  const set = props.imageExtensionsSet as any;
-  if (set && typeof set.has !== 'function' && set.value instanceof Set) {
-     return set.value.has(ext.value);
+  const set = props.imageExtensionsSet as unknown as { value?: Set<string> };
+  if (
+    set &&
+    typeof (set as Set<string>).has !== 'function' &&
+    set.value instanceof Set
+  ) {
+    return set.value.has(ext.value);
   }
   return props.imageExtensionsSet.has(ext.value);
 });
 
 const isVideo = computed(() => {
-  const set = props.videoExtensionsSet as any;
-  if (set && typeof set.has !== 'function' && set.value instanceof Set) {
-     return set.value.has(ext.value);
+  const set = props.videoExtensionsSet as unknown as { value?: Set<string> };
+  if (
+    set &&
+    typeof (set as Set<string>).has !== 'function' &&
+    set.value instanceof Set
+  ) {
+    return set.value.has(ext.value);
   }
   return props.videoExtensionsSet.has(ext.value);
 });
