@@ -84,12 +84,26 @@ export async function createApp() {
 
   // Middleware
   // Set security headers
-  // TODO: [SECURITY] Configure and enable Content-Security-Policy.
-  // It is currently disabled to ensure compatibility with external fonts and Vue,
-  // but it's a crucial security feature against XSS attacks.
+  // [SECURITY] Content-Security-Policy enabled to prevent XSS.
+  // We allow 'unsafe-inline' for scripts/styles because Vue/Vite requires it,
+  // and we allow Google Fonts and data/blob schemes for media.
   app.use(
     helmet({
-      contentSecurityPolicy: false,
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'"],
+          styleSrc: [
+            "'self'",
+            "'unsafe-inline'",
+            'https://fonts.googleapis.com',
+          ],
+          fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+          imgSrc: ["'self'", 'data:', 'blob:'],
+          mediaSrc: ["'self'", 'blob:'],
+          connectSrc: ["'self'"],
+        },
+      },
     }),
   );
 
