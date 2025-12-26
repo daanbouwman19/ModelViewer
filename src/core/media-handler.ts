@@ -29,6 +29,58 @@ export interface MediaHandlerOptions {
   cacheDir: string;
 }
 
+/**
+ * Handles video stream requests (raw or transcoded).
+ */
+async function handleStreamRequest(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  parsedUrl: URL,
+  ffmpegPath: string | null,
+) {
+  const filePath = parsedUrl.searchParams.get('file');
+  const startTime = parsedUrl.searchParams.get('startTime');
+  const isTranscodeForced = parsedUrl.searchParams.get('transcode') === 'true';
+
+  if (!filePath) {
+    res.writeHead(400);
+    return res.end('Missing file parameter');
+  }
+
+  try {
+    const source = createMediaSource(filePath);
+
+    if (isTranscodeForced) {
+      if (!ffmpegPath) {
+        res.writeHead(500);
+        return res.end('FFmpeg binary not found');
+      }
+      return await serveTranscodedStream(
+        req,
+        res,
+        source,
+        ffmpegPath,
+        startTime,
+      );
+    } else {
+      return await serveRawStream(req, res, source);
+    }
+  } catch (e: unknown) {
+    console.error('[Handler] Stream failed:', e);
+    if (!res.headersSent) {
+      const msg = (e as Error).message || '';
+      if (msg.includes('Access denied')) {
+        res.writeHead(403);
+        res.end('Access denied.');
+      } else {
+        res.writeHead(500);
+        res.end('Error initializing source');
+      }
+    }
+    return;
+  }
+}
+
 let thumbnailQueue: InstanceType<typeof import('p-queue').default> | null =
   null;
 
@@ -431,48 +483,7 @@ export function createMediaRequestHandler(options: MediaHandlerOptions) {
 
     // Streaming Route (Direct or Transcoded)
     if (pathname === '/video/stream') {
-      const filePath = parsedUrl.searchParams.get('file');
-      const startTime = parsedUrl.searchParams.get('startTime');
-      const isTranscodeForced =
-        parsedUrl.searchParams.get('transcode') === 'true';
-
-      if (!filePath) {
-        res.writeHead(400);
-        return res.end('Missing file parameter');
-      }
-
-      try {
-        const source = createMediaSource(filePath);
-
-        if (isTranscodeForced) {
-          if (!ffmpegPath) {
-            res.writeHead(500);
-            return res.end('FFmpeg binary not found');
-          }
-          return await serveTranscodedStream(
-            req,
-            res,
-            source,
-            ffmpegPath,
-            startTime,
-          );
-        } else {
-          return await serveRawStream(req, res, source);
-        }
-      } catch (e: unknown) {
-        console.error('[Handler] Stream failed:', e);
-        if (!res.headersSent) {
-          const msg = (e as Error).message || '';
-          if (msg.includes('Access denied')) {
-            res.writeHead(403);
-            res.end('Access denied.');
-          } else {
-            res.writeHead(500);
-            res.end('Error initializing source');
-          }
-        }
-        return;
-      }
+      return handleStreamRequest(req, res, parsedUrl, ffmpegPath);
     }
 
     // Thumbnail Route
