@@ -13,6 +13,12 @@ import type { Album, MediaFile } from '../../core/types';
 import { api } from '../api';
 
 /**
+ * Cache for file extensions to reduce string operations.
+ * Keyed by MediaFile object reference.
+ */
+const extensionCache = new WeakMap<MediaFile, string>();
+
+/**
  * A Vue composable that provides functions for controlling the media slideshow.
  */
 export function useSlideshow() {
@@ -34,6 +40,26 @@ export function useSlideshow() {
   };
 
   /**
+   * Helper to get or compute extension for a media file.
+   */
+  const getCachedExtension = (file: MediaFile): string | null => {
+    if (extensionCache.has(file)) {
+      return extensionCache.get(file)!;
+    }
+
+    const fileName = file.name || file.path;
+    const lastDotIndex = fileName.lastIndexOf('.');
+
+    let ext = '';
+    if (lastDotIndex !== -1) {
+      ext = fileName.slice(lastDotIndex).toLowerCase();
+    }
+
+    extensionCache.set(file, ext);
+    return ext;
+  };
+
+  /**
    * Filters a list of media files based on the current filter setting in the global state.
    * @param mediaFiles - The array of media files to filter.
    * @returns The filtered array of media files.
@@ -52,15 +78,8 @@ export function useSlideshow() {
 
       if (filter === 'All') return true;
 
-      // Optimization: Avoid converting the entire path to lowercase.
-      // Instead, find the extension and only lowercase that small substring.
-      // This reduces memory allocation and CPU usage in large loops.
-      // Use name for extension detection as path might be an ID or URL (e.g. gdrive://)
-      const fileName = file.name || file.path;
-      const lastDotIndex = fileName.lastIndexOf('.');
-      if (lastDotIndex === -1) return false;
-
-      const ext = fileName.slice(lastDotIndex).toLowerCase();
+      const ext = getCachedExtension(file);
+      if (!ext) return false;
 
       if (filter === 'Videos') {
         return videoExtensionsSet.value.has(ext);
