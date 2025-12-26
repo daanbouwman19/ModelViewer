@@ -15,11 +15,11 @@
           Manage Media Sources
         </h2>
         <button
-          class="text-gray-400 hover:text-white text-3xl close-button"
+          class="text-gray-400 hover:text-white transition-colors close-button"
           aria-label="Close"
           @click="closeModal"
         >
-          &times;
+          <CloseIcon class="w-6 h-6" />
         </button>
       </div>
 
@@ -237,6 +237,7 @@ import { selectAllAlbums } from '../utils/albumUtils';
 import { api } from '../api';
 import { ref } from 'vue';
 import FileExplorer from './FileExplorer.vue';
+import CloseIcon from './icons/CloseIcon.vue';
 
 const { isSourcesModalVisible, mediaDirectories, state } = useAppState();
 const isFileExplorerOpen = ref(false);

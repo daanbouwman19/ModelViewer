@@ -12,11 +12,11 @@
           {{ isEditing ? 'Edit' : 'Create' }} Smart Playlist
         </h2>
         <button
-          class="text-gray-400 hover:text-white transition-colors text-2xl leading-none"
+          class="text-gray-400 hover:text-white transition-colors"
           aria-label="Close"
           @click="close"
         >
-          &times;
+          <CloseIcon class="w-6 h-6" />
         </button>
       </div>
 
@@ -134,6 +134,7 @@
 import { ref, watch, computed } from 'vue';
 import { useAppState } from '../composables/useAppState';
 import { api } from '../api';
+import CloseIcon from './icons/CloseIcon.vue';
 
 const props = defineProps<{
   playlistToEdit?: {

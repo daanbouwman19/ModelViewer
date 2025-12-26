@@ -32,3 +32,8 @@
 
 **Learning:** Tree items (`li`) with click handlers are not natively focusable. Wrapping the label content in a `<button>` (with `grow`) provides native keyboard support and better hit targets than patching `li` with ARIA.
 **Action:** Refactor clickable list/tree rows to contain a semantic `<button>` that wraps the text content, ensuring the button grows to fill available space.
+
+## 2025-10-30 - [Consistent Icon Usage]
+
+**Learning:** Using HTML entities like `&times;` for icons leads to inconsistency in sizing and styling compared to SVG components. It also risks screen readers announcing "times" or "multiplication sign".
+**Action:** Use dedicated SVG icon components (e.g., `<CloseIcon />`) instead of text characters for UI controls to ensure consistent visual language and better accessibility control.

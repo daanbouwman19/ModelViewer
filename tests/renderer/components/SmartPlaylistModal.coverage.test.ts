@@ -149,11 +149,8 @@ describe('SmartPlaylistModal Coverage', () => {
     const wrapper = mount(SmartPlaylistModal);
     await wrapper.vm.$nextTick();
 
-    // Click Close icon - it's a button with &times;
-    // In happy-dom text might be × or &times;, let's find by class to be safe
-    const btn = wrapper
-      .findAll('button')
-      .find((b) => b.classes().includes('text-2xl'));
+    // Click Close icon - it's a button with aria-label="Close"
+    const btn = wrapper.find('button[aria-label="Close"]');
     await btn?.trigger('click');
 
     expect(mockAppState.isSmartPlaylistModalVisible.value).toBe(false);
