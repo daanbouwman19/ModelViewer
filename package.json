@@ -24,7 +24,7 @@
     "lint:fix": "eslint . --fix",
     "verify": "npm run format && npm run lint && npm run typecheck && npm run test:coverage",
     "typecheck": "vue-tsc -b --noEmit",
-    "dev:server": "node --import tsx --watch src/server/server.ts",
+    "dev:server": "tsx --watch src/server/server.ts",
     "dev:web": "vite",
     "predev:all": "npm rebuild better-sqlite3",
     "dev:all": "concurrently \"npm run dev:server\" \"npm run dev:web\"",
