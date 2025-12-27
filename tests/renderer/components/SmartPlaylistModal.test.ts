@@ -46,7 +46,8 @@ describe('SmartPlaylistModal.vue', () => {
 
     const closeButton = wrapper.find('button[aria-label="Close"]');
     expect(closeButton.exists()).toBe(true);
-    expect(closeButton.text()).toBe('×');
+    // Button should contain the icon component, not text
+    expect(closeButton.find('svg').exists()).toBe(true);
   });
 
   it('validates input and disables create button', async () => {
