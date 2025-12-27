@@ -52,7 +52,9 @@ describe('SourcesModal A11y', () => {
     await flushPromises();
 
     // Check Auth Code Input
-    const authCodeInput = wrapper.find('input[placeholder="Paste authorization code here"]');
+    const authCodeInput = wrapper.find(
+      'input[placeholder="Paste authorization code here"]',
+    );
     expect(authCodeInput.exists()).toBe(true);
 
     // Check if it has an id
