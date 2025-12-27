@@ -23,6 +23,22 @@ export async function getDriveClient(): Promise<drive_v3.Drive> {
 }
 
 /**
+ * Validates a Google Drive Folder ID.
+ * Allowed: 'root', alphanumeric, dash, underscore.
+ * Throws if invalid.
+ */
+function validateFolderId(folderId: string): void {
+  if (!folderId) throw new Error('Missing folder ID');
+  if (folderId === 'root') return;
+  // Drive IDs are typically alphanumeric + [-_]
+  // We use a regex to ensure no special chars are injected.
+  if (!/^[a-zA-Z0-9_-]+$/.test(folderId)) {
+    console.warn(`[Security] Blocked invalid Drive folder ID: ${folderId}`);
+    throw new Error('Invalid folder ID');
+  }
+}
+
+/**
  * Executes a function with exponential backoff for 429 and 5xx errors.
  */
 async function callWithRetry<T>(
@@ -55,6 +71,7 @@ async function callWithRetry<T>(
  */
 // ... existing code ...
 export async function listDriveFiles(folderId: string): Promise<Album> {
+  validateFolderId(folderId);
   const drive = await getDriveClient();
   const q = `'${folderId}' in parents and (mimeType contains 'image/' or mimeType contains 'video/') and trashed = false`;
 
@@ -170,6 +187,7 @@ export async function listDriveDirectory(
 
   // Handle 'root' explicitly if passed
   const queryId = folderId === 'root' ? 'root' : folderId;
+  validateFolderId(queryId);
 
   const q = `'${queryId}' in parents and trashed = false`;
   try {
@@ -223,6 +241,7 @@ export async function listDriveDirectory(
 
 export async function getDriveParent(folderId: string): Promise<string | null> {
   if (!folderId || folderId === 'root') return null;
+  validateFolderId(folderId);
 
   const drive = await getDriveClient();
   try {
