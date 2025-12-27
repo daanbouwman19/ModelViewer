@@ -18,6 +18,7 @@ import {
   getVlcPath,
   getTranscodeArgs,
   getThumbnailArgs,
+  runFFmpeg,
 } from './media-utils';
 import { getProvider } from './fs-provider-factory';
 import { authorizeFilePath } from './security';
@@ -91,24 +92,16 @@ async function getThumbnailQueue() {
   return thumbnailQueue;
 }
 
-function runFFmpegThumbnail(
+async function runFFmpegThumbnail(
   filePath: string,
   cacheFile: string,
   ffmpegPath: string,
 ): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const generateArgs = getThumbnailArgs(filePath, cacheFile);
-    const genProcess = spawn(ffmpegPath, generateArgs);
-    let stderr = '';
-    if (genProcess.stderr) {
-      genProcess.stderr.on('data', (d) => (stderr += d.toString()));
-    }
-    genProcess.on('close', (code) => {
-      if (code === 0) resolve();
-      else reject(new Error(`FFmpeg failed with code ${code}: ${stderr}`));
-    });
-    genProcess.on('error', (err) => reject(err));
-  });
+  const generateArgs = getThumbnailArgs(filePath, cacheFile);
+  const { code, stderr } = await runFFmpeg(ffmpegPath, generateArgs);
+  if (code !== 0) {
+    throw new Error(`FFmpeg failed with code ${code}: ${stderr}`);
+  }
 }
 
 /**
@@ -204,35 +197,26 @@ async function generateLocalThumbnail(
   }
 }
 
-export function getFFmpegDuration(
+export async function getFFmpegDuration(
   filePath: string,
   ffmpegPath: string,
 ): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const ffmpegProcess = spawn(ffmpegPath, ['-i', filePath]);
-    let stderrData = '';
-
-    ffmpegProcess.stderr.on('data', (data: Buffer) => {
-      stderrData += data.toString();
-    });
-
-    ffmpegProcess.on('close', () => {
-      const match = stderrData.match(/Duration:\s+(\d+):(\d+):(\d+(?:\.\d+)?)/);
-      if (match) {
-        const hours = parseFloat(match[1]);
-        const minutes = parseFloat(match[2]);
-        const seconds = parseFloat(match[3]);
-        resolve(hours * 3600 + minutes * 60 + seconds);
-      } else {
-        reject(new Error('Could not determine duration'));
-      }
-    });
-
-    ffmpegProcess.on('error', (err) => {
-      console.error('[Metadata] FFmpeg spawn error:', err);
-      reject(new Error('FFmpeg execution failed'));
-    });
-  });
+  try {
+    const { stderr } = await runFFmpeg(ffmpegPath, ['-i', filePath]);
+    const match = stderr.match(/Duration:\s+(\d+):(\d+):(\d+(?:\.\d+)?)/);
+    if (match) {
+      const hours = parseFloat(match[1]);
+      const minutes = parseFloat(match[2]);
+      const seconds = parseFloat(match[3]);
+      return hours * 3600 + minutes * 60 + seconds;
+    } else {
+      throw new Error('Could not determine duration');
+    }
+  } catch (err) {
+    if ((err as Error).message === 'Could not determine duration') throw err;
+    console.error('[Metadata] FFmpeg spawn error:', err);
+    throw new Error('FFmpeg execution failed');
+  }
 }
 
 /**

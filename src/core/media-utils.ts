@@ -1,6 +1,7 @@
 import path from 'path';
 import crypto from 'crypto';
 import fs from 'fs';
+import { spawn } from 'child_process';
 
 import {
   SUPPORTED_IMAGE_EXTENSIONS,
@@ -142,4 +143,28 @@ export function getThumbnailArgs(
     '1',
     cacheFile,
   ];
+}
+
+export function runFFmpeg(
+  command: string,
+  args: string[],
+): Promise<{ code: number | null; stderr: string }> {
+  return new Promise((resolve, reject) => {
+    const process = spawn(command, args);
+    let stderr = '';
+
+    if (process.stderr) {
+      process.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+    }
+
+    process.on('close', (code) => {
+      resolve({ code, stderr });
+    });
+
+    process.on('error', (err) => {
+      reject(err);
+    });
+  });
 }
