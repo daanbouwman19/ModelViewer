@@ -455,6 +455,19 @@ async function createSmartPlaylist(
   name: string,
   criteria: string,
 ): Promise<{ id: number }> {
+  // Input Validation
+  if (!name || typeof name !== 'string' || name.length > 100) {
+    throw new Error('Invalid playlist name (1-100 characters).');
+  }
+  if (!criteria || typeof criteria !== 'string' || criteria.length > 10000) {
+    throw new Error('Invalid playlist criteria.');
+  }
+  try {
+    JSON.parse(criteria);
+  } catch {
+    throw new Error('Criteria must be valid JSON.');
+  }
+
   try {
     return await sendMessageToWorker<{ id: number }>('createSmartPlaylist', {
       name,
@@ -498,6 +511,19 @@ async function updateSmartPlaylist(
   name: string,
   criteria: string,
 ): Promise<void> {
+  // Input Validation
+  if (!name || typeof name !== 'string' || name.length > 100) {
+    throw new Error('Invalid playlist name (1-100 characters).');
+  }
+  if (!criteria || typeof criteria !== 'string' || criteria.length > 10000) {
+    throw new Error('Invalid playlist criteria.');
+  }
+  try {
+    JSON.parse(criteria);
+  } catch {
+    throw new Error('Criteria must be valid JSON.');
+  }
+
   try {
     await sendMessageToWorker<void>('updateSmartPlaylist', {
       id,

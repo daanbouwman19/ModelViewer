@@ -27,3 +27,9 @@
 **Vulnerability:** The local web server (`src/server/server.ts`) exposed the `/api/fs/ls` endpoint to the entire local network by binding to `0.0.0.0` without authentication. This allowed any device on the network to enumerate the host's directory structure (Information Disclosure).
 **Learning:** Development servers or "Personal" web apps often default to `0.0.0.0` for convenience (e.g., testing on mobile), but this is insecure when combined with unauthenticated sensitive endpoints.
 **Prevention:** Default to `127.0.0.1` (localhost) for all local servers. Require explicit configuration (e.g., `HOST=0.0.0.0`) to expose services to the network, and document the risks.
+
+## 2024-05-27 - Smart Playlist Input Validation
+
+**Vulnerability:** The `createSmartPlaylist` and `updateSmartPlaylist` functions in `src/core/database.ts` lacked input validation for the `name` and `criteria` arguments. This allowed creating playlists with empty names, excessively long strings (DoS risk), or invalid JSON criteria (potential data corruption or logic errors). This vulnerability extended to both the HTTP API (`/api/smart-playlists`) and Electron IPC (`db:create-smart-playlist`).
+**Learning:** Even if data is eventually handled safely (e.g., via parameterized queries), allowing invalid or malformed data into the system is a security risk. Validation should occur as early as possible, ideally at the service/core layer, to protect all entry points (API, IPC) simultaneously.
+**Prevention:** Implemented strict input validation in the core service layer (`src/core/database.ts`). Enforced length limits and JSON parsing checks. This ensures that only valid data reaches the persistence layer, regardless of the entry point.
