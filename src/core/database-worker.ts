@@ -244,6 +244,9 @@ function initDatabase(dbPath: string): WorkerResult {
     statements.updateMediaView = db.prepare(
       `UPDATE media_views SET view_count = view_count + 1, last_viewed = ? WHERE file_path_hash = ?`,
     );
+    statements.updateMediaViewWithPath = db.prepare(
+      `UPDATE media_views SET view_count = view_count + 1, last_viewed = ?, file_path = ? WHERE file_path_hash = ?`,
+    );
     statements.getMediaView = db.prepare(
       `SELECT file_path_hash, view_count FROM media_views WHERE file_path_hash = ?`,
     );
@@ -547,7 +550,18 @@ async function recordMediaView(filePath: string): Promise<WorkerResult> {
 
     const transaction = db.transaction(() => {
       statements.insertMediaView.run(fileId, filePath, now);
-      statements.updateMediaView.run(now, fileId);
+      // Attempt to update path (handles renames/moves), but fallback if unique constraint violated
+      try {
+        statements.updateMediaViewWithPath.run(now, filePath, fileId);
+      } catch (err: unknown) {
+        // If unique constraint failed (path already exists on another ID),
+        // fallback to legacy update (update count only, keep old path)
+        if ((err as { code?: string }).code === 'SQLITE_CONSTRAINT_UNIQUE') {
+          statements.updateMediaView.run(now, fileId);
+        } else {
+          throw err;
+        }
+      }
     });
 
     transaction();
@@ -571,21 +585,31 @@ async function getMediaViewCounts(filePaths: string[]): Promise<WorkerResult> {
 
   try {
     const viewCountsMap: { [key: string]: number } = {};
-    const pathIdMap = await generateFileIdsBatched(filePaths);
+    const SQL_BATCH_SIZE = 900;
 
-    const transaction = db.transaction((paths: string[]) => {
-      paths.forEach((filePath) => {
-        const fileId = pathIdMap.get(filePath);
-        if (fileId) {
-          const row = statements.getMediaView.get(fileId) as
-            | { view_count: number }
-            | undefined;
-          viewCountsMap[filePath] = row ? row.view_count : 0;
-        }
-      });
-    });
+    // Optimization: Direct path lookup instead of fs.stat -> hash -> lookup.
+    // This assumes paths in DB are kept up-to-date by recordMediaView.
+    for (let i = 0; i < filePaths.length; i += SQL_BATCH_SIZE) {
+      const batchPaths = filePaths.slice(i, i + SQL_BATCH_SIZE);
+      const placeholders = batchPaths.map(() => '?').join(',');
 
-    transaction(filePaths);
+      const rows = db
+        .prepare(
+          `SELECT file_path, view_count FROM media_views WHERE file_path IN (${placeholders})`,
+        )
+        .all(...batchPaths) as { file_path: string; view_count: number }[];
+
+      for (const row of rows) {
+        viewCountsMap[row.file_path] = row.view_count;
+      }
+    }
+
+    // Fill in 0 for paths not found
+    for (const filePath of filePaths) {
+      if (viewCountsMap[filePath] === undefined) {
+        viewCountsMap[filePath] = 0;
+      }
+    }
 
     return { success: true, data: viewCountsMap };
   } catch (error: unknown) {

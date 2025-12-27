@@ -208,6 +208,47 @@ describe('Database Worker', () => {
       const result = await sendMessage('recordMediaView', { filePath });
       expect(result.success).toBe(true);
     });
+
+    it('should NOT call fs.stat during getMediaViewCounts (Optimization Verification)', async () => {
+      const filePath = path.join(tempDir, 'opt-test.jpg');
+      fs.writeFileSync(filePath, 'data');
+      await sendMessage('recordMediaView', { filePath });
+
+      const statSpy = vi.spyOn(fs.promises, 'stat');
+      const result = await sendMessage('getMediaViewCounts', {
+        filePaths: [filePath],
+      });
+
+      expect(result.success).toBe(true);
+      expect((result.data as any)[filePath]).toBe(1);
+      expect(statSpy).not.toHaveBeenCalled();
+    });
+
+    it('should update file path in DB when file is renamed and played', async () => {
+      const oldPath = path.join(tempDir, 'old.jpg');
+      const newPath = path.join(tempDir, 'new.jpg');
+      fs.writeFileSync(oldPath, 'content');
+
+      // 1. Play at old path
+      await sendMessage('recordMediaView', { filePath: oldPath });
+      let counts = await sendMessage('getMediaViewCounts', {
+        filePaths: [oldPath],
+      });
+      expect((counts.data as any)[oldPath]).toBe(1);
+
+      // 2. Rename file (simulate OS rename)
+      fs.renameSync(oldPath, newPath);
+
+      // 3. Play at new path
+      // This should update the DB entry for the file ID to point to newPath
+      await sendMessage('recordMediaView', { filePath: newPath });
+
+      // 4. Verify lookup by new path works
+      counts = await sendMessage('getMediaViewCounts', {
+        filePaths: [newPath],
+      });
+      expect((counts.data as any)[newPath]).toBe(2); // Count should transfer and increment
+    });
   });
 
   describe('Album Caching', () => {
