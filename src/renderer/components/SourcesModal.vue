@@ -133,8 +133,11 @@
           access.
         </p>
         <p>2. Copy the authorization code provided by Google.</p>
-        <p>3. Paste the code below:</p>
+        <label for="auth-code-input" class="block mb-1"
+          >3. Paste the code below:</label
+        >
         <input
+          id="auth-code-input"
           v-model="authCode"
           type="text"
           class="w-full p-2 bg-gray-700 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
@@ -162,16 +165,17 @@
 
       <div v-else class="space-y-4">
         <p class="text-green-400">Authentication successful!</p>
-        <p>
+        <label for="drive-folder-id" class="block">
           Enter the Folder ID you want to add (or leave empty for 'My Drive'
           root):
-        </p>
+        </label>
         <!--
                 Actually listing root can be huge.
                 For MVP, asking for a folder ID is safer, or 'root' for root.
              -->
         <div class="flex gap-2">
           <input
+            id="drive-folder-id"
             v-model="driveFolderId"
             type="text"
             class="flex-grow p-2 bg-gray-700 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
