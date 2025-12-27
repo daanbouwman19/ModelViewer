@@ -1,4 +1,3 @@
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { google } from 'googleapis';
 
@@ -39,7 +38,7 @@ describe('Google Drive Service Input Validation', () => {
     } catch (e: any) {
       // If it throws "Invalid folder ID", that's good (post-fix)
       if (e.message === 'Invalid folder ID') {
-         return;
+        return;
       }
     }
 
@@ -49,7 +48,10 @@ describe('Google Drive Service Input Validation', () => {
       const query = calls[0][0].q;
       // If the query contains the raw malicious string, it's vulnerable
       if (query.includes(`'${maliciousId}'`)) {
-         throw new Error('VULNERABILITY DETECTED: Malicious ID was injected into query: ' + query);
+        throw new Error(
+          'VULNERABILITY DETECTED: Malicious ID was injected into query: ' +
+            query,
+        );
       }
     }
   });
@@ -59,7 +61,7 @@ describe('Google Drive Service Input Validation', () => {
     const googleAuth = await import('../../src/main/google-auth');
 
     (googleAuth.getOAuth2Client as any).mockReturnValue({
-        credentials: { refresh_token: 'valid' },
+      credentials: { refresh_token: 'valid' },
     });
 
     (mockDrive.files.list as any).mockResolvedValue({ data: { files: [] } });
