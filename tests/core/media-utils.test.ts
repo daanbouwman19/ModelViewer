@@ -4,7 +4,23 @@ import {
   getThumbnailArgs,
   isValidTimeFormat,
   getMimeType,
+  runFFmpeg,
 } from '../../src/core/media-utils';
+import { EventEmitter } from 'events';
+import { vi } from 'vitest';
+
+const { spawnMock } = vi.hoisted(() => {
+  return { spawnMock: vi.fn() };
+});
+
+vi.mock('child_process', () => {
+  return {
+    spawn: spawnMock,
+    default: {
+      spawn: spawnMock,
+    },
+  };
+});
 
 describe('media-utils', () => {
   describe('isValidTimeFormat', () => {
@@ -93,6 +109,33 @@ describe('media-utils', () => {
     it('returns application/octet-stream for unknown extensions', () => {
       expect(getMimeType('file.xyz')).toBe('application/octet-stream');
       expect(getMimeType('file.m4v')).toBe('application/octet-stream');
+    });
+  });
+
+  describe('runFFmpeg', () => {
+    it('resolves with code and stderr', async () => {
+      const mockProcess = new EventEmitter() as any;
+      mockProcess.stderr = new EventEmitter();
+      spawnMock.mockReturnValue(mockProcess);
+
+      const promise = runFFmpeg('ffmpeg', ['-i', 'input.mp4']);
+
+      mockProcess.stderr.emit('data', 'some error output');
+      mockProcess.emit('close', 0);
+
+      const result = await promise;
+      expect(result).toEqual({ code: 0, stderr: 'some error output' });
+    });
+
+    it('rejects on spawn error', async () => {
+      const mockProcess = new EventEmitter() as any;
+      spawnMock.mockReturnValue(mockProcess);
+
+      const promise = runFFmpeg('ffmpeg', []);
+
+      mockProcess.emit('error', new Error('spawn failed'));
+
+      await expect(promise).rejects.toThrow('spawn failed');
     });
   });
 });
