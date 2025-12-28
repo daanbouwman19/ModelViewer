@@ -7,13 +7,13 @@
       class="header p-3 bg-gray-800 border-b border-gray-700 flex items-center gap-2"
     >
       <button
-        class="p-2 rounded hover:bg-gray-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        class="p-2 rounded hover:bg-gray-700 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-400 hover:text-white transition-colors"
         :disabled="!parentPath"
         title="Go Up"
         aria-label="Go to parent directory"
         @click="navigateUp"
       >
-        ⬆️
+        <ArrowUpIcon class="w-5 h-5" />
       </button>
       <div
         class="current-path flex-grow font-mono text-sm truncate bg-black/30 p-2 rounded"
@@ -21,7 +21,7 @@
         {{ displayPath }}
       </div>
       <button
-        class="p-2 rounded hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        class="p-2 rounded hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-400 hover:text-white transition-colors"
         :title="
           viewMode === 'list' ? 'Switch to Grid View' : 'Switch to List View'
         "
@@ -30,15 +30,16 @@
         "
         @click="toggleViewMode"
       >
-        {{ viewMode === 'list' ? '📅' : 'list' }}
+        <GridIcon v-if="viewMode === 'list'" class="w-5 h-5" />
+        <ListIcon v-else class="w-5 h-5" />
       </button>
       <button
-        class="p-2 rounded hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        class="p-2 rounded hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-400 hover:text-white transition-colors"
         title="Refresh"
         aria-label="Refresh directory"
         @click="refresh"
       >
-        🔄
+        <RefreshIcon class="w-5 h-5" />
       </button>
     </div>
 
@@ -149,6 +150,10 @@
 import { ref, computed, onMounted } from 'vue';
 import { api } from '../api';
 import type { FileSystemEntry } from '../../core/file-system';
+import ArrowUpIcon from './icons/ArrowUpIcon.vue';
+import GridIcon from './icons/GridIcon.vue';
+import ListIcon from './icons/ListIcon.vue';
+import RefreshIcon from './icons/RefreshIcon.vue';
 
 const props = withDefaults(
   defineProps<{
