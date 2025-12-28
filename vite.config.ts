@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import tailwindcss from '@tailwindcss/vite';
+import { visualizer } from 'rollup-plugin-visualizer';
 import { resolve } from 'path';
 
 export default defineConfig(({ mode }) => {
@@ -42,7 +43,14 @@ export default defineConfig(({ mode }) => {
 
   // Frontend build configuration
   return {
-    plugins: [vue(), tailwindcss()],
+    plugins: [
+      vue(),
+      tailwindcss(),
+      visualizer({
+        filename: './dist/stats.html',
+        open: false,
+      }),
+    ],
     root: '.',
     server: {
       clearScreen: false,
@@ -61,6 +69,8 @@ export default defineConfig(({ mode }) => {
       },
     },
     build: {
+      target: 'es2020',
+      sourcemap: mode === 'production' ? 'hidden' : true,
       outDir: 'dist/client',
       rollupOptions: {
         input: {
