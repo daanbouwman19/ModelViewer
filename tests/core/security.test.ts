@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   authorizeFilePath,
   escapeHtml,
@@ -28,6 +28,13 @@ describe('authorizeFilePath Security', () => {
         name: 'Allowed',
         isActive: true,
       },
+      {
+        path: 'gdrive://',
+        type: 'google_drive',
+        id: '2',
+        name: 'Google Drive',
+        isActive: true,
+      },
     ]);
   });
 
@@ -45,6 +52,41 @@ describe('authorizeFilePath Security', () => {
     // VERIFY FIX: Messages should be identical "Access denied"
     expect(resultMissing.message).toBe('Access denied');
     expect(resultForbidden.message).toBe('Access denied');
+  });
+
+  it('rejects empty file path', async () => {
+    const result = await authorizeFilePath('');
+    expect(result.isAllowed).toBe(false);
+    expect(result.message).toBe('File path is empty');
+  });
+
+  it('allows access to valid gdrive:// paths', async () => {
+    const result = await authorizeFilePath('gdrive://fileId123');
+    expect(result.isAllowed).toBe(true);
+    expect(result.realPath).toBe('gdrive://fileId123');
+  });
+
+  it('allows access to valid local files within allowed directories', async () => {
+    vi.mocked(fs.realpath).mockResolvedValue('/allowed/video.mp4');
+    const result = await authorizeFilePath('/allowed/video.mp4');
+    expect(result.isAllowed).toBe(true);
+    expect(result.realPath).toBe('/allowed/video.mp4');
+  });
+
+  it('blocks access to sensitive subdirectories', async () => {
+    vi.mocked(fs.realpath).mockResolvedValue('/allowed/.env');
+    const result = await authorizeFilePath('/allowed/.env');
+    expect(result.isAllowed).toBe(false);
+    expect(result.message).toBe('Access to sensitive file denied');
+
+    vi.mocked(fs.realpath).mockResolvedValue(
+      '/allowed/node_modules/package.json',
+    );
+    const result2 = await authorizeFilePath(
+      '/allowed/node_modules/package.json',
+    );
+    expect(result2.isAllowed).toBe(false);
+    expect(result2.message).toBe('Access to sensitive file denied');
   });
 });
 
@@ -108,6 +150,9 @@ describe('Path Restriction Security', () => {
     expect(isRestrictedPath('c:\\program files')).toBe(true);
     expect(isRestrictedPath('C:\\')).toBe(false); // Allowed for navigation
     expect(isRestrictedPath('C:\\Users')).toBe(false);
+
+    // Check sensitive component
+    expect(isRestrictedPath('C:\\Users\\name\\.ssh')).toBe(true);
     vi.unstubAllEnvs();
   });
 
