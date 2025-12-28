@@ -33,3 +33,11 @@
 **Vulnerability:** The `createSmartPlaylist` and `updateSmartPlaylist` functions in `src/core/database.ts` lacked input validation for the `name` and `criteria` arguments. This allowed creating playlists with empty names, excessively long strings (DoS risk), or invalid JSON criteria (potential data corruption or logic errors). This vulnerability extended to both the HTTP API (`/api/smart-playlists`) and Electron IPC (`db:create-smart-playlist`).
 **Learning:** Even if data is eventually handled safely (e.g., via parameterized queries), allowing invalid or malformed data into the system is a security risk. Validation should occur as early as possible, ideally at the service/core layer, to protect all entry points (API, IPC) simultaneously.
 **Prevention:** Implemented strict input validation in the core service layer (`src/core/database.ts`). Enforced length limits and JSON parsing checks. This ensures that only valid data reaches the persistence layer, regardless of the entry point.
+## 2025-02-18 - [Defense in Depth] Sensitive File Protection
+**Vulnerability:** Authorized media directories could expose sensitive configuration or key files (e.g., `.env`, `.ssh`) if users accidentally add their home or project root directories.
+**Learning:** Standard path containment checks ( not starting with `..`) are insufficient for user-provided root directories that may contain mixed content.
+**Prevention:** Implemented a secondary check in `authorizeFilePath` to explicitly deny access to files residing in known sensitive subdirectories (e.g., `.git`, `.aws`), regardless of parent authorization.
+## 2025-02-18 - [Defense in Depth] Sensitive File Protection
+**Vulnerability:** Authorized media directories could expose sensitive configuration or key files (e.g., `.env`, `.ssh`) if users accidentally add their home or project root directories.
+**Learning:** Standard path containment checks are insufficient for user-provided root directories that may contain mixed content.
+**Prevention:** Implemented a secondary check in `authorizeFilePath` to explicitly deny access to files residing in known sensitive subdirectories (e.g., `.git`, `.aws`), regardless of parent authorization.
