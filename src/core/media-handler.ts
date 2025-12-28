@@ -23,6 +23,7 @@ import {
 import { getProvider } from './fs-provider-factory';
 import { authorizeFilePath } from './security';
 import { DATA_URL_THRESHOLD_MB } from './constants';
+import { MediaRoutes } from './routes';
 import { GenerateUrlOptions, GenerateUrlResult } from './media-handler-types';
 
 export interface MediaHandlerOptions {
@@ -456,7 +457,7 @@ export function createMediaRequestHandler(options: MediaHandlerOptions) {
     const pathname = parsedUrl.pathname;
 
     // Metadata Route
-    if (pathname === '/video/metadata') {
+    if (pathname === MediaRoutes.METADATA) {
       const filePath = parsedUrl.searchParams.get('file');
       if (!filePath) {
         res.writeHead(400);
@@ -466,12 +467,12 @@ export function createMediaRequestHandler(options: MediaHandlerOptions) {
     }
 
     // Streaming Route (Direct or Transcoded)
-    if (pathname === '/video/stream') {
+    if (pathname === MediaRoutes.STREAM) {
       return handleStreamRequest(req, res, parsedUrl, ffmpegPath);
     }
 
     // Thumbnail Route
-    if (pathname === '/video/thumbnail') {
+    if (pathname === MediaRoutes.THUMBNAIL) {
       const filePath = parsedUrl.searchParams.get('file');
       if (!filePath) {
         res.writeHead(400);
@@ -525,7 +526,7 @@ export async function generateFileUrl(
       const encodedPath = encodeURIComponent(filePath);
       return {
         type: 'http-url',
-        url: `http://localhost:${serverPort}/video/stream?file=${encodedPath}`,
+        url: `http://localhost:${serverPort}${MediaRoutes.STREAM}?file=${encodedPath}`,
       };
     }
 
@@ -561,7 +562,7 @@ export async function openMediaInVlc(
 
   if (filePath.startsWith('gdrive://')) {
     if (serverPort > 0) {
-      fileArg = `http://localhost:${serverPort}/video/stream?file=${encodeURIComponent(filePath)}`;
+      fileArg = `http://localhost:${serverPort}${MediaRoutes.STREAM}?file=${encodeURIComponent(filePath)}`;
     } else {
       return {
         success: false,
