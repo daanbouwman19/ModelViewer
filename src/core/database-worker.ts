@@ -606,9 +606,10 @@ async function getMediaViewCounts(filePaths: string[]): Promise<WorkerResult> {
       if (batchPaths.length === SQL_BATCH_SIZE) {
         // Use cached prepared statement for full batches
         // No iteration allocation needed, just spread
-        rows = statements.getMediaViewCountsBatch.all(
-          ...batchPaths,
-        ) as { file_path: string; view_count: number }[];
+        rows = statements.getMediaViewCountsBatch.all(...batchPaths) as {
+          file_path: string;
+          view_count: number;
+        }[];
       } else {
         // Use dynamic prepare for the partial last batch
         const placeholders = batchPaths.map(() => '?').join(',');
