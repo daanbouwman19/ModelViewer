@@ -6,11 +6,8 @@ WORKDIR /app
 # Copy package files
 COPY package.json package-lock.json ./
 
-# Remove Electron-related devDependencies to prevent installation failures on non-X64 architectures
-# these are only needed for Electron packaging, not for the web/server build.
-RUN npm pkg delete devDependencies.electron \
-    && npm pkg delete devDependencies.electron-builder \
-    && npm pkg delete devDependencies.electron-vite
+# Skip heavy Electron binary download for the builder
+ENV ELECTRON_SKIP_BINARY_DOWNLOAD=1
 
 # Install ALL dependencies for building
 RUN --mount=type=cache,target=/root/.npm \
@@ -20,7 +17,7 @@ RUN --mount=type=cache,target=/root/.npm \
 COPY . .
 
 # Build Frontend and Server
-RUN npm run build:web:fast
+RUN npm run build:web
 RUN npm run build:server
 
 # Stage 2: Install production dependencies
@@ -32,13 +29,9 @@ WORKDIR /app
 # Copy package files
 COPY package.json package-lock.json ./
 
-# Remove husky prepare script to prevent failures during production-only install
-# Husky is a devDependency and won't be available here.
-RUN npm pkg delete scripts.prepare
-
-# Install ONLY production dependencies
+# Install ONLY production dependencies, ignoring scripts (like husky)
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --omit=dev
+    npm ci --omit=dev --ignore-scripts
 
 # Stage 3: Final Runtime
 FROM node:25-slim AS runtime

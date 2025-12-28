@@ -90,6 +90,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Cache Playwright Binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
 
@@ -100,7 +108,7 @@ jobs:
     name: Build (${{ matrix.os }})
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
 
@@ -148,6 +156,8 @@ jobs:
             ls -lh release/*.{deb,AppImage} 2>/dev/null
           elif [ "$RUNNER_OS" == "Windows" ]; then
             ls -lh release/*.exe 2>/dev/null
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+            ls -lh release/*.dmg 2>/dev/null
           fi
 
       - name: Upload Artifacts
@@ -158,6 +168,7 @@ jobs:
             release/*.AppImage
             release/*.deb
             release/*.exe
+            release/*.dmg
           if-no-files-found: warn
 
   web-build:
