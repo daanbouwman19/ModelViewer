@@ -22,6 +22,12 @@ let db: Database.Database | null = null;
  */
 const statements: { [key: string]: Database.Statement } = {};
 
+/**
+ * Default batch size for SQL operations.
+ * 900 is chosen to be safely within SQLite's default limit of 999 parameters.
+ */
+const SQL_BATCH_SIZE = 900;
+
 // Helper Functions
 
 /**
@@ -304,6 +310,12 @@ function initDatabase(dbPath: string): WorkerResult {
       'UPDATE smart_playlists SET name = ?, criteria = ? WHERE id = ?',
     );
 
+    // Optimized batch statements
+    const placeholders = Array(SQL_BATCH_SIZE).fill('?').join(',');
+    statements.getMediaViewCountsBatch = db.prepare(
+      `SELECT file_path, view_count FROM media_views WHERE file_path IN (${placeholders})`,
+    );
+
     console.log('[worker] SQLite database initialized at:', dbPath);
     return { success: true };
   } catch (error: unknown) {
@@ -415,7 +427,6 @@ async function getMetadata(filePaths: string[]): Promise<WorkerResult> {
     const allFileIds = Array.from(new Set(idMap.values()));
 
     const metadataMap: { [key: string]: unknown } = {};
-    const SQL_BATCH_SIZE = 900;
 
     for (let i = 0; i < allFileIds.length; i += SQL_BATCH_SIZE) {
       const batchIds = allFileIds.slice(i, i + SQL_BATCH_SIZE);
@@ -585,19 +596,28 @@ async function getMediaViewCounts(filePaths: string[]): Promise<WorkerResult> {
 
   try {
     const viewCountsMap: { [key: string]: number } = {};
-    const SQL_BATCH_SIZE = 900;
 
     // Optimization: Direct path lookup instead of fs.stat -> hash -> lookup.
     // This assumes paths in DB are kept up-to-date by recordMediaView.
     for (let i = 0; i < filePaths.length; i += SQL_BATCH_SIZE) {
       const batchPaths = filePaths.slice(i, i + SQL_BATCH_SIZE);
-      const placeholders = batchPaths.map(() => '?').join(',');
+      let rows: { file_path: string; view_count: number }[];
 
-      const rows = db
-        .prepare(
-          `SELECT file_path, view_count FROM media_views WHERE file_path IN (${placeholders})`,
-        )
-        .all(...batchPaths) as { file_path: string; view_count: number }[];
+      if (batchPaths.length === SQL_BATCH_SIZE) {
+        // Use cached prepared statement for full batches
+        // No iteration allocation needed, just spread
+        rows = statements.getMediaViewCountsBatch.all(
+          ...batchPaths,
+        ) as { file_path: string; view_count: number }[];
+      } else {
+        // Use dynamic prepare for the partial last batch
+        const placeholders = batchPaths.map(() => '?').join(',');
+        rows = db
+          .prepare(
+            `SELECT file_path, view_count FROM media_views WHERE file_path IN (${placeholders})`,
+          )
+          .all(...batchPaths) as { file_path: string; view_count: number }[];
+      }
 
       for (const row of rows) {
         viewCountsMap[row.file_path] = row.view_count;
