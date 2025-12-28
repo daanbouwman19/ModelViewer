@@ -3,7 +3,7 @@
  * This module acts as a bridge between the main process (or server) and the database worker thread.
  */
 
-import { Worker, WorkerOptions } from 'worker_threads';
+import { Worker, type WorkerOptions } from 'worker_threads';
 import { FILE_INDEX_CACHE_KEY } from './constants.ts';
 import type {
   Album,

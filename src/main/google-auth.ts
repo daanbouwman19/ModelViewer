@@ -1,4 +1,4 @@
-import { OAuth2Client, Credentials } from 'google-auth-library';
+import type { OAuth2Client, Credentials } from 'google-auth-library';
 import { google } from 'googleapis';
 import {
   getGoogleClientId,
