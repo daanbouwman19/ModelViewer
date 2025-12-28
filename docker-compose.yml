@@ -10,8 +10,8 @@ services:
       # You can add more mappings as needed.
       # Host path : Container path
       - ./media:/media
-      # Add this line to persist your google-token.json
-      - ./config:/app/config
+      # Use a named volume instead of a bind mount
+      - google_auth_data:/app/config
     environment:
       - NODE_ENV=production
       # Tell the app exactly where the token is
@@ -21,3 +21,6 @@ services:
     env_file:
       - .env
     restart: unless-stopped
+
+volumes:
+  google_auth_data:
