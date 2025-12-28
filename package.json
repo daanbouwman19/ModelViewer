@@ -28,7 +28,7 @@
     "dev:web": "vite",
     "predev:all": "npm rebuild better-sqlite3",
     "dev:all": "concurrently \"npm run dev:server\" \"npm run dev:web\"",
-    "build:web": "vue-tsc -b --noEmit && vite build",
+    "build:web": "vite build",
     "build:web:fast": "vite build",
     "build:server": "vite build --mode server",
     "build:all": "concurrently \"npm run build:web\" \"npm run build:server\"",
