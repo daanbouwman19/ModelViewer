@@ -14,3 +14,5 @@ media-library.db-shm
 media-library.db-wal
 cache/
 tests/temp/
+config/
+
