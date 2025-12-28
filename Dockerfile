@@ -28,9 +28,8 @@ WORKDIR /app
 # Copy package files
 COPY package.json package-lock.json ./
 
-# Install ONLY production dependencies, ignoring scripts (like husky)
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci --omit=dev --ignore-scripts
+# Fix: Remove 'prepare' script to prevent Husky from running, then install production dependencies.
+RUN --mount=type=cache,target=/root/.npm npm pkg delete scripts.prepare && npm ci --omit=dev
 
 # Stage 3: Final Runtime
 FROM node:25-slim AS runtime
