@@ -28,9 +28,12 @@ WORKDIR /app
 # Copy package files
 COPY package.json package-lock.json ./
 
-# Install ONLY production dependencies, ignoring scripts (like husky)
+# Fix: Remove the 'prepare' script to prevent Husky from running (since it's not installed)
+RUN npm pkg delete scripts.prepare
+
+# Install ONLY production dependencies (this allows better-sqlite3 to build)
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --omit=dev --ignore-scripts
+    npm ci --omit=dev
 
 # Stage 3: Final Runtime
 FROM node:25-slim AS runtime
