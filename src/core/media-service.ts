@@ -11,7 +11,7 @@ import {
   bulkUpsertMetadata, // Added for batching
   getPendingMetadata,
 } from './database';
-import { Worker } from 'worker_threads';
+import { Worker, type WorkerOptions } from 'worker_threads';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { getVideoDuration } from './media-handler';
@@ -41,6 +41,7 @@ export async function scanDiskForAlbumsAndCache(
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
   let workerPath: string | URL;
+  let workerOptions: WorkerOptions | undefined;
   const isProduction = process.env.NODE_ENV === 'production';
   const isElectron = !!process.versions['electron'];
 
@@ -58,13 +59,16 @@ export async function scanDiskForAlbumsAndCache(
       workerPath = path.join(__dirname, 'scan-worker.js');
     } else {
       // Development (tsx)
-      workerPath = new URL('./scan-worker.js', import.meta.url);
+      workerPath = new URL('./scan-worker.ts', import.meta.url);
+      workerOptions = {
+        execArgv: ['--import', 'tsx/esm'],
+      };
     }
   }
 
   // Run scan in a worker
   const albums = await new Promise<Album[]>((resolve, reject) => {
-    const worker = new Worker(workerPath);
+    const worker = new Worker(workerPath, workerOptions);
 
     const cleanup = () => {
       worker.removeAllListeners();
