@@ -537,6 +537,30 @@ async function updateSmartPlaylist(
 }
 
 /**
+ * Saves a setting (key-value pair) to the database.
+ */
+async function saveSetting(key: string, value: string): Promise<void> {
+  try {
+    await sendMessageToWorker<void>('saveSetting', { key, value });
+  } catch (error) {
+    console.error('[database.js] Error saving setting:', error);
+    throw error;
+  }
+}
+
+/**
+ * Retrieves a setting value from the database.
+ */
+async function getSetting(key: string): Promise<string | null> {
+  try {
+    return await sendMessageToWorker<string | null>('getSetting', { key });
+  } catch (error) {
+    console.error('[database.js] Error getting setting:', error);
+    return null;
+  }
+}
+
+/**
  * Gets all metadata and stats for smart playlist filtering.
  * Returns a raw list of objects from the DB join.
  */
@@ -574,6 +598,8 @@ export {
   getSmartPlaylists,
   deleteSmartPlaylist,
   updateSmartPlaylist,
+  saveSetting,
+  getSetting,
   getAllMetadataAndStats,
   getPendingMetadata,
 };

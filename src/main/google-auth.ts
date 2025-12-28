@@ -1,6 +1,3 @@
-import os from 'os';
-import path from 'path';
-import fs from 'fs/promises';
 import { OAuth2Client } from 'google-auth-library';
 import { google } from 'googleapis';
 import {
@@ -8,77 +5,12 @@ import {
   getGoogleClientSecret,
   getGoogleRedirectUri,
 } from './google-secrets.ts';
+import { getSetting, saveSetting } from './database.ts';
 
 const SCOPES = ['https://www.googleapis.com/auth/drive.readonly'];
+const GOOGLE_TOKENS_KEY = 'google_tokens';
 
 let oauth2Client: OAuth2Client | null = null;
-
-function getTokenPath(): string {
-  // 1. Check for explicit Environment Variable (Robust for Docker/Server)
-  if (process.env.GOOGLE_TOKEN_PATH) {
-    return process.env.GOOGLE_TOKEN_PATH;
-  }
-
-  let userDataPath: string;
-
-  // In Electron, the userData path is often set via environment or we can detect it
-  // For non-Electron environments, use platform-specific paths
-  const appName = 'mediaplayer-app';
-
-  // Check if we're in Electron by looking for ELECTRON_RUN_AS_NODE or other indicators
-  // If app.getPath was already called, it might be in process.env or we use platform defaults
-  if (process.versions['electron'] && process.env.ELECTRON_USER_DATA) {
-    // If Electron set this env var (custom setup), use it
-    userDataPath = process.env.ELECTRON_USER_DATA;
-  } else if (process.versions['electron']) {
-    // Electron environment but no env var - use platform-specific default that matches Electron's behavior
-    // Electron uses platform-specific paths, so we replicate that logic
-    switch (process.platform) {
-      case 'win32':
-        userDataPath = path.join(
-          process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'),
-          appName,
-        );
-        break;
-      case 'darwin':
-        userDataPath = path.join(
-          os.homedir(),
-          'Library',
-          'Application Support',
-          appName,
-        );
-        break;
-      default:
-        // Linux
-        userDataPath = path.join(os.homedir(), '.config', appName);
-        break;
-    }
-  } else {
-    // Non-Electron environment (e.g., web server)
-    switch (process.platform) {
-      case 'win32':
-        userDataPath = path.join(
-          process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'),
-          appName,
-        );
-        break;
-      case 'darwin':
-        userDataPath = path.join(
-          os.homedir(),
-          'Library',
-          'Application Support',
-          appName,
-        );
-        break;
-      default:
-        // Linux and others
-        userDataPath = path.join(os.homedir(), '.config', appName);
-        break;
-    }
-  }
-
-  return path.join(userDataPath, 'google-token.json');
-}
 
 export function getOAuth2Client(): OAuth2Client {
   if (!oauth2Client) {
@@ -98,56 +30,25 @@ export function getOAuth2Client(): OAuth2Client {
 
 export async function loadSavedCredentialsIfExist(): Promise<boolean> {
   try {
-    const content = await fs.readFile(getTokenPath(), 'utf-8');
+    const content = await getSetting(GOOGLE_TOKENS_KEY);
+    if (!content) {
+      return false;
+    }
     const credentials = JSON.parse(content);
     const client = getOAuth2Client();
     client.setCredentials(credentials);
     return true;
-  } catch {
+  } catch (error) {
+    console.error('Failed to load credentials from DB:', error);
     return false;
   }
 }
 
 export async function saveCredentials(client: OAuth2Client): Promise<void> {
-  const tokenPath = getTokenPath();
-  const tokenDir = path.dirname(tokenPath);
-
   try {
-    await fs.mkdir(tokenDir, { recursive: true });
-  } catch (error) {
-    // Ignore error if directory already exists or can't be created (writeFile will fail then)
-    // But usually recursive: true handles existing dirs fine.
-    console.warn(`Failed to ensure directory exists: ${tokenDir}`, error);
-  }
-
-  // We actually just need to save client.credentials
-  try {
-    await fs.writeFile(tokenPath, JSON.stringify(client.credentials));
+    await saveSetting(GOOGLE_TOKENS_KEY, JSON.stringify(client.credentials));
   } catch (error: unknown) {
-    if ((error as NodeJS.ErrnoException).code === 'EACCES') {
-      console.error(
-        '\n\x1b[31m%s\x1b[0m',
-        '###########################################################',
-      );
-      console.error(
-        '\x1b[31m%s\x1b[0m',
-        '# PERMISSION DENIED WRITING GOOGLE TOKEN',
-      );
-      console.error('\x1b[31m%s\x1b[0m', '#');
-      console.error(
-        '\x1b[31m%s\x1b[0m',
-        `# The container user (UID ${process.getuid?.() || 'unknown'}) cannot write to:`,
-      );
-      console.error('\x1b[31m%s\x1b[0m', `# ${tokenPath}`);
-      console.error('\x1b[31m%s\x1b[0m', '#');
-      console.error('\x1b[31m%s\x1b[0m', '# SOLUTION:');
-      console.error('\x1b[31m%s\x1b[0m', '# Run this on your host machine:');
-      console.error('\x1b[31m%s\x1b[0m', '# sudo chown 1001:1001 ./config');
-      console.error(
-        '\x1b[31m%s\x1b[0m',
-        '###########################################################\n',
-      );
-    }
+    console.error('Failed to save credentials to DB:', error);
     throw error;
   }
 }
