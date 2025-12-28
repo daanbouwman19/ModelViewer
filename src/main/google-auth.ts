@@ -14,6 +14,11 @@ const SCOPES = ['https://www.googleapis.com/auth/drive.readonly'];
 let oauth2Client: OAuth2Client | null = null;
 
 function getTokenPath(): string {
+  // 1. Check for explicit Environment Variable (Robust for Docker/Server)
+  if (process.env.GOOGLE_TOKEN_PATH) {
+    return process.env.GOOGLE_TOKEN_PATH;
+  }
+
   let userDataPath: string;
 
   // In Electron, the userData path is often set via environment or we can detect it
@@ -105,8 +110,46 @@ export async function loadSavedCredentialsIfExist(): Promise<boolean> {
 
 export async function saveCredentials(client: OAuth2Client): Promise<void> {
   const tokenPath = getTokenPath();
+  const tokenDir = path.dirname(tokenPath);
+
+  try {
+    await fs.mkdir(tokenDir, { recursive: true });
+  } catch (error) {
+    // Ignore error if directory already exists or can't be created (writeFile will fail then)
+    // But usually recursive: true handles existing dirs fine.
+    console.warn(`Failed to ensure directory exists: ${tokenDir}`, error);
+  }
+
   // We actually just need to save client.credentials
-  await fs.writeFile(tokenPath, JSON.stringify(client.credentials));
+  try {
+    await fs.writeFile(tokenPath, JSON.stringify(client.credentials));
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code === 'EACCES') {
+      console.error(
+        '\n\x1b[31m%s\x1b[0m',
+        '###########################################################',
+      );
+      console.error(
+        '\x1b[31m%s\x1b[0m',
+        '# PERMISSION DENIED WRITING GOOGLE TOKEN',
+      );
+      console.error('\x1b[31m%s\x1b[0m', '#');
+      console.error(
+        '\x1b[31m%s\x1b[0m',
+        `# The container user (UID ${process.getuid?.() || 'unknown'}) cannot write to:`,
+      );
+      console.error('\x1b[31m%s\x1b[0m', `# ${tokenPath}`);
+      console.error('\x1b[31m%s\x1b[0m', '#');
+      console.error('\x1b[31m%s\x1b[0m', '# SOLUTION:');
+      console.error('\x1b[31m%s\x1b[0m', '# Run this on your host machine:');
+      console.error('\x1b[31m%s\x1b[0m', '# sudo chown 1001:1001 ./config');
+      console.error(
+        '\x1b[31m%s\x1b[0m',
+        '###########################################################\n',
+      );
+    }
+    throw error;
+  }
 }
 
 export function generateAuthUrl(): string {

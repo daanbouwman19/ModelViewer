@@ -42,9 +42,11 @@ vi.mock('fs/promises', () => ({
   default: {
     readFile: readFileMock,
     writeFile: writeFileMock,
+    mkdir: vi.fn(),
   },
   readFile: readFileMock,
   writeFile: writeFileMock,
+  mkdir: vi.fn(),
 }));
 
 vi.mock('googleapis', () => {
@@ -424,4 +426,25 @@ it('getTokenPath (Node) handles darwin platform', async () => {
   Object.defineProperty(process, 'versions', { value: originalVersions });
   Object.defineProperty(process, 'platform', { value: originalPlatform });
   homedirSpy.mockRestore();
+});
+
+it('getTokenPath uses GOOGLE_TOKEN_PATH env var if set', async () => {
+  process.env.GOOGLE_TOKEN_PATH = '/custom/env/path/google-token.json';
+
+  vi.resetModules();
+  // We need to re-import checking behaviour
+  const googleSecrets = await import('../../src/main/google-secrets');
+  (googleSecrets.getGoogleClientId as any).mockReturnValue('id');
+  (googleSecrets.getGoogleClientSecret as any).mockReturnValue('secret');
+  readFileMock.mockRejectedValue(new Error('No file'));
+
+  const googleAuth = await import('../../src/main/google-auth');
+  await googleAuth.loadSavedCredentialsIfExist();
+
+  expect(readFileMock).toHaveBeenCalledWith(
+    path.normalize('/custom/env/path/google-token.json'),
+    'utf-8',
+  );
+
+  delete process.env.GOOGLE_TOKEN_PATH;
 });

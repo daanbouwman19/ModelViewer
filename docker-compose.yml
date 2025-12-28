@@ -11,9 +11,11 @@ services:
       # Host path : Container path
       - ./media:/media
       # Add this line to persist your google-token.json
-      - ./config:/app/.config/mediaplayer-app
+      - ./config:/app/config
     environment:
       - NODE_ENV=production
+      # Tell the app exactly where the token is
+      - GOOGLE_TOKEN_PATH=/app/config/google-token.json
       # Add this line so the app knows where "Home" is
       - HOME=/app
     env_file:
