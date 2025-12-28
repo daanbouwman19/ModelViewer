@@ -17,8 +17,7 @@ RUN --mount=type=cache,target=/root/.npm \
 COPY . .
 
 # Build Frontend and Server
-RUN npm run build:web
-RUN npm run build:server
+RUN npm run build:all
 
 # Stage 2: Install production dependencies
 # We use the full node:25 image to ensure native modules like better-sqlite3 are correctly built
