@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { getMediaDirectories } from './database';
+import { getMediaDirectories } from './database.ts';
 
 export interface AuthorizationResult {
   isAllowed: boolean;

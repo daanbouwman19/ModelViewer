@@ -9,9 +9,9 @@ import fsPromises from 'fs/promises';
 import { spawn } from 'child_process';
 import rangeParser from 'range-parser';
 import { createInterface } from 'readline';
-import { createMediaSource } from './media-source';
+import { createMediaSource } from './media-source.ts';
 
-import { IMediaSource } from './media-source-types';
+import { IMediaSource } from './media-source-types.ts';
 import {
   getThumbnailCachePath,
   checkThumbnailCache,
@@ -19,12 +19,15 @@ import {
   getTranscodeArgs,
   getThumbnailArgs,
   runFFmpeg,
-} from './media-utils';
-import { getProvider } from './fs-provider-factory';
-import { authorizeFilePath } from './security';
-import { DATA_URL_THRESHOLD_MB } from './constants';
-import { MediaRoutes } from './routes';
-import { GenerateUrlOptions, GenerateUrlResult } from './media-handler-types';
+} from './media-utils.ts';
+import { getProvider } from './fs-provider-factory.ts';
+import { authorizeFilePath } from './security.ts';
+import { DATA_URL_THRESHOLD_MB } from './constants.ts';
+import { MediaRoutes } from './routes.ts';
+import {
+  GenerateUrlOptions,
+  GenerateUrlResult,
+} from './media-handler-types.ts';
 
 export interface MediaHandlerOptions {
   ffmpegPath: string | null;

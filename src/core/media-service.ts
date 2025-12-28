@@ -10,12 +10,12 @@ import {
   getMediaViewCounts,
   bulkUpsertMetadata, // Added for batching
   getPendingMetadata,
-} from './database';
+} from './database.ts';
 import { Worker, type WorkerOptions } from 'worker_threads';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { getVideoDuration } from './media-handler';
-import type { Album, MediaMetadata } from './types';
+import { getVideoDuration } from './media-handler.ts';
+import type { Album, MediaMetadata } from './types.ts';
 import fs from 'fs/promises';
 import PQueue from 'p-queue';
 
