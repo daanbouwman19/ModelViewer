@@ -1,5 +1,5 @@
 import { parentPort } from 'worker_threads';
-import { performFullMediaScan } from './media-scanner';
+import { performFullMediaScan } from './media-scanner.ts';
 
 const port = parentPort;
 if (!port) {

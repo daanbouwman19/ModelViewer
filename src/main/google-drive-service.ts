@@ -1,7 +1,7 @@
 import type { drive_v3 } from 'googleapis';
-import { getOAuth2Client, loadSavedCredentialsIfExist } from './google-auth';
+import { getOAuth2Client, loadSavedCredentialsIfExist } from './google-auth.ts';
 import { Readable } from 'stream';
-import { MediaFile, Album } from '../core/types';
+import type { MediaFile, Album } from '../core/types.ts';
 
 let driveClient: drive_v3.Drive | null = null;
 

@@ -11,7 +11,9 @@
     "outDir": "out",
     "types": ["node"],
     "incremental": true,
-    "tsBuildInfoFile": "./node_modules/.cache/tsconfig.node.tsbuildinfo"
+    "tsBuildInfoFile": "./node_modules/.cache/tsconfig.node.tsbuildinfo",
+    "allowImportingTsExtensions": true,
+    "noEmit": true
   },
   "include": [
     "src/main/**/*",

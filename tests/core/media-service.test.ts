@@ -98,6 +98,7 @@ describe('media-service', () => {
       await promise;
       expect(vi.mocked(Worker)).toHaveBeenCalledWith(
         expect.stringMatching(/scan-worker\.js$/),
+        undefined,
       );
       vi.unstubAllGlobals();
     });
@@ -118,7 +119,10 @@ describe('media-service', () => {
       )?.[1];
       if (onMessage) onMessage({ type: 'SCAN_COMPLETE', albums: [] });
       await promise;
-      expect(vi.mocked(Worker)).toHaveBeenCalledWith(expect.any(URL));
+      expect(vi.mocked(Worker)).toHaveBeenCalledWith(
+        expect.any(URL),
+        undefined,
+      );
       vi.unstubAllGlobals();
     });
 
@@ -140,6 +144,7 @@ describe('media-service', () => {
       await promise;
       expect(vi.mocked(Worker)).toHaveBeenCalledWith(
         expect.stringMatching(/scan-worker\.js$/),
+        undefined,
       );
       vi.unstubAllGlobals();
     });

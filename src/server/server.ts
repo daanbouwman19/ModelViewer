@@ -27,37 +27,37 @@ import {
   updateSmartPlaylist,
   setRating,
   getAllMetadataAndStats,
-} from '../core/database';
+} from '../core/database.ts';
 import {
   getAlbumsWithViewCounts,
   getAlbumsWithViewCountsAfterScan,
-} from '../core/media-service';
+} from '../core/media-service.ts';
 import {
   SUPPORTED_IMAGE_EXTENSIONS,
   SUPPORTED_VIDEO_EXTENSIONS,
   ALL_SUPPORTED_EXTENSIONS,
-} from '../core/constants';
-import { listDirectory } from '../core/file-system';
+} from '../core/constants.ts';
+import { listDirectory } from '../core/file-system.ts';
 import {
   authorizeFilePath,
   escapeHtml,
   isRestrictedPath,
   isSensitiveDirectory,
-} from '../core/security';
-import { initializeDriveCacheManager } from '../main/drive-cache-manager';
-import { generateAuthUrl, authenticateWithCode } from '../main/google-auth';
+} from '../core/security.ts';
+import { initializeDriveCacheManager } from '../main/drive-cache-manager.ts';
+import { generateAuthUrl, authenticateWithCode } from '../main/google-auth.ts';
 import {
   getDriveClient,
   listDriveDirectory,
   getDriveParent,
-} from '../main/google-drive-service';
+} from '../main/google-drive-service.ts';
 import {
   serveMetadata,
   serveTranscodedStream,
   serveRawStream,
   serveThumbnail,
-} from '../core/media-handler';
-import { createMediaSource } from '../core/media-source';
+} from '../core/media-handler.ts';
+import { createMediaSource } from '../core/media-source.ts';
 import ffmpegStatic from 'ffmpeg-static';
 
 // Check if we are running in dev mode or production

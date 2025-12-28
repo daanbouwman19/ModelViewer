@@ -7,7 +7,7 @@ import {
   getGoogleClientId,
   getGoogleClientSecret,
   getGoogleRedirectUri,
-} from './google-secrets';
+} from './google-secrets.ts';
 
 const SCOPES = ['https://www.googleapis.com/auth/drive.readonly'];
 

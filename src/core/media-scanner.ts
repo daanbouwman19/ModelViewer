@@ -8,10 +8,10 @@
  */
 import fs from 'fs/promises';
 import path from 'path';
-import { ALL_SUPPORTED_EXTENSIONS } from './constants';
+import { ALL_SUPPORTED_EXTENSIONS } from './constants.ts';
 import type { Album, MediaFile } from './types';
-import { listDriveFiles } from '../main/google-drive-service';
-import { ConcurrencyLimiter } from './utils/concurrency-limiter';
+import { listDriveFiles } from '../main/google-drive-service.ts';
+import { ConcurrencyLimiter } from './utils/concurrency-limiter.ts';
 
 // Limit concurrent file system scans to avoid EMFILE errors
 // Note: This limit applies only to the `readdir` call itself, not the whole recursion.

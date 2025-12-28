@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { getMediaDirectories } from './database';
+import { getMediaDirectories } from './database.ts';
 
 export interface AuthorizationResult {
   isAllowed: boolean;
@@ -35,17 +35,21 @@ export async function authorizeFilePath(
   const mediaDirectories = await getMediaDirectories();
 
   let realPath: string;
-  try {
-    realPath = await fs.realpath(filePath);
-  } catch (error) {
-    console.warn(
-      `[Security] File existence check failed for ${filePath}:`,
-      error,
-    );
-    return {
-      isAllowed: false,
-      message: 'Access denied',
-    };
+  if (filePath.startsWith('gdrive://')) {
+    realPath = filePath;
+  } else {
+    try {
+      realPath = await fs.realpath(filePath);
+    } catch (error) {
+      console.warn(
+        `[Security] File existence check failed for ${filePath}:`,
+        error,
+      );
+      return {
+        isAllowed: false,
+        message: 'Access denied',
+      };
+    }
   }
 
   const allowedPaths = mediaDirectories.map((d) => d.path);
