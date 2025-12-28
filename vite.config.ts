@@ -35,7 +35,7 @@ export default defineConfig(({ mode }) => {
           ],
         },
         minify: 'terser',
-        sourcemap: true,
+        sourcemap: 'hidden',
       },
     };
   }
