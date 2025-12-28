@@ -62,9 +62,7 @@ export async function authorizeFilePath(
       );
 
       if (hasSensitiveSegment) {
-        console.warn(
-          `[Security] Access denied to sensitive file: ${realPath}`,
-        );
+        console.warn(`[Security] Access denied to sensitive file: ${realPath}`);
         return {
           isAllowed: false,
           message: 'Access to sensitive file denied',
