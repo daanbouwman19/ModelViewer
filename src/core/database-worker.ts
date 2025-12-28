@@ -243,6 +243,14 @@ function initDatabase(dbPath: string): WorkerResult {
       )`,
     ).run();
 
+    db.prepare(
+      `CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT,
+        updated_at TEXT
+      )`,
+    ).run();
+
     // Prepare statements for reuse
     statements.insertMediaView = db.prepare(
       `INSERT OR IGNORE INTO media_views (file_path_hash, file_path, view_count, last_viewed) VALUES (?, ?, 0, ?)`,
@@ -308,6 +316,12 @@ function initDatabase(dbPath: string): WorkerResult {
     );
     statements.updateSmartPlaylist = db.prepare(
       'UPDATE smart_playlists SET name = ?, criteria = ? WHERE id = ?',
+    );
+    statements.saveSetting = db.prepare(
+      'INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)',
+    );
+    statements.getSetting = db.prepare(
+      'SELECT value FROM settings WHERE key = ?',
     );
 
     // Optimized batch statements
@@ -506,6 +520,32 @@ function updateSmartPlaylist(
   try {
     statements.updateSmartPlaylist.run(name, criteria, id);
     return { success: true };
+  } catch (error: unknown) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+/**
+ * Saves a setting (key-value pair) to the database.
+ */
+function saveSetting(key: string, value: string): WorkerResult {
+  if (!db) return { success: false, error: 'Database not initialized' };
+  try {
+    statements.saveSetting.run(key, value, new Date().toISOString());
+    return { success: true };
+  } catch (error: unknown) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+/**
+ * Retrieves a setting value from the database.
+ */
+function getSetting(key: string): WorkerResult {
+  if (!db) return { success: false, error: 'Database not initialized' };
+  try {
+    const row = statements.getSetting.get(key) as { value: string } | undefined;
+    return { success: true, data: row ? row.value : null };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
   }
@@ -869,6 +909,12 @@ if (parentPort) {
             payload.name,
             payload.criteria,
           );
+          break;
+        case 'saveSetting':
+          result = saveSetting(payload.key, payload.value);
+          break;
+        case 'getSetting':
+          result = getSetting(payload.key);
           break;
         case 'executeSmartPlaylist':
           result = await executeSmartPlaylist();

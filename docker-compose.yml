@@ -4,20 +4,19 @@ services:
     ports:
       - '3000:3000'
     volumes:
-      # efficient sqlite persistence
-      - ./media-library.db:/app/media-library.db
+      - app_data:/app/data
       # Mount your media directories here.
       # You can add more mappings as needed.
       # Host path : Container path
       - ./media:/media
-      # Add this line to persist your google-token.json
-      - ./config:/app/config
+
     environment:
       - NODE_ENV=production
-      # Tell the app exactly where the token is
-      - GOOGLE_TOKEN_PATH=/app/config/google-token.json
-      # Add this line so the app knows where "Home" is
+      - DB_FILE_PATH=/app/data/media-library.db
       - HOME=/app
     env_file:
       - .env
     restart: unless-stopped
+
+volumes:
+  app_data:

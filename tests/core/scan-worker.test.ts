@@ -23,10 +23,35 @@ vi.mock('worker_threads', () => ({
   },
 }));
 
+// Mock google-auth
+vi.mock('../../src/main/google-auth', () => ({
+  initializeManualCredentials: vi.fn(),
+}));
+import * as googleAuth from '../../src/main/google-auth';
+
 describe('scan-worker', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
+  });
+
+  it('initializes credentials if tokens are provided', async () => {
+    const tokens = { refresh_token: 'abc' };
+    vi.mocked(mediaScanner.performFullMediaScan).mockResolvedValue([]);
+
+    await import('../../src/core/scan-worker');
+    const callback = mockOn.mock.calls.find(
+      (call) => call[0] === 'message',
+    )?.[1];
+
+    await callback({
+      type: 'START_SCAN',
+      directories: ['/dir'],
+      tokens,
+    });
+
+    expect(googleAuth.initializeManualCredentials).toHaveBeenCalledWith(tokens);
+    expect(mediaScanner.performFullMediaScan).toHaveBeenCalled();
   });
 
   it('registers message listener on startup', async () => {
