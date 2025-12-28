@@ -10,6 +10,7 @@ import {
   getMediaViewCounts,
   bulkUpsertMetadata, // Added for batching
   getPendingMetadata,
+  getSetting,
 } from './database.ts';
 import { Worker, type WorkerOptions } from 'worker_threads';
 import path from 'path';
@@ -67,7 +68,7 @@ export async function scanDiskForAlbumsAndCache(
   }
 
   // Run scan in a worker
-  const albums = await new Promise<Album[]>((resolve, reject) => {
+  const albums = await new Promise<Album[]>(async (resolve, reject) => {
     const worker = new Worker(workerPath, workerOptions);
 
     const cleanup = () => {
@@ -102,25 +103,23 @@ export async function scanDiskForAlbumsAndCache(
     });
 
     // Fetch tokens to pass to worker
-    import('./database.ts').then(async ({ getSetting }) => {
-      let tokens = null;
-      try {
-        const tokenString = await getSetting('google_tokens');
-        if (tokenString) {
-          tokens = JSON.parse(tokenString);
-        }
-      } catch (e) {
-        console.warn(
-          '[media-service] Failed to fetch google tokens for worker:',
-          e,
-        );
+    let tokens = null;
+    try {
+      const tokenString = await getSetting('google_tokens');
+      if (tokenString) {
+        tokens = JSON.parse(tokenString);
       }
+    } catch (e) {
+      console.warn(
+        '[media-service] Failed to fetch google tokens for worker:',
+        e,
+      );
+    }
 
-      worker.postMessage({
-        type: 'START_SCAN',
-        directories: activeDirectories,
-        tokens,
-      });
+    worker.postMessage({
+      type: 'START_SCAN',
+      directories: activeDirectories,
+      tokens,
     });
   });
 
