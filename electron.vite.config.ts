@@ -1,12 +1,13 @@
 import { defineConfig } from 'electron-vite';
 import vue from '@vitejs/plugin-vue';
 import tailwindcss from '@tailwindcss/vite';
+import { visualizer } from 'rollup-plugin-visualizer';
 import { resolve } from 'path';
 
 export default defineConfig({
   main: {
     build: {
-      sourcemap: false,
+      sourcemap: 'hidden',
       rollupOptions: {
         external: [/^electron(\/.*)?$/, 'better-sqlite3'],
         input: {
@@ -20,7 +21,7 @@ export default defineConfig({
   },
   preload: {
     build: {
-      sourcemap: false,
+      sourcemap: 'hidden',
       rollupOptions: {
         external: [/^electron(\/.*)?$/],
         input: {
@@ -33,19 +34,26 @@ export default defineConfig({
     },
   },
   renderer: {
-    plugins: [vue(), tailwindcss()],
+    plugins: [
+      vue(),
+      tailwindcss(),
+      visualizer({
+        filename: './out/renderer/stats.html',
+        open: false,
+      }),
+    ],
     root: '.',
     server: {
       host: '0.0.0.0',
       port: 5173,
       strictPort: true,
       watch: {
-        usePolling: true,
+        usePolling: !!process.env.USE_POLLING,
         interval: 100,
       },
     },
     build: {
-      sourcemap: false,
+      sourcemap: 'hidden',
       rollupOptions: {
         input: {
           index: resolve(__dirname, 'index.html'),
