@@ -206,5 +206,5 @@ jobs:
         with:
           name: web-build
           path: |
-            dist-web/
-            dist-server/
+            dist/client/
+            dist/server/
