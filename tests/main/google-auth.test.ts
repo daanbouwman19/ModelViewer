@@ -7,7 +7,7 @@ vi.mock('../../src/main/google-secrets', () => ({
   getGoogleRedirectUri: vi.fn(() => 'http://localhost:12345/auth/callback'),
 }));
 
-vi.mock('../../src/main/database', () => ({
+vi.mock('../../src/core/database', () => ({
   getSetting: vi.fn(),
   saveSetting: vi.fn(),
 }));
@@ -38,7 +38,7 @@ vi.mock('googleapis', () => {
 });
 
 import * as googleAuth from '../../src/main/google-auth';
-import * as database from '../../src/main/database';
+import * as database from '../../src/core/database';
 
 describe('Google Auth Service', () => {
   beforeEach(() => {

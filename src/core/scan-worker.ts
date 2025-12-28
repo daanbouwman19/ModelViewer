@@ -1,5 +1,6 @@
 import { parentPort } from 'worker_threads';
 import { performFullMediaScan } from './media-scanner.ts';
+import { initializeManualCredentials } from '../main/google-auth.ts';
 
 const port = parentPort;
 if (!port) {
@@ -9,7 +10,12 @@ if (!port) {
 port.on('message', async (message) => {
   if (message.type === 'START_SCAN') {
     try {
-      const { directories } = message;
+      const { directories, tokens } = message;
+
+      if (tokens) {
+        initializeManualCredentials(tokens);
+      }
+
       const albums = await performFullMediaScan(directories);
       port.postMessage({ type: 'SCAN_COMPLETE', albums });
     } catch (error) {

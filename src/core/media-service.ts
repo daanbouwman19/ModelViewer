@@ -101,9 +101,26 @@ export async function scanDiskForAlbumsAndCache(
       }
     });
 
-    worker.postMessage({
-      type: 'START_SCAN',
-      directories: activeDirectories,
+    // Fetch tokens to pass to worker
+    import('./database.ts').then(async ({ getSetting }) => {
+      let tokens = null;
+      try {
+        const tokenString = await getSetting('google_tokens');
+        if (tokenString) {
+          tokens = JSON.parse(tokenString);
+        }
+      } catch (e) {
+        console.warn(
+          '[media-service] Failed to fetch google tokens for worker:',
+          e,
+        );
+      }
+
+      worker.postMessage({
+        type: 'START_SCAN',
+        directories: activeDirectories,
+        tokens,
+      });
     });
   });
 

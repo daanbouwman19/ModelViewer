@@ -1,16 +1,21 @@
-import { OAuth2Client } from 'google-auth-library';
+import { OAuth2Client, Credentials } from 'google-auth-library';
 import { google } from 'googleapis';
 import {
   getGoogleClientId,
   getGoogleClientSecret,
   getGoogleRedirectUri,
 } from './google-secrets.ts';
-import { getSetting, saveSetting } from './database.ts';
+import { getSetting, saveSetting } from '../core/database.ts';
 
 const SCOPES = ['https://www.googleapis.com/auth/drive.readonly'];
 const GOOGLE_TOKENS_KEY = 'google_tokens';
 
 let oauth2Client: OAuth2Client | null = null;
+
+export function initializeManualCredentials(credentials: Credentials): void {
+  const client = getOAuth2Client();
+  client.setCredentials(credentials);
+}
 
 export function getOAuth2Client(): OAuth2Client {
   if (!oauth2Client) {

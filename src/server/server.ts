@@ -68,7 +68,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Paths
-const DB_PATH = path.join(process.cwd(), 'media-library.db');
+const DB_PATH =
+  process.env.DB_FILE_PATH || path.join(process.cwd(), 'media-library.db');
 
 // In dev (tsx), the worker is TS. In prod (build), it is JS adjacent to this file.
 const WORKER_PATH = isDev
@@ -128,6 +129,7 @@ export async function createApp() {
     : undefined;
 
   try {
+    await fs.mkdir(path.dirname(DB_PATH), { recursive: true });
     await initDatabase(DB_PATH, WORKER_PATH, workerOptions);
     await fs.mkdir(CACHE_DIR, { recursive: true });
     await fs.mkdir(DRIVE_CACHE_DIR, { recursive: true });
