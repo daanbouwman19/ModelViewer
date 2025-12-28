@@ -34,7 +34,8 @@ export default defineConfig(({ mode }) => {
             'electron',
           ],
         },
-        minify: false,
+        minify: 'terser',
+        sourcemap: true,
       },
     };
   }
