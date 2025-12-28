@@ -17,7 +17,7 @@ RUN --mount=type=cache,target=/root/.npm \
 COPY . .
 
 # Build Frontend and Server
-RUN npm run build:web:fast
+RUN npm run build:web
 RUN npm run build:server
 
 # Stage 2: Install production dependencies
