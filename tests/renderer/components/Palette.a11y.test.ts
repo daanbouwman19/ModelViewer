@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { mount } from '@vue/test-utils';
 import { ref } from 'vue';
 import MediaDisplay from '@/components/MediaDisplay.vue';
+import VideoPlayer from '@/components/VideoPlayer.vue';
 import SourcesModal from '@/components/SourcesModal.vue';
 import AlbumTree from '@/components/AlbumTree.vue';
 import { useAppState } from '@/composables/useAppState';
@@ -168,6 +169,10 @@ describe('Palette Accessibility Improvements', () => {
       const mockVideo = { currentTime: 10, duration: 100 };
       (wrapper.vm as any).videoElement = mockVideo;
 
+      // Also inject into VideoPlayer component directly
+      const videoPlayer = wrapper.findComponent(VideoPlayer);
+      (videoPlayer.vm as any).videoElement = mockVideo;
+
       const progressBar = wrapper.find('[data-testid="video-progress-bar"]');
 
       // Right arrow - forward 5s
@@ -202,28 +207,7 @@ describe('Palette Accessibility Improvements', () => {
       (wrapper.vm as any).isTranscodingMode = true;
       (wrapper.vm as any).transcodedDuration = 100;
       (wrapper.vm as any).currentVideoTime = 10;
-
-      // Mock tryTranscoding function
-      // We need to attach the spy to the instance before it's used
-      // But since we can't easily replace a method on an already mounted component vm for internal calls
-      // without some hacking, we will verify the side effect (api call or state change)
-      // OR we can mock the method if we can access the underlying component definition or setup return.
-      // However, simplified approach: check if tryTranscoding implementation logic is triggered.
-
-      // Better approach for this test environment:
-      // The component calls `tryTranscoding` internally.
-      // We can mock `tryTranscoding` by overwriting it on the vm instance
-      // BUT internal template calls might use the hoisted version from setup().
-      // Let's rely on the side effect: `mediaUrl` changes or `api.getVideoStreamUrlGenerator` usage.
-
-      // Actually, standard `vi.spyOn(wrapper.vm, ...)` often works for Options API but for Composition API
-      // setup() returns functions that are bound.
-      // Let's retry by checking if we can just assert on the state change it produces.
-
-      // Direct mock doesn't work well with Composition API setup() bound functions.
-      // Instead, we will observe the side-effects.
-      // When tryTranscoding(15) is called, it should set isTranscodingMode=true,
-      // isTranscodingLoading=true, and currentTranscodeStartTime=15.
+      await wrapper.vm.$nextTick();
 
       const progressBar = wrapper.find('[data-testid="video-progress-bar"]');
 
