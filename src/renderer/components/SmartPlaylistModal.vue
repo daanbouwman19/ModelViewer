@@ -1,133 +1,181 @@
 <template>
-  <div
-    v-if="isSmartPlaylistModalVisible"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-    @click.self="close"
+  <Transition
+    enter-active-class="transition duration-300 ease-out"
+    enter-from-class="opacity-0"
+    enter-to-class="opacity-100"
+    leave-active-class="transition duration-200 ease-in"
+    leave-from-class="opacity-100"
+    leave-to-class="opacity-0"
   >
     <div
-      class="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl w-full max-w-md p-6 transform transition-all scale-100"
+      v-if="isSmartPlaylistModalVisible"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+      @click.self="close"
     >
-      <div class="flexjustify-between items-center mb-6">
-        <h2 class="text-xl font-bold text-gray-100">
-          {{ isEditing ? 'Edit' : 'Create' }} Smart Playlist
-        </h2>
-        <button
-          class="text-gray-400 hover:text-white transition-colors"
-          aria-label="Close"
-          @click="close"
-        >
-          <CloseIcon class="w-6 h-6" />
-        </button>
-      </div>
+      <div
+        class="relative w-full max-w-lg overflow-hidden rounded-2xl bg-gray-900/95 border border-white/10 shadow-2xl backdrop-blur-xl ring-1 ring-white/5 transform transition-all"
+        role="dialog"
+        aria-modal="true"
+      >
+        <!-- Decorative top gradient (Indigo/Violet) -->
+        <div
+          class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500"
+        ></div>
 
-      <div class="space-y-4">
-        <!-- Name Input -->
-        <div>
-          <label class="block text-sm font-medium text-gray-400 mb-1"
-            >Playlist Name</label
-          >
-          <input
-            v-model="name"
-            type="text"
-            class="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500"
-            placeholder="My Top Rated Videos"
-          />
-        </div>
-
-        <!-- Rating Criteria -->
-        <div class="space-y-2">
-          <label class="block text-sm font-medium text-gray-400"
-            >Minimum Rating (Stars)</label
-          >
-          <div class="flex items-center gap-2">
-            <input
-              v-model.number="minRating"
-              type="range"
-              min="0"
-              max="5"
-              step="1"
-              class="grow h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-pink-500"
-            />
-            <span class="text-pink-400 font-bold w-6 text-center">{{
-              minRating
-            }}</span>
-          </div>
-        </div>
-
-        <!-- Duration Criteria -->
-        <div class="space-y-2">
-          <label class="block text-sm font-medium text-gray-400"
-            >Minimum Duration (Minutes)</label
-          >
-          <input
-            v-model.number="minDurationMinutes"
-            type="number"
-            min="0"
-            class="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500"
-            placeholder="0"
-          />
-        </div>
-
-        <!-- View Count Criteria -->
-        <div class="grid grid-cols-2 gap-4">
-          <div class="space-y-2">
-            <label class="block text-sm font-medium text-gray-400"
-              >Min Views</label
+        <div class="p-8">
+          <!-- Header -->
+          <div class="flex justify-between items-start mb-8">
+            <div>
+              <h2 class="text-2xl font-bold text-white">
+                {{ isEditing ? 'Edit' : 'Create' }} Smart Playlist
+              </h2>
+              <p class="text-sm text-gray-400 mt-1">
+                Automate your library with dynamic filters
+              </p>
+            </div>
+            <button
+              class="text-gray-500 hover:text-white transition-colors p-2 rounded-lg hover:bg-white/10 -mr-2 -mt-2"
+              aria-label="Close"
+              @click="close"
             >
-            <input
-              v-model.number="minViews"
-              type="number"
-              min="0"
-              class="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500"
-              placeholder="0"
-            />
+              <CloseIcon class="w-6 h-6" />
+            </button>
           </div>
-          <div class="space-y-2">
-            <label class="block text-sm font-medium text-gray-400"
-              >Max Views</label
+
+          <div class="space-y-6">
+            <!-- Name Input -->
+            <div class="space-y-2">
+              <label
+                class="block text-xs font-semibold uppercase tracking-wider text-gray-500"
+              >
+                Playlist Name
+              </label>
+              <input
+                v-model="name"
+                type="text"
+                class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                placeholder="e.g. My Top Rated Videos"
+                autofocus
+              />
+            </div>
+
+            <!-- Rating Criteria -->
+            <div
+              class="bg-white/5 rounded-xl p-4 border border-white/5 space-y-3"
             >
-            <input
-              v-model.number="maxViews"
-              type="number"
-              min="0"
-              class="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500"
-              placeholder="Any"
-            />
+              <div class="flex justify-between items-center">
+                <label class="text-sm font-medium text-gray-300"
+                  >Minimum Rating</label
+                >
+                <div
+                  class="flex items-center gap-1 bg-black/40 px-2 py-1 rounded text-xs font-mono text-indigo-400"
+                >
+                  <span class="font-bold">{{ minRating }}</span>
+                  <span class="text-gray-600">/</span>
+                  <span class="text-gray-500">5</span>
+                </div>
+              </div>
+              <input
+                v-model.number="minRating"
+                type="range"
+                min="0"
+                max="5"
+                step="1"
+                class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-indigo-500 hover:accent-indigo-400 transition-colors"
+              />
+              <div class="flex justify-between text-xs text-gray-600 px-1">
+                <span>Any</span>
+                <span>5 Stars</span>
+              </div>
+            </div>
+
+            <!-- Grid Criteria -->
+            <div class="grid grid-cols-2 gap-4">
+              <div class="space-y-2">
+                <label
+                  class="block text-xs font-semibold uppercase tracking-wider text-gray-500"
+                >
+                  Min Duration (Min)
+                </label>
+                <input
+                  v-model.number="minDurationMinutes"
+                  type="number"
+                  min="0"
+                  class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                  placeholder="0"
+                />
+              </div>
+              <div class="space-y-2">
+                <label
+                  class="block text-xs font-semibold uppercase tracking-wider text-gray-500"
+                >
+                  Days Untouched
+                </label>
+                <input
+                  v-model.number="minDaysSinceView"
+                  type="number"
+                  min="0"
+                  class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                  placeholder="Any"
+                />
+              </div>
+            </div>
+
+            <!-- Views Criteria -->
+            <div class="grid grid-cols-2 gap-4">
+              <div class="space-y-2">
+                <label
+                  class="block text-xs font-semibold uppercase tracking-wider text-gray-500"
+                >
+                  Min Views
+                </label>
+                <input
+                  v-model.number="minViews"
+                  type="number"
+                  min="0"
+                  class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                  placeholder="0"
+                />
+              </div>
+              <div class="space-y-2">
+                <label
+                  class="block text-xs font-semibold uppercase tracking-wider text-gray-500"
+                >
+                  Max Views
+                </label>
+                <input
+                  v-model.number="maxViews"
+                  type="number"
+                  min="0"
+                  class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                  placeholder="Any"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div
+            class="mt-10 flex justify-end gap-3 border-t border-white/5 pt-6"
+          >
+            <button
+              class="px-5 py-2.5 rounded-xl text-gray-400 hover:text-white hover:bg-white/5 transition-all font-medium text-sm"
+              @click="close"
+            >
+              Cancel
+            </button>
+            <button
+              class="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold shadow-lg shadow-indigo-900/20 transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+              :disabled="!name.trim()"
+              @click="save"
+            >
+              {{ isEditing ? 'Save Changes' : 'Create Playlist' }}
+            </button>
           </div>
         </div>
-
-        <!-- Recency Criteria -->
-        <div>
-          <label class="block text-sm font-medium text-gray-400"
-            >Not viewed in (days)</label
-          >
-          <input
-            v-model.number="minDaysSinceView"
-            type="number"
-            min="0"
-            class="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500"
-            placeholder="e.g. 90 for 3 months"
-          />
-        </div>
-      </div>
-
-      <div class="mt-8 flex justify-end gap-3">
-        <button
-          class="px-4 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-200 transition-colors font-medium"
-          @click="close"
-        >
-          Cancel
-        </button>
-        <button
-          class="px-4 py-2 rounded-lg bg-pink-600 hover:bg-pink-500 text-white font-bold shadow-lg transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-          :disabled="!name.trim()"
-          @click="save"
-        >
-          {{ isEditing ? 'Save Changes' : 'Create Playlist' }}
-        </button>
       </div>
     </div>
-  </div>
+  </Transition>
 </template>
 
 <script setup lang="ts">

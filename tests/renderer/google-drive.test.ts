@@ -41,22 +41,24 @@ describe('Google Drive Integration in SourcesModal', () => {
     (api.startGoogleDriveAuth as any).mockResolvedValue('http://auth-url');
     const wrapper = mount(SourcesModal);
 
-    // Find "Add Google Drive" button (it's the 2nd action button)
-    const buttons = wrapper.findAll('.modal-actions .action-button');
-    const driveButton = buttons[1];
-    expect(driveButton.text()).toBe('Add Google Drive');
+    // Find "Add Google Drive" button by text
+    const driveButton = wrapper
+      .findAll('button')
+      .find((b) => b.text().includes('Add Google Drive'));
+    expect(driveButton?.exists()).toBe(true);
 
-    await driveButton.trigger('click');
+    await driveButton?.trigger('click');
 
-    // It sets showDriveAuth = true. We need to check if the modal content changed or new modal appeared.
-    // The drive auth modal is inside the same template with v-if="showDriveAuth"
-    // We should look for "Add Google Drive Source" header or "Start Authorization" button.
-
-    const authHeader = wrapper.find('h3');
-    expect(authHeader.text()).toBe('Add Google Drive Source');
+    // Expected behavior: showDriveAuth = true
+    // Look for "Add Google Drive Source" header
+    const authHeader = wrapper
+      .findAll('h3')
+      .find((h) => h.text() === 'Add Google Drive Source');
+    expect(authHeader?.exists()).toBe(true);
+    expect(authHeader?.text()).toBe('Add Google Drive Source');
 
     const startAuthBtn = wrapper
-      .findAll('button.action-button')
+      .findAll('button')
       .filter((b) => b.text() === 'Start Authorization')[0];
     expect(startAuthBtn.exists()).toBe(true);
 
@@ -75,10 +77,14 @@ describe('Google Drive Integration in SourcesModal', () => {
 
     const wrapper = mount(SourcesModal);
     // Trigger showDriveAuth = true
-    await wrapper.findAll('.modal-actions .action-button')[1].trigger('click');
+    await wrapper
+      .findAll('button')
+      .find((b) => b.text().includes('Add Google Drive'))
+      ?.trigger('click');
+
     // Trigger start auth
     await wrapper
-      .findAll('button.action-button')
+      .findAll('button')
       .filter((b) => b.text() === 'Start Authorization')[0]
       .trigger('click');
     await flushPromises();
@@ -88,8 +94,8 @@ describe('Google Drive Integration in SourcesModal', () => {
     await input.setValue('test-code');
 
     const submitBtn = wrapper
-      .findAll('button.action-button')
-      .filter((b) => b.text() === 'Submit Code')[0];
+      .findAll('button')
+      .filter((b) => b.text().includes('Submit Code'))[0];
     await submitBtn.trigger('click');
     await flushPromises();
 
@@ -108,25 +114,31 @@ describe('Google Drive Integration in SourcesModal', () => {
 
     const wrapper = mount(SourcesModal);
     // Navigate to add source state
-    await wrapper.findAll('.modal-actions .action-button')[1].trigger('click');
     await wrapper
-      .findAll('button.action-button')
+      .findAll('button')
+      .find((b) => b.text().includes('Add Google Drive'))
+      ?.trigger('click');
+    await wrapper
+      .findAll('button')
       .filter((b) => b.text() === 'Start Authorization')[0]
       .trigger('click');
     await flushPromises();
     await wrapper.find('input[type="text"]').setValue('code');
     await wrapper
-      .findAll('button.action-button')
-      .filter((b) => b.text() === 'Submit Code')[0]
+      .findAll('button')
+      .filter((b) => b.text().includes('Submit Code'))[0]
       .trigger('click');
     await flushPromises();
 
     // Now we can add folder. Input defaults to empty/root or user types it.
-    const folderInput = wrapper.findAll('input[type="text"]').at(0); // The visible input
-    await folderInput?.setValue('folder-id');
+    // There are multiple inputs now? The auth code input might still be in DOM if v-if/v-else logic didn't remove it or if wrapper finds all.
+    // Auth success block replaces the previous block, so auth code input should be gone or replaced.
+    // But let's be specific for folder input.
+    const folderInput = wrapper.find('input[id="drive-folder-id"]');
+    await folderInput.setValue('folder-id');
 
     const addBtn = wrapper
-      .findAll('button.action-button')
+      .findAll('button')
       .filter((b) => b.text() === 'Add Folder')[0];
     await addBtn.trigger('click');
     await flushPromises();

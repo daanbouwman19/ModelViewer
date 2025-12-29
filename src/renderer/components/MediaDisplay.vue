@@ -126,7 +126,26 @@
           @waiting="handleVideoWaiting"
           @canplay="handleVideoCanPlay"
           @progress="handleVideoProgress"
+          @click="togglePlay"
         />
+        <!-- Pause Overlay -->
+        <div
+          v-if="
+            !isPlaying &&
+            currentMediaItem &&
+            !isImage &&
+            !isLoading &&
+            !isBuffering
+          "
+          class="absolute inset-0 flex items-center justify-center z-10 pointer-events-none"
+        >
+          <div
+            class="bg-black/40 p-4 rounded-full backdrop-blur-sm pointer-events-auto cursor-pointer hover:bg-[var(--accent-color)]/80 transition-colors"
+            @click="togglePlay"
+          >
+            <PlayIcon class="w-12 h-12 text-white" />
+          </div>
+        </div>
       </template>
 
       <!-- Controls (always available if item exists) -->
@@ -241,6 +260,21 @@
 
       <button
         v-if="!isImage && currentMediaItem"
+        class="play-pause-button p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white transition-all duration-200 hover:bg-[var(--accent-color)]"
+        :aria-label="isPlaying ? 'Pause video' : 'Play video'"
+        @click="togglePlay"
+      >
+        <PauseIcon v-if="isPlaying" class="w-6 h-6" />
+        <PlayIcon v-else class="w-6 h-6" />
+      </button>
+
+      <div
+        v-if="!isImage && currentMediaItem"
+        class="w-px h-8 bg-white/10 mx-2"
+      ></div>
+
+      <button
+        v-if="!isImage && currentMediaItem"
         class="vlc-button p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white transition-all duration-200 hover:bg-[var(--accent-color)]"
         title="Open in VLC"
         aria-label="Open in VLC"
@@ -258,7 +292,7 @@
  * It handles loading the media from the main process, displaying loading/error states,
  * and providing navigation controls to move between media items.
  */
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useAppState } from '../composables/useAppState';
 import { useSlideshow } from '../composables/useSlideshow';
 import { api } from '../api';
@@ -266,6 +300,8 @@ import VlcIcon from './icons/VlcIcon.vue';
 import StarIcon from './icons/StarIcon.vue';
 import ChevronLeftIcon from './icons/ChevronLeftIcon.vue';
 import ChevronRightIcon from './icons/ChevronRightIcon.vue';
+import PlayIcon from './icons/PlayIcon.vue';
+import PauseIcon from './icons/PauseIcon.vue';
 
 const {
   currentMediaItem,
@@ -326,7 +362,9 @@ const transcodedDuration = ref(0);
 const currentTranscodeStartTime = ref(0);
 const currentVideoTime = ref(0);
 const currentVideoDuration = ref(0);
+
 const isControlsVisible = ref(true);
+const isPlaying = ref(false);
 let controlsTimeout: NodeJS.Timeout | null = null;
 const videoStreamUrlGenerator = ref<
   ((filePath: string, startTime?: number) => string) | null
@@ -367,6 +405,11 @@ onMounted(() => {
   ensureVideoStreamGenerator().catch(() => {
     // Already logged in ensureVideoStreamGenerator
   });
+  window.addEventListener('keydown', handleGlobalKeydown);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleGlobalKeydown);
 });
 
 /**
@@ -562,6 +605,29 @@ const loadMediaUrl = async () => {
 };
 
 /**
+ * Toggles video playback.
+ */
+const togglePlay = () => {
+  if (videoElement.value) {
+    if (videoElement.value.paused) {
+      videoElement.value.play?.()?.catch((error) => {
+        // It's good practice to handle potential errors when calling play().
+        console.error('Error attempting to play video:', error);
+      });
+    } else {
+      videoElement.value.pause?.();
+    }
+  }
+};
+
+const handleGlobalKeydown = (event: KeyboardEvent) => {
+  if (event.code === 'Space') {
+    event.preventDefault(); // Prevent scrolling
+    togglePlay();
+  }
+};
+
+/**
  * Handles errors from the <img> or <video> elements.
  */
 const handleMediaError = () => {
@@ -659,6 +725,7 @@ const handleVideoPlay = () => {
   if (isTimerRunning.value && (playFullVideo.value || pauseTimerOnPlay.value)) {
     pauseSlideshowTimer();
   }
+  isPlaying.value = true;
 };
 
 /**
@@ -668,6 +735,7 @@ const handleVideoPause = () => {
   if (!isTimerRunning.value && pauseTimerOnPlay.value && !playFullVideo.value) {
     resumeSlideshowTimer();
   }
+  isPlaying.value = false;
 };
 
 /**
