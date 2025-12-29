@@ -1,24 +1,16 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { getMediaDirectories } from './database.ts';
+import {
+  SENSITIVE_SUBDIRECTORIES,
+  WINDOWS_RESTRICTED_ROOT_PATHS,
+} from './constants.ts';
 
 export interface AuthorizationResult {
   isAllowed: boolean;
   realPath?: string;
   message?: string;
 }
-
-// List of sensitive subdirectories that should never be accessed,
-// even if they are inside an allowed media directory.
-const SENSITIVE_SUBDIRECTORIES = new Set([
-  '.ssh',
-  '.aws',
-  '.kube',
-  '.gnupg',
-  '.git',
-  '.env',
-  'node_modules',
-]);
 
 /**
  * Validates if a file path is within the allowed media directories.
@@ -111,12 +103,25 @@ export function escapeHtml(str: string): string {
  */
 function getWindowsRestrictedPaths(): string[] {
   const drive = process.env.SystemDrive || 'C:';
-  return [
-    process.env.SystemRoot || `${drive}\\Windows`,
-    process.env.ProgramFiles || `${drive}\\Program Files`,
-    process.env['ProgramFiles(x86)'] || `${drive}\\Program Files (x86)`,
-    process.env.ProgramData || `${drive}\\ProgramData`,
-  ];
+  return WINDOWS_RESTRICTED_ROOT_PATHS.map((r) => {
+    switch (r) {
+      case 'Windows':
+        return process.env.SystemRoot || `${drive}\\Windows`;
+      case 'Program Files':
+        return process.env.ProgramFiles || `${drive}\\Program Files`;
+      case 'Program Files (x86)':
+        return (
+          process.env['ProgramFiles(x86)'] || `${drive}\\Program Files (x86)`
+        );
+      case 'ProgramData':
+        return process.env.ProgramData || `${drive}\\ProgramData`;
+      default:
+        // This case should not be reached with current constants.
+        // Adding a warning helps catch future configuration errors.
+        console.warn(`[Security] Unhandled restricted path component: ${r}`);
+        return `${drive}\\${r}`;
+    }
+  });
 }
 
 /**

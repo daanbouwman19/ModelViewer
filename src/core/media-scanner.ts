@@ -8,14 +8,17 @@
  */
 import fs from 'fs/promises';
 import path from 'path';
-import { ALL_SUPPORTED_EXTENSIONS } from './constants.ts';
+import {
+  ALL_SUPPORTED_EXTENSIONS,
+  DISK_SCAN_CONCURRENCY,
+} from './constants.ts';
 import type { Album, MediaFile } from './types';
 import { listDriveFiles } from '../main/google-drive-service.ts';
 import { ConcurrencyLimiter } from './utils/concurrency-limiter.ts';
 
 // Limit concurrent file system scans to avoid EMFILE errors
 // Note: This limit applies only to the `readdir` call itself, not the whole recursion.
-const scanLimiter = new ConcurrencyLimiter(10);
+const scanLimiter = new ConcurrencyLimiter(DISK_SCAN_CONCURRENCY);
 
 /**
  * Asynchronously and recursively scans a directory to build a hierarchical album structure.

@@ -36,6 +36,8 @@ import {
   SUPPORTED_IMAGE_EXTENSIONS,
   SUPPORTED_VIDEO_EXTENSIONS,
   ALL_SUPPORTED_EXTENSIONS,
+  DEFAULT_SERVER_PORT,
+  DEFAULT_SERVER_HOST,
 } from '../core/constants.ts';
 import { listDirectory } from '../core/file-system.ts';
 import {
@@ -76,7 +78,6 @@ const WORKER_PATH = isDev
   ? path.join(__dirname, '../core/database-worker.ts')
   : path.join(__dirname, 'worker.js');
 
-const PORT = 3000;
 const CACHE_DIR = path.join(process.cwd(), 'cache', 'thumbnails');
 const DRIVE_CACHE_DIR = path.join(process.cwd(), 'cache', 'drive');
 
@@ -628,9 +629,9 @@ export async function bootstrap() {
   const app = await createApp();
   // [SECURITY] Default to localhost to prevent exposing unauthenticated endpoints
   // (like /api/fs/ls) to the local network. Use HOST=0.0.0.0 if network access is required.
-  const host = process.env.HOST || '127.0.0.1';
-  app.listen(PORT, host, () => {
-    console.log(`Server running at http://${host}:${PORT}`);
+  const host = process.env.HOST || DEFAULT_SERVER_HOST;
+  app.listen(DEFAULT_SERVER_PORT, host, () => {
+    console.log(`Server running at http://${host}:${DEFAULT_SERVER_PORT}`);
     console.log(`Environment: ${isDev ? 'Development' : 'Production'}`);
   });
 }
