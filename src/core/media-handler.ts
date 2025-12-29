@@ -44,8 +44,14 @@ export async function handleStreamRequest(
   res: Response,
   ffmpegPath: string | null,
 ) {
-  const filePath = req.query.file as string;
-  const startTime = req.query.startTime as string;
+  const filePath = (
+    Array.isArray(req.query.file) ? req.query.file[0] : req.query.file
+  ) as string;
+  const startTime = (
+    Array.isArray(req.query.startTime)
+      ? req.query.startTime[0]
+      : req.query.startTime
+  ) as string;
   const isTranscodeForced = req.query.transcode === 'true';
 
   if (!filePath) {
@@ -461,7 +467,9 @@ export function createMediaApp(options: MediaHandlerOptions) {
 
   // Metadata Route
   app.get(MediaRoutes.METADATA, async (req, res) => {
-    const filePath = req.query.file as string;
+    const filePath = (
+      Array.isArray(req.query.file) ? req.query.file[0] : req.query.file
+    ) as string;
     if (!filePath) {
       res.status(400).send('Missing file parameter');
       return;
@@ -477,7 +485,9 @@ export function createMediaApp(options: MediaHandlerOptions) {
 
   // Thumbnail Route
   app.get(MediaRoutes.THUMBNAIL, async (req, res) => {
-    const filePath = req.query.file as string;
+    const filePath = (
+      Array.isArray(req.query.file) ? req.query.file[0] : req.query.file
+    ) as string;
     if (!filePath) {
       res.status(400).send('Missing file parameter');
       return;

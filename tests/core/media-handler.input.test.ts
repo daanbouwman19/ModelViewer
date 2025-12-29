@@ -20,7 +20,21 @@ vi.mock('fs', () => ({
   createReadStream: vi.fn(),
 }));
 
-import { serveTranscodedStream } from '../../src/core/media-handler';
+vi.mock('../../src/core/security');
+vi.mock('../../src/core/media-source', () => ({
+  createMediaSource: vi.fn(() => ({
+    getSize: vi.fn(),
+    getMimeType: vi.fn(),
+    getStream: vi.fn(),
+    getFFmpegInput: vi.fn().mockResolvedValue('/path/to/video.mp4'),
+  })),
+}));
+
+import {
+  serveTranscodedStream,
+  handleStreamRequest,
+} from '../../src/core/media-handler';
+import * as security from '../../src/core/security';
 
 describe('media-handler input validation', () => {
   let req: any;
@@ -29,7 +43,7 @@ describe('media-handler input validation', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    req = { headers: {}, on: vi.fn() };
+    req = { headers: {}, query: {}, on: vi.fn() };
 
     // Mock res as a Writable Stream
     res = new PassThrough();
@@ -64,6 +78,7 @@ describe('media-handler input validation', () => {
     const mockProcess = new EventEmitter() as any;
     mockProcess.stdout = new PassThrough();
     mockProcess.stderr = new PassThrough();
+    mockProcess.stderr.pipe = vi.fn();
     mockProcess.kill = vi.fn();
     mockSpawn.mockReturnValue(mockProcess);
 
@@ -81,6 +96,7 @@ describe('media-handler input validation', () => {
     const mockProcess = new EventEmitter() as any;
     mockProcess.stdout = new PassThrough();
     mockProcess.stderr = new PassThrough();
+    mockProcess.stderr.pipe = vi.fn();
     mockProcess.kill = vi.fn();
     mockSpawn.mockReturnValue(mockProcess);
 
@@ -92,5 +108,49 @@ describe('media-handler input validation', () => {
       'ffmpeg',
       expect.arrayContaining(['-ss', validInput]),
     );
+  });
+
+  describe('query parameter array support', () => {
+    it('handles "file" parameter as an array by taking the first element', async () => {
+      req.query = { file: ['/valid/path/1.mp4', '/valid/path/2.mp4'] };
+
+      vi.mocked(security.authorizeFilePath).mockResolvedValue({
+        isAllowed: true,
+      });
+
+      await handleStreamRequest(req, res, 'ffmpeg');
+
+      expect(security.authorizeFilePath).toHaveBeenCalledWith(
+        '/valid/path/1.mp4',
+      );
+      expect(res.sendFile).toHaveBeenCalledWith('/valid/path/1.mp4');
+    });
+
+    it('handles "startTime" parameter as an array by taking the first element', async () => {
+      const mockProcess = new EventEmitter() as any;
+      mockProcess.stdout = new PassThrough();
+      mockProcess.stderr = new PassThrough();
+      mockProcess.stderr.pipe = vi.fn();
+      mockProcess.stderr.resume = vi.fn();
+      mockProcess.kill = vi.fn();
+      mockSpawn.mockReturnValue(mockProcess);
+
+      req.query = {
+        file: '/valid/path/1.mp4',
+        startTime: ['15', '25'],
+        transcode: 'true',
+      };
+
+      vi.mocked(security.authorizeFilePath).mockResolvedValue({
+        isAllowed: true,
+      });
+
+      await handleStreamRequest(req, res, 'ffmpeg');
+
+      expect(mockSpawn).toHaveBeenCalledWith(
+        'ffmpeg',
+        expect.arrayContaining(['-ss', '15']),
+      );
+    });
   });
 });
