@@ -407,6 +407,7 @@ const loadMediaUrl = async () => {
   }
 
   isLoading.value = true;
+  mediaUrl.value = null;
 
   // Reset all state flags for the new item
   error.value = null;

@@ -133,6 +133,41 @@ describe('MediaDisplay.vue', () => {
       expect((wrapper.vm as any).mediaUrl).toBe('test-url');
     });
 
+    it('clears mediaUrl when switching between media types to prevent race conditions', async () => {
+      // Start with a video file
+      mockRefs.currentMediaItem.value = {
+        name: 'video.mp4',
+        path: '/video.mp4',
+      };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      // Verify video URL is loaded
+      expect((wrapper.vm as any).mediaUrl).toBe('test-url');
+
+      // Set up a spy that will check mediaUrl state when the API is called
+      let mediaUrlDuringApiCall: string | null | undefined;
+      (api.loadFileAsDataURL as Mock).mockImplementation(async () => {
+        // Capture the mediaUrl value at the moment the API is called
+        mediaUrlDuringApiCall = (wrapper.vm as any).mediaUrl;
+        return { type: 'success', url: 'image-url' };
+      });
+
+      // Switch to an image file
+      mockRefs.currentMediaItem.value = {
+        name: 'image.jpg',
+        path: '/image.jpg',
+      };
+      await flushPromises();
+
+      // Verify that mediaUrl was null when the API was called
+      // This proves it was cleared synchronously before the async load
+      expect(mediaUrlDuringApiCall).toBeNull();
+
+      // Verify the image URL is now set after loading completes
+      expect((wrapper.vm as any).mediaUrl).toBe('image-url');
+    });
+
     it('handles load error', async () => {
       mockRefs.currentMediaItem.value = { name: 'test.jpg', path: '/test.jpg' };
       (api.loadFileAsDataURL as Mock).mockResolvedValue({
