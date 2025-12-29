@@ -35,6 +35,12 @@ describe('media-handler input validation', () => {
     res = new PassThrough();
     res.writeHead = vi.fn();
     res.headersSent = false;
+    res.status = vi.fn().mockReturnThis();
+    res.send = vi.fn();
+    res.json = vi.fn();
+    res.set = vi.fn().mockReturnThis();
+    res.setHeader = vi.fn();
+    res.sendFile = vi.fn();
 
     mockSource = {
       getFFmpegInput: vi.fn().mockResolvedValue('/path/to/video.mp4'),

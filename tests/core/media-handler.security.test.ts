@@ -1,5 +1,10 @@
-import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
-import { createMediaRequestHandler } from '../../src/core/media-handler';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import {
+  serveStaticFile,
+  serveMetadata,
+  handleStreamRequest,
+  serveThumbnail,
+} from '../../src/core/media-handler';
 import * as security from '../../src/core/security';
 
 // Mock dependencies
@@ -36,92 +41,91 @@ vi.mock('fs', () => {
 });
 
 describe('media-handler security', () => {
-  let req: {
-    headers: Record<string, string | string[] | undefined>;
-    url?: string;
-  };
-  let res: { writeHead: Mock; end: Mock; headersSent: boolean };
+  let req: any;
+  let res: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    req = { headers: {}, url: '' };
+    req = { headers: {}, url: '', query: {}, method: 'GET' };
     res = {
       writeHead: vi.fn(),
       end: vi.fn(),
       headersSent: false,
+      status: vi.fn().mockReturnThis(),
+      send: vi.fn(),
+      json: vi.fn(),
+      set: vi.fn().mockReturnThis(),
+      setHeader: vi.fn(),
+      sendFile: vi.fn(),
     };
-  });
-
-  // Integration-style tests for the request handler
-  const handler = createMediaRequestHandler({
-    ffmpegPath: '/bin/ffmpeg',
-    cacheDir: '/tmp',
   });
 
   it('prevents file enumeration in serveStaticFile via handler', async () => {
     // Scenario: createMediaSource throws "Access denied"
-    vi.mocked(createMediaSource).mockImplementation(() => {
-      throw new Error(
-        'Access denied: File is not in a configured media directory.',
-      );
+    // Since serveStaticFile calls authorizeFilePath first for non-gdrive files:
+    vi.mocked(security.authorizeFilePath).mockResolvedValue({
+      isAllowed: false,
+      message: 'Access denied',
     });
 
-    req.url = '/path/to/forbidden.txt';
+    await serveStaticFile(req, res, '/path/to/forbidden.txt');
 
-    await handler(req as any, res as any);
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.send).toHaveBeenCalledWith('Access denied.');
 
-    expect(res.writeHead).toHaveBeenCalledWith(403);
-    expect(res.end).toHaveBeenCalledWith('Access denied.');
+    // Scenario 2: If we force gdrive (starts with gdrive://) - authorizeFilePath is skipped in local check logic
+    // but createMediaSource might throw.
+    // However, the original test tested basic file access for local usage.
+    // If we test createMediaSource failure:
+    vi.clearAllMocks();
+    res.status.mockClear();
 
-    res.writeHead.mockClear();
-    res.end.mockClear();
-
-    // Scenario 2: File missing (same error from security point of view)
+    // Bypass local check by mocking startWith or passing gdrive
+    // If we pass gdrive://, it goes to createMediaSource
     vi.mocked(createMediaSource).mockImplementation(() => {
       throw new Error('Access denied: File does not exist.');
     });
 
-    await handler(req as any, res as any);
-    expect(res.writeHead).toHaveBeenCalledWith(403);
-    expect(res.end).toHaveBeenCalledWith('Access denied.');
+    await serveStaticFile(req, res, 'gdrive://forbidden');
+    expect(res.status).toHaveBeenCalledWith(403);
   });
 
   it('prevents file enumeration in serveMetadata', async () => {
-    req.url = '/video/metadata?file=/forbidden.txt';
-
     vi.mocked(security.authorizeFilePath).mockResolvedValueOnce({
       isAllowed: false,
       message: 'Access denied: Forbidden',
     });
 
-    await handler(req as any, res as any);
+    await serveMetadata(req, res, '/forbidden.txt', 'ffmpeg');
 
-    expect(res.end).toHaveBeenCalledWith('Access denied.');
+    expect(res.send).toHaveBeenCalledWith('Access denied.');
+    expect(res.status).toHaveBeenCalledWith(403);
   });
 
   it('prevents file enumeration in serveTranscodedStream (video/stream)', async () => {
-    req.url = '/video/stream?file=/forbidden.txt&transcode=true';
+    req.query = { file: '/forbidden.txt', transcode: 'true' };
 
-    vi.mocked(createMediaSource).mockImplementation(() => {
-      throw new Error('Access denied.');
+    // With handleStreamRequest, it checks authorization for local files.
+    vi.mocked(security.authorizeFilePath).mockResolvedValueOnce({
+      isAllowed: false,
+      message: 'Access denied',
     });
 
-    await handler(req as any, res as any);
+    await handleStreamRequest(req, res, 'ffmpeg');
 
-    expect(res.writeHead).toHaveBeenCalledWith(403);
-    expect(res.end).toHaveBeenCalledWith('Access denied.');
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.send).toHaveBeenCalledWith('Access denied.');
   });
 
   it('prevents file enumeration in serveThumbnail', async () => {
-    req.url = '/video/thumbnail?file=/forbidden.txt';
-
     vi.mocked(security.authorizeFilePath).mockResolvedValueOnce({
       isAllowed: false,
       message: 'Access denied: Forbidden',
     });
 
-    await handler(req as any, res as any);
+    await serveThumbnail(req, res, '/forbidden.txt', 'ffmpeg', '/cache');
 
-    expect(res.end).toHaveBeenCalledWith('Access denied.');
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.send).toHaveBeenCalledWith('Access denied.');
   });
 });

@@ -3,7 +3,9 @@
  * Handles video streaming, metadata retrieval, and thumbnail generation.
  */
 
-import http from 'http';
+import express, { Request, Response } from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
 import fs from 'fs';
 import fsPromises from 'fs/promises';
 import { spawn } from 'child_process';
@@ -37,28 +39,44 @@ export interface MediaHandlerOptions {
 /**
  * Handles video stream requests (raw or transcoded).
  */
-async function handleStreamRequest(
-  req: http.IncomingMessage,
-  res: http.ServerResponse,
-  parsedUrl: URL,
+/**
+ * Handles video stream requests (raw or transcoded).
+ */
+export async function handleStreamRequest(
+  req: Request,
+  res: Response,
   ffmpegPath: string | null,
 ) {
-  const filePath = parsedUrl.searchParams.get('file');
-  const startTime = parsedUrl.searchParams.get('startTime');
-  const isTranscodeForced = parsedUrl.searchParams.get('transcode') === 'true';
+  const filePath = req.query.file as string;
+  const startTime = req.query.startTime as string;
+  const isTranscodeForced = req.query.transcode === 'true';
 
   if (!filePath) {
-    res.writeHead(400);
-    return res.end('Missing file parameter');
+    return res.status(400).send('Missing file parameter');
   }
 
   try {
     const source = createMediaSource(filePath);
 
+    // Optimization: If local file and no transcode, use res.sendFile for better range support
+    if (!isTranscodeForced && !filePath.startsWith('gdrive://')) {
+      try {
+        const auth = await authorizeFilePath(filePath);
+        if (!auth.isAllowed) {
+          res.status(403).send('Access denied.');
+          return;
+        }
+        return res.sendFile(filePath);
+      } catch (e) {
+        console.error('[Handler] SendFile check failed:', e);
+        // Fallback to manual source handling if something fails (though unlikely)
+      }
+    }
+
     if (isTranscodeForced) {
       if (!ffmpegPath) {
-        res.writeHead(500);
-        return res.end('FFmpeg binary not found');
+        res.status(500).send('FFmpeg binary not found');
+        return;
       }
       return await serveTranscodedStream(
         req,
@@ -75,11 +93,9 @@ async function handleStreamRequest(
     if (!res.headersSent) {
       const msg = (e as Error).message || '';
       if (msg.includes('Access denied')) {
-        res.writeHead(403);
-        res.end('Access denied.');
+        res.status(403).send('Access denied.');
       } else {
-        res.writeHead(500);
-        res.end('Error initializing source');
+        res.status(500).send('Error initializing source');
       }
     }
     return;
@@ -113,16 +129,17 @@ async function runFFmpegThumbnail(
  * Returns true if served, false otherwise.
  */
 async function tryServeFromCache(
-  res: http.ServerResponse,
+  res: Response,
   cacheFile: string,
 ): Promise<boolean> {
   const hit = await checkThumbnailCache(cacheFile);
   if (hit) {
-    res.writeHead(200, {
+    res.set({
       'Content-Type': 'image/jpeg',
       'Cache-Control': 'public, max-age=31536000',
     });
-    fs.createReadStream(cacheFile).pipe(res);
+    // Use res.sendFile for cache file too
+    res.sendFile(cacheFile);
     return true;
   }
   return false;
@@ -133,7 +150,7 @@ async function tryServeFromCache(
  * Returns true if served, false otherwise.
  */
 async function tryServeFromProvider(
-  res: http.ServerResponse,
+  res: Response,
   filePath: string,
   cacheFile: string,
 ): Promise<boolean> {
@@ -156,7 +173,7 @@ async function tryServeFromProvider(
  * Helper: Generates a thumbnail using local FFmpeg and serves it.
  */
 async function generateLocalThumbnail(
-  res: http.ServerResponse,
+  res: Response,
   filePath: string,
   cacheFile: string,
   ffmpegPath: string | null,
@@ -164,19 +181,16 @@ async function generateLocalThumbnail(
   try {
     const auth = await authorizeFilePath(filePath);
     if (!auth.isAllowed) {
-      res.writeHead(403);
-      res.end('Access denied.');
+      res.status(403).send('Access denied.');
       return;
     }
   } catch {
-    res.writeHead(500);
-    res.end('Internal Error');
+    res.status(500).send('Internal Error');
     return;
   }
 
   if (!ffmpegPath) {
-    res.writeHead(500);
-    res.end('FFmpeg binary not found');
+    res.status(500).send('FFmpeg binary not found');
     return;
   }
 
@@ -187,16 +201,15 @@ async function generateLocalThumbnail(
     // Verify file exists
     await fsPromises.stat(cacheFile);
 
-    res.writeHead(200, {
+    res.set({
       'Content-Type': 'image/jpeg',
       'Cache-Control': 'public, max-age=31536000',
     });
-    fs.createReadStream(cacheFile).pipe(res);
+    res.sendFile(cacheFile);
   } catch (err) {
     console.error('[Thumbnail] Generation failed:', err);
     if (!res.headersSent) {
-      res.writeHead(500);
-      res.end('Generation failed');
+      res.status(500).send('Generation failed');
     }
   }
 }
@@ -258,8 +271,8 @@ export async function getVideoDuration(
  * Handles metadata retrieval.
  */
 export async function serveMetadata(
-  _req: http.IncomingMessage,
-  res: http.ServerResponse,
+  _req: Request,
+  res: Response,
   filePath: string,
   ffmpegPath: string | null,
 ) {
@@ -267,35 +280,32 @@ export async function serveMetadata(
     try {
       const auth = await authorizeFilePath(filePath);
       if (!auth.isAllowed) {
-        res.writeHead(403);
-        return res.end('Access denied.');
+        res.status(403).send('Access denied.');
+        return;
       }
     } catch (error) {
       console.error('[Metadata] Path validation error:', error);
-      res.writeHead(500);
-      return res.end('Internal Error');
+      res.status(500).send('Internal Error');
+      return;
     }
   }
 
   if (!ffmpegPath && !filePath.startsWith('gdrive://')) {
-    res.writeHead(500);
-    return res.end('FFmpeg binary not found');
+    res.status(500).send('FFmpeg binary not found');
+    return;
   }
 
   const result = await getVideoDuration(filePath, ffmpegPath || '');
 
-  res.writeHead(200, {
-    'Content-Type': 'application/json',
-  });
-  res.end(JSON.stringify(result));
+  res.json(result);
 }
 
 /**
  * Serves a raw stream (Direct Play) for a media source.
  */
 export async function serveRawStream(
-  req: http.IncomingMessage,
-  res: http.ServerResponse,
+  req: Request,
+  res: Response,
   source: IMediaSource,
 ) {
   const totalSize = await source.getSize();
@@ -305,17 +315,20 @@ export async function serveRawStream(
   const { start, end, error } = parseHttpRange(totalSize, rangeHeader);
 
   if (error || start >= totalSize) {
-    res.writeHead(416, { 'Content-Range': `bytes */${totalSize}` });
-    return res.end('Requested range not satisfiable.');
+    res
+      .status(416)
+      .set({ 'Content-Range': `bytes */${totalSize}` })
+      .send('Requested range not satisfiable.');
+    return;
   }
 
   const { stream, length } = await source.getStream({ start, end });
   const actualEnd = start + length - 1;
 
-  res.writeHead(206, {
+  res.status(206).set({
     'Content-Range': `bytes ${start}-${actualEnd}/${totalSize}`,
     'Accept-Ranges': 'bytes',
-    'Content-Length': length,
+    'Content-Length': length.toString(),
     'Content-Type': mimeType,
   });
 
@@ -324,8 +337,7 @@ export async function serveRawStream(
   stream.on('error', (err) => {
     console.error('[RawStream] Stream error:', err);
     if (!res.headersSent) {
-      res.writeHead(500);
-      res.end();
+      res.status(500).end();
     }
   });
 
@@ -338,15 +350,15 @@ export async function serveRawStream(
  * Spawns FFmpeg to transcode the source and pipes output to response.
  */
 export async function serveTranscodedStream(
-  req: http.IncomingMessage,
-  res: http.ServerResponse,
+  req: Request,
+  res: Response,
   source: IMediaSource,
   ffmpegPath: string,
   startTime: string | null,
 ) {
   const inputPath = await source.getFFmpegInput();
 
-  res.writeHead(200, {
+  res.set({
     'Content-Type': 'video/mp4',
   });
 
@@ -373,8 +385,8 @@ export async function serveTranscodedStream(
  * Handles thumbnail generation.
  */
 export async function serveThumbnail(
-  _req: http.IncomingMessage,
-  res: http.ServerResponse,
+  _req: Request,
+  res: Response,
   filePath: string,
   ffmpegPath: string | null,
   cacheDir: string,
@@ -393,8 +405,7 @@ export async function serveThumbnail(
   // Ensure GDrive files don't fall through to local FS if provider fetch failed
   if (filePath.startsWith('gdrive://')) {
     if (!res.headersSent) {
-      res.writeHead(404);
-      res.end();
+      res.status(404).end();
     }
     return;
   }
@@ -407,11 +418,21 @@ export async function serveThumbnail(
  * Handles static file serving.
  */
 export async function serveStaticFile(
-  req: http.IncomingMessage,
-  res: http.ServerResponse,
+  req: Request,
+  res: Response,
   filePath: string,
 ) {
   try {
+    // If local file, use res.sendFile for optimizing range/seeking
+    if (!filePath.startsWith('gdrive://')) {
+      const auth = await authorizeFilePath(filePath);
+      if (!auth.isAllowed) {
+        res.status(403).send('Access denied.');
+        return;
+      }
+      return res.sendFile(filePath);
+    }
+
     const source = createMediaSource(filePath);
     return await serveRawStream(req, res, source);
   } catch (err: unknown) {
@@ -419,11 +440,9 @@ export async function serveStaticFile(
     if (!res.headersSent) {
       const msg = (err as Error).message || '';
       if (msg.includes('Access denied')) {
-        res.writeHead(403);
-        res.end('Access denied.');
+        res.status(403).send('Access denied.');
       } else {
-        res.writeHead(500);
-        res.end('Internal server error.');
+        res.status(500).send('Internal server error.');
       }
     }
   }
@@ -432,55 +451,59 @@ export async function serveStaticFile(
 /**
  * Creates a request handler function for media operations.
  */
-export function createMediaRequestHandler(options: MediaHandlerOptions) {
+/**
+ * Creates an Express application for media operations.
+ */
+export function createMediaApp(options: MediaHandlerOptions) {
   const { ffmpegPath, cacheDir } = options;
+  const app = express();
 
-  return async (req: http.IncomingMessage, res: http.ServerResponse) => {
-    if (!req.url) {
-      res.writeHead(400);
-      res.end();
+  app.use(cors());
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
+
+  // Metadata Route
+  app.get(MediaRoutes.METADATA, async (req, res) => {
+    const filePath = req.query.file as string;
+    if (!filePath) {
+      res.status(400).send('Missing file parameter');
       return;
     }
+    await serveMetadata(req, res, filePath, ffmpegPath);
+  });
 
-    const startUrl = `http://${req.headers.host || 'localhost'}`;
-    const parsedUrl = new URL(req.url, startUrl);
-    const pathname = parsedUrl.pathname;
+  // Streaming Route
+  app.get(MediaRoutes.STREAM, async (req, res) => {
+    // Logic handled inside handleStreamRequest by reading req.query
+    await handleStreamRequest(req, res, ffmpegPath);
+  });
 
-    // Metadata Route
-    if (pathname === MediaRoutes.METADATA) {
-      const filePath = parsedUrl.searchParams.get('file');
-      if (!filePath) {
-        res.writeHead(400);
-        return res.end('Missing file parameter');
-      }
-      return serveMetadata(req, res, filePath, ffmpegPath);
+  // Thumbnail Route
+  app.get(MediaRoutes.THUMBNAIL, async (req, res) => {
+    const filePath = req.query.file as string;
+    if (!filePath) {
+      res.status(400).send('Missing file parameter');
+      return;
     }
+    await serveThumbnail(req, res, filePath, ffmpegPath, cacheDir);
+  });
 
-    // Streaming Route (Direct or Transcoded)
-    if (pathname === MediaRoutes.STREAM) {
-      return handleStreamRequest(req, res, parsedUrl, ffmpegPath);
-    }
-
-    // Thumbnail Route
-    if (pathname === MediaRoutes.THUMBNAIL) {
-      const filePath = parsedUrl.searchParams.get('file');
-      if (!filePath) {
-        res.writeHead(400);
-        return res.end('Missing file parameter');
-      }
-      return serveThumbnail(req, res, filePath, ffmpegPath, cacheDir);
-    }
-
-    // Static File Serving
-    let requestedPath = decodeURIComponent(parsedUrl.pathname);
-    // On Windows, pathname starts with a slash like /C:/Users..., which we need to strip.
-    // On POSIX, pathname starts with /home/..., which is exactly the absolute path we want.
+  // Static File Serving (Fallback)
+  app.use(async (req, res) => {
+    let requestedPath = decodeURIComponent(req.path);
+    // On Windows, pathname start with a slash like /C:/Users... Express req.path preserves it.
+    // parseHttpRange logic handles paths.
+    // However, for serveStaticFile we need physical path.
     if (process.platform === 'win32' && requestedPath.startsWith('/')) {
       requestedPath = requestedPath.substring(1);
     }
+    await serveStaticFile(req, res, requestedPath);
+  });
 
-    return serveStaticFile(req, res, requestedPath);
-  };
+  return app;
 }
 
 /**

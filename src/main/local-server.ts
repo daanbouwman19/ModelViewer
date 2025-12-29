@@ -4,7 +4,7 @@
  */
 import http from 'http';
 import { AddressInfo } from 'net';
-import { createMediaRequestHandler } from '../core/media-handler';
+import { createMediaApp } from '../core/media-handler';
 import { getMimeType as coreGetMimeType } from '../core/media-utils';
 
 /**
@@ -41,7 +41,7 @@ async function startLocalServer(
 
   const { default: ffmpegPath } = await import('ffmpeg-static');
 
-  const requestHandler = createMediaRequestHandler({
+  const requestHandler = createMediaApp({
     ffmpegPath: ffmpegPath || null,
     cacheDir,
   });

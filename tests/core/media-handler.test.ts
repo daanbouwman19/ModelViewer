@@ -90,7 +90,7 @@ import {
   serveMetadata,
   serveThumbnail,
   serveStaticFile,
-  createMediaRequestHandler,
+  handleStreamRequest,
   generateFileUrl,
   openMediaInVlc,
   getFFmpegDuration,
@@ -143,7 +143,9 @@ describe('media-handler unit tests', () => {
     mockSpawn.mockReset(); // Reset the spy
     const listeners: Record<string, ((...args: any[]) => void)[]> = {};
     req = {
+      method: 'GET',
       headers: {},
+      query: {},
       on: vi.fn((event, cb) => {
         listeners[event] = listeners[event] || [];
         listeners[event].push(cb);
@@ -155,13 +157,21 @@ describe('media-handler unit tests', () => {
       }),
     };
     res = {
-      writeHead: vi.fn(() => {}),
+      writeHead: vi.fn(() => {}), // Keep for legacy checks if any remain
       end: vi.fn(() => {}),
       headersSent: false,
       on: vi.fn(),
       once: vi.fn(),
       emit: vi.fn(),
       write: vi.fn(),
+      // Express Mocks
+      status: vi.fn().mockReturnThis(),
+      send: vi.fn(),
+      json: vi.fn(),
+      set: vi.fn().mockReturnThis(),
+      sendFile: vi.fn(),
+      setHeader: vi.fn(),
+      getHeader: vi.fn(),
     };
 
     // Default mock behavior
@@ -319,22 +329,22 @@ describe('media-handler unit tests', () => {
     it('returns access denied for unauthorized local file', async () => {
       mockAuthorizeFilePath.mockResolvedValue({ isAllowed: false });
       await serveMetadata(req, res, '/local/file', 'ffmpeg');
-      expect(res.writeHead).toHaveBeenCalledWith(403);
-      expect(res.end).toHaveBeenCalledWith('Access denied.');
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.send).toHaveBeenCalledWith('Access denied.');
     });
 
     it('returns 500 if auth check throws', async () => {
       mockAuthorizeFilePath.mockRejectedValue(new Error('Auth error'));
       await serveMetadata(req, res, '/local/file', 'ffmpeg');
-      expect(res.writeHead).toHaveBeenCalledWith(500);
-      expect(res.end).toHaveBeenCalledWith('Internal Error');
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.send).toHaveBeenCalledWith('Internal Error');
     });
 
     it('returns error if ffmpeg path missing for local file', async () => {
       mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
       await serveMetadata(req, res, '/local/file', null);
-      expect(res.writeHead).toHaveBeenCalledWith(500);
-      expect(res.end).toHaveBeenCalledWith('FFmpeg binary not found');
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.send).toHaveBeenCalledWith('FFmpeg binary not found');
     });
 
     // Note: Success path testing mockVideoDuration requires mocking spawn behavior which is complex here
@@ -367,8 +377,7 @@ describe('media-handler unit tests', () => {
         ffmpegPath,
         expect.arrayContaining(['-i', sourceInput, '-f', 'mp4', 'pipe:1']),
       );
-      expect(res.writeHead).toHaveBeenCalledWith(
-        200,
+      expect(res.set).toHaveBeenCalledWith(
         expect.objectContaining({ 'Content-Type': 'video/mp4' }),
       );
     });
@@ -493,11 +502,11 @@ describe('media-handler unit tests', () => {
         start: 0,
         end: 999,
       });
-      expect(res.writeHead).toHaveBeenCalledWith(
-        206,
+      expect(res.status).toHaveBeenCalledWith(206);
+      expect(res.set).toHaveBeenCalledWith(
         expect.objectContaining({
           'Content-Range': 'bytes 0-999/1000',
-          'Content-Length': 1000,
+          'Content-Length': '1000',
           'Content-Type': 'video/mp4',
         }),
       );
@@ -520,11 +529,11 @@ describe('media-handler unit tests', () => {
         start: 100,
         end: 199,
       });
-      expect(res.writeHead).toHaveBeenCalledWith(
-        206,
+      expect(res.status).toHaveBeenCalledWith(206);
+      expect(res.set).toHaveBeenCalledWith(
         expect.objectContaining({
           'Content-Range': 'bytes 100-199/1000',
-          'Content-Length': 100,
+          'Content-Length': '100',
         }),
       );
     });
@@ -560,8 +569,8 @@ describe('media-handler unit tests', () => {
         start: 100,
         end: 999,
       });
-      expect(res.writeHead).toHaveBeenCalledWith(
-        206,
+      expect(res.status).toHaveBeenCalledWith(206);
+      expect(res.set).toHaveBeenCalledWith(
         expect.objectContaining({
           'Content-Range': 'bytes 100-999/1000',
         }),
@@ -574,8 +583,9 @@ describe('media-handler unit tests', () => {
 
       await serveRawStream(req, res, mockMediaSource);
 
-      expect(res.writeHead).toHaveBeenCalledWith(416, expect.anything());
-      expect(res.end).toHaveBeenCalledWith('Requested range not satisfiable.');
+      expect(res.status).toHaveBeenCalledWith(416);
+      expect(res.set).toHaveBeenCalledWith(expect.anything());
+      expect(res.send).toHaveBeenCalledWith('Requested range not satisfiable.');
     });
 
     it('returns 416 if start >= totalSize', async () => {
@@ -583,8 +593,8 @@ describe('media-handler unit tests', () => {
 
       vi.mocked(mockMediaSource.getSize).mockResolvedValue(0);
       await serveRawStream(req, res, mockMediaSource);
-      expect(res.writeHead).toHaveBeenCalledWith(
-        416,
+      expect(res.status).toHaveBeenCalledWith(416);
+      expect(res.set).toHaveBeenCalledWith(
         expect.objectContaining({ 'Content-Range': 'bytes */0' }),
       );
     });
@@ -609,7 +619,8 @@ describe('media-handler unit tests', () => {
       await new Promise((r) => setTimeout(r, 0));
 
       mockStream.emit('error', new Error('Pipe broken'));
-      expect(res.writeHead).toHaveBeenCalledWith(500);
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.end).toHaveBeenCalled();
       expect(consoleSpy).toHaveBeenCalledWith(
         '[RawStream] Stream error:',
         expect.anything(),
@@ -630,11 +641,10 @@ describe('media-handler unit tests', () => {
 
       await serveThumbnail(req, res, '/video.mp4', 'ffmpeg', '/cache');
 
-      expect(res.writeHead).toHaveBeenCalledWith(
-        200,
+      expect(res.set).toHaveBeenCalledWith(
         expect.objectContaining({ 'Content-Type': 'image/jpeg' }),
       );
-      expect(mockStream.pipe).toHaveBeenCalledWith(res);
+      expect(res.sendFile).toHaveBeenCalledWith(cachePath);
     });
 
     it('generates thumbnail for gdrive file', async () => {
@@ -661,7 +671,7 @@ describe('media-handler unit tests', () => {
 
       await serveThumbnail(req, res, 'gdrive://123', 'ffmpeg', '/cache');
 
-      expect(res.writeHead).toHaveBeenCalledWith(404);
+      expect(res.status).toHaveBeenCalledWith(404);
       expect(res.end).toHaveBeenCalled();
     });
 
@@ -669,18 +679,21 @@ describe('media-handler unit tests', () => {
       mockCheckThumbnailCache.mockResolvedValue(false);
       mockAuthorizeFilePath.mockResolvedValue({ isAllowed: false });
 
+      const mockWriteStream = {};
+      mockFsCreateWriteStream.mockReturnValue(mockWriteStream as any); // Add this as it might be required for provider flow even if auth fails later? No.
+
       await serveThumbnail(req, res, '/local/vid.mp4', 'ffmpeg', '/cache');
 
-      expect(res.writeHead).toHaveBeenCalledWith(403);
-      expect(res.end).toHaveBeenCalledWith('Access denied.');
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.send).toHaveBeenCalledWith('Access denied.');
     });
 
     it('returns 500 if auth threw error', async () => {
       mockCheckThumbnailCache.mockResolvedValue(false);
       mockAuthorizeFilePath.mockRejectedValue(new Error('Auth fail'));
       await serveThumbnail(req, res, '/local/vid.mp4', 'ffmpeg', '/cache');
-      expect(res.writeHead).toHaveBeenCalledWith(500);
-      expect(res.end).toHaveBeenCalledWith('Internal Error');
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.send).toHaveBeenCalledWith('Internal Error');
     });
 
     it('handles ffmpg generation for local file', async () => {
@@ -703,8 +716,10 @@ describe('media-handler unit tests', () => {
       await serveThumbnail(req, res, '/video.mp4', 'ffmpeg', '/cache');
 
       expect(mockSpawn).toHaveBeenCalled();
-      expect(res.writeHead).toHaveBeenCalledWith(200, expect.anything());
-      expect(mockStream.pipe).toHaveBeenCalledWith(res);
+      expect(res.set).toHaveBeenCalledWith(
+        expect.objectContaining({ 'Content-Type': 'image/jpeg' }),
+      );
+      expect(res.sendFile).toHaveBeenCalledWith('/cache/local.jpg');
     });
 
     it('handles ffmpeg failure (non-zero exit)', async () => {
@@ -722,8 +737,8 @@ describe('media-handler unit tests', () => {
       await serveThumbnail(req, res, '/video.mp4', 'ffmpeg', '/cache');
 
       await vi.waitFor(() => {
-        expect(res.writeHead).toHaveBeenCalledWith(500);
-        expect(res.end).toHaveBeenCalled();
+        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.send).toHaveBeenCalledWith('Generation failed');
       });
     });
 
@@ -774,7 +789,8 @@ describe('media-handler unit tests', () => {
       mockProcess.emit('close', 0);
 
       await vi.waitFor(() => {
-        expect(res.writeHead).toHaveBeenCalledWith(500);
+        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.send).toHaveBeenCalledWith('Generation failed');
         expect(consoleSpy).toHaveBeenCalledWith(
           '[Thumbnail] Generation failed:',
           expect.anything(),
@@ -803,8 +819,8 @@ describe('media-handler unit tests', () => {
       mockProcess.emit('error', new Error('Spawn failed'));
 
       await vi.waitFor(() => {
-        expect(res.writeHead).toHaveBeenCalledWith(500);
-        expect(res.end).toHaveBeenCalledWith('Generation failed');
+        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.send).toHaveBeenCalledWith('Generation failed');
       });
       await p;
       consoleSpy.mockRestore();
@@ -826,310 +842,184 @@ describe('media-handler unit tests', () => {
       });
 
       await serveStaticFile(req, res, '/static/file');
-      expect(res.writeHead).toHaveBeenCalledWith(206, expect.anything());
+      expect(res.sendFile).toHaveBeenCalledWith('/static/file');
     });
 
     it('handles access denied', async () => {
-      // Mock createMediaSource to throw or checking auth inside source
-      // But serveStaticFile calls createMediaSource, then serveRawStream.
-      // If serveRawStream fails, it logs and sends error.
-
-      // Actually serveStaticFile creates source. If creation fails (auth?), it catches.
-      // But createMediaSource usually just returns an object.
-      // The error likely comes from serveRawStream calling source.getSize or getStream.
-
-      vi.mocked(createMediaSource).mockReturnValue({
-        getSize: vi.fn().mockRejectedValue(new Error('Access denied')),
-        getMimeType: vi.fn(),
-        getStream: vi.fn(),
-        getFFmpegInput: vi.fn(),
-      });
+      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: false });
 
       await serveStaticFile(req, res, '/static/file');
-      expect(res.writeHead).toHaveBeenCalledWith(403);
-      expect(res.end).toHaveBeenCalledWith('Access denied.');
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.send).toHaveBeenCalledWith('Access denied.');
     });
 
     it('handles internal errors', async () => {
-      vi.mocked(createMediaSource).mockImplementation(() => {
-        throw new Error('Boom');
-      });
+      mockAuthorizeFilePath.mockRejectedValue(new Error('Boom'));
+
       await serveStaticFile(req, res, '/static/file');
-      expect(res.writeHead).toHaveBeenCalledWith(500);
-      expect(res.end).toHaveBeenCalledWith('Internal server error.');
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.send).toHaveBeenCalledWith('Internal server error.');
     });
   });
 
-  describe('createMediaRequestHandler', () => {
-    it('returns 400 if no url', async () => {
-      const handler = createMediaRequestHandler({
-        ffmpegPath: 'ffmpeg',
-        cacheDir: '/cache',
-      });
-      req.url = undefined;
-      await handler(req, res);
-      expect(res.writeHead).toHaveBeenCalledWith(400);
+  describe('handleStreamRequest', () => {
+    it('returns 400 if missing file parameter', async () => {
+      req.query = {};
+      await handleStreamRequest(req, res, 'ffmpeg');
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.send).toHaveBeenCalledWith('Missing file parameter');
     });
 
-    it('handlers /video/metadata', async () => {
-      const handler = createMediaRequestHandler({
-        ffmpegPath: 'ffmpeg',
-        cacheDir: '/cache',
-      });
-      req.url = '/video/metadata?file=test.mp4';
-      req.headers.host = 'localhost';
-
+    it('handles local file by sending file (optimization)', async () => {
+      req.query = { file: '/local/test.mp4' };
       mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
-      mockSpawn.mockImplementation(() => {
-        const proc = {
-          on: vi.fn(),
-          stderr: { on: vi.fn() },
-        };
-        setTimeout(() => {
-          // Trigger handlers for 'close'
-          const calls = (proc.on as any).mock.calls || [];
-          const closeCall = calls.find((c: any) => c[0] === 'close');
-          if (closeCall && closeCall[1]) {
-            closeCall[1](0);
-          }
-        }, 10);
-        return proc as any;
-      });
 
-      await handler(req, res);
-      expect(res.writeHead).toHaveBeenCalled(); // 200 likely
+      await handleStreamRequest(req, res, 'ffmpeg');
+      expect(res.sendFile).toHaveBeenCalledWith('/local/test.mp4');
     });
 
-    it('handlers /video/stream raw', async () => {
-      const handler = createMediaRequestHandler({
-        ffmpegPath: 'ffmpeg',
-        cacheDir: '/cache',
-      });
-      req.url = '/video/stream?file=test.mp4';
-      req.headers.host = 'localhost';
+    it('handles local file access denied', async () => {
+      req.query = { file: '/local/secret.mp4' };
+      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: false });
 
-      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
-      mockFsStat.mockResolvedValue({ size: 100 });
-      mockFsCreateReadStream.mockReturnValue({
-        pipe: vi.fn(),
-        on: vi.fn(),
-        destroy: vi.fn(),
-      } as any);
-
-      await handler(req, res);
-      expect(res.writeHead).toHaveBeenCalledWith(206, expect.anything());
+      await handleStreamRequest(req, res, 'ffmpeg');
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.send).toHaveBeenCalledWith('Access denied.');
     });
 
-    it('handlers /video/stream transcode', async () => {
-      const handler = createMediaRequestHandler({
-        ffmpegPath: 'ffmpeg',
-        cacheDir: '/cache',
-      });
-      req.url = '/video/stream?file=test.mp4&transcode=true';
-      req.headers.host = 'localhost';
-
+    it('handles transcode request', async () => {
+      req.query = { file: '/local/test.mp4', transcode: 'true' };
       mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+
+      // We mocked createMediaSource in beforeEach to return standard source
+      const sourceInput = '/path/to/media';
+      vi.mocked(mockMediaSource.getFFmpegInput).mockResolvedValue(sourceInput);
+
+      const mockStdout = new PassThrough();
+      const mockStderr = new PassThrough();
       mockSpawn.mockReturnValue({
-        stdout: { pipe: vi.fn() },
-        stderr: { on: vi.fn() },
+        stdout: mockStdout,
+        stderr: mockStderr,
         on: vi.fn(),
         kill: vi.fn(),
       } as any);
 
-      await handler(req, res);
-      expect(res.writeHead).toHaveBeenCalledWith(200, expect.anything());
+      await handleStreamRequest(req, res, 'ffmpeg');
+
+      // It calls serveTranscodedStream -> calls spawn
+      expect(mockSpawn).toHaveBeenCalled();
+      expect(res.set).toHaveBeenCalledWith(
+        expect.objectContaining({ 'Content-Type': 'video/mp4' }),
+      );
     });
 
-    it('handles transcoding error (no ffmpeg)', async () => {
-      const handler = createMediaRequestHandler({
-        ffmpegPath: null,
-        cacheDir: '/cache',
-      });
-      req.url = '/video/stream?file=test.mp4&transcode=true';
-
-      await handler(req, res);
-      expect(res.writeHead).toHaveBeenCalledWith(500);
+    it('returns 500 if ffmpeg missing for transcode', async () => {
+      req.query = { file: '/local/test.mp4', transcode: 'true' };
+      await handleStreamRequest(req, res, null);
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.send).toHaveBeenCalledWith('FFmpeg binary not found');
     });
 
-    it('handlers static file', async () => {
-      const handler = createMediaRequestHandler({
-        ffmpegPath: 'ffmpeg',
-        cacheDir: '/cache',
-      });
-      req.url = '/some/static/file.css';
-      req.headers.host = 'localhost';
+    it('falls back to serveRawStream for gdrive files', async () => {
+      req.query = { file: 'gdrive://123' };
 
-      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
-      mockFsStat.mockResolvedValue({ size: 100 });
-      mockFsCreateReadStream.mockReturnValue({
-        pipe: vi.fn(),
-        on: vi.fn(),
-        destroy: vi.fn(),
-      } as any);
+      // serveRawStream logic will be called.
+      await handleStreamRequest(req, res, 'ffmpeg');
 
-      await handler(req, res);
-      expect(res.writeHead).toHaveBeenCalledWith(206, expect.anything());
+      // serveRawStream calls res.status(206)
+      expect(res.status).toHaveBeenCalledWith(206);
     });
 
-    it('returns 400 for metadata if file missing', async () => {
-      const handler = createMediaRequestHandler({
-        ffmpegPath: 'ffmpeg',
-        cacheDir: '/cache',
-      });
-      req.url = '/video/metadata';
-      await handler(req, res);
-      expect(res.writeHead).toHaveBeenCalledWith(400);
-      expect(res.end).toHaveBeenCalledWith('Missing file parameter');
-    });
-
-    it('returns 400 for stream if file missing', async () => {
-      const handler = createMediaRequestHandler({
-        ffmpegPath: 'ffmpeg',
-        cacheDir: '/cache',
-      });
-      req.url = '/video/stream';
-      await handler(req, res);
-      expect(res.writeHead).toHaveBeenCalledWith(400);
-      expect(res.end).toHaveBeenCalledWith('Missing file parameter');
-    });
-
-    it('returns 400 for thumbnail if file missing', async () => {
-      const handler = createMediaRequestHandler({
-        ffmpegPath: 'ffmpeg',
-        cacheDir: '/cache',
-      });
-      req.url = '/video/thumbnail';
-      await handler(req, res);
-      expect(res.writeHead).toHaveBeenCalledWith(400);
-      expect(res.end).toHaveBeenCalledWith('Missing file parameter');
-    });
-
-    it('handles stream initialization error', async () => {
-      const handler = createMediaRequestHandler({
-        ffmpegPath: 'ffmpeg',
-        cacheDir: '/cache',
-      });
-      req.url = '/video/stream?file=bad';
-      req.headers.host = 'localhost';
-
-      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
-      // Force createMediaSource to return a source that throws on methods or throw itself
+    it('handles initialization errors', async () => {
+      req.query = { file: '/bad' };
+      // To force error in top level, we can fail createMediaSource
       vi.mocked(createMediaSource).mockImplementation(() => {
-        throw new Error('Error initializing source');
+        throw new Error('Init fail');
       });
 
-      await handler(req, res);
-      expect(res.writeHead).toHaveBeenCalledWith(500);
-      expect(res.end).toHaveBeenCalledWith('Error initializing source');
-    });
-
-    it('handles stream access denied', async () => {
-      const handler = createMediaRequestHandler({
-        ffmpegPath: 'ffmpeg',
-        cacheDir: '/cache',
-      });
-      req.url = '/video/stream?file=secret';
-      req.headers.host = 'localhost';
-
-      mockAuthorizeFilePath.mockResolvedValue({
-        isAllowed: false,
-        message: 'Access denied',
-      });
-      // Emulate access denied from source
-      vi.mocked(createMediaSource).mockImplementation(() => {
-        console.log('Test: Creating mock media source for access denied');
-        return {
-          getSize: vi.fn().mockRejectedValue(new Error('Access denied')),
-          getMimeType: vi.fn(),
-          getStream: vi.fn(),
-          getFFmpegInput: vi.fn(),
-        } as any;
-      });
-
-      await handler(req, res);
-      expect(res.writeHead).toHaveBeenCalledWith(403);
-      expect(res.end).toHaveBeenCalledWith('Access denied.');
-    });
-
-    it('cleans up stream on request close', async () => {
-      const mockStream = { pipe: vi.fn(), on: vi.fn(), destroy: vi.fn() };
-      const mockSource = {
-        getStream: vi
-          .fn()
-          .mockResolvedValue({ stream: mockStream, length: 100 }),
-        getSize: vi.fn().mockResolvedValue(100),
-        getMimeType: vi.fn().mockResolvedValue('video/mp4'),
-        getFFmpegInput: vi.fn(),
-      };
-
-      await serveRawStream(req, res, mockSource as any);
-
-      // Trigger close
-      req.emit('close');
-      expect(mockStream.destroy).toHaveBeenCalled();
-    });
-
-    it('cleans up transcoded process on request close', async () => {
-      const mockProc = {
-        stdout: { pipe: vi.fn() },
-        stderr: new PassThrough(),
-        on: vi.fn(),
-        kill: vi.fn(),
-      };
-      mockSpawn.mockReturnValue(mockProc as any);
-
-      const mockSource = {
-        getStream: vi.fn(),
-        getSize: vi.fn(),
-        getMimeType: vi.fn(),
-        getFFmpegInput: vi.fn().mockResolvedValue('input'),
-      };
-
-      await serveTranscodedStream(req, res, mockSource as any, 'ffmpeg', null);
-
-      // Trigger close
-      req.emit('close');
-      expect(mockProc.kill).toHaveBeenCalledWith('SIGKILL');
-    });
-    it('handles process error', async () => {
-      const mockProc = new EventEmitter() as any;
-      mockProc.stdout = new PassThrough();
-      mockProc.stderr = new PassThrough();
-      mockProc.kill = vi.fn();
-      mockSpawn.mockReturnValue(mockProc as any);
-
-      const mockSource = {
-        getStream: vi.fn(),
-        getSize: vi.fn(),
-        getMimeType: vi.fn(),
-        getFFmpegInput: vi.fn().mockResolvedValue('input'),
-      };
-
-      await serveTranscodedStream(req, res, mockSource as any, 'ffmpeg', null);
-
-      mockProc.emit('error', new Error('Process Error'));
-      // assert calling console.error? Not strictly needed for coverage, just need execution.
-    });
-
-    it('collects stderr data', async () => {
-      const mockProc = new EventEmitter() as any;
-      mockProc.stdout = new PassThrough();
-      mockProc.stderr = new PassThrough();
-      mockProc.kill = vi.fn();
-      mockSpawn.mockReturnValue(mockProc as any);
-
-      const mockSource = {
-        getStream: vi.fn(),
-        getSize: vi.fn(),
-        getMimeType: vi.fn(),
-        getFFmpegInput: vi.fn().mockResolvedValue('input'),
-      };
-
-      await serveTranscodedStream(req, res, mockSource as any, 'ffmpeg', null);
-
-      mockProc.stderr.emit('data', 'some log');
+      await handleStreamRequest(req, res, 'ffmpeg');
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.send).toHaveBeenCalledWith('Error initializing source');
     });
   });
+
+  it('cleans up stream on request close', async () => {
+    const mockStream = { pipe: vi.fn(), on: vi.fn(), destroy: vi.fn() };
+    const mockSource = {
+      getStream: vi.fn().mockResolvedValue({ stream: mockStream, length: 100 }),
+      getSize: vi.fn().mockResolvedValue(100),
+      getMimeType: vi.fn().mockResolvedValue('video/mp4'),
+      getFFmpegInput: vi.fn(),
+    };
+
+    await serveRawStream(req, res, mockSource as any);
+
+    // Trigger close
+    req.emit('close');
+    expect(mockStream.destroy).toHaveBeenCalled();
+  });
+
+  it('cleans up transcoded process on request close', async () => {
+    const mockProc = {
+      stdout: new PassThrough(),
+      stderr: new PassThrough(),
+      on: vi.fn(),
+      kill: vi.fn(),
+    };
+    mockSpawn.mockReturnValue(mockProc as any);
+
+    const mockSource = {
+      getStream: vi.fn(),
+      getSize: vi.fn(),
+      getMimeType: vi.fn(),
+      getFFmpegInput: vi.fn().mockResolvedValue('input'),
+    };
+
+    await serveTranscodedStream(req, res, mockSource as any, 'ffmpeg', null);
+
+    // Trigger close
+    req.emit('close');
+    expect(mockProc.kill).toHaveBeenCalledWith('SIGKILL');
+  });
+  it('handles process error', async () => {
+    const mockProc = new EventEmitter() as any;
+    mockProc.stdout = new PassThrough();
+    mockProc.stderr = new PassThrough();
+    mockProc.kill = vi.fn();
+    mockSpawn.mockReturnValue(mockProc as any);
+
+    const mockSource = {
+      getStream: vi.fn(),
+      getSize: vi.fn(),
+      getMimeType: vi.fn(),
+      getFFmpegInput: vi.fn().mockResolvedValue('input'),
+    };
+
+    await serveTranscodedStream(req, res, mockSource as any, 'ffmpeg', null);
+
+    mockProc.emit('error', new Error('Process Error'));
+    // assert calling console.error? Not strictly needed for coverage, just need execution.
+  });
+
+  it('collects stderr data', async () => {
+    const mockProc = new EventEmitter() as any;
+    mockProc.stdout = new PassThrough();
+    mockProc.stderr = new PassThrough();
+    mockProc.kill = vi.fn();
+    mockSpawn.mockReturnValue(mockProc as any);
+
+    const mockSource = {
+      getStream: vi.fn(),
+      getSize: vi.fn(),
+      getMimeType: vi.fn(),
+      getFFmpegInput: vi.fn().mockResolvedValue('input'),
+    };
+
+    await serveTranscodedStream(req, res, mockSource as any, 'ffmpeg', null);
+
+    mockProc.stderr.emit('data', 'some log');
+  });
+
   describe('generateFileUrl', () => {
     it('should return error for large Drive file if serverPort is 0', async () => {
       mockGetDriveFileMetadata.mockResolvedValue({
