@@ -27,6 +27,8 @@ describe('Constants', () => {
     expect(SUPPORTED_VIDEO_EXTENSIONS.length).toBeGreaterThan(0);
     expect(SUPPORTED_VIDEO_EXTENSIONS).toContain('.mp4');
     expect(SUPPORTED_VIDEO_EXTENSIONS).toContain('.webm');
+    expect(SUPPORTED_VIDEO_EXTENSIONS).toContain('.wmv');
+    expect(SUPPORTED_VIDEO_EXTENSIONS).toContain('.flv');
   });
 
   it('should combine all extensions correctly', () => {

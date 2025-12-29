@@ -13,6 +13,7 @@ import type {
   SmartPlaylist,
   MediaDirectory,
 } from '../../core/types';
+import type { MediaFilter } from '../../core/constants';
 
 /**
  * Defines the shape of the global application state.
@@ -34,7 +35,7 @@ export interface AppState {
   timerProgress: number;
   playFullVideo: boolean;
   pauseTimerOnPlay: boolean;
-  mediaFilter: 'All' | 'Images' | 'Videos';
+  mediaFilter: MediaFilter;
   viewMode: 'player' | 'grid';
   gridMediaFiles: MediaFile[];
   isSourcesModalVisible: boolean;
@@ -42,7 +43,11 @@ export interface AppState {
   smartPlaylists: SmartPlaylist[];
   playlistToEdit: SmartPlaylist | null;
   mediaDirectories: MediaDirectory[];
-  supportedExtensions: { images: string[]; videos: string[]; all: string[] };
+  supportedExtensions: {
+    images: readonly string[];
+    videos: readonly string[];
+    all: readonly string[];
+  };
   mainVideoElement: HTMLVideoElement | null;
 }
 

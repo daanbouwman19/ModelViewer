@@ -104,16 +104,23 @@ export function escapeHtml(str: string): string {
 function getWindowsRestrictedPaths(): string[] {
   const drive = process.env.SystemDrive || 'C:';
   return WINDOWS_RESTRICTED_ROOT_PATHS.map((r) => {
-    if (r === 'Windows') return process.env.SystemRoot || `${drive}\\Windows`;
-    if (r === 'Program Files')
-      return process.env.ProgramFiles || `${drive}\\Program Files`;
-    if (r === 'Program Files (x86)')
-      return (
-        process.env['ProgramFiles(x86)'] || `${drive}\\Program Files (x86)`
-      );
-    if (r === 'ProgramData')
-      return process.env.ProgramData || `${drive}\\ProgramData`;
-    return `${drive}\\${r}`;
+    switch (r) {
+      case 'Windows':
+        return process.env.SystemRoot || `${drive}\\Windows`;
+      case 'Program Files':
+        return process.env.ProgramFiles || `${drive}\\Program Files`;
+      case 'Program Files (x86)':
+        return (
+          process.env['ProgramFiles(x86)'] || `${drive}\\Program Files (x86)`
+        );
+      case 'ProgramData':
+        return process.env.ProgramData || `${drive}\\ProgramData`;
+      default:
+        // This case should not be reached with current constants.
+        // Adding a warning helps catch future configuration errors.
+        console.warn(`[Security] Unhandled restricted path component: ${r}`);
+        return `${drive}\\${r}`;
+    }
   });
 }
 

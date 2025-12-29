@@ -51,7 +51,11 @@ export interface IpcContract {
   };
   [IPC_CHANNELS.GET_SUPPORTED_EXTENSIONS]: {
     payload: [];
-    response: { images: string[]; videos: string[]; all: string[] };
+    response: {
+      images: readonly string[];
+      videos: readonly string[];
+      all: readonly string[];
+    };
   };
   [IPC_CHANNELS.GET_SERVER_PORT]: {
     payload: [];

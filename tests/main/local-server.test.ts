@@ -66,7 +66,7 @@ describe('Local Server', () => {
 
     it('should return default MIME type for unknown extensions', () => {
       expect(getMimeType('test.txt')).toBe('application/octet-stream');
-      expect(getMimeType('test.flv')).toBe('application/octet-stream'); // Not in supported extensions
+      expect(getMimeType('test.xyz')).toBe('application/octet-stream'); // Truly unknown extension
     });
   });
 

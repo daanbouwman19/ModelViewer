@@ -159,7 +159,11 @@ import VlcIcon from './icons/VlcIcon.vue';
 import TranscodingStatus from './TranscodingStatus.vue';
 import MediaControls from './MediaControls.vue';
 import VideoPlayer from './VideoPlayer.vue';
-import { LEGACY_VIDEO_EXTENSIONS, MEDIA_FILTERS } from '../../core/constants';
+import {
+  LEGACY_VIDEO_EXTENSIONS,
+  MEDIA_FILTERS,
+  type MediaFilter,
+} from '../../core/constants';
 
 const {
   currentMediaItem,
@@ -509,7 +513,7 @@ const handleNext = () => {
  * Sets the media filter and triggers a re-filter of the slideshow.
  * @param filter - The filter to apply.
  */
-const setFilter = async (filter: 'All' | 'Images' | 'Videos') => {
+const setFilter = async (filter: MediaFilter) => {
   mediaFilter.value = filter;
   await reapplyFilter();
 };

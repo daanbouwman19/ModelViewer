@@ -25,57 +25,60 @@ const FILE_INDEX_CACHE_KEY: string = 'file_index_json';
  * An array of supported image file extensions.
  * Used to identify image files during media scans.
  */
-const SUPPORTED_IMAGE_EXTENSIONS: string[] = [
+const SUPPORTED_IMAGE_EXTENSIONS: readonly string[] = [
   '.png',
   '.jpg',
   '.jpeg',
   '.gif',
   '.webp',
   '.svg',
-];
+] as const;
 
 /**
  * An array of supported video file extensions.
  * Used to identify video files during media scans.
  */
-const SUPPORTED_VIDEO_EXTENSIONS: string[] = [
+const SUPPORTED_VIDEO_EXTENSIONS: readonly string[] = [
   '.mp4',
   '.webm',
   '.ogg',
   '.mov',
   '.avi',
   '.mkv',
-];
+  '.wmv',
+  '.flv',
+] as const;
 
 /**
  * A combined array of all supported media file extensions (both images and videos).
  * This is useful for file filtering operations.
  */
-const ALL_SUPPORTED_EXTENSIONS: string[] = [
+const ALL_SUPPORTED_EXTENSIONS: readonly string[] = [
   ...SUPPORTED_IMAGE_EXTENSIONS,
   ...SUPPORTED_VIDEO_EXTENSIONS,
-];
+] as const;
 
 /**
  * Formats that often fail in browsers or have poor performance
  * and should trigger proactive transcoding.
  */
-const LEGACY_VIDEO_EXTENSIONS: string[] = [
+const LEGACY_VIDEO_EXTENSIONS: readonly string[] = [
   '.mov',
   '.avi',
   '.wmv',
   '.mkv',
   '.flv',
-];
+] as const;
 
 /**
  * Available media filters in the UI.
  */
-const MEDIA_FILTERS: ('All' | 'Images' | 'Videos')[] = [
-  'All',
-  'Images',
-  'Videos',
-];
+const MEDIA_FILTERS = ['All', 'Images', 'Videos'] as const;
+
+/**
+ * Type derived from MEDIA_FILTERS for use in the UI and filtering logic.
+ */
+export type MediaFilter = (typeof MEDIA_FILTERS)[number];
 
 /**
  * List of sensitive subdirectories that should never be accessed.

@@ -1,8 +1,9 @@
 import { reactive, toRefs } from 'vue';
 import type { SmartPlaylist, MediaFile } from '../../core/types';
+import type { MediaFilter } from '../../core/constants';
 
 interface UIState {
-  mediaFilter: 'All' | 'Images' | 'Videos';
+  mediaFilter: MediaFilter;
   viewMode: 'player' | 'grid';
   gridMediaFiles: MediaFile[];
   isSourcesModalVisible: boolean;

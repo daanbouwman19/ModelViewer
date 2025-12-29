@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { IMediaSource } from '../../src/core/media-source-types';
 import { PassThrough, EventEmitter } from 'stream';
+import request from 'supertest';
 import { createMediaSource } from '../../src/core/media-source';
 
 const {
@@ -16,7 +17,6 @@ const {
   mockGetDriveStreamWithCache,
   mockFsReadFile,
   mockFsAccess,
-  mockGetProvider,
 } = vi.hoisted(() => ({
   mockSpawn: vi.fn(),
   mockGetDriveFileMetadata: vi.fn(),
@@ -30,7 +30,6 @@ const {
   mockGetDriveStreamWithCache: vi.fn(),
   mockFsReadFile: vi.fn(),
   mockFsAccess: vi.fn(),
-  mockGetProvider: vi.fn(),
 }));
 
 vi.mock('child_process', () => ({
@@ -96,6 +95,7 @@ import {
   generateFileUrl,
   openMediaInVlc,
   getFFmpegDuration,
+  createMediaApp,
 } from '../../src/core/media-handler';
 import { getMimeType } from '../../src/core/media-utils';
 
@@ -126,9 +126,16 @@ vi.mock('../../src/core/media-source', () => ({
   createMediaSource: vi.fn(),
 }));
 
-vi.mock('../../src/core/fs-provider-factory', () => ({
-  getProvider: mockGetProvider,
-}));
+vi.mock('../../src/core/fs-provider-factory', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../src/core/fs-provider-factory')>();
+  return {
+    ...actual,
+    getProvider: vi.fn().mockImplementation(actual.getProvider),
+  };
+});
+
+import { getProvider } from '../../src/core/fs-provider-factory';
 
 // Mock IMediaSource
 const mockMediaSource = {
@@ -144,9 +151,16 @@ describe('media-handler unit tests', () => {
   let req: any;
   let res: any;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
     mockSpawn.mockReset(); // Reset the spy
+
+    // Restore default getProvider behavior
+    const { getProvider: actualGetProvider } = (await vi.importActual(
+      '../../src/core/fs-provider-factory',
+    )) as any;
+    vi.mocked(getProvider).mockReset().mockImplementation(actualGetProvider);
+
     const listeners: Record<string, ((...args: any[]) => void)[]> = {};
     req = {
       method: 'GET',
@@ -1044,7 +1058,7 @@ describe('media-handler unit tests', () => {
       const mockProvider = {
         getMetadata: vi.fn().mockRejectedValue(new Error('Drive Fail')),
       };
-      mockGetProvider.mockReturnValue(mockProvider as any);
+      vi.mocked(getProvider).mockReturnValue(mockProvider as any);
 
       const result = await getVideoDuration('gdrive://123', 'ffmpeg');
       expect(result).toEqual({ error: 'Duration not available' });
@@ -1182,6 +1196,114 @@ describe('media-handler unit tests', () => {
 
       const result = await openMediaInVlc('/local.mp4', 3000);
       expect(result).toEqual({ success: true });
+    });
+  });
+
+  describe('Additional Integration Coverage', () => {
+    it('METADATA route handles array input and missing file', async () => {
+      const app = createMediaApp({ ffmpegPath: 'ffmpeg', cacheDir: '/cache' });
+
+      // Missing file
+      const res1 = await request(app).get('/video/metadata');
+      expect(res1.status).toBe(400);
+
+      // Array file
+      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+      const mockProvider = {
+        getMetadata: vi.fn().mockResolvedValue({ duration: 100 }),
+      };
+      vi.mocked(getProvider).mockReturnValue(mockProvider as any);
+
+      const res2 = await request(app).get(
+        '/video/metadata?file=/test.mp4&file=/ignore.mp4',
+      );
+      expect(res2.status).toBe(200);
+      expect(mockAuthorizeFilePath).toHaveBeenCalledWith('/test.mp4');
+    });
+
+    it('THUMBNAIL route handles array input and missing file', async () => {
+      const app = createMediaApp({ ffmpegPath: 'ffmpeg', cacheDir: '/cache' });
+
+      // Missing file
+      const res1 = await request(app).get('/video/thumbnail');
+      expect(res1.status).toBe(400);
+
+      // Array file
+      mockGetThumbnailCachePath.mockReturnValue('/cache/test.jpg');
+      mockCheckThumbnailCache.mockResolvedValue(true);
+
+      const res2 = await request(app).get(
+        '/video/thumbnail?file=/test.jpg&file=/ignore.jpg',
+      );
+      // expect 404 because file doesn't exist on disk during res.sendFile
+      expect(res2.status).toBe(404);
+    });
+
+    it('Static File Middleware normalizes Windows paths with leading slash', async () => {
+      const originalPlatform = process.platform;
+      Object.defineProperty(process, 'platform', { value: 'win32' });
+
+      const app = createMediaApp({ ffmpegPath: 'ffmpeg', cacheDir: '/cache' });
+
+      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+
+      await request(app).get('/C:/test.mp4');
+
+      expect(mockAuthorizeFilePath).toHaveBeenCalledWith('C:/test.mp4');
+
+      Object.defineProperty(process, 'platform', { value: originalPlatform });
+    });
+
+    it('handleStreamRequest skips sending error if headers already sent', async () => {
+      req.query = { file: '/test.mp4' };
+      res.headersSent = true;
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+
+      vi.mocked(createMediaSource).mockImplementationOnce(() => {
+        throw new Error('Immediate Fail');
+      });
+
+      await handleStreamRequest(req, res, 'ffmpeg');
+      expect(res.status).not.toHaveBeenCalled();
+      consoleSpy.mockRestore();
+    });
+
+    it('generateFileUrl returns error when auth is denied', async () => {
+      mockAuthorizeFilePath.mockResolvedValue({
+        isAllowed: false,
+        message: 'No touchy',
+      });
+      const result = await generateFileUrl('/secret', { serverPort: 3000 });
+      expect(result).toEqual({ type: 'error', message: 'No touchy' });
+    });
+
+    it('generateFileUrl returns error when serverPort is 0 but preferHttp is true', async () => {
+      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+      const mockProvider = {
+        getMetadata: vi.fn().mockResolvedValue({ size: 100 }),
+      };
+      vi.mocked(getProvider).mockReturnValue(mockProvider as any);
+
+      const result = await generateFileUrl('/file.mp4', {
+        serverPort: 0,
+        preferHttp: true,
+      });
+      expect(result).toEqual({
+        type: 'error',
+        message: 'Local server not ready to stream file.',
+      });
+    });
+
+    it('getVideoDuration returns error for Drive file when metadata fails', async () => {
+      const mockProvider = {
+        getMetadata: vi.fn().mockRejectedValue(new Error('Drive Fail')),
+      };
+      vi.mocked(getProvider).mockReturnValue(mockProvider as any);
+
+      const result = await getVideoDuration('gdrive://123', 'ffmpeg');
+      expect(result).toEqual({ error: 'Duration not available' });
     });
   });
 });
