@@ -251,15 +251,16 @@ describe('Palette Accessibility Improvements', () => {
   describe('SourcesModal.vue', () => {
     it('close button should have accessible label', () => {
       const wrapper = mount(SourcesModal);
-      const closeBtn = wrapper.find('.close-button');
+      const closeBtn = wrapper.find('button[aria-label="Close"]');
 
       expect(closeBtn.exists()).toBe(true);
       expect(closeBtn.attributes('aria-label')).toBe('Close');
     });
 
-    it('modal container should have accessible role and label', () => {
+    it('modal container should have accessible role and label', async () => {
       const wrapper = mount(SourcesModal);
-      const modalOverlay = wrapper.find('.modal-overlay');
+      await wrapper.vm.$nextTick();
+      const modalOverlay = wrapper.find('div[role="dialog"]');
 
       expect(modalOverlay.attributes('role')).toBe('dialog');
       expect(modalOverlay.attributes('aria-modal')).toBe('true');

@@ -874,4 +874,156 @@ describe('MediaDisplay.vue', () => {
       expect(wrapper.text()).toContain('Buffering...');
     });
   });
+
+  describe('Play/Pause Functionality', () => {
+    it('should toggle playback on click', async () => {
+      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      const play = vi.fn();
+      const pause = vi.fn();
+      const videoElement = {
+        paused: true,
+        play,
+        pause,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      } as any;
+      (wrapper.vm as any).videoElement = videoElement;
+
+      // Click video to play
+      await wrapper.find('video').trigger('click');
+      expect(play).toHaveBeenCalled();
+
+      // Simulate playing state
+      videoElement.paused = false;
+      await wrapper.find('video').trigger('click');
+      expect(pause).toHaveBeenCalled();
+    });
+
+    it('should show correct icon based on state', async () => {
+      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      // Initial state: not playing
+      expect((wrapper.vm as any).isPlaying).toBe(false);
+
+      // Simulate play
+      (wrapper.vm as any).isPlaying = true;
+      await wrapper.vm.$nextTick();
+
+      // Check button aria-label
+      const button = wrapper.find('.play-pause-button');
+      expect(button.attributes('aria-label')).toBe('Pause video');
+
+      // Simulate pause
+      (wrapper.vm as any).isPlaying = false;
+      await wrapper.vm.$nextTick();
+      expect(button.attributes('aria-label')).toBe('Play video');
+    });
+
+    it('should toggle playback when play/pause button is clicked', async () => {
+      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      const play = vi.fn();
+      const pause = vi.fn();
+      const videoElement = {
+        paused: true,
+        play,
+        pause,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      } as any;
+      (wrapper.vm as any).videoElement = videoElement;
+
+      const button = wrapper.find('.play-pause-button');
+      await button.trigger('click');
+
+      expect(play).toHaveBeenCalled();
+    });
+
+    it('should display pause overlay when paused and not controls hidden', async () => {
+      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      (wrapper.vm as any).isPlaying = false;
+      (wrapper.vm as any).isControlsVisible = true;
+      await wrapper.vm.$nextTick();
+
+      const play = vi.fn();
+      (wrapper.vm as any).videoElement = { paused: true, play, pause: vi.fn() };
+
+      // Find overlay by checking for PlayIcon container interaction
+      // The overlay div has @click="togglePlay"
+      const overlays = wrapper.findAll('div');
+      const overlayButton = overlays.filter(
+        (div) =>
+          div.classes().includes('bg-black/40') &&
+          div.classes().includes('backdrop-blur-sm'),
+      )[0];
+
+      expect(overlayButton.exists()).toBe(true);
+      await overlayButton.trigger('click');
+      expect(play).toHaveBeenCalled();
+    });
+
+    it('should toggle playback on spacebar press', async () => {
+      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      const videoWrapper = wrapper.find('video');
+      const videoEl = videoWrapper.element as HTMLVideoElement;
+
+      // HappyDOM might not implement play/pause on the prototype in all environments, or it might be flaky
+      if (!videoEl.play) {
+        (videoEl as any).play = () => Promise.resolve();
+      }
+      if (!videoEl.pause) {
+        (videoEl as any).pause = () => {};
+      }
+
+      // Mock play/pause on the existing element
+      const playSpy = vi
+        .spyOn(videoEl, 'play')
+        .mockImplementation(() => Promise.resolve());
+      const pauseSpy = vi.spyOn(videoEl, 'pause');
+
+      // Mock paused property
+      Object.defineProperty(videoEl, 'paused', {
+        get: () => true,
+        configurable: true,
+      });
+
+      // Verification
+      expect((wrapper.vm as any).videoElement).toBe(videoEl); // Should reference the element
+      expect(videoEl.paused).toBe(true);
+
+      // Simulate Space keydown on window
+      const event = new KeyboardEvent('keydown', { code: 'Space' });
+      const preventDefaultSpy = vi.spyOn(event, 'preventDefault');
+      window.dispatchEvent(event);
+
+      expect(playSpy).toHaveBeenCalled();
+      expect(preventDefaultSpy).toHaveBeenCalled();
+
+      // Simulate playing state
+      Object.defineProperty(videoEl, 'paused', {
+        get: () => false,
+        configurable: true,
+      });
+
+      const event2 = new KeyboardEvent('keydown', { code: 'Space' });
+      window.dispatchEvent(event2);
+      expect(pauseSpy).toHaveBeenCalled();
+
+      // cleanup
+      wrapper.unmount();
+    });
+  });
 });

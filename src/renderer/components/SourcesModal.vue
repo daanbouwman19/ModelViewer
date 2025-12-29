@@ -1,219 +1,373 @@
 <template>
-  <div
-    v-if="isSourcesModalVisible"
-    class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 modal-overlay"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="modal-title"
-    @click.self="closeModal"
+  <Transition
+    enter-active-class="transition duration-300 ease-out"
+    enter-from-class="opacity-0"
+    enter-to-class="opacity-100"
+    leave-active-class="transition duration-200 ease-in"
+    leave-from-class="opacity-100"
+    leave-to-class="opacity-0"
   >
     <div
-      class="bg-gray-800 rounded-lg shadow-2xl p-6 w-full max-w-2xl max-h-full overflow-y-auto modal-content"
+      v-if="isSourcesModalVisible"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+      @click.self="closeModal"
     >
-      <div class="flex justify-between items-center mb-4">
-        <h2 id="modal-title" class="text-2xl font-semibold">
-          Manage Media Sources
-        </h2>
+      <div
+        class="relative w-full max-w-2xl bg-gray-900/95 border border-white/10 rounded-2xl shadow-2xl backdrop-blur-xl ring-1 ring-white/5 overflow-hidden flex flex-col max-h-[85vh]"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+      >
+        <!-- Decorative top gradient -->
+        <div
+          class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 z-10"
+        ></div>
+
+        <!-- Header -->
+        <div
+          class="flex shrink-0 justify-between items-center p-6 border-b border-white/5"
+        >
+          <div>
+            <h2 id="modal-title" class="text-xl font-bold text-white">
+              Manage Media Sources
+            </h2>
+            <p class="text-sm text-gray-400 mt-0.5">
+              Configure where to look for media
+            </p>
+          </div>
+          <button
+            class="text-gray-500 hover:text-white transition-colors p-2 rounded-lg hover:bg-white/10"
+            aria-label="Close"
+            @click="closeModal"
+          >
+            <CloseIcon class="w-6 h-6" />
+          </button>
+        </div>
+
+        <!-- Scrollable Body -->
+        <div class="grow overflow-y-auto p-6">
+          <div class="space-y-4">
+            <h3
+              class="text-xs font-bold uppercase tracking-wider text-gray-500"
+            >
+              Configured Sources
+            </h3>
+
+            <div
+              v-if="mediaDirectories.length === 0"
+              class="p-8 text-center border-2 border-dashed border-white/10 rounded-xl"
+            >
+              <p class="text-gray-400">No media sources configured yet.</p>
+            </div>
+
+            <ul v-else class="space-y-2">
+              <li
+                v-for="(dir, index) in mediaDirectories"
+                :key="index"
+                class="group flex items-center justify-between p-3 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 rounded-xl transition-all"
+              >
+                <div class="flex items-center min-w-0 mr-4">
+                  <!-- Checkbox -->
+                  <div class="relative flex items-center mr-3">
+                    <input
+                      type="checkbox"
+                      :checked="dir.isActive"
+                      class="peer appearance-none w-5 h-5 border-2 border-gray-600 rounded checked:bg-indigo-500 checked:border-indigo-500 transition-colors cursor-pointer"
+                      :aria-label="'Toggle ' + (dir.name || dir.path)"
+                      @change="
+                        handleToggleActive(
+                          dir.path,
+                          ($event.target as HTMLInputElement).checked,
+                        )
+                      "
+                    />
+                    <svg
+                      class="absolute w-3.5 h-3.5 text-white pointer-events-none opacity-0 peer-checked:opacity-100 left-1 top-1 transition-opacity"
+                      viewBox="0 0 14 14"
+                      fill="none"
+                    >
+                      <path
+                        d="M3 7L6 10L11 4"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                  </div>
+
+                  <!-- Icon -->
+                  <span
+                    v-if="dir.type === 'google_drive'"
+                    class="mr-3 text-indigo-400 shrink-0"
+                    title="Google Drive"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="h-6 w-6"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path
+                        d="M5.5 16a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.977A4.5 4.5 0 1113.5 16h-8z"
+                      />
+                    </svg>
+                  </span>
+                  <span v-else class="mr-3 text-gray-400 shrink-0">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="h-6 w-6"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                      />
+                    </svg>
+                  </span>
+
+                  <div class="flex flex-col min-w-0">
+                    <span class="font-medium text-gray-200 truncate">{{
+                      dir.name || dir.path
+                    }}</span>
+                    <span class="text-xs text-gray-500 truncate font-mono">{{
+                      dir.path
+                    }}</span>
+                  </div>
+                </div>
+
+                <button
+                  class="px-3 py-1.5 text-xs font-semibold text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 remove-button"
+                  :aria-label="'Remove ' + dir.path"
+                  @click="handleRemove(dir.path)"
+                >
+                  REMOVE
+                </button>
+              </li>
+            </ul>
+
+            <!-- Add Actions Grid -->
+            <div class="grid grid-cols-2 gap-3 mt-6">
+              <button
+                class="flex items-center justify-center gap-2 p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 text-gray-300 hover:text-white transition-all group"
+                @click="handleAddDirectory"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-5 w-5 text-gray-500 group-hover:text-indigo-400 transition-colors"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
+                  />
+                </svg>
+                <span class="font-semibold text-sm">Add Local Folder</span>
+              </button>
+
+              <button
+                class="flex items-center justify-center gap-2 p-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/10 text-gray-300 hover:text-white transition-all group"
+                @click="showDriveAuth = true"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-5 w-5 text-gray-500 group-hover:text-indigo-400 transition-colors"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    d="M5.5 16a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.977A4.5 4.5 0 1113.5 16h-8z"
+                  />
+                </svg>
+                <span class="font-semibold text-sm">Add Google Drive</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer Action -->
+        <div class="shrink-0 p-6 border-t border-white/5 bg-black/20">
+          <button
+            class="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold tracking-wide shadow-lg shadow-indigo-900/20 active:scale-95 transition-all"
+            @click="closeModalAndReindex"
+          >
+            APPLY CHANGES & RE-INDEX
+          </button>
+        </div>
+      </div>
+    </div>
+  </Transition>
+
+  <!-- Google Drive Auth Modal -->
+  <Transition
+    enter-active-class="transition duration-200 ease-out"
+    enter-from-class="opacity-0 scale-95"
+    enter-to-class="opacity-100 scale-100"
+    leave-active-class="transition duration-150 ease-in"
+    leave-from-class="opacity-100 scale-100"
+    leave-to-class="opacity-0 scale-95"
+  >
+    <div
+      v-if="showDriveAuth"
+      class="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div
+        class="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl w-full max-w-lg p-6 relative"
+      >
         <button
-          class="text-gray-400 hover:text-white transition-colors close-button"
-          aria-label="Close"
-          @click="closeModal"
+          class="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
+          @click="cancelDriveAuth"
         >
           <CloseIcon class="w-6 h-6" />
         </button>
-      </div>
 
-      <div class="modal-body">
-        <div class="mb-4">
-          <ul class="space-y-1 mt-2 sources-list">
-            <li v-if="mediaDirectories.length === 0" class="text-gray-400">
-              No media sources configured.
-            </li>
-            <li
-              v-for="(dir, index) in mediaDirectories"
-              :key="index"
-              class="flex items-center justify-between p-1 source-item"
+        <h3 class="text-xl font-bold text-white mb-6">
+          Add Google Drive Source
+        </h3>
+
+        <div v-if="!driveAuthUrl" class="space-y-6">
+          <p class="text-gray-300 border-l-4 border-indigo-500 pl-4 py-1">
+            To access your Google Drive files, you need to authorize this
+            application via your browser.
+          </p>
+          <button
+            class="w-full py-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold transition-colors"
+            @click="startDriveAuth"
+          >
+            Start Authorization
+          </button>
+        </div>
+
+        <div v-else-if="!authSuccess" class="space-y-4">
+          <div class="space-y-2 text-sm text-gray-300">
+            <p>
+              <span class="font-bold text-indigo-400">Step 1:</span> Complete
+              login in the browser window.
+            </p>
+            <p>
+              <span class="font-bold text-indigo-400">Step 2:</span> Copy the
+              code provided by Google.
+            </p>
+            <p>
+              <span class="font-bold text-indigo-400">Step 3:</span> Paste the
+              code below.
+            </p>
+          </div>
+
+          <div class="space-y-2">
+            <label for="auth-code-input" class="sr-only"
+              >Authorization Code</label
             >
-              <div class="flex items-center flex-grow">
-                <span
-                  v-if="dir.type === 'google_drive'"
-                  class="mr-2 text-blue-400"
-                  title="Google Drive"
-                  role="img"
-                  aria-label="Google Drive Source"
-                >
-                  <!-- Simple Cloud/Drive Icon -->
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-5 w-5"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path
-                      d="M5.5 16a3.5 3.5 0 01-.369-6.98 4 4 0 117.753-1.977A4.5 4.5 0 1113.5 16h-8z"
-                    />
-                  </svg>
-                </span>
-                <input
-                  type="checkbox"
-                  :checked="dir.isActive"
-                  class="source-checkbox mr-2"
-                  :aria-label="'Toggle ' + (dir.name || dir.path)"
-                  @change="
-                    handleToggleActive(
-                      dir.path,
-                      ($event.target as HTMLInputElement).checked,
-                    )
-                  "
-                />
-                <div class="flex flex-col">
-                  <span class="source-name font-medium">{{
-                    dir.name || dir.path
-                  }}</span>
-                  <span class="source-path text-xs text-gray-400">{{
-                    dir.path
-                  }}</span>
-                </div>
-              </div>
+            <input
+              id="auth-code-input"
+              v-model="authCode"
+              type="text"
+              class="w-full bg-black/30 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+              placeholder="Paste authorization code here"
+            />
+            <p v-if="authError" class="text-red-400 text-sm">
+              {{ authError }}
+            </p>
+          </div>
+
+          <div class="flex gap-3 pt-2">
+            <button
+              class="flex-1 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-white transition-colors"
+              @click="cancelDriveAuth"
+            >
+              Cancel
+            </button>
+            <button
+              class="flex-[2] py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-colors disabled:opacity-50"
+              :disabled="!authCode || isAuthenticating"
+              @click="submitAuthCode"
+            >
+              {{ isAuthenticating ? 'Verifying...' : 'Submit Code' }}
+            </button>
+          </div>
+        </div>
+
+        <div v-else class="space-y-5">
+          <div
+            class="bg-green-500/10 border border-green-500/20 text-green-400 px-4 py-3 rounded-lg flex items-center gap-2"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-5 w-5"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                clip-rule="evenodd"
+              />
+            </svg>
+            Authentication successful!
+          </div>
+
+          <div>
+            <label
+              for="drive-folder-id"
+              class="block text-sm font-medium text-gray-400 mb-1"
+            >
+              Folder ID (leave empty for 'My Drive' root)
+            </label>
+            <div class="flex gap-2">
+              <input
+                id="drive-folder-id"
+                v-model="driveFolderId"
+                type="text"
+                class="grow bg-black/30 border border-gray-600 rounded-md px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+                placeholder="e.g. 1A2B3C... or 'root'"
+              />
               <button
-                class="ml-2 action-button remove-button"
-                :aria-label="'Remove ' + (dir.name || dir.path)"
-                @click="handleRemove(dir.path)"
+                class="px-4 bg-gray-700 hover:bg-gray-600 rounded-md text-white transition-colors"
+                @click="openDriveBrowser"
               >
-                Remove
+                Browse
               </button>
-            </li>
-          </ul>
-        </div>
+            </div>
+          </div>
 
-        <div class="flex gap-4 mt-4 modal-actions">
-          <button class="action-button" @click="handleAddDirectory">
-            Add Local Folder
-          </button>
-          <button
-            class="action-button bg-blue-600 hover:bg-blue-700"
-            @click="showDriveAuth = true"
-          >
-            Add Google Drive
-          </button>
-          <button class="action-button" @click="closeModalAndReindex">
-            Apply Changes & Re-index
-          </button>
+          <p v-if="addDriveError" class="text-red-400 text-sm">
+            {{ addDriveError }}
+          </p>
+
+          <div class="flex gap-3 pt-2">
+            <button
+              class="flex-1 py-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-white transition-colors"
+              @click="cancelDriveAuth"
+            >
+              Close
+            </button>
+            <button
+              class="flex-[2] py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-colors disabled:opacity-50"
+              :disabled="isAddingDrive"
+              @click="addDriveSource"
+            >
+              {{ isAddingDrive ? 'Adding...' : 'Add Folder' }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-
-  <!-- Google Drive Auth Modal -->
-  <div
-    v-if="showDriveAuth"
-    class="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center p-4 modal-overlay"
-    role="dialog"
-    aria-modal="true"
-  >
-    <div
-      class="bg-gray-800 rounded-lg shadow-2xl p-6 w-full max-w-lg modal-content"
-    >
-      <h3 class="text-xl font-semibold mb-4">Add Google Drive Source</h3>
-
-      <div v-if="!driveAuthUrl" class="space-y-4">
-        <p>
-          To access your Google Drive files, you need to authorize this
-          application.
-        </p>
-        <button class="action-button w-full" @click="startDriveAuth">
-          Start Authorization
-        </button>
-      </div>
-
-      <div v-else-if="!authSuccess" class="space-y-4">
-        <p>
-          1. A browser window should have opened. Please log in and allow
-          access.
-        </p>
-        <p>2. Copy the authorization code provided by Google.</p>
-        <label for="auth-code-input" class="block mb-1"
-          >3. Paste the code below:</label
-        >
-        <input
-          id="auth-code-input"
-          v-model="authCode"
-          type="text"
-          class="w-full p-2 bg-gray-700 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-          placeholder="Paste authorization code here"
-        />
-        <div class="flex gap-2">
-          <button
-            class="action-button"
-            :disabled="!authCode || isAuthenticating"
-            @click="submitAuthCode"
-          >
-            {{ isAuthenticating ? 'Verifying...' : 'Submit Code' }}
-          </button>
-          <button
-            class="action-button bg-red-600 hover:bg-red-700"
-            @click="cancelDriveAuth"
-          >
-            Cancel
-          </button>
-        </div>
-        <p v-if="authError" class="text-red-400 text-sm mt-2">
-          {{ authError }}
-        </p>
-      </div>
-
-      <div v-else class="space-y-4">
-        <p class="text-green-400">Authentication successful!</p>
-        <label for="drive-folder-id" class="block">
-          Enter the Folder ID you want to add (or leave empty for 'My Drive'
-          root):
-        </label>
-        <!--
-                Actually listing root can be huge.
-                For MVP, asking for a folder ID is safer, or 'root' for root.
-             -->
-        <div class="flex gap-2">
-          <input
-            id="drive-folder-id"
-            v-model="driveFolderId"
-            type="text"
-            class="flex-grow p-2 bg-gray-700 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
-            placeholder="Folder ID (e.g. 1A2B3C... or 'root')"
-          />
-          <button
-            class="action-button bg-gray-600 hover:bg-gray-500"
-            @click="openDriveBrowser"
-          >
-            Browse
-          </button>
-        </div>
-        <div class="flex gap-2">
-          <button
-            class="action-button"
-            :disabled="isAddingDrive"
-            @click="addDriveSource"
-          >
-            {{ isAddingDrive ? 'Adding...' : 'Add Folder' }}
-          </button>
-          <button
-            class="action-button bg-gray-600 hover:bg-gray-500"
-            @click="cancelDriveAuth"
-          >
-            Close
-          </button>
-        </div>
-        <p v-if="addDriveError" class="text-red-400 text-sm mt-2">
-          {{ addDriveError }}
-        </p>
-      </div>
-    </div>
-  </div>
+  </Transition>
 
   <!-- File Explorer Modal -->
   <div
     v-if="isFileExplorerOpen"
-    class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 modal-overlay"
+    class="fixed inset-0 z-[70] bg-black bg-opacity-75 flex items-center justify-center p-4 modal-overlay"
     role="dialog"
     aria-modal="true"
     @click.self="closeFileExplorer"
@@ -428,50 +582,3 @@ const closeModalAndReindex = () => {
   reindex();
 };
 </script>
-
-<style scoped>
-.modal-overlay {
-  z-index: 1000;
-}
-
-.modal-content {
-  background-color: var(--secondary-bg);
-  border: 1px solid var(--border-color);
-}
-
-.close-button {
-  cursor: pointer;
-  transition: color 0.2s ease;
-}
-
-.sources-list {
-  list-style: none;
-  padding: 0;
-}
-
-.source-item {
-  background-color: var(--primary-bg);
-  border-radius: 6px;
-  padding: 0.75rem;
-  margin-bottom: 0.5rem;
-}
-
-.source-checkbox {
-  cursor: pointer;
-}
-
-.source-path {
-  font-size: 0.9rem;
-  color: var(--text-color);
-}
-
-.remove-button {
-  padding: 0.4rem 0.8rem;
-  font-size: 0.75rem;
-}
-
-.modal-actions {
-  display: flex;
-  flex-wrap: wrap;
-}
-</style>

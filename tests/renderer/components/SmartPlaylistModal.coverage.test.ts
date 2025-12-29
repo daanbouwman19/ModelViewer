@@ -253,11 +253,11 @@ describe('SmartPlaylistModal Coverage', () => {
     await wrapper.find('input[type="range"]').setValue(4);
 
     const numberInputs = wrapper.findAll('input[type="number"]');
-    // 0: minDuration, 1: minViews, 2: maxViews, 3: minDaysSinceView
+    // 0: minDuration, 1: minDaysSinceView, 2: minViews, 3: maxViews
     await numberInputs[0].setValue(10);
-    await numberInputs[1].setValue(100);
-    await numberInputs[2].setValue(500);
-    await numberInputs[3].setValue(30);
+    await numberInputs[1].setValue(30);
+    await numberInputs[2].setValue(100);
+    await numberInputs[3].setValue(500);
 
     const btn = wrapper
       .findAll('button')

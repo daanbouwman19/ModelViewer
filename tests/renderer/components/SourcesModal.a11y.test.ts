@@ -69,7 +69,7 @@ describe('SourcesModal A11y', () => {
     (wrapper.vm as any).authSuccess = true;
     await flushPromises();
 
-    const folderIdInput = wrapper.find('input[placeholder*="Folder ID"]');
+    const folderIdInput = wrapper.find('input[id="drive-folder-id"]');
     expect(folderIdInput.exists()).toBe(true);
 
     const folderId = folderIdInput.attributes('id');
