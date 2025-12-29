@@ -39,9 +39,6 @@ export interface MediaHandlerOptions {
 /**
  * Handles video stream requests (raw or transcoded).
  */
-/**
- * Handles video stream requests (raw or transcoded).
- */
 export async function handleStreamRequest(
   req: Request,
   res: Response,
@@ -448,9 +445,6 @@ export async function serveStaticFile(
   }
 }
 
-/**
- * Creates a request handler function for media operations.
- */
 /**
  * Creates an Express application for media operations.
  */
