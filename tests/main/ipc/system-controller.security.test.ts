@@ -39,7 +39,10 @@ vi.mock('electron', () => ({
 }));
 
 vi.mock('fs/promises', () => ({
-  default: { access: vi.fn() },
+  default: {
+    access: vi.fn(),
+    realpath: vi.fn((p) => Promise.resolve(p)), // Mock realpath
+  },
 }));
 
 // Mock security module
@@ -66,7 +69,7 @@ describe('system-controller security', () => {
       const handler = getHandler(IPC_CHANNELS.ADD_MEDIA_DIRECTORY);
       const targetPath = '/sensitive/root';
 
-      (fs.access as Mock).mockResolvedValue(undefined);
+      (fs.realpath as Mock).mockResolvedValue(targetPath);
       (isSensitiveDirectory as Mock).mockReturnValue(true);
 
       const result = await handler({}, targetPath);
@@ -80,7 +83,7 @@ describe('system-controller security', () => {
       const handler = getHandler(IPC_CHANNELS.ADD_MEDIA_DIRECTORY);
       const targetPath = '/safe/path';
 
-      (fs.access as Mock).mockResolvedValue(undefined);
+      (fs.realpath as Mock).mockResolvedValue(targetPath);
       (isSensitiveDirectory as Mock).mockReturnValue(false);
 
       const result = await handler({}, targetPath);

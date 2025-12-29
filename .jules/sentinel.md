@@ -39,3 +39,9 @@
 **Vulnerability:** Authorized media directories could expose sensitive configuration or key files (e.g., `.env`, `.ssh`) if users accidentally add their home or project root directories.
 **Learning:** Standard path containment checks are insufficient for user-provided root directories that may contain mixed content.
 **Prevention:** Implemented a secondary check in `authorizeFilePath` to explicitly deny access to files residing in known sensitive subdirectories (e.g., `.git`, `.aws`), regardless of parent authorization.
+
+## 2024-05-24 - Symlink Bypass of Restricted Directories
+
+**Vulnerability:** The `addMediaDirectory` function (in both server and IPC) checked if a path was a sensitive system directory (e.g., `/`, `/etc`) using `isSensitiveDirectory`. However, this check was performed on the raw user input path. An attacker could bypass this by creating a symbolic link (e.g., `/tmp/link -> /`) and adding the symlink path. `isSensitiveDirectory` would see `/tmp/link` (safe), but the application would then index the root filesystem.
+**Learning:** Security checks that rely on path allow/blocklists must always operate on the *canonical* (resolved) path. User input can be manipulated via symlinks or relative path components to mask the true target.
+**Prevention:** Always resolve file paths using `fs.realpath` (or `fs.promises.realpath`) before performing security validations or adding them to the database. This ensures we validate the *actual* target directory. Updated both `src/server/server.ts` and `src/main/ipc/system-controller.ts` to resolve paths before use.

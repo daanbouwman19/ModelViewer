@@ -25,20 +25,23 @@ export function registerSystemHandlers() {
     async (_event: IpcMainInvokeEvent, targetPath?: string) => {
       if (targetPath) {
         try {
-          if (isSensitiveDirectory(targetPath)) {
+          // Resolve symlinks to prevent bypass of sensitive directory checks
+          let resolvedPath = targetPath;
+          try {
+            resolvedPath = await fs.realpath(targetPath);
+          } catch {
+            return null; // File likely doesn't exist
+          }
+
+          if (isSensitiveDirectory(resolvedPath)) {
             console.warn(
-              `[Security] Blocked attempt to add sensitive directory: ${targetPath}`,
+              `[Security] Blocked attempt to add sensitive directory: ${targetPath} (resolved to ${resolvedPath})`,
             );
             return null;
           }
 
-          try {
-            await fs.access(targetPath);
-          } catch {
-            return null;
-          }
-          await addMediaDirectory({ path: targetPath, type: 'local' });
-          return targetPath;
+          await addMediaDirectory({ path: resolvedPath, type: 'local' });
+          return resolvedPath;
         } catch (e) {
           console.error('Failed to add directory by path', e);
           return null;

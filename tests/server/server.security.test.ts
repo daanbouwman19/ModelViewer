@@ -27,6 +27,7 @@ vi.mock('fs/promises', () => ({
   default: {
     stat: vi.fn(),
     mkdir: vi.fn(),
+    realpath: vi.fn((p) => Promise.resolve(p)), // Mock realpath to return input by default
   },
 }));
 vi.mock('../../src/core/media-handler');

@@ -24,6 +24,7 @@ vi.mock('fs/promises', () => ({
   default: {
     stat: vi.fn(),
     mkdir: vi.fn(),
+    realpath: vi.fn((p) => Promise.resolve(p)), // Default to resolving path to itself
   },
 }));
 
@@ -172,7 +173,7 @@ describe('Server', () => {
   describe('POST /api/directories', () => {
     it('should add a directory', async () => {
       const dirPath = '/new/dir';
-      vi.mocked(fs.stat).mockResolvedValue({} as any);
+      vi.mocked(fs.realpath).mockResolvedValue(dirPath);
 
       const response = await request(app)
         .post('/api/directories')
@@ -190,7 +191,7 @@ describe('Server', () => {
     });
 
     it('should return 400 if directory does not exist', async () => {
-      vi.mocked(fs.stat).mockRejectedValue(new Error('Not found'));
+      vi.mocked(fs.realpath).mockRejectedValue(new Error('Not found'));
 
       const response = await request(app)
         .post('/api/directories')
@@ -202,7 +203,7 @@ describe('Server', () => {
 
     it('should handle errors', async () => {
       const dirPath = '/new/dir';
-      vi.mocked(fs.stat).mockResolvedValue({} as any);
+      vi.mocked(fs.realpath).mockResolvedValue(dirPath);
       vi.mocked(database.addMediaDirectory).mockRejectedValue(
         new Error('Db error'),
       );
