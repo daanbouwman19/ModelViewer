@@ -19,6 +19,10 @@ import { getVideoDuration } from './media-handler.ts';
 import type { Album, MediaMetadata } from './types.ts';
 import fs from 'fs/promises';
 import PQueue from 'p-queue';
+import {
+  METADATA_EXTRACTION_CONCURRENCY,
+  METADATA_BATCH_SIZE,
+} from './constants.ts';
 
 /**
  * Scans active media directories for albums, caches the result in the database,
@@ -237,12 +241,10 @@ export async function extractAndSaveMetadata(
   filePaths: string[],
   ffmpegPath: string,
 ): Promise<void> {
-  const METADATA_EXTRACTION_CONCURRENCY = 5;
   const queue = new PQueue({ concurrency: METADATA_EXTRACTION_CONCURRENCY });
 
   // Batching logic
   const pendingUpdates: ({ filePath: string } & MediaMetadata)[] = [];
-  const BATCH_SIZE = 50;
 
   const flush = async () => {
     if (pendingUpdates.length === 0) return;
@@ -283,7 +285,7 @@ export async function extractAndSaveMetadata(
         // Add to batch
         pendingUpdates.push({ filePath, ...metadata });
 
-        if (pendingUpdates.length >= BATCH_SIZE) {
+        if (pendingUpdates.length >= METADATA_BATCH_SIZE) {
           await flush();
         }
       } catch (error) {
@@ -293,7 +295,7 @@ export async function extractAndSaveMetadata(
         );
         // Add failure to batch
         pendingUpdates.push({ filePath, status: 'failed' });
-        if (pendingUpdates.length >= BATCH_SIZE) {
+        if (pendingUpdates.length >= METADATA_BATCH_SIZE) {
           await flush();
         }
       }

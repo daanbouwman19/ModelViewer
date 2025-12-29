@@ -159,6 +159,7 @@ import VlcIcon from './icons/VlcIcon.vue';
 import TranscodingStatus from './TranscodingStatus.vue';
 import MediaControls from './MediaControls.vue';
 import VideoPlayer from './VideoPlayer.vue';
+import { LEGACY_VIDEO_EXTENSIONS, MEDIA_FILTERS } from '../../core/constants';
 
 const {
   currentMediaItem,
@@ -184,7 +185,7 @@ const {
 /**
  * An array of available media filters.
  */
-const filters: ('All' | 'Images' | 'Videos')[] = ['All', 'Images', 'Videos'];
+const filters = MEDIA_FILTERS;
 
 /**
  * The URL of the media to be displayed (can be a Data URL or an HTTP URL).
@@ -426,9 +427,8 @@ const loadMediaUrl = async () => {
   const fileName = currentMediaItem.value.name
     ? currentMediaItem.value.name.toLowerCase()
     : '';
-  const legacyFormats = ['.mov', '.avi', '.wmv', '.mkv', '.flv'];
 
-  if (legacyFormats.some((ext) => fileName.endsWith(ext))) {
+  if (LEGACY_VIDEO_EXTENSIONS.some((ext) => fileName.endsWith(ext))) {
     console.log('Proactively transcoding legacy format:', fileName);
     await tryTranscoding(0, requestId);
 

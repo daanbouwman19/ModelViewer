@@ -10,6 +10,7 @@ vi.mock('fs/promises', () => ({
 }));
 vi.mock('../../src/core/constants', () => ({
   ALL_SUPPORTED_EXTENSIONS: ['.jpg', '.mp4'],
+  DISK_SCAN_CONCURRENCY: 10,
 }));
 
 describe('media-scanner coverage', () => {

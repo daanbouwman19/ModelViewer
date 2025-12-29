@@ -6,9 +6,7 @@ import {
   getGoogleRedirectUri,
 } from './google-secrets.ts';
 import { getSetting, saveSetting } from '../core/database.ts';
-
-const SCOPES = ['https://www.googleapis.com/auth/drive.readonly'];
-const GOOGLE_TOKENS_KEY = 'google_tokens';
+import { GOOGLE_DRIVE_SCOPES, GOOGLE_TOKENS_KEY } from '../core/constants.ts';
 
 let oauth2Client: OAuth2Client | null = null;
 
@@ -62,7 +60,7 @@ export function generateAuthUrl(): string {
   const client = getOAuth2Client();
   return client.generateAuthUrl({
     access_type: 'offline',
-    scope: SCOPES,
+    scope: GOOGLE_DRIVE_SCOPES,
     prompt: 'consent',
   });
 }
