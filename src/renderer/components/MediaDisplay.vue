@@ -409,6 +409,7 @@ const loadMediaUrl = async () => {
   isLoading.value = true;
 
   // Reset all state flags for the new item
+  mediaUrl.value = null;
   error.value = null;
   isVideoSupported.value = true;
   isTranscodingMode.value = false;
