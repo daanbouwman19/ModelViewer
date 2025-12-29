@@ -7,7 +7,6 @@ import http from 'http';
 import fs from 'fs';
 import fsPromises from 'fs/promises';
 import { spawn } from 'child_process';
-import rangeParser from 'range-parser';
 import { createInterface } from 'readline';
 import { createMediaSource } from './media-source.ts';
 
@@ -19,6 +18,7 @@ import {
   getTranscodeArgs,
   getThumbnailArgs,
   runFFmpeg,
+  parseHttpRange,
 } from './media-utils.ts';
 import { getProvider } from './fs-provider-factory.ts';
 import { authorizeFilePath } from './security.ts';
@@ -302,22 +302,9 @@ export async function serveRawStream(
   const mimeType = await source.getMimeType();
   const rangeHeader = req.headers.range;
 
-  let start = 0;
-  let end = totalSize - 1;
+  const { start, end, error } = parseHttpRange(totalSize, rangeHeader);
 
-  if (rangeHeader) {
-    const ranges = rangeParser(totalSize, rangeHeader);
-
-    if (Array.isArray(ranges) && ranges.length > 0) {
-      start = ranges[0].start;
-      end = ranges[0].end;
-    } else if (ranges === -1) {
-      res.writeHead(416, { 'Content-Range': `bytes */${totalSize}` });
-      return res.end('Requested range not satisfiable.');
-    }
-  }
-
-  if (start >= totalSize) {
+  if (error || start >= totalSize) {
     res.writeHead(416, { 'Content-Range': `bytes */${totalSize}` });
     return res.end('Requested range not satisfiable.');
   }
