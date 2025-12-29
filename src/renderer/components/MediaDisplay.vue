@@ -610,13 +610,12 @@ const loadMediaUrl = async () => {
 const togglePlay = () => {
   if (videoElement.value) {
     if (videoElement.value.paused) {
-      if (typeof videoElement.value.play === 'function') {
-        videoElement.value.play();
-      }
+      videoElement.value.play?.()?.catch((error) => {
+        // It's good practice to handle potential errors when calling play().
+        console.error('Error attempting to play video:', error);
+      });
     } else {
-      if (typeof videoElement.value.pause === 'function') {
-        videoElement.value.pause();
-      }
+      videoElement.value.pause?.();
     }
   }
 };

@@ -70,6 +70,7 @@
                   <!-- Checkbox -->
                   <div class="relative flex items-center mr-3">
                     <input
+                      :id="`source-checkbox-${index}`"
                       type="checkbox"
                       :checked="dir.isActive"
                       class="peer appearance-none w-5 h-5 border-2 border-gray-600 rounded checked:bg-indigo-500 checked:border-indigo-500 transition-colors cursor-pointer"
@@ -130,14 +131,17 @@
                     </svg>
                   </span>
 
-                  <div class="flex flex-col min-w-0">
+                  <label
+                    :for="`source-checkbox-${index}`"
+                    class="flex flex-col min-w-0 cursor-pointer"
+                  >
                     <span class="font-medium text-gray-200 truncate">{{
                       dir.name || dir.path
                     }}</span>
                     <span class="text-xs text-gray-500 truncate font-mono">{{
                       dir.path
                     }}</span>
-                  </div>
+                  </label>
                 </div>
 
                 <button
