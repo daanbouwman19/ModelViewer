@@ -174,11 +174,11 @@
     >
       <button
         :disabled="!canNavigate"
-        class="nav-button glass-button"
+        class="nav-button p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white transition-all duration-200 hover:bg-[var(--accent-color)]"
         aria-label="Previous media"
         @click="handlePrevious"
       >
-        ←
+        <ChevronLeftIcon class="w-6 h-6" />
       </button>
 
       <div class="media-info text-center flex-1 min-w-0 px-4">
@@ -227,11 +227,11 @@
 
       <button
         :disabled="!canNavigate"
-        class="nav-button glass-button"
+        class="nav-button p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white transition-all duration-200 hover:bg-[var(--accent-color)]"
         aria-label="Next media"
         @click="handleNext"
       >
-        →
+        <ChevronRightIcon class="w-6 h-6" />
       </button>
 
       <div
@@ -241,7 +241,7 @@
 
       <button
         v-if="!isImage && currentMediaItem"
-        class="vlc-button glass-button-icon"
+        class="vlc-button p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white transition-all duration-200 hover:bg-[var(--accent-color)]"
         title="Open in VLC"
         aria-label="Open in VLC"
         @click="openInVlc"
@@ -264,6 +264,8 @@ import { useSlideshow } from '../composables/useSlideshow';
 import { api } from '../api';
 import VlcIcon from './icons/VlcIcon.vue';
 import StarIcon from './icons/StarIcon.vue';
+import ChevronLeftIcon from './icons/ChevronLeftIcon.vue';
+import ChevronRightIcon from './icons/ChevronRightIcon.vue';
 
 const {
   currentMediaItem,
@@ -942,20 +944,6 @@ const handleMouseLeave = () => {
   accent-color: var(--accent-color);
   width: 1.1em;
   height: 1.1em;
-}
-
-.glass-button-icon {
-  padding: 0.5rem;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: white;
-  transition: all 0.2s;
-}
-
-.glass-button-icon:hover {
-  background: var(--accent-color);
 }
 
 .video-progress-bar-container {
