@@ -26,19 +26,32 @@ export function* traverseAlbumTree(roots: Album | Album[]): Generator<Album> {
   }
 }
 
+// Caches for expensive recursive operations
+// These rely on Album objects being immutable references (which they are in the store).
+// If an album is modified (e.g. children added), a new object should be created.
+const textureCountCache = new WeakMap<Album, number>();
+const albumIdsCache = new WeakMap<Album, string[]>();
+
 /**
  * Recursively counts the total number of textures in an album and all its children.
  * Optimized to use iterative traversal to avoid stack overflow.
+ * Uses a WeakMap cache to prevent re-traversal of the same album structure (O(1) on cache hit).
  * @param album - The album to count textures for.
  * @returns The total number of textures found in the album tree.
  */
 export const countTextures = (album: Album): number => {
+  if (textureCountCache.has(album)) {
+    return textureCountCache.get(album)!;
+  }
+
   let count = 0;
   for (const node of traverseAlbumTree(album)) {
     if (node.textures) {
       count += node.textures.length;
     }
   }
+
+  textureCountCache.set(album, count);
   return count;
 };
 
@@ -63,15 +76,24 @@ export const collectTexturesRecursive = (album: Album): MediaFile[] => {
  * Recursively gets all album IDs from a given album and its children.
  * This is useful for building a list of IDs or keys for tree traversal.
  * Optimized to use iterative traversal instead of recursion to avoid O(N^2) array copying.
+ * Uses a WeakMap cache to prevent re-traversal (O(1) on cache hit).
  * @param album - The album to start from.
  * @returns A flat list of album IDs.
  */
 export const getAlbumAndChildrenIds = (album: Album): string[] => {
+  if (albumIdsCache.has(album)) {
+    // Return a copy to prevent mutation of the cache
+    return [...albumIdsCache.get(album)!];
+  }
+
   const ids: string[] = [];
   for (const node of traverseAlbumTree(album)) {
     ids.push(node.id);
   }
-  return ids;
+
+  albumIdsCache.set(album, ids);
+  // Return a copy to match the behavior on cache hit (and just to be safe, though not strictly necessary if we never mutate the initial set)
+  return [...ids];
 };
 
 /**
