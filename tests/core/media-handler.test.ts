@@ -16,6 +16,7 @@ const {
   mockGetDriveStreamWithCache,
   mockFsReadFile,
   mockFsAccess,
+  mockGetProvider,
 } = vi.hoisted(() => ({
   mockSpawn: vi.fn(),
   mockGetDriveFileMetadata: vi.fn(),
@@ -29,6 +30,7 @@ const {
   mockGetDriveStreamWithCache: vi.fn(),
   mockFsReadFile: vi.fn(),
   mockFsAccess: vi.fn(),
+  mockGetProvider: vi.fn(),
 }));
 
 vi.mock('child_process', () => ({
@@ -122,6 +124,10 @@ vi.mock('../../src/core/media-utils', async (importOriginal) => {
 
 vi.mock('../../src/core/media-source', () => ({
   createMediaSource: vi.fn(),
+}));
+
+vi.mock('../../src/core/fs-provider-factory', () => ({
+  getProvider: mockGetProvider,
 }));
 
 // Mock IMediaSource
@@ -1034,6 +1040,16 @@ describe('media-handler unit tests', () => {
       });
     });
 
+    it('getVideoDuration returns error for Drive file when metadata fails', async () => {
+      const mockProvider = {
+        getMetadata: vi.fn().mockRejectedValue(new Error('Drive Fail')),
+      };
+      mockGetProvider.mockReturnValue(mockProvider as any);
+
+      const result = await getVideoDuration('gdrive://123', 'ffmpeg');
+      expect(result).toEqual({ error: 'Duration not available' });
+    });
+
     it('should return error for large local file if serverPort is 0', async () => {
       mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
       mockFsStat.mockResolvedValue({ size: 10 * 1024 * 1024 }); // > 1MB
@@ -1147,10 +1163,7 @@ describe('media-handler unit tests', () => {
 
     it('should handle win32 platform', async () => {
       Object.defineProperty(process, 'platform', { value: 'win32' });
-      // Mock fs.access to succeed for first path
-      // const fs = await import('fs/promises'); // REMOVED
-      // (fs.access as Mock).mockResolvedValue(undefined); // REMOVED
-      mockFsAccess.mockResolvedValue(undefined); // ADDED
+      mockFsAccess.mockResolvedValue(undefined);
 
       mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
       const mockChild = { unref: vi.fn(), on: vi.fn() };
@@ -1162,9 +1175,7 @@ describe('media-handler unit tests', () => {
 
     it('should handle darwin platform', async () => {
       Object.defineProperty(process, 'platform', { value: 'darwin' });
-      // const fs = await import('fs/promises'); // REMOVED
-      // (fs.access as Mock).mockResolvedValue(undefined); // REMOVED
-      mockFsAccess.mockResolvedValue(undefined); // ADDED
+      mockFsAccess.mockResolvedValue(undefined);
       mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
       const mockChild = { unref: vi.fn(), on: vi.fn() };
       mockSpawn.mockReturnValue(mockChild);
