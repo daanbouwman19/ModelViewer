@@ -46,20 +46,14 @@
     >
       <!-- State Handling: Mutually Exclusive Blocks -->
 
-      <!-- 1. Loading / Transcoding / Buffering Overlay (Independent of content) -->
-      <div
-        v-if="isLoading || isTranscodingLoading || isBuffering"
-        class="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-20 pointer-events-none"
-      >
-        <div
-          class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-accent mb-4"
-        ></div>
-        <p class="text-white font-semibold">
-          <template v-if="isTranscodingLoading">Transcoding...</template>
-          <template v-else-if="isBuffering">Buffering...</template>
-          <template v-else>Loading media...</template>
-        </p>
-      </div>
+      <!-- 1. Loading / Transcoding / Buffering Overlay -->
+      <TranscodingStatus
+        :is-loading="isLoading"
+        :is-transcoding-loading="isTranscodingLoading"
+        :is-buffering="isBuffering"
+        :transcoded-duration="transcodedDuration"
+        :current-transcode-start-time="currentTranscodeStartTime"
+      />
 
       <!-- 2. Placeholder (No Item & Not Loading) -->
       <p
@@ -111,178 +105,43 @@
           :alt="currentMediaItem.name"
           @error="handleMediaError"
         />
-        <video
+        <VideoPlayer
           v-if="currentMediaItem && mediaUrl && !isImage"
-          ref="videoElement"
+          ref="videoPlayerRef"
           :src="mediaUrl"
-          autoplay
-          @error="handleMediaError"
-          @ended="handleVideoEnded"
+          :is-transcoding-mode="isTranscodingMode"
+          :is-controls-visible="isControlsVisible"
+          :transcoded-duration="transcodedDuration"
+          :current-transcode-start-time="currentTranscodeStartTime"
+          :is-transcoding-loading="isTranscodingLoading"
+          :is-buffering="isBuffering"
           @play="handleVideoPlay"
-          @playing="handleVideoPlaying"
           @pause="handleVideoPause"
-          @timeupdate="handleVideoTimeUpdate"
-          @loadedmetadata="handleVideoLoadedMetadata"
-          @waiting="handleVideoWaiting"
-          @canplay="handleVideoCanPlay"
-          @progress="handleVideoProgress"
-          @click="togglePlay"
+          @ended="handleVideoEnded"
+          @error="handleMediaError"
+          @trigger-transcode="tryTranscoding"
+          @buffering="handleBuffering"
+          @playing="handleVideoPlaying"
+          @update:video-element="handleVideoElementUpdate"
         />
-        <!-- Pause Overlay -->
-        <div
-          v-if="
-            !isPlaying &&
-            currentMediaItem &&
-            !isImage &&
-            !isLoading &&
-            !isBuffering
-          "
-          class="absolute inset-0 flex items-center justify-center z-10 pointer-events-none"
-        >
-          <div
-            class="bg-black/40 p-4 rounded-full backdrop-blur-sm pointer-events-auto cursor-pointer hover:bg-[var(--accent-color)]/80 transition-colors"
-            @click="togglePlay"
-          >
-            <PlayIcon class="w-12 h-12 text-white" />
-          </div>
-        </div>
       </template>
-
-      <!-- Controls (always available if item exists) -->
-      <div
-        v-if="currentMediaItem && !isImage"
-        data-testid="video-progress-bar"
-        class="video-progress-bar-container cursor-pointer transition-transform-opacity duration-300 ease-in-out will-change-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500"
-        :class="{ 'translate-y-full opacity-0': !isControlsVisible }"
-        role="slider"
-        tabindex="0"
-        aria-label="Seek video"
-        aria-valuemin="0"
-        aria-valuemax="100"
-        :aria-valuenow="videoProgress"
-        @click="handleProgressBarClick"
-        @keydown="handleProgressBarKeydown"
-      >
-        <!-- Buffered Ranges -->
-        <div
-          v-for="(range, index) in bufferedRanges"
-          :key="index"
-          class="absolute h-full bg-white/30 rounded-full pointer-events-none transition-all duration-300"
-          :style="{
-            left: `${range.start}%`,
-            width: `${range.end - range.start}%`,
-          }"
-        ></div>
-        <div
-          class="video-progress-bar"
-          :style="{ width: `${videoProgress}%` }"
-        ></div>
-      </div>
-      <div
-        v-if="currentMediaItem && !isImage"
-        class="absolute right-2 bottom-3 text-xs text-white font-mono bg-black/60 px-2 py-1 rounded pointer-events-none z-20 transition-transform-opacity duration-500 ease-in-out will-change-transform"
-        :class="{ 'translate-y-20 opacity-0': !isControlsVisible }"
-      >
-        {{ formattedCurrentTime }} / {{ formattedDuration }}
-      </div>
     </div>
 
-    <div
-      class="floating-controls absolute bottom-4 md:bottom-8 left-1/2 transform -translate-x-1/2 flex justify-between items-center gap-4 md:gap-6 z-20 transition-transform-opacity duration-500 ease-in-out will-change-transform w-[90%] md:w-[600px]"
-      :class="{ 'translate-y-48 opacity-0': !isControlsVisible }"
-    >
-      <button
-        :disabled="!canNavigate"
-        class="nav-button p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white transition-all duration-200 hover:bg-[var(--accent-color)]"
-        aria-label="Previous media"
-        @click="handlePrevious"
-      >
-        <ChevronLeftIcon class="w-6 h-6" />
-      </button>
-
-      <div class="media-info text-center flex-1 min-w-0 px-4">
-        <p
-          class="text-lg font-bold drop-shadow-md text-white truncate"
-          :title="currentMediaItem ? currentMediaItem.name : ''"
-        >
-          {{ currentMediaItem ? currentMediaItem.name : 'Select an album' }}
-        </p>
-
-        <!-- Rating Controls -->
-        <div v-if="currentMediaItem" class="flex justify-center gap-1 my-1">
-          <button
-            v-for="star in 5"
-            :key="star"
-            class="focus:outline-none transition-transform hover:scale-110"
-            :aria-label="'Rate ' + star + ' star' + (star > 1 ? 's' : '')"
-            @click.stop="setRating(star)"
-          >
-            <StarIcon
-              class="w-5 h-5 transition-colors"
-              :class="
-                (currentMediaItem.rating || 0) >= star
-                  ? 'text-yellow-400 drop-shadow-md'
-                  : 'text-gray-500 hover:text-yellow-200'
-              "
-            />
-          </button>
-        </div>
-
-        <p
-          v-if="currentMediaItem"
-          class="text-xs text-gray-400 mb-1 drop-shadow-md"
-        >
-          Views: {{ currentMediaItem.viewCount || 0 }}
-          <span v-if="currentMediaItem.lastViewed">
-            • Last:
-            {{ new Date(currentMediaItem.lastViewed).toLocaleDateString() }}
-          </span>
-        </p>
-
-        <p v-if="currentMediaItem" class="text-xs text-gray-300 drop-shadow-md">
-          {{ countInfo }}
-        </p>
-      </div>
-
-      <button
-        :disabled="!canNavigate"
-        class="nav-button p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white transition-all duration-200 hover:bg-[var(--accent-color)]"
-        aria-label="Next media"
-        @click="handleNext"
-      >
-        <ChevronRightIcon class="w-6 h-6" />
-      </button>
-
-      <div
-        v-if="!isImage && currentMediaItem"
-        class="w-px h-8 bg-white/10 mx-2"
-      ></div>
-
-      <button
-        v-if="!isImage && currentMediaItem"
-        class="play-pause-button p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white transition-all duration-200 hover:bg-[var(--accent-color)]"
-        :aria-label="isPlaying ? 'Pause video' : 'Play video'"
-        @click="togglePlay"
-      >
-        <PauseIcon v-if="isPlaying" class="w-6 h-6" />
-        <PlayIcon v-else class="w-6 h-6" />
-      </button>
-
-      <div
-        v-if="!isImage && currentMediaItem"
-        class="w-px h-8 bg-white/10 mx-2"
-      ></div>
-
-      <button
-        v-if="!isImage && currentMediaItem"
-        class="vlc-button p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white transition-all duration-200 hover:bg-[var(--accent-color)]"
-        title="Open in VLC"
-        aria-label="Open in VLC"
-        @click="openInVlc"
-      >
-        <VlcIcon />
-      </button>
-    </div>
+    <!-- Media Controls -->
+    <MediaControls
+      class="floating-controls"
+      :current-media-item="currentMediaItem"
+      :is-playing="isPlaying"
+      :can-navigate="canNavigate"
+      :is-controls-visible="isControlsVisible"
+      :is-image="isImage"
+      :count-info="countInfo"
+      @previous="handlePrevious"
+      @next="handleNext"
+      @toggle-play="togglePlay"
+      @open-in-vlc="openInVlc"
+      @set-rating="setRating"
+    />
   </div>
 </template>
 
@@ -297,11 +156,9 @@ import { useAppState } from '../composables/useAppState';
 import { useSlideshow } from '../composables/useSlideshow';
 import { api } from '../api';
 import VlcIcon from './icons/VlcIcon.vue';
-import StarIcon from './icons/StarIcon.vue';
-import ChevronLeftIcon from './icons/ChevronLeftIcon.vue';
-import ChevronRightIcon from './icons/ChevronRightIcon.vue';
-import PlayIcon from './icons/PlayIcon.vue';
-import PauseIcon from './icons/PauseIcon.vue';
+import TranscodingStatus from './TranscodingStatus.vue';
+import MediaControls from './MediaControls.vue';
+import VideoPlayer from './VideoPlayer.vue';
 
 const {
   currentMediaItem,
@@ -345,26 +202,28 @@ const isLoading = ref(false);
 const error = ref<string | null>(null);
 
 /**
- * The current progress of video playback (0-100).
- */
-const videoProgress = ref(0);
-
-/**
  * Reference to the video element.
  */
 const videoElement = ref<HTMLVideoElement | null>(null);
+const videoPlayerRef = ref<InstanceType<typeof VideoPlayer> | null>(null);
+
 const isVideoSupported = ref(true);
 const isTranscodingMode = ref(false);
 const isTranscodingLoading = ref(false);
 const isBuffering = ref(false);
-const bufferedRanges = ref<{ start: number; end: number }[]>([]);
 const transcodedDuration = ref(0);
 const currentTranscodeStartTime = ref(0);
-const currentVideoTime = ref(0);
-const currentVideoDuration = ref(0);
 
 const isControlsVisible = ref(true);
 const isPlaying = ref(false);
+const currentVideoTime = computed({
+  get: () => videoPlayerRef.value?.currentVideoTime ?? 0,
+  set: (val) => {
+    if (videoPlayerRef.value) {
+      videoPlayerRef.value.currentVideoTime = val;
+    }
+  },
+});
 let controlsTimeout: NodeJS.Timeout | null = null;
 const videoStreamUrlGenerator = ref<
   ((filePath: string, startTime?: number) => string) | null
@@ -550,17 +409,17 @@ const loadMediaUrl = async () => {
   isTranscodingMode.value = false;
   isTranscodingLoading.value = false;
   isBuffering.value = false;
-  bufferedRanges.value = [];
   transcodedDuration.value = 0;
   currentTranscodeStartTime.value = 0;
-  currentVideoTime.value = 0;
-  currentVideoDuration.value = 0;
 
   // Cleanup previous video stream explicitly to prevent pending requests
-  if (videoElement.value) {
+  if (videoPlayerRef.value) {
+    videoPlayerRef.value.reset();
+  } else if (videoElement.value) {
+    // Fallback if ref is not ready but element is lingering
     videoElement.value.pause();
-    videoElement.value.removeAttribute('src'); // Remove src attribute directly
-    videoElement.value.load(); // Force browser to cancel pending download
+    videoElement.value.removeAttribute('src');
+    videoElement.value.load();
   }
 
   // Proactively transcode formats that often fail in browsers or have poor performance (e.g. MOOV at end)
@@ -608,15 +467,8 @@ const loadMediaUrl = async () => {
  * Toggles video playback.
  */
 const togglePlay = () => {
-  if (videoElement.value) {
-    if (videoElement.value.paused) {
-      videoElement.value.play?.()?.catch((error) => {
-        // It's good practice to handle potential errors when calling play().
-        console.error('Error attempting to play video:', error);
-      });
-    } else {
-      videoElement.value.pause?.();
-    }
+  if (videoPlayerRef.value) {
+    videoPlayerRef.value.togglePlay();
   }
 };
 
@@ -705,6 +557,9 @@ watch(
 );
 
 // Sync video element with global state for ambient background
+const handleVideoElementUpdate = (el: HTMLVideoElement | null) => {
+  videoElement.value = el;
+};
 watch(videoElement, (el) => {
   mainVideoElement.value = el;
 });
@@ -739,114 +594,6 @@ const handleVideoPause = () => {
 };
 
 /**
- * Updates the video progress bar based on the video's current time and duration.
- */
-const handleVideoTimeUpdate = (event: Event) => {
-  const target = event.target as HTMLVideoElement;
-  const { currentTime, duration } = target;
-
-  if (isTranscodingMode.value && transcodedDuration.value > 0) {
-    const realCurrentTime = currentTranscodeStartTime.value + currentTime;
-    videoProgress.value = (realCurrentTime / transcodedDuration.value) * 100;
-    currentVideoTime.value = realCurrentTime;
-    currentVideoDuration.value = transcodedDuration.value;
-  } else if (duration > 0 && duration !== Infinity) {
-    videoProgress.value = (currentTime / duration) * 100;
-    currentVideoTime.value = currentTime;
-    currentVideoDuration.value = duration;
-  } else {
-    videoProgress.value = 0;
-    currentVideoTime.value = 0;
-    currentVideoDuration.value = 0;
-  }
-};
-
-/**
- * Formats a time in seconds to HH:MM:SS or MM:SS string.
- */
-const formatTime = (seconds: number) => {
-  if (!seconds || isNaN(seconds)) return '00:00';
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-
-  if (h > 0) {
-    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  }
-  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-};
-
-const formattedCurrentTime = computed(() => formatTime(currentVideoTime.value));
-const formattedDuration = computed(() =>
-  formatTime(currentVideoDuration.value),
-);
-
-/**
- * Handles clicks on the video progress bar to seek.
- */
-const handleProgressBarClick = (event: MouseEvent) => {
-  if (!currentMediaItem.value) return;
-
-  const container = event.currentTarget as HTMLElement;
-  const rect = container.getBoundingClientRect();
-  const clickX = event.clientX - rect.left;
-  const percentage = clickX / rect.width;
-
-  if (isTranscodingMode.value) {
-    if (transcodedDuration.value > 0) {
-      const seekTime = percentage * transcodedDuration.value;
-      tryTranscoding(seekTime);
-    }
-  } else if (videoElement.value && videoElement.value.duration) {
-    videoElement.value.currentTime = percentage * videoElement.value.duration;
-  }
-};
-
-/**
- * Handles keyboard navigation on the progress bar.
- */
-const handleProgressBarKeydown = (event: KeyboardEvent) => {
-  if (!currentMediaItem.value) return;
-
-  const step = 5; // 5 seconds
-  if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-    event.preventDefault();
-    const direction = event.key === 'ArrowRight' ? 1 : -1;
-
-    if (isTranscodingMode.value) {
-      if (transcodedDuration.value > 0) {
-        const newTime = currentVideoTime.value + step * direction;
-        const seekTime = Math.max(
-          0,
-          Math.min(newTime, transcodedDuration.value),
-        );
-        tryTranscoding(seekTime);
-      }
-    } else if (videoElement.value && videoElement.value.duration) {
-      const newTime = videoElement.value.currentTime + step * direction;
-      videoElement.value.currentTime = Math.max(
-        0,
-        Math.min(newTime, videoElement.value.duration),
-      );
-    }
-  }
-};
-
-/**
- * Handles the loadedmetadata event for the video element.
- */
-const handleVideoLoadedMetadata = (event: Event) => {
-  const video = event.target as HTMLVideoElement;
-  if (
-    (video.videoWidth === 0 || video.videoHeight === 0) &&
-    !isTranscodingMode.value
-  ) {
-    isVideoSupported.value = false;
-    tryTranscoding(0);
-  }
-};
-
-/**
  * Handles the playing event to clear the loading state.
  */
 const handleVideoPlaying = () => {
@@ -854,27 +601,14 @@ const handleVideoPlaying = () => {
   isBuffering.value = false;
 };
 
-const handleVideoWaiting = () => {
-  if (!isTranscodingLoading.value) {
-    isBuffering.value = true;
+const handleBuffering = (buffering: boolean) => {
+  if (buffering) {
+    if (!isTranscodingLoading.value) {
+      isBuffering.value = true;
+    }
+  } else {
+    isBuffering.value = false;
   }
-};
-
-const handleVideoCanPlay = () => {
-  isBuffering.value = false;
-};
-
-const handleVideoProgress = (event: Event) => {
-  const video = event.target as HTMLVideoElement;
-  if (!video.duration) return;
-
-  const ranges = [];
-  for (let i = 0; i < video.buffered.length; i++) {
-    const start = (video.buffered.start(i) / video.duration) * 100;
-    const end = (video.buffered.end(i) / video.duration) * 100;
-    ranges.push({ start, end });
-  }
-  bufferedRanges.value = ranges;
 };
 
 /**
@@ -900,6 +634,7 @@ const handleMouseMove = () => {
   isControlsVisible.value = true;
   if (controlsTimeout) clearTimeout(controlsTimeout);
   controlsTimeout = setTimeout(() => {
+    // Only hide if video is playing (not paused)
     if (!videoElement.value?.paused) {
       isControlsVisible.value = false;
     }
@@ -914,6 +649,18 @@ const handleMouseLeave = () => {
     isControlsVisible.value = false;
   }
 };
+defineExpose({
+  isTranscodingMode,
+  isTranscodingLoading,
+  transcodedDuration,
+  currentVideoTime,
+  currentTranscodeStartTime,
+  isBuffering,
+  videoElement,
+  videoStreamUrlGenerator,
+  tryTranscoding,
+  togglePlay,
+});
 </script>
 
 <style scoped>
@@ -945,39 +692,6 @@ const handleMouseLeave = () => {
 
 .glass-button:hover {
   background: rgba(255, 255, 255, 0.2);
-}
-
-.floating-controls {
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(16px);
-  padding: 0.75rem 1.5rem;
-  border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  transition:
-    opacity 0.3s ease,
-    transform 0.3s ease;
-}
-
-.floating-controls:hover {
-  background: rgba(0, 0, 0, 0.8);
-}
-
-.vlc-button {
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-color);
-  padding: 4px;
-  border-radius: 4px;
-  transition: background-color 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.vlc-button:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: #ff9800;
 }
 
 .glass-toggle {
@@ -1012,24 +726,6 @@ const handleMouseLeave = () => {
   accent-color: var(--accent-color);
   width: 1.1em;
   height: 1.1em;
-}
-
-.video-progress-bar-container {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 8px;
-  background-color: rgba(0, 0, 0, 0.3);
-  border-bottom-left-radius: 8px;
-  border-bottom-right-radius: 8px;
-  overflow: hidden;
-}
-
-.video-progress-bar {
-  height: 100%;
-  background-color: var(--accent-color);
-  transition: width 0.1s linear;
 }
 
 .transition-transform-opacity {

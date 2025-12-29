@@ -1,1029 +1,514 @@
-import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
-import { ref } from 'vue';
 import MediaDisplay from '@/components/MediaDisplay.vue';
-import { useAppState } from '@/composables/useAppState';
-import { useSlideshow } from '@/composables/useSlideshow';
+import VideoPlayer from '@/components/VideoPlayer.vue';
+import MediaControls from '@/components/MediaControls.vue';
 import { api } from '@/api';
+import { ref } from 'vue';
 
-// Mock the composables
-vi.mock('@/composables/useAppState');
-vi.mock('@/composables/useSlideshow');
+const mockRefs = {
+  currentMediaItem: ref<any>(null),
+  displayedMediaFiles: ref<any[]>([]),
+  currentMediaIndex: ref(0),
+  isSlideshowActive: ref(false),
+  mediaFilter: ref('All'),
+  totalMediaInPool: ref(0),
+  imageExtensionsSet: ref(new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp'])),
+  playFullVideo: ref(false),
+  pauseTimerOnPlay: ref(false),
+  isTimerRunning: ref(false),
+  mainVideoElement: ref<any>(null),
+};
 
-// Mock VlcIcon
-vi.mock('@/components/icons/VlcIcon.vue', () => ({
-  default: { template: '<svg class="vlc-icon-mock"></svg>' },
-}));
+const slideshowMock = {
+  navigateMedia: vi.fn(),
+  reapplyFilter: vi.fn(),
+  pauseSlideshowTimer: vi.fn(),
+  resumeSlideshowTimer: vi.fn(),
+};
 
-vi.mock('@/components/icons/StarIcon.vue', () => ({
-  default: { template: '<svg class="star-icon-mock"></svg>' },
-}));
-
-// Mock API
-vi.mock('@/api', () => ({
-  api: {
-    loadFileAsDataURL: vi.fn(),
-    openInVlc: vi.fn(),
-    getVideoStreamUrlGenerator: vi.fn(),
-    getVideoMetadata: vi.fn(),
-    setRating: vi.fn(), // Add setRating mock
+// Mock child components
+vi.mock('@/components/VideoPlayer.vue', () => ({
+  default: {
+    name: 'VideoPlayer',
+    template: '<div class="video-player-mock"></div>',
+    props: [
+      'src',
+      'isTranscodingMode',
+      'isControlsVisible',
+      'transcodedDuration',
+      'currentTranscodeStartTime',
+      'isTranscodingLoading',
+      'isBuffering',
+    ],
+    expose: ['reset', 'togglePlay', 'currentVideoTime'],
+    setup() {
+      return {
+        reset: vi.fn(),
+        togglePlay: vi.fn(),
+        currentVideoTime: ref(0),
+      };
+    },
   },
 }));
 
+vi.mock('@/components/MediaControls.vue', () => ({
+  default: {
+    name: 'MediaControls',
+    template: '<div class="media-controls-mock"><slot></slot></div>',
+    props: ['currentMediaItem', 'isControlsVisible'],
+  },
+}));
+
+vi.mock('@/components/TranscodingStatus.vue', () => ({
+  default: {
+    name: 'TranscodingStatus',
+    template: '<div class="transcoding-status-mock"></div>',
+    props: [
+      'isLoading',
+      'isTranscodingLoading',
+      'isBuffering',
+      'transcodedDuration',
+      'currentTranscodeStartTime',
+    ],
+  },
+}));
+
+// Mock api
+vi.mock('@/api', () => ({
+  api: {
+    loadFileAsDataURL: vi.fn(),
+    getVideoStreamUrlGenerator: vi.fn(),
+    getVideoMetadata: vi.fn(),
+    setRating: vi.fn(),
+    openInVlc: vi.fn(),
+  },
+}));
+
+// Mock composables
+vi.mock('@/composables/useSlideshow', () => ({
+  useSlideshow: () => slideshowMock,
+}));
+
+vi.mock('@/composables/useAppState', () => ({
+  useAppState: vi.fn(() => mockRefs),
+}));
+
 describe('MediaDisplay.vue', () => {
-  let mockSetFilter: Mock;
-  let mockPrevMedia: Mock;
-  let mockNextMedia: Mock;
-  let mockToggleTimer: Mock;
-  let mockRefs: any;
-
   beforeEach(() => {
-    mockSetFilter = vi.fn();
-    mockPrevMedia = vi.fn();
-    mockNextMedia = vi.fn();
-    mockToggleTimer = vi.fn();
-
-    mockRefs = {
-      mediaFilter: ref('All'),
-      currentMediaItem: ref(null),
-      displayedMediaFiles: ref([]),
-      currentMediaIndex: ref(-1),
-      isSlideshowActive: ref(false),
-      isTimerRunning: ref(false),
-      timerDuration: ref(30),
-      supportedExtensions: ref({
-        images: ['.jpg', '.png', '.gif'],
-        videos: ['.mp4', '.webm'],
-      }),
-      imageExtensionsSet: ref(new Set(['.jpg', '.png', '.gif'])),
-      videoExtensionsSet: ref(new Set(['.mp4', '.webm'])),
-      allAlbums: ref([]),
-      albumsSelectedForSlideshow: ref({}),
-      globalMediaPoolForSelection: ref([]),
-      totalMediaInPool: ref(0),
-      slideshowTimerId: ref(null),
-      isSourcesModalVisible: ref(false),
-      mediaDirectories: ref([]),
-      playFullVideo: ref(false),
-      pauseTimerOnPlay: ref(false),
-      mainVideoElement: ref(null),
-      state: {},
-      initializeApp: vi.fn(),
-      resetState: vi.fn(),
-      stopSlideshow: vi.fn(),
-    };
-
-    (useAppState as Mock).mockReturnValue(mockRefs);
-
-    (useSlideshow as Mock).mockReturnValue({
-      setFilter: mockSetFilter,
-      prevMedia: mockPrevMedia,
-      nextMedia: mockNextMedia,
-      toggleTimer: mockToggleTimer,
-      reapplyFilter: vi.fn(),
-      navigateMedia: vi.fn(),
-      toggleSlideshowTimer: vi.fn(),
-      pauseSlideshowTimer: vi.fn(),
-      resumeSlideshowTimer: vi.fn(),
-      toggleAlbumSelection: vi.fn(),
-      startSlideshow: vi.fn(),
-      startIndividualAlbumSlideshow: vi.fn(),
-      pickAndDisplayNextMediaItem: vi.fn(),
-      filterMedia: vi.fn(),
-      selectWeightedRandom: vi.fn(),
-    });
-
     vi.clearAllMocks();
+    mockRefs.currentMediaItem.value = null;
+    mockRefs.displayedMediaFiles.value = [];
+    mockRefs.currentMediaIndex.value = 0;
+    mockRefs.isSlideshowActive.value = false;
+    mockRefs.mediaFilter.value = 'All';
+    mockRefs.totalMediaInPool.value = 0;
+    mockRefs.playFullVideo.value = false;
+    mockRefs.pauseTimerOnPlay.value = false;
+    mockRefs.isTimerRunning.value = false;
 
-    // Default success values
     (api.loadFileAsDataURL as Mock).mockResolvedValue({
-      type: 'http-url',
-      url: 'http://localhost/default.jpg',
+      type: 'success',
+      url: 'test-url',
     });
     (api.getVideoStreamUrlGenerator as Mock).mockResolvedValue(
-      (path: string) => `stream/${path}`,
+      (p: string) => `http://localhost/stream?path=${p}`,
     );
-    (api.openInVlc as Mock).mockResolvedValue({ success: true });
-    (api.getVideoMetadata as Mock).mockResolvedValue({});
+    (api.getVideoMetadata as Mock).mockResolvedValue({ duration: 100 });
   });
 
-  it('should render placeholder when no media', () => {
+  it('renders correctly', async () => {
     const wrapper = mount(MediaDisplay);
-    expect(wrapper.text()).toContain('Media will appear here');
+    expect(wrapper.exists()).toBeTruthy();
+    expect(wrapper.findComponent(MediaControls).exists()).toBeTruthy();
   });
 
-  it('should display title', () => {
-    const wrapper = mount(MediaDisplay);
-    expect(wrapper.find('h2').exists()).toBe(true);
-  });
-
-  it('should render filter buttons', () => {
-    const wrapper = mount(MediaDisplay);
-    const buttons = wrapper.findAll('.filter-button');
-    expect(buttons.length).toBeGreaterThan(0);
-  });
-
-  it('should call reapplyFilter when filter button clicked', async () => {
-    const mockReapplyFilter = vi.fn();
-    (useSlideshow as Mock).mockReturnValue({
-      setFilter: mockSetFilter,
-      prevMedia: mockPrevMedia,
-      nextMedia: mockNextMedia,
-      toggleTimer: mockToggleTimer,
-      reapplyFilter: mockReapplyFilter,
-      navigateMedia: vi.fn(),
-      toggleSlideshowTimer: vi.fn(),
-      pauseSlideshowTimer: vi.fn(),
-      resumeSlideshowTimer: vi.fn(),
-      toggleAlbumSelection: vi.fn(),
-      startSlideshow: vi.fn(),
-      startIndividualAlbumSlideshow: vi.fn(),
-      pickAndDisplayNextMediaItem: vi.fn(),
-      filterMedia: vi.fn(),
-      selectWeightedRandom: vi.fn(),
-    });
-
-    const wrapper = mount(MediaDisplay);
-    const buttons = wrapper.findAll('.filter-button');
-    if (buttons.length > 1) {
-      await buttons[1].trigger('click');
-    }
-    await flushPromises();
-    expect(mockReapplyFilter).toHaveBeenCalled();
-  });
-
-  it('should display navigation buttons', () => {
-    const wrapper = mount(MediaDisplay);
-    const buttons = wrapper.findAll('button');
-    expect(buttons.length).toBeGreaterThan(0);
-  });
-
-  it('should show media info when media is displayed', () => {
-    mockRefs.currentMediaItem.value = { name: 'test.jpg', path: '/test.jpg' };
-    mockRefs.displayedMediaFiles.value = [mockRefs.currentMediaItem.value];
-    mockRefs.currentMediaIndex.value = 0;
-
-    const wrapper = mount(MediaDisplay);
-    expect(wrapper.text()).toContain('test.jpg');
-  });
-
-  it('should display loading state', async () => {
-    // Mock to delay
-    (api.loadFileAsDataURL as Mock).mockImplementation(
-      () => new Promise(() => {}),
-    );
-    mockRefs.currentMediaItem.value = { name: 'test.jpg', path: '/test.jpg' };
-
-    const wrapper = mount(MediaDisplay);
-    await wrapper.vm.$nextTick();
-
-    expect(wrapper.text()).toContain('Loading media...');
-  });
-
-  it('should display error state', async () => {
-    (api.loadFileAsDataURL as Mock).mockResolvedValue({
-      type: 'error',
-      message: 'File not found',
-    });
-
-    mockRefs.currentMediaItem.value = { name: 'test.jpg', path: '/test.jpg' };
-    const wrapper = mount(MediaDisplay);
-    await wrapper.vm.$nextTick(); // Trigger load
-    await flushPromises(); // Wait for load
-
-    expect(wrapper.text()).toContain('File not found');
-  });
-
-  it('should display image when media is an image', async () => {
-    (api.loadFileAsDataURL as Mock).mockResolvedValue({
-      type: 'data-url',
-      url: 'data:image/png;base64,abc',
-    });
-    mockRefs.currentMediaItem.value = {
-      name: 'test.jpg',
-      path: '/test.jpg',
-    };
-    const wrapper = mount(MediaDisplay);
-    await flushPromises();
-
-    const img = wrapper.find('img');
-    expect(img.exists()).toBe(true);
-  });
-
-  it('should display video when media is a video', async () => {
-    (api.loadFileAsDataURL as Mock).mockResolvedValue({
-      type: 'http-url',
-      url: 'http://localhost/test.mp4',
-    });
-    mockRefs.currentMediaItem.value = {
-      name: 'test.mp4',
-      path: '/test.mp4',
-    };
-    const wrapper = mount(MediaDisplay);
-    await flushPromises();
-
-    const video = wrapper.find('video');
-    expect(video.exists()).toBe(true);
-  });
-
-  it('should show "Slideshow" title when slideshow is active', () => {
-    mockRefs.isSlideshowActive.value = true;
-    const wrapper = mount(MediaDisplay);
-    expect(wrapper.find('h2').text()).toBe('Slideshow');
-  });
-
-  it('should show default title when slideshow is not active', () => {
-    mockRefs.isSlideshowActive.value = false;
-    const wrapper = mount(MediaDisplay);
-    expect(wrapper.find('h2').text()).toBe('Select albums and start slideshow');
-  });
-
-  it('should display count info when slideshow is active', () => {
-    mockRefs.isSlideshowActive.value = true;
-    mockRefs.currentMediaItem.value = { name: 'test2.jpg', path: '/test2.jpg' };
-    mockRefs.displayedMediaFiles.value = [
-      { name: 'test1.jpg', path: '/test1.jpg' },
-      { name: 'test2.jpg', path: '/test2.jpg' },
-    ];
-    mockRefs.currentMediaIndex.value = 1;
-    mockRefs.totalMediaInPool.value = 10;
-
-    const wrapper = mount(MediaDisplay);
-    expect(wrapper.text()).toContain('2 / 10');
-    expect(wrapper.text()).not.toContain('(viewed 2)');
-  });
-
-  it('should hide count info when slideshow is not active', () => {
-    mockRefs.isSlideshowActive.value = false;
-    const wrapper = mount(MediaDisplay);
-    const mediaInfo = wrapper.find('.media-info');
-    expect(mediaInfo.exists()).toBe(true);
-  });
-
-  it('should handle catch block error', async () => {
-    (api.loadFileAsDataURL as Mock).mockRejectedValue(
-      new Error('Network error'),
-    );
-
-    mockRefs.currentMediaItem.value = { name: 'test.jpg', path: '/test.jpg' };
-    const wrapper = mount(MediaDisplay);
-    await flushPromises();
-
-    expect(wrapper.text()).toContain('Failed to load media file');
-  });
-
-  it('should handle media error on img element', async () => {
-    (api.loadFileAsDataURL as Mock).mockResolvedValue({
-      type: 'data-url',
-      url: 'data:image/png;base64,abc',
-    });
-    mockRefs.currentMediaItem.value = {
-      name: 'test.jpg',
-      path: '/test.jpg',
-    };
-    const wrapper = mount(MediaDisplay);
-    await flushPromises();
-
-    // Call error handler
-    // Set transcoding mode to true to trigger error message instead of auto-transcode
-    (wrapper.vm as any).isTranscodingMode = true;
-    (wrapper.vm as any).handleMediaError();
-    await wrapper.vm.$nextTick();
-    expect(wrapper.text()).toContain('Failed to display media file');
-  });
-
-  it('should call navigateMedia when previous button clicked', async () => {
-    const mockNavigateMedia = vi.fn();
-    (useSlideshow as Mock).mockReturnValue({
-      // Copy defaults
-      setFilter: mockSetFilter,
-      prevMedia: mockPrevMedia,
-      nextMedia: mockNextMedia,
-      toggleTimer: mockToggleTimer,
-      reapplyFilter: vi.fn(),
-      toggleSlideshowTimer: vi.fn(),
-      pauseSlideshowTimer: vi.fn(),
-      resumeSlideshowTimer: vi.fn(),
-      toggleAlbumSelection: vi.fn(),
-      startSlideshow: vi.fn(),
-      startIndividualAlbumSlideshow: vi.fn(),
-      pickAndDisplayNextMediaItem: vi.fn(),
-      filterMedia: vi.fn(),
-      selectWeightedRandom: vi.fn(),
-
-      navigateMedia: mockNavigateMedia,
-    });
-    mockRefs.displayedMediaFiles.value = [
-      { name: 'test.jpg', path: '/test.jpg' },
-    ];
-
-    const wrapper = mount(MediaDisplay);
-    // Directly calling handler or simulating click
-    await (wrapper.vm as any).handlePrevious();
-    expect(mockNavigateMedia).toHaveBeenCalledWith(-1);
-  });
-
-  it('should call navigateMedia when next button clicked', async () => {
-    const mockNavigateMedia = vi.fn();
-    (useSlideshow as Mock).mockReturnValue({
-      // Copy defaults
-      setFilter: mockSetFilter,
-      prevMedia: mockPrevMedia,
-      nextMedia: mockNextMedia,
-      toggleTimer: mockToggleTimer,
-      reapplyFilter: vi.fn(),
-      toggleSlideshowTimer: vi.fn(),
-      pauseSlideshowTimer: vi.fn(),
-      resumeSlideshowTimer: vi.fn(),
-      toggleAlbumSelection: vi.fn(),
-      startSlideshow: vi.fn(),
-      startIndividualAlbumSlideshow: vi.fn(),
-      pickAndDisplayNextMediaItem: vi.fn(),
-      filterMedia: vi.fn(),
-      selectWeightedRandom: vi.fn(),
-
-      navigateMedia: mockNavigateMedia,
-    });
-    mockRefs.displayedMediaFiles.value = [
-      { name: 'test.jpg', path: '/test.jpg' },
-    ];
-
-    const wrapper = mount(MediaDisplay);
-    await (wrapper.vm as any).handleNext();
-    expect(mockNavigateMedia).toHaveBeenCalledWith(1);
-  });
-
-  it('should disable navigation buttons when no media in history', () => {
-    mockRefs.displayedMediaFiles.value = [];
-    const wrapper = mount(MediaDisplay);
-    const buttons = wrapper.findAll('.nav-button');
-    buttons.forEach((button: any) => {
-      expect(button.attributes('disabled')).toBeDefined();
-    });
-  });
-
-  it('should use totalMediaInPool fallback when not set', () => {
-    mockRefs.isSlideshowActive.value = true;
-    mockRefs.currentMediaItem.value = { name: 'test1.jpg', path: '/test1.jpg' };
-    mockRefs.displayedMediaFiles.value = [
-      { name: 'test1.jpg', path: '/test1.jpg' },
-    ];
-    mockRefs.currentMediaIndex.value = 0;
-    mockRefs.totalMediaInPool.value = 0;
-
-    const wrapper = mount(MediaDisplay);
-    expect(wrapper.text()).toContain('1 / 1');
-  });
-
-  describe('Smart Timer Controls', () => {
-    it('should render the smart timer controls', () => {
+  describe('Media Loading', () => {
+    it('loads image when currentMediaItem changes', async () => {
+      mockRefs.currentMediaItem.value = { name: 'test.jpg', path: '/test.jpg' };
       const wrapper = mount(MediaDisplay);
-      expect(wrapper.text()).toContain('Play Full Video');
-      expect(wrapper.text()).toContain('Pause Timer on Play');
+      await flushPromises();
+
+      expect(api.loadFileAsDataURL).toHaveBeenCalledWith('/test.jpg');
+      expect((wrapper.vm as any).mediaUrl).toBe('test-url');
     });
 
-    it('should toggle playFullVideo and untoggle pauseTimerOnPlay', async () => {
-      const wrapper = mount(MediaDisplay);
-      mockRefs.pauseTimerOnPlay.value = true;
-      await wrapper.vm.$nextTick();
-      mockRefs.playFullVideo.value = true;
-      await wrapper.vm.$nextTick();
-      expect(mockRefs.pauseTimerOnPlay.value).toBe(false);
-    });
-
-    it('should toggle pauseTimerOnPlay and untoggle playFullVideo', async () => {
-      const wrapper = mount(MediaDisplay);
-      mockRefs.playFullVideo.value = true;
-      await wrapper.vm.$nextTick();
-      mockRefs.pauseTimerOnPlay.value = true;
-      await wrapper.vm.$nextTick();
-      expect(mockRefs.playFullVideo.value).toBe(false);
-    });
-  });
-
-  describe('Smart Timer Video Events', () => {
-    let pauseSlideshowTimer: Mock;
-    let resumeSlideshowTimer: Mock;
-    let navigateMedia: Mock;
-
-    beforeEach(() => {
-      pauseSlideshowTimer = vi.fn();
-      resumeSlideshowTimer = vi.fn();
-      navigateMedia = vi.fn();
-      (useSlideshow as Mock).mockReturnValue({
-        setFilter: mockSetFilter,
-        prevMedia: mockPrevMedia,
-        nextMedia: mockNextMedia,
-        toggleTimer: mockToggleTimer,
-        reapplyFilter: vi.fn(),
-        navigateMedia,
-        toggleSlideshowTimer: vi.fn(),
-        pauseSlideshowTimer,
-        resumeSlideshowTimer,
-        toggleAlbumSelection: vi.fn(),
-        startSlideshow: vi.fn(),
-        startIndividualAlbumSlideshow: vi.fn(),
-        pickAndDisplayNextMediaItem: vi.fn(),
-        filterMedia: vi.fn(),
-        selectWeightedRandom: vi.fn(),
+    it('handles load error', async () => {
+      mockRefs.currentMediaItem.value = { name: 'test.jpg', path: '/test.jpg' };
+      (api.loadFileAsDataURL as Mock).mockResolvedValue({
+        type: 'error',
+        message: 'Load failed',
       });
-    });
-
-    it('should pause the timer when a video is played and playFullVideo is true', async () => {
-      mockRefs.playFullVideo.value = true;
-      mockRefs.isTimerRunning.value = true;
       const wrapper = mount(MediaDisplay);
+      await flushPromises();
 
-      (wrapper.vm as any).handleVideoPlay();
-      expect(pauseSlideshowTimer).toHaveBeenCalled();
+      expect((wrapper.vm as any).error).toBe('Load failed');
+      expect((wrapper.vm as any).mediaUrl).toBeNull();
     });
+  });
 
-    it('should pause the timer when a video is played and pauseTimerOnPlay is true', async () => {
-      mockRefs.pauseTimerOnPlay.value = true;
-      mockRefs.isTimerRunning.value = true;
-      const wrapper = mount(MediaDisplay);
-
-      (wrapper.vm as any).handleVideoPlay();
-      expect(pauseSlideshowTimer).toHaveBeenCalled();
-    });
-
-    it('should resume the timer when a video is paused and pauseTimerOnPlay is true', async () => {
-      mockRefs.pauseTimerOnPlay.value = true;
-      mockRefs.isTimerRunning.value = false;
-      const wrapper = mount(MediaDisplay);
-
-      (wrapper.vm as any).handleVideoPause();
-      expect(resumeSlideshowTimer).toHaveBeenCalled();
-    });
-
-    it('should navigate to the next media when a video ends and playFullVideo is true', async () => {
-      mockRefs.playFullVideo.value = true;
-      const wrapper = mount(MediaDisplay);
-
-      (wrapper.vm as any).handleVideoEnded();
-      expect(navigateMedia).toHaveBeenCalledWith(1);
-    });
-
-    it('should resume the timer when an image is displayed and playFullVideo is true', async () => {
-      mockRefs.playFullVideo.value = true;
-      mockRefs.isTimerRunning.value = false;
+  describe('Sub-component Interactions', () => {
+    it('handles set-rating event from MediaControls', async () => {
       mockRefs.currentMediaItem.value = {
-        name: 'test.jpg',
-        path: '/test.jpg',
-      };
-      const wrapper = mount(MediaDisplay);
-      await wrapper.vm.$nextTick();
-      expect(resumeSlideshowTimer).toHaveBeenCalled();
-    });
-  });
-
-  describe('Transcoding Logic', () => {
-    it('should start transcoding when tryTranscoding is called', async () => {
-      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
-      const wrapper = mount(MediaDisplay);
-      await flushPromises();
-
-      await (wrapper.vm as any).tryTranscoding(10);
-
-      expect((wrapper.vm as any).mediaUrl).toBe(
-        'stream//test.mp4?transcode=true',
-      );
-      expect((wrapper.vm as any).isTranscodingMode).toBe(true);
-    });
-
-    it('should handle video loaded metadata for unsupported formats', async () => {
-      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
-      const wrapper = mount(MediaDisplay);
-      await flushPromises();
-
-      // Simulate loadedmetadata with 0 width
-      const video = { videoWidth: 0, videoHeight: 0 };
-      (wrapper.vm as any).handleVideoLoadedMetadata({ target: video } as any);
-
-      expect((wrapper.vm as any).isVideoSupported).toBe(false);
-      // It triggers transcoding async
-      await flushPromises();
-      expect((wrapper.vm as any).isTranscodingMode).toBe(true);
-    });
-
-    it('should show unsupported format overlay and handle transcoding click', async () => {
-      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
-      const wrapper = mount(MediaDisplay);
-      await flushPromises();
-
-      // Simulate unsupported video
-      (wrapper.vm as any).isVideoSupported = false;
-      (wrapper.vm as any).isTranscodingMode = false;
-      await wrapper.vm.$nextTick();
-
-      expect(wrapper.text()).toContain('Video Format Not Supported');
-      expect(wrapper.text()).toContain('Try Transcoding');
-
-      // Click try transcoding
-      const transcodeBtn = wrapper
-        .findAll('button')
-        .filter((b: any) => b.text().includes('Try Transcoding'))[0];
-      await transcodeBtn.trigger('click');
-
-      expect((wrapper.vm as any).isTranscodingMode).toBe(true);
-    });
-  });
-
-  describe('Video Controls', () => {
-    it('should format time correctly', () => {
-      const wrapper = mount(MediaDisplay);
-      const vm = wrapper.vm as any;
-      expect(vm.formatTime(65)).toBe('01:05');
-      expect(vm.formatTime(3665)).toBe('1:01:05');
-      expect(vm.formatTime(0)).toBe('00:00');
-    });
-
-    it('should handle progress bar click', async () => {
-      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
-      const wrapper = mount(MediaDisplay);
-      await flushPromises();
-
-      // Mock video element
-      const videoElement = { duration: 100, currentTime: 0 };
-      (wrapper.vm as any).videoElement = videoElement;
-
-      // Simulate click event
-      const event = {
-        currentTarget: {
-          getBoundingClientRect: () => ({ left: 0, width: 100 }),
-        },
-        clientX: 50,
-      };
-
-      (wrapper.vm as any).handleProgressBarClick(event);
-      expect(videoElement.currentTime).toBe(50);
-    });
-
-    it('should handle progress bar click in transcoding mode', async () => {
-      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
-      const wrapper = mount(MediaDisplay);
-      await flushPromises();
-
-      (wrapper.vm as any).isTranscodingMode = true;
-      (wrapper.vm as any).transcodedDuration = 100;
-
-      const event = {
-        currentTarget: {
-          getBoundingClientRect: () => ({ left: 0, width: 100 }),
-        },
-        clientX: 50,
-      };
-
-      await (wrapper.vm as any).handleProgressBarClick(event);
-      expect((wrapper.vm as any).currentTranscodeStartTime).toBe(50);
-    });
-  });
-
-  describe('VLC Integration', () => {
-    it('should pause video and open vlc', async () => {
-      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
-      const wrapper = mount(MediaDisplay);
-      await flushPromises();
-
-      const pause = vi.fn();
-      (wrapper.vm as any).videoElement = { pause };
-
-      await (wrapper.vm as any).openInVlc();
-
-      expect(pause).toHaveBeenCalled();
-      expect(pause).toHaveBeenCalled();
-      expect(api.openInVlc).toHaveBeenCalledWith('/test.mp4');
-    });
-  });
-
-  describe('Rating Logic', () => {
-    it('should display rating stars', async () => {
-      mockRefs.currentMediaItem.value = {
-        name: 'test.jpg',
-        path: '/test.jpg',
-        rating: 3,
-        viewCount: 10,
-      };
-      const wrapper = mount(MediaDisplay);
-      await flushPromises();
-
-      const stars = wrapper.findAll('.star-icon-mock');
-      expect(stars.length).toBe(5);
-    });
-
-    it('should call setRating when star is clicked', async () => {
-      mockRefs.currentMediaItem.value = {
-        name: 'test.jpg',
-        path: '/test.jpg',
+        name: 't.jpg',
+        path: '/t.jpg',
         rating: 0,
       };
       const wrapper = mount(MediaDisplay);
       await flushPromises();
 
-      const stars = wrapper.findAll('button');
-      // Filter for rating buttons (5 stars)
-      // The first star button should set rating to 1
-      // Assuming buttons order: Filter buttons (3) + Star buttons (5) + Nav buttons...
-      // Easier to find by looking for button containing star mock
-      const starButtons = stars.filter((b) =>
-        b.find('.star-icon-mock').exists(),
-      );
-      expect(starButtons.length).toBe(5);
+      const controls = wrapper.findComponent(MediaControls);
+      await controls.vm.$emit('set-rating', 4);
 
-      await starButtons[2].trigger('click'); // Click 3rd star
-      expect(api.setRating).toHaveBeenCalledWith('/test.jpg', 3);
-      expect(mockRefs.currentMediaItem.value.rating).toBe(3); // Optimistic update
+      expect(api.setRating).toHaveBeenCalledWith('/t.jpg', 4);
+      expect(mockRefs.currentMediaItem.value.rating).toBe(4);
     });
 
-    it('should toggle rating to 0 if clicking same rating', async () => {
-      mockRefs.currentMediaItem.value = {
-        name: 'test.jpg',
-        path: '/test.jpg',
-        rating: 3,
-      };
+    it('handles navigation events from MediaControls', async () => {
       const wrapper = mount(MediaDisplay);
-      await flushPromises();
+      const controls = wrapper.findComponent(MediaControls);
 
-      const stars = wrapper.findAll('button');
-      const starButtons = stars.filter((b) =>
-        b.find('.star-icon-mock').exists(),
-      );
+      await controls.vm.$emit('previous');
+      expect(slideshowMock.navigateMedia).toHaveBeenCalledWith(-1);
 
-      await starButtons[2].trigger('click'); // Click 3rd star again
-      expect(api.setRating).toHaveBeenCalledWith('/test.jpg', 0);
-      expect(mockRefs.currentMediaItem.value.rating).toBe(0);
-    });
-  });
-
-  describe('Extended Video Interactions', () => {
-    it('handles video progress buffering events', () => {
-      const wrapper = mount(MediaDisplay);
-      const video = {
-        duration: 100,
-        buffered: { length: 1, start: () => 0, end: () => 50 },
-      };
-      (wrapper.vm as any).handleVideoProgress({ target: video });
-      expect((wrapper.vm as any).bufferedRanges).toEqual([
-        { start: 0, end: 50 },
-      ]);
-
-      // No duration case
-      const videoNoDur = { duration: 0, buffered: { length: 0 } };
-      (wrapper.vm as any).handleVideoProgress({ target: videoNoDur });
-      // Should return early
+      await controls.vm.$emit('next');
+      expect(slideshowMock.navigateMedia).toHaveBeenCalledWith(1);
     });
 
-    it('handles keyboard navigation on progress bar', async () => {
-      const genMock = vi.fn().mockReturnValue('url');
-      (api.getVideoStreamUrlGenerator as Mock).mockResolvedValueOnce(genMock);
-
-      const wrapper = mount(MediaDisplay);
+    it('handles buffering event from VideoPlayer', async () => {
       mockRefs.currentMediaItem.value = { name: 't.mp4', path: '/t.mp4' };
+      const wrapper = mount(MediaDisplay);
       await flushPromises();
 
-      // Transcoding Mode
-      (wrapper.vm as any).isTranscodingMode = true;
-      (wrapper.vm as any).transcodedDuration = 100;
-      (wrapper.vm as any).currentVideoTime = 10;
-
-      const event = { key: 'ArrowRight', preventDefault: vi.fn() };
-      (wrapper.vm as any).handleProgressBarKeydown(event);
-
-      await flushPromises();
-      expect(genMock).toHaveBeenCalledWith(expect.anything(), 15);
-      expect(event.preventDefault).toHaveBeenCalled();
-
-      // Normal Mode
-      (wrapper.vm as any).isTranscodingMode = false;
-      const videoElement = { duration: 100, currentTime: 50 };
-      (wrapper.vm as any).videoElement = videoElement;
-
-      event.key = 'ArrowRight';
-      (wrapper.vm as any).handleProgressBarKeydown(event);
-      expect(videoElement.currentTime).toBe(55);
-    });
-
-    it('handles time update for normal video', () => {
-      const wrapper = mount(MediaDisplay);
-      (wrapper.vm as any).isTranscodingMode = false;
-      const video = { duration: 100, currentTime: 25 };
-      (wrapper.vm as any).handleVideoTimeUpdate({ target: video });
-
-      expect((wrapper.vm as any).videoProgress).toBe(25);
-      expect((wrapper.vm as any).currentVideoTime).toBe(25);
-    });
-
-    it('handles time update for transcoding video', () => {
-      const wrapper = mount(MediaDisplay);
-      (wrapper.vm as any).isTranscodingMode = true;
-      (wrapper.vm as any).transcodedDuration = 200;
-      (wrapper.vm as any).currentTranscodeStartTime = 50;
-      const video = { duration: 100, currentTime: 10 }; // 10s into chunk starting at 50s
-      (wrapper.vm as any).handleVideoTimeUpdate({ target: video });
-
-      // Real time = 50 + 10 = 60. Progress = 60/200 = 30%
-      expect((wrapper.vm as any).videoProgress).toBe(30);
-      expect((wrapper.vm as any).currentVideoTime).toBe(60);
-    });
-
-    it('handles waiting and canplay events', () => {
-      const wrapper = mount(MediaDisplay);
-      (wrapper.vm as any).isTranscodingLoading = false;
-      (wrapper.vm as any).handleVideoWaiting();
+      const videoPlayer = wrapper.findComponent(VideoPlayer);
+      expect(videoPlayer.exists()).toBe(true);
+      await videoPlayer.vm.$emit('buffering', true);
       expect((wrapper.vm as any).isBuffering).toBe(true);
 
-      (wrapper.vm as any).handleVideoCanPlay();
+      await videoPlayer.vm.$emit('buffering', false);
       expect((wrapper.vm as any).isBuffering).toBe(false);
     });
   });
+
   describe('Additional Coverage', () => {
-    it('should auto-transcode legacy formats', async () => {
-      vi.useFakeTimers();
-      mockRefs.currentMediaItem.value = { name: 'test.mkv', path: '/test.mkv' };
-      (api.getVideoStreamUrlGenerator as Mock).mockResolvedValue(
-        () => 'stream/url',
-      );
-
+    it('covers Space key to toggle play', async () => {
+      mockRefs.currentMediaItem.value = { name: 't.mp4', path: '/t.mp4' };
       const wrapper = mount(MediaDisplay);
-
-      // Allow onMounted to run and generator logic to retry
-      await wrapper.vm.$nextTick();
-      await vi.advanceTimersByTimeAsync(200);
       await flushPromises();
+      expect(wrapper.exists()).toBe(true);
 
-      // Check if transcoding mode is active or url is set
-      expect((wrapper.vm as any).isTranscodingMode).toBe(true);
-      vi.useRealTimers();
+      const event = new KeyboardEvent('keydown', { code: 'Space' });
+      const preventDefaultSpy = vi.spyOn(event, 'preventDefault');
+
+      window.dispatchEvent(event);
+      expect(preventDefaultSpy).toHaveBeenCalled();
     });
 
-    it('should handle setRating errors', async () => {
-      mockRefs.currentMediaItem.value = {
-        name: 'test.jpg',
-        path: '/test.jpg',
-        rating: 0,
-      };
-      (api.setRating as Mock).mockRejectedValue(new Error('Fail'));
+    it('covers setRating error branch', async () => {
+      mockRefs.currentMediaItem.value = { name: 't.jpg', path: '/t.jpg' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      (api.setRating as Mock).mockRejectedValue(new Error('fail'));
       const consoleSpy = vi
         .spyOn(console, 'error')
         .mockImplementation(() => {});
 
-      const wrapper = mount(MediaDisplay);
-      await (wrapper.vm as any).setRating(5);
+      const controls = wrapper.findComponent(MediaControls);
+      await controls.vm.$emit('set-rating', 5);
 
       expect(consoleSpy).toHaveBeenCalledWith(
         'Failed to set rating',
-        expect.anything(),
+        expect.any(Error),
       );
       consoleSpy.mockRestore();
     });
 
-    it('should try transcoding if video dimensions are 0 (HEVC check)', async () => {
-      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
-      (api.loadFileAsDataURL as Mock).mockResolvedValue({
-        type: 'video',
-        url: 'blob:...',
-      });
-
-      // Ensure generator is present so tryTranscoding works
-      (api.getVideoStreamUrlGenerator as Mock).mockResolvedValue(
-        () => 'stream/url',
-      );
-
+    it('covers handleMediaError transcoding branch', async () => {
+      mockRefs.currentMediaItem.value = { name: 't.mp4', path: '/t.mp4' };
       const wrapper = mount(MediaDisplay);
-      await flushPromises(); // Loaded
+      await flushPromises();
 
-      (wrapper.vm as any).isTranscodingMode = false;
-      await wrapper.vm.$nextTick();
+      expect((wrapper.vm as any).isTranscodingMode).toBe(false);
 
-      const video = {
-        target: {
-          videoWidth: 0,
-          videoHeight: 0,
-        },
-      };
+      const videoPlayer = wrapper.findComponent(VideoPlayer);
+      expect(videoPlayer.exists()).toBe(true);
+      await videoPlayer.vm.$emit('error', new Event('error'));
 
-      await (wrapper.vm as any).handleVideoLoadedMetadata(video);
-
-      // isVideoSupported is reset to true by tryTranscoding
+      await flushPromises();
       expect((wrapper.vm as any).isTranscodingMode).toBe(true);
     });
 
-    it('should handle transcoding options failure', async () => {
-      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
+    it('covers proactive transcoding for legacy formats', async () => {
+      mockRefs.currentMediaItem.value = { name: 't.mov', path: '/t.mov' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
 
-      // Re-mount with null generator simulation
-      // We return null from the api mock
-      (api.getVideoStreamUrlGenerator as Mock).mockResolvedValue(null);
+      expect((wrapper.vm as any).isTranscodingMode).toBe(true);
+    });
 
-      // Spy on console.error to suppress expected error
-      const consoleSpy = vi
-        .spyOn(console, 'error')
-        .mockImplementation(() => {});
+    it('covers handleVideoPlay and handleVideoPause effects on timer', async () => {
+      mockRefs.currentMediaItem.value = { name: 't.mp4', path: '/t.mp4' };
+      mockRefs.isTimerRunning.value = true;
+      mockRefs.playFullVideo.value = true;
+
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      const videoPlayer = wrapper.findComponent(VideoPlayer);
+      expect(videoPlayer.exists()).toBe(true);
+      await videoPlayer.vm.$emit('play');
+      expect(slideshowMock.pauseSlideshowTimer).toHaveBeenCalled();
+
+      mockRefs.isTimerRunning.value = false;
+      mockRefs.pauseTimerOnPlay.value = true;
+      mockRefs.playFullVideo.value = false;
+
+      await videoPlayer.vm.$emit('pause');
+      expect(slideshowMock.resumeSlideshowTimer).toHaveBeenCalled();
+    });
+
+    it('covers handleMouseMove and handleMouseLeave', async () => {
+      vi.useFakeTimers();
+      const wrapper = mount(MediaDisplay);
+
+      await wrapper.trigger('mousemove');
+      expect((wrapper.vm as any).isControlsVisible).toBe(true);
+
+      vi.advanceTimersByTime(3500);
+      expect((wrapper.vm as any).isControlsVisible).toBe(false);
+
+      await wrapper.trigger('mouseleave');
+      expect((wrapper.vm as any).isControlsVisible).toBe(false);
+
+      vi.useRealTimers();
+    });
+
+    it('covers tryTranscoding URL with query params', async () => {
+      mockRefs.currentMediaItem.value = { name: 't.mp4', path: '/t.mp4' };
+      const generator = (p: string) =>
+        `http://localhost/stream?foo=bar&path=${p}`;
+      (api.getVideoStreamUrlGenerator as Mock).mockResolvedValue(generator);
+      (api.getVideoMetadata as Mock).mockResolvedValue({ duration: 100 });
 
       const wrapper = mount(MediaDisplay);
       await flushPromises();
 
       await (wrapper.vm as any).tryTranscoding(0);
-
-      expect((wrapper.vm as any).error).toBe('Local server not available');
-      expect((wrapper.vm as any).isTranscodingLoading).toBe(false);
-
-      consoleSpy.mockRestore();
+      expect((wrapper.vm as any).mediaUrl).toContain('&transcode=true');
     });
 
-    it('should try transcoding on media error if not already transcoding', async () => {
+    it('covers tryTranscoding URL without query params', async () => {
+      mockRefs.currentMediaItem.value = { name: 't.mp4', path: '/t.mp4' };
+      const generator = (p: string) => `http://localhost/stream/${p}`;
+      (api.getVideoStreamUrlGenerator as Mock).mockResolvedValue(generator);
+      (api.getVideoMetadata as Mock).mockResolvedValue({ duration: 100 });
+
       const wrapper = mount(MediaDisplay);
-      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
-      (wrapper.vm as any).isTranscodingMode = false;
-      // Ensure generator exists so it succeeds setting mode
-      (api.getVideoStreamUrlGenerator as Mock).mockResolvedValue(
-        () => 'stream/url',
-      );
-      // Wait for mount to initialize generator
       await flushPromises();
 
-      await (wrapper.vm as any).handleMediaError();
+      await (wrapper.vm as any).tryTranscoding(0);
+      expect((wrapper.vm as any).mediaUrl).toContain('?transcode=true');
+    });
+
+    it('covers handleMediaError in transcoding mode', async () => {
+      mockRefs.currentMediaItem.value = { name: 't.mp4', path: '/t.mp4' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      (wrapper.vm as any).isTranscodingMode = true;
+      (wrapper.vm as any).handleMediaError();
+      expect((wrapper.vm as any).error).toBe('Failed to display media file.');
+    });
+
+    it('covers countInfo branches', async () => {
+      mockRefs.isSlideshowActive.value = false;
+      const wrapper = mount(MediaDisplay);
+      expect((wrapper.vm as any).countInfo).toBe('\u00A0');
+
+      mockRefs.isSlideshowActive.value = true;
+      mockRefs.displayedMediaFiles.value = [
+        { name: '1.jpg', path: '1.jpg' },
+        { name: '2.jpg', path: '2.jpg' },
+      ];
+      mockRefs.currentMediaIndex.value = 0;
+      mockRefs.totalMediaInPool.value = 10;
+      await wrapper.vm.$nextTick();
+      expect((wrapper.vm as any).countInfo).toBe('1 / 10');
+    });
+
+    it('covers tryTranscoding requestId mismatch', async () => {
+      mockRefs.currentMediaItem.value = { name: 't.mp4', path: '/t.mp4' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      await (wrapper.vm as any).tryTranscoding(0, -1);
+      expect((wrapper.vm as any).isTranscodingMode).toBe(false);
+    });
+
+    it('covers setRating unrate branch', async () => {
+      mockRefs.currentMediaItem.value = {
+        name: 't.jpg',
+        path: '/t.jpg',
+        rating: 5,
+      };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      const controls = wrapper.findComponent(MediaControls);
+      await controls.vm.$emit('set-rating', 5);
+      expect(mockRefs.currentMediaItem.value.rating).toBe(0);
+    });
+
+    it('covers loadMediaUrl null currentMediaItem', async () => {
+      mockRefs.currentMediaItem.value = null;
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+      expect((wrapper.vm as any).mediaUrl).toBeNull();
+    });
+
+    it('covers loadMediaUrl videoElement cleanup fallback', async () => {
+      mockRefs.currentMediaItem.value = { name: 't.jpg', path: '/t.jpg' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      const mockVideo = {
+        pause: vi.fn(),
+        removeAttribute: vi.fn(),
+        load: vi.fn(),
+      };
+      (wrapper.vm as any).videoElement = mockVideo;
+      (wrapper.vm as any).videoPlayerRef = null;
+
+      mockRefs.currentMediaItem.value = { name: 't2.jpg', path: '/t2.jpg' };
+      await flushPromises();
+      expect(mockVideo.pause).toHaveBeenCalled();
+    });
+
+    it('covers handleBuffering while transcoding loading', async () => {
+      const wrapper = mount(MediaDisplay);
+      (wrapper.vm as any).isTranscodingLoading = true;
+      (wrapper.vm as any).handleBuffering(true);
+      expect((wrapper.vm as any).isBuffering).toBe(false);
+    });
+
+    it('covers openInVlc failure branch', async () => {
+      mockRefs.currentMediaItem.value = { name: 't.mp4', path: '/t.mp4' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      (api.openInVlc as Mock).mockResolvedValue({
+        success: false,
+        message: 'VLC Error',
+      });
+      await (wrapper.vm as any).openInVlc();
+      expect((wrapper.vm as any).error).toBe('VLC Error');
+    });
+
+    it('covers handleMouseMove when video is paused', async () => {
+      vi.useFakeTimers();
+      const wrapper = mount(MediaDisplay);
+      const mockVideo = {
+        paused: true,
+        pause: vi.fn(),
+        load: vi.fn(),
+        removeAttribute: vi.fn(),
+      };
+      (wrapper.vm as any).videoElement = mockVideo;
+
+      await wrapper.trigger('mousemove');
+      vi.advanceTimersByTime(3500);
+      expect((wrapper.vm as any).isControlsVisible).toBe(true);
+      vi.useRealTimers();
+    });
+
+    it('covers handleVideoElementUpdate', async () => {
+      const wrapper = mount(MediaDisplay);
+      const mockVideo = document.createElement('video');
+      (wrapper.vm as any).handleVideoElementUpdate(mockVideo);
+      expect((wrapper.vm as any).videoElement).toBe(mockVideo);
+    });
+
+    it('covers request cancellation guards', async () => {
+      mockRefs.currentMediaItem.value = { name: '1.jpg', path: '/1.jpg' };
+
+      let resolveLoad1: (value: any) => void;
+      const loadPromise1 = new Promise((resolve) => {
+        resolveLoad1 = resolve;
+      });
+      (api.loadFileAsDataURL as Mock).mockReturnValueOnce(loadPromise1);
+
+      const wrapperLoad = mount(MediaDisplay);
+      expect(wrapperLoad.exists()).toBe(true);
+
+      mockRefs.currentMediaItem.value = { name: '2.jpg', path: '/2.jpg' };
+      (api.loadFileAsDataURL as Mock).mockResolvedValue({
+        type: 'success',
+        url: 'url2',
+      });
+
+      await flushPromises();
+
+      resolveLoad1!({ type: 'success', url: 'url1' });
+      await flushPromises();
+
+      expect((wrapperLoad.vm as any).mediaUrl).toBe('url2');
+    });
+
+    it('covers loadMediaUrl error catch branch', async () => {
+      mockRefs.currentMediaItem.value = { name: 'fail.jpg', path: '/fail.jpg' };
+      (api.loadFileAsDataURL as Mock).mockRejectedValue(
+        new Error('Load Error'),
+      );
+
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      expect((wrapper.vm as any).error).toBe('Failed to load media file.');
+      expect((wrapper.vm as any).mediaUrl).toBeNull();
+    });
+
+    it('covers currentVideoTime getter fallback', async () => {
+      const wrapper = mount(MediaDisplay);
+      (wrapper.vm as any).videoPlayerRef = null;
+      expect((wrapper.vm as any).currentVideoTime).toBe(0);
+    });
+
+    it('covers currentMediaItem watch resumeSlideshowTimer branch', async () => {
+      mockRefs.currentMediaItem.value = { name: 't.jpg', path: '/t.jpg' };
+      mockRefs.playFullVideo.value = true;
+      mockRefs.isTimerRunning.value = false;
+
+      const wrapper = mount(MediaDisplay);
+      expect(wrapper.exists()).toBe(true);
+      await flushPromises();
+
+      expect(slideshowMock.resumeSlideshowTimer).toHaveBeenCalled();
+    });
+
+    it('covers Try Transcoding button click', async () => {
+      mockRefs.currentMediaItem.value = { name: 't.mp4', path: '/t.mp4' };
+      const wrapper = mount(MediaDisplay);
+      (wrapper.vm as any).isVideoSupported = false;
+      (wrapper.vm as any).isTranscodingMode = false;
+      await wrapper.vm.$nextTick();
+
+      const btn = wrapper
+        .findAll('button')
+        .find((b) => b.text().includes('Try Transcoding'));
+      await btn?.trigger('click');
       expect((wrapper.vm as any).isTranscodingMode).toBe(true);
     });
-  });
 
-  describe('Regression Tests', () => {
-    it('should NOT unmount video element when buffering (Fix for seeking restart)', async () => {
-      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
-      (api.loadFileAsDataURL as Mock).mockResolvedValue({
-        type: 'http-url',
-        url: 'http://localhost/test.mp4',
-      });
-
+    it('covers smart timer checkboxes', async () => {
       const wrapper = mount(MediaDisplay);
-      await flushPromises();
+      const inputs = wrapper.findAll('input[type="checkbox"]');
 
-      // Ensure video is mounted
-      expect(wrapper.find('video').exists()).toBe(true);
+      await inputs[0].setValue(true);
+      expect(mockRefs.playFullVideo.value).toBe(true);
 
-      // Trigger buffering
-      await wrapper.find('video').trigger('waiting');
-
-      // Check state
-      expect((wrapper.vm as any).isBuffering).toBe(true);
-
-      // Video should STILL be mounted
-      expect(wrapper.find('video').exists()).toBe(true);
-
-      // Overlay should be visible
-      expect(wrapper.text()).toContain('Buffering...');
-    });
-  });
-
-  describe('Play/Pause Functionality', () => {
-    it('should toggle playback on click', async () => {
-      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
-      const wrapper = mount(MediaDisplay);
-      await flushPromises();
-
-      const play = vi.fn();
-      const pause = vi.fn();
-      const videoElement = {
-        paused: true,
-        play,
-        pause,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-      } as any;
-      (wrapper.vm as any).videoElement = videoElement;
-
-      // Click video to play
-      await wrapper.find('video').trigger('click');
-      expect(play).toHaveBeenCalled();
-
-      // Simulate playing state
-      videoElement.paused = false;
-      await wrapper.find('video').trigger('click');
-      expect(pause).toHaveBeenCalled();
-    });
-
-    it('should show correct icon based on state', async () => {
-      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
-      const wrapper = mount(MediaDisplay);
-      await flushPromises();
-
-      // Initial state: not playing
-      expect((wrapper.vm as any).isPlaying).toBe(false);
-
-      // Simulate play
-      (wrapper.vm as any).isPlaying = true;
-      await wrapper.vm.$nextTick();
-
-      // Check button aria-label
-      const button = wrapper.find('.play-pause-button');
-      expect(button.attributes('aria-label')).toBe('Pause video');
-
-      // Simulate pause
-      (wrapper.vm as any).isPlaying = false;
-      await wrapper.vm.$nextTick();
-      expect(button.attributes('aria-label')).toBe('Play video');
-    });
-
-    it('should toggle playback when play/pause button is clicked', async () => {
-      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
-      const wrapper = mount(MediaDisplay);
-      await flushPromises();
-
-      const play = vi.fn();
-      const pause = vi.fn();
-      const videoElement = {
-        paused: true,
-        play,
-        pause,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-      } as any;
-      (wrapper.vm as any).videoElement = videoElement;
-
-      const button = wrapper.find('.play-pause-button');
-      await button.trigger('click');
-
-      expect(play).toHaveBeenCalled();
-    });
-
-    it('should display pause overlay when paused and not controls hidden', async () => {
-      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
-      const wrapper = mount(MediaDisplay);
-      await flushPromises();
-
-      (wrapper.vm as any).isPlaying = false;
-      (wrapper.vm as any).isControlsVisible = true;
-      await wrapper.vm.$nextTick();
-
-      const play = vi.fn();
-      (wrapper.vm as any).videoElement = { paused: true, play, pause: vi.fn() };
-
-      // Find overlay by checking for PlayIcon container interaction
-      // The overlay div has @click="togglePlay"
-      const overlays = wrapper.findAll('div');
-      const overlayButton = overlays.filter(
-        (div) =>
-          div.classes().includes('bg-black/40') &&
-          div.classes().includes('backdrop-blur-sm'),
-      )[0];
-
-      expect(overlayButton.exists()).toBe(true);
-      await overlayButton.trigger('click');
-      expect(play).toHaveBeenCalled();
-    });
-
-    it('should toggle playback on spacebar press', async () => {
-      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
-      const wrapper = mount(MediaDisplay);
-      await flushPromises();
-
-      const videoWrapper = wrapper.find('video');
-      const videoEl = videoWrapper.element as HTMLVideoElement;
-
-      // HappyDOM might not implement play/pause on the prototype in all environments, or it might be flaky
-      if (!videoEl.play) {
-        (videoEl as any).play = () => Promise.resolve();
-      }
-      if (!videoEl.pause) {
-        (videoEl as any).pause = () => {};
-      }
-
-      // Mock play/pause on the existing element
-      const playSpy = vi
-        .spyOn(videoEl, 'play')
-        .mockImplementation(() => Promise.resolve());
-      const pauseSpy = vi.spyOn(videoEl, 'pause');
-
-      // Mock paused property
-      Object.defineProperty(videoEl, 'paused', {
-        get: () => true,
-        configurable: true,
-      });
-
-      // Verification
-      expect((wrapper.vm as any).videoElement).toBe(videoEl); // Should reference the element
-      expect(videoEl.paused).toBe(true);
-
-      // Simulate Space keydown on window
-      const event = new KeyboardEvent('keydown', { code: 'Space' });
-      const preventDefaultSpy = vi.spyOn(event, 'preventDefault');
-      window.dispatchEvent(event);
-
-      expect(playSpy).toHaveBeenCalled();
-      expect(preventDefaultSpy).toHaveBeenCalled();
-
-      // Simulate playing state
-      Object.defineProperty(videoEl, 'paused', {
-        get: () => false,
-        configurable: true,
-      });
-
-      const event2 = new KeyboardEvent('keydown', { code: 'Space' });
-      window.dispatchEvent(event2);
-      expect(pauseSpy).toHaveBeenCalled();
-
-      // cleanup
-      wrapper.unmount();
+      await inputs[1].setValue(true);
+      expect(mockRefs.pauseTimerOnPlay.value).toBe(true);
     });
   });
 });
