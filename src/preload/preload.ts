@@ -81,6 +81,7 @@ export interface ElectronAPI {
   ) => Promise<IpcResult<void>>;
 
   getAllMetadataAndStats: () => Promise<IpcResult<MediaLibraryItem[]>>;
+  getRecentlyPlayed: (limit?: number) => Promise<IpcResult<MediaLibraryItem[]>>;
   extractMetadata: (filePaths: string[]) => Promise<IpcResult<void>>;
 
   // Google Drive
@@ -177,6 +178,9 @@ const api: ElectronAPI = {
 
   getAllMetadataAndStats: () =>
     ipcRenderer.invoke(IPC_CHANNELS.DB_GET_ALL_METADATA_AND_STATS),
+
+  getRecentlyPlayed: (limit?: number) =>
+    ipcRenderer.invoke(IPC_CHANNELS.DB_GET_RECENTLY_PLAYED, limit),
 
   extractMetadata: (filePaths: string[]) =>
     ipcRenderer.invoke(IPC_CHANNELS.MEDIA_EXTRACT_METADATA, filePaths),

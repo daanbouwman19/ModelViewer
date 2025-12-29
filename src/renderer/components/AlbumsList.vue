@@ -78,6 +78,40 @@
             Playlists
           </h3>
           <ul class="space-y-0.5">
+            <!-- RECENTLY PLAYED -->
+            <li>
+              <div
+                class="group flex items-center justify-between px-3 py-2 rounded-md hover:bg-white/5 transition-colors"
+              >
+                <!-- Name (Main Action - Slideshow) -->
+                <button
+                  class="grow flex items-center gap-2 truncate text-sm text-gray-300 group-hover:text-white text-left focus:outline-none focus:text-white cursor-pointer min-w-0"
+                  aria-label="Recently Played Slideshow"
+                  @click="handleHistorySlideshow"
+                >
+                  <span class="text-orange-400 shrink-0">
+                    <HistoryIcon class="w-4 h-4" />
+                  </span>
+                  <span class="truncate">Recently Played</span>
+                </button>
+
+                <!-- Controls on Hover -->
+                <div
+                  class="flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity ml-2"
+                >
+                  <!-- Grid Button for History -->
+                  <button
+                    class="text-xs text-gray-500 hover:text-white p-1"
+                    title="Open in Grid"
+                    aria-label="Open History in Grid"
+                    @click.stop="handleHistoryGrid"
+                  >
+                    <GridIcon class="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </li>
+
             <li v-for="playlist in smartPlaylists" :key="playlist.id">
               <div
                 class="group flex items-center justify-between px-3 py-2 rounded-md hover:bg-white/5 transition-colors"
@@ -208,6 +242,7 @@ import PlaylistIcon from './icons/PlaylistIcon.vue';
 import GridIcon from './icons/GridIcon.vue';
 import EditIcon from './icons/EditIcon.vue';
 import DeleteIcon from './icons/DeleteIcon.vue';
+import HistoryIcon from './icons/HistoryIcon.vue';
 import { api } from '../api';
 import {
   getAlbumAndChildrenIds,
@@ -219,6 +254,7 @@ import type {
   MediaFile,
   MediaLibraryItem,
 } from '../../core/types';
+import { useLibraryStore } from '../composables/useLibraryStore';
 
 const {
   allAlbums,
@@ -233,11 +269,13 @@ const {
   viewMode,
   playlistToEdit,
   isSlideshowActive,
+  historyMedia,
 } = useAppState();
 
 defineEmits(['close']);
 
 const slideshow = useSlideshow();
+const libraryStore = useLibraryStore();
 
 /**
  * Toggles the selection of an album. Can be recursive (children included) or single.
@@ -415,5 +453,42 @@ const deletePlaylist = async (id: number) => {
 const editPlaylist = (playlist: SmartPlaylist) => {
   playlistToEdit.value = playlist;
   isSmartPlaylistModalVisible.value = true;
+};
+
+// History Handling
+const loadHistory = async () => {
+  await libraryStore.fetchHistory(100);
+  // Ensure we have actual media files
+  if (historyMedia.value.length === 0) {
+    throw new Error('No history items found');
+  }
+};
+
+const handleHistoryGrid = async () => {
+  try {
+    await loadHistory();
+    gridMediaFiles.value = historyMedia.value;
+    await nextTick();
+    viewMode.value = 'grid';
+  } catch (e) {
+    console.error('Error opening history grid', e);
+    // Optional: show user feedback
+  }
+};
+
+const handleHistorySlideshow = async () => {
+  try {
+    await loadHistory();
+    const fakeAlbum: Album = {
+      id: 'history-playlist',
+      name: 'Recently Played',
+      textures: historyMedia.value,
+      children: [],
+    };
+    slideshow.startIndividualAlbumSlideshow(fakeAlbum);
+  } catch (e) {
+    console.error('Error starting history slideshow', e);
+    // Optional: show user feedback
+  }
 };
 </script>

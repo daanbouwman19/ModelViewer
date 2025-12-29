@@ -50,7 +50,7 @@ export interface MediaLibraryItem {
   rating: number | null;
   created_at: string | null;
   view_count: number | null;
-  last_viewed: number | null;
+  last_viewed: string | null;
 }
 
 export type IpcResult<T = unknown> =

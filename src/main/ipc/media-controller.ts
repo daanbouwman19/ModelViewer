@@ -10,7 +10,11 @@ import {
   listDriveDirectory,
   getDriveParent,
 } from '../google-drive-service';
-import { recordMediaView, getMediaViewCounts } from '../database';
+import {
+  recordMediaView,
+  getMediaViewCounts,
+  getRecentlyPlayed,
+} from '../database';
 import {
   getAlbumsWithViewCounts,
   getAlbumsWithViewCountsAfterScan,
@@ -112,6 +116,13 @@ export function registerMediaHandlers() {
       extractAndSaveMetadata(filePaths, ffmpegPath).catch((err) =>
         console.error('State extraction failed', err),
       );
+    },
+  );
+
+  handleIpc(
+    IPC_CHANNELS.DB_GET_RECENTLY_PLAYED,
+    async (_event: IpcMainInvokeEvent, limit?: number) => {
+      return getRecentlyPlayed(limit);
     },
   );
 

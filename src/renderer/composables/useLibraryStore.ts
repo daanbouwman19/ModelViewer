@@ -13,6 +13,7 @@ interface LibraryState {
   mediaDirectories: MediaDirectory[];
   supportedExtensions: { images: string[]; videos: string[]; all: string[] };
   smartPlaylists: SmartPlaylist[];
+  historyMedia: MediaFile[];
   albumsSelectedForSlideshow: { [albumName: string]: boolean };
   globalMediaPoolForSelection: MediaFile[];
   totalMediaInPool: number;
@@ -24,6 +25,7 @@ const state = reactive<LibraryState>({
   mediaDirectories: [],
   supportedExtensions: { images: [], videos: [], all: [] },
   smartPlaylists: [],
+  historyMedia: [],
   albumsSelectedForSlideshow: {},
   globalMediaPoolForSelection: [],
   totalMediaInPool: 0,
@@ -98,6 +100,28 @@ export function useLibraryStore() {
     state.albumsSelectedForSlideshow = newSelection;
   };
 
+  const fetchHistory = async (limit = 50) => {
+    try {
+      const items = await api.getRecentlyPlayed(limit);
+      // Map MediaLibraryItem to MediaFile
+      state.historyMedia = items.map((item) => {
+        // Derive a name if path is standard
+        const name = item.file_path.split(/[/\\]/).pop() || item.file_path;
+        return {
+          name,
+          path: item.file_path,
+          viewCount: item.view_count || 0,
+          rating: item.rating || 0,
+          lastViewed: item.last_viewed
+            ? new Date(item.last_viewed).getTime()
+            : undefined,
+        };
+      });
+    } catch (e) {
+      console.error('Failed to fetch history:', e);
+    }
+  };
+
   const loadInitialData = async () => {
     try {
       state.allAlbums = await api.getAlbumsWithViewCounts();
@@ -128,12 +152,14 @@ export function useLibraryStore() {
     videoExtensionsSet,
     loadInitialData,
     selectAllAlbumsRecursively,
+    fetchHistory,
     clearMediaPool: () => {
       state.globalMediaPoolForSelection = [];
     },
     resetLibraryState: () => {
       state.globalMediaPoolForSelection = [];
       state.albumsSelectedForSlideshow = {};
+      state.historyMedia = [];
     },
   };
 }

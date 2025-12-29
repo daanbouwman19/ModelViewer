@@ -60,6 +60,7 @@ export interface IMediaBackend {
   ): Promise<void>;
 
   getAllMetadataAndStats(): Promise<MediaLibraryItem[]>;
+  getRecentlyPlayed(limit?: number): Promise<MediaLibraryItem[]>;
   extractMetadata(filePaths: string[]): Promise<void>;
 
   // Google Drive

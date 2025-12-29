@@ -311,6 +311,22 @@ function initDatabase(dbPath: string): WorkerResult {
     statements.getSmartPlaylists = db.prepare(
       'SELECT id, name, criteria, createdAt FROM smart_playlists ORDER BY id DESC',
     );
+    statements.getRecentlyPlayed = db.prepare(
+      `SELECT
+        v.file_path,
+        v.file_path_hash,
+        v.view_count,
+        v.last_viewed,
+        m.duration,
+        m.size,
+        m.rating,
+        m.created_at
+       FROM media_views v
+       LEFT JOIN media_metadata m ON v.file_path_hash = m.file_path_hash
+       WHERE v.last_viewed IS NOT NULL
+       ORDER BY v.last_viewed DESC
+       LIMIT ?`,
+    );
     statements.deleteSmartPlaylist = db.prepare(
       'DELETE FROM smart_playlists WHERE id = ?',
     );
@@ -520,6 +536,20 @@ function updateSmartPlaylist(
   try {
     statements.updateSmartPlaylist.run(name, criteria, id);
     return { success: true };
+  } catch (error: unknown) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+/**
+ * Retrieves recently played media items.
+ * @param limit - The maximum number of items to return.
+ */
+function getRecentlyPlayed(limit: number): WorkerResult {
+  if (!db) return { success: false, error: 'Database not initialized' };
+  try {
+    const rows = statements.getRecentlyPlayed.all(limit);
+    return { success: true, data: rows };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
   }
@@ -918,6 +948,9 @@ if (parentPort) {
           break;
         case 'executeSmartPlaylist':
           result = await executeSmartPlaylist();
+          break;
+        case 'getRecentlyPlayed':
+          result = getRecentlyPlayed(payload.limit);
           break;
         case 'getPendingMetadata':
           if (!db) {

@@ -109,6 +109,10 @@ export interface IpcContract {
     payload: [];
     response: MediaLibraryItem[];
   };
+  [IPC_CHANNELS.DB_GET_RECENTLY_PLAYED]: {
+    payload: [number];
+    response: MediaLibraryItem[];
+  };
   [IPC_CHANNELS.MEDIA_EXTRACT_METADATA]: {
     payload: [string[]];
     response: void;
