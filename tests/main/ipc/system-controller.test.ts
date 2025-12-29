@@ -43,7 +43,10 @@ vi.mock('electron', () => ({
 }));
 
 vi.mock('fs/promises', () => ({
-  default: { access: vi.fn() },
+  default: {
+    access: vi.fn(),
+    realpath: vi.fn((p) => Promise.resolve(p)), // Mock realpath
+  },
 }));
 
 describe('system-controller', () => {
@@ -64,11 +67,11 @@ describe('system-controller', () => {
     it('adds valid directory', async () => {
       const handler = getHandler(IPC_CHANNELS.ADD_MEDIA_DIRECTORY);
       const targetPath = '/valid/path';
-      (fs.access as Mock).mockResolvedValue(undefined); // access succeeds
+      (fs.realpath as Mock).mockResolvedValue(targetPath); // realpath succeeds
 
       const result = await handler({}, targetPath);
 
-      expect(fs.access).toHaveBeenCalledWith(targetPath);
+      expect(fs.realpath).toHaveBeenCalledWith(targetPath);
       expect(addMediaDirectory).toHaveBeenCalledWith({
         path: targetPath,
         type: 'local',
@@ -78,7 +81,7 @@ describe('system-controller', () => {
 
     it('returns null if path inaccessible', async () => {
       const handler = getHandler(IPC_CHANNELS.ADD_MEDIA_DIRECTORY);
-      (fs.access as Mock).mockRejectedValue(new Error('ENOENT'));
+      (fs.realpath as Mock).mockRejectedValue(new Error('ENOENT'));
 
       const result = await handler({}, '/invalid/path');
 
@@ -88,7 +91,7 @@ describe('system-controller', () => {
 
     it('returns null if addMediaDirectory fails', async () => {
       const handler = getHandler(IPC_CHANNELS.ADD_MEDIA_DIRECTORY);
-      (fs.access as Mock).mockResolvedValue(undefined);
+      (fs.realpath as Mock).mockResolvedValue('/valid/path');
       (addMediaDirectory as Mock).mockRejectedValue(new Error('DB Error'));
 
       const result = await handler({}, '/valid/path');

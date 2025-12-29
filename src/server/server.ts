@@ -308,23 +308,28 @@ export async function createApp() {
     const { path: dirPath } = req.body;
     if (!dirPath) return res.status(400).send('Missing path');
 
-    if (isSensitiveDirectory(dirPath)) {
-      console.warn(
-        `[Security] Blocked attempt to add sensitive directory: ${dirPath}`,
-      );
-      return res
-        .status(403)
-        .json({ error: 'Access restricted for sensitive system directories' });
-    }
-
     try {
+      // Resolve path to handle symlinks and relative paths
+      // This prevents bypassing the sensitive directory check via symlinks (e.g., link -> /)
+      let resolvedPath = dirPath;
       try {
-        await fs.stat(dirPath);
+        resolvedPath = await fs.realpath(dirPath);
       } catch {
         return res.status(400).json({ error: 'Directory does not exist' });
       }
-      await addMediaDirectory(dirPath);
-      res.json(dirPath);
+
+      // Check the resolved path against sensitive directories
+      if (isSensitiveDirectory(resolvedPath)) {
+        console.warn(
+          `[Security] Blocked attempt to add sensitive directory: ${dirPath} (resolved to ${resolvedPath})`,
+        );
+        return res.status(403).json({
+          error: 'Access restricted for sensitive system directories',
+        });
+      }
+
+      await addMediaDirectory(resolvedPath);
+      res.json(resolvedPath);
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: 'Failed to add directory' });
