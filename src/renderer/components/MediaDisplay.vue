@@ -161,6 +161,7 @@ import VlcIcon from './icons/VlcIcon.vue';
 import TranscodingStatus from './TranscodingStatus.vue';
 import MediaControls from './MediaControls.vue';
 import VideoPlayer from './VideoPlayer.vue';
+import type { MediaFile } from '../../core/types';
 import {
   LEGACY_VIDEO_EXTENSIONS,
   MEDIA_FILTERS,
@@ -284,21 +285,28 @@ onUnmounted(() => {
 });
 
 /**
- * A computed property that determines if the current media item is an image.
+ * Helper to check if a media file is an image based on its extension.
  */
-const isImage = computed(() => {
-  if (!currentMediaItem.value) return false;
-
+const isMediaItemImage = (item: MediaFile): boolean => {
   // For Google Drive (or paths without extension), rely on the name
-  const sourceString = currentMediaItem.value.path.startsWith('gdrive://')
-    ? currentMediaItem.value.name
-    : currentMediaItem.value.path;
+  const sourceString = item.path.startsWith('gdrive://')
+    ? item.name
+    : item.path;
 
   const lastDotIndex = sourceString.lastIndexOf('.');
   if (lastDotIndex === -1) return false; // No extension found
 
   const ext = sourceString.slice(lastDotIndex).toLowerCase();
   return imageExtensionsSet.value.has(ext);
+};
+
+/**
+ * A computed property that determines if the current media item is an image.
+ */
+const isImage = computed(() => {
+  return currentMediaItem.value
+    ? isMediaItemImage(currentMediaItem.value)
+    : false;
 });
 
 /**
@@ -573,18 +581,9 @@ const preloadNextMedia = async () => {
   if (list.length <= 1) return;
 
   const nextItem = list[nextIndex];
-  if (!nextItem) return;
 
   // 3. Check if it's an image
-  // Same logic as isImage computed:
-  const sourceString = nextItem.path.startsWith('gdrive://')
-    ? nextItem.name
-    : nextItem.path;
-  const lastDotIndex = sourceString.lastIndexOf('.');
-  if (lastDotIndex === -1) return;
-
-  const ext = sourceString.slice(lastDotIndex).toLowerCase();
-  if (imageExtensionsSet.value.has(ext)) {
+  if (isMediaItemImage(nextItem)) {
     // 4. Preload
     try {
       const result = await api.loadFileAsDataURL(nextItem.path);
@@ -612,8 +611,10 @@ watch(
     ) {
       resumeSlideshowTimer();
     }
-    // Trigger prefetch of the NEXT item
-    preloadNextMedia();
+    // Trigger prefetch of the NEXT item if current item is valid
+    if (newItem) {
+      preloadNextMedia();
+    }
   },
   { immediate: true },
 );
