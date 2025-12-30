@@ -1,14 +1,19 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { flushPromises, mount } from '@vue/test-utils';
-import { ref } from 'vue';
+import { ref, reactive, toRefs } from 'vue';
 import App from '../../../src/renderer/App.vue';
-import * as useAppState from '../../../src/renderer/composables/useAppState';
-import * as useSlideshow from '../../../src/renderer/composables/useSlideshow';
+import { useSlideshow } from '../../../src/renderer/composables/useSlideshow';
+import { useLibraryStore } from '../../../src/renderer/composables/useLibraryStore';
+import { usePlayerStore } from '../../../src/renderer/composables/usePlayerStore';
+import { useUIStore } from '../../../src/renderer/composables/useUIStore';
 import { api } from '../../../src/renderer/api';
 
-vi.mock('../../../src/renderer/composables/useAppState');
 vi.mock('../../../src/renderer/composables/useSlideshow');
+vi.mock('../../../src/renderer/composables/useLibraryStore');
+vi.mock('../../../src/renderer/composables/usePlayerStore');
+vi.mock('../../../src/renderer/composables/useUIStore');
 vi.mock('../../../src/renderer/api');
+
 vi.mock('../../../src/renderer/components/MediaGrid.vue', () => ({
   default: { template: '<div>Grid</div>' },
 }));
@@ -34,39 +39,57 @@ vi.mock('../../../src/renderer/components/SmartPlaylistModal.vue', () => ({
   },
 }));
 
-const mockState: any = {
-  viewMode: 'grid',
-  isSlideshowActive: false,
-  currentMediaIndex: 0,
-  displayedMediaFiles: [],
-  gridMediaFiles: [],
-  supportedExtensions: { images: [], videos: [] },
-};
-
 describe('App.vue', () => {
+  let mockLibraryState: any;
+  let mockPlayerState: any;
+  let mockUIState: any;
+
   beforeEach(() => {
-    vi.resetModules();
     vi.clearAllMocks();
 
-    // We must re-mock after resetModules if using doMock, but here we used top-level mock.
-    // Top-level mocks persist, but imported modules are cleared.
-    // We need to re-import App probably, or rely on dynamic import?
-    // Actually standard vitest flow handles this if we just rely on the mock updating.
+    mockLibraryState = reactive({
+      isScanning: false,
+      smartPlaylists: [],
+    });
 
-    vi.mocked(useAppState.useAppState).mockReturnValue({
-      state: mockState,
-      initializeApp: vi.fn(),
-      loadAlbum: vi.fn(),
+    const mockInitializeApp = vi.fn();
+    const mockLoadAlbum = vi.fn();
+
+    mockPlayerState = reactive({
+      currentMediaIndex: 0,
+      displayedMediaFiles: [{ path: '1' }, { path: '2' }],
+      isSlideshowActive: false,
+      slideshowTimerId: null,
       toggleSlideshow: vi.fn(),
-      mainVideoElement: ref(null),
-      isScanning: ref(false),
-      viewMode: ref('grid'),
-      isSmartPlaylistModalVisible: ref(false),
-      smartPlaylists: ref([]),
-      playlistToEdit: ref(null),
-    } as any);
+      mainVideoElement: null,
+    });
 
-    vi.mocked(useSlideshow.useSlideshow).mockReturnValue({
+    mockUIState = reactive({
+      viewMode: 'grid',
+      isSmartPlaylistModalVisible: false,
+      playlistToEdit: null,
+      gridMediaFiles: [],
+      supportedExtensions: { images: [], videos: [] },
+    });
+
+    (useLibraryStore as Mock).mockReturnValue({
+      state: mockLibraryState,
+      ...toRefs(mockLibraryState),
+      loadInitialData: mockInitializeApp,
+      loadAlbum: mockLoadAlbum,
+    });
+
+    (usePlayerStore as Mock).mockReturnValue({
+      state: mockPlayerState,
+      ...toRefs(mockPlayerState),
+    });
+
+    (useUIStore as Mock).mockReturnValue({
+      state: mockUIState,
+      ...toRefs(mockUIState),
+    });
+
+    vi.mocked(useSlideshow).mockReturnValue({
       navigateMedia: vi.fn(),
       toggleSlideshowTimer: vi.fn(),
       slideshowTimer: ref(null),
@@ -74,10 +97,6 @@ describe('App.vue', () => {
 
     (api as any).on = vi.fn();
     (api as any).off = vi.fn();
-
-    // Reset state defaults
-    mockState.viewMode = 'grid';
-    mockState.displayedMediaFiles = [{ path: '1' }, { path: '2' }];
   });
 
   it('handles shortcuts', async () => {
@@ -85,7 +104,7 @@ describe('App.vue', () => {
     await flushPromises();
 
     // Mock handlers from useSlideshow
-    const { navigateMedia, toggleSlideshowTimer } = useSlideshow.useSlideshow();
+    const { navigateMedia, toggleSlideshowTimer } = useSlideshow();
 
     // ArrowLeft
     const leftEvent = new KeyboardEvent('keydown', { key: 'ArrowLeft' });
@@ -112,7 +131,7 @@ describe('App.vue', () => {
     mount(App);
     await flushPromises();
 
-    const { navigateMedia } = useSlideshow.useSlideshow();
+    const { navigateMedia } = useSlideshow();
 
     const textarea = document.createElement('textarea');
     document.body.appendChild(textarea);
@@ -139,11 +158,6 @@ describe('App.vue', () => {
     await toggleBtn.trigger('click');
 
     const albumsList = wrapper.findComponent({ name: 'AlbumsList' });
-    // When sidebar is hidden (after 1 click from true default?), wait.
-    // default showSidebar = true.
-    // Click -> false.
-    // Check that it's gone?
-    // But findComponent returns a wrapper even if it doesn't exist? verify exists()
     expect(albumsList.exists()).toBe(false);
 
     expect(toggleBtn.attributes('aria-label')).toBe('Show Albums');
@@ -168,8 +182,7 @@ describe('App.vue', () => {
   });
 
   it('clears playlistToEdit via @close event from SmartPlaylistModal', async () => {
-    const { playlistToEdit } = useAppState.useAppState();
-    playlistToEdit.value = {
+    mockUIState.playlistToEdit = {
       id: 1,
       name: 'Test',
       criteria: '{}',
@@ -183,6 +196,6 @@ describe('App.vue', () => {
     modal.vm.$emit('close');
     await flushPromises();
 
-    expect(playlistToEdit.value).toBe(null);
+    expect(mockUIState.playlistToEdit).toBe(null);
   });
 });

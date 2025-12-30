@@ -1,32 +1,40 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
-import { reactive, computed } from 'vue';
+import { reactive, toRefs } from 'vue';
 import { useSlideshow } from '@/composables/useSlideshow';
-import { useAppState } from '@/composables/useAppState';
+import { useLibraryStore } from '@/composables/useLibraryStore';
+import { usePlayerStore } from '@/composables/usePlayerStore';
+import { useUIStore } from '@/composables/useUIStore';
 import { createMockElectronAPI } from '../mocks/electronAPI';
 
-// Mock the entire useAppState module
-vi.mock('@/composables/useAppState.js', () => ({
-  useAppState: vi.fn(),
-}));
+vi.mock('@/composables/useLibraryStore');
+vi.mock('@/composables/usePlayerStore');
+vi.mock('@/composables/useUIStore');
 
 // Mock the global window.electronAPI
 global.window.electronAPI = createMockElectronAPI();
 
 describe('useSlideshow additional coverage', () => {
-  let mockState: any;
+  let mockLibraryState: any;
+  let mockPlayerState: any;
+  let mockUIState: any;
 
   beforeEach(() => {
-    // Reset mocks before each test
     vi.clearAllMocks();
 
-    // Provide a fresh mock state for each test
-    mockState = reactive({
-      mediaFilter: 'All',
+    mockLibraryState = reactive({
       supportedExtensions: {
         videos: ['.mp4', '.webm'],
         images: ['.png', '.jpg', '.jpeg'],
       },
       globalMediaPoolForSelection: [],
+      albumsSelectedForSlideshow: {},
+      allAlbums: [],
+      totalMediaInPool: 0,
+      imageExtensionsSet: new Set(['.png', '.jpg', '.jpeg']),
+      videoExtensionsSet: new Set(['.mp4', '.webm']),
+    });
+
+    mockPlayerState = reactive({
       displayedMediaFiles: [],
       currentMediaIndex: -1,
       currentMediaItem: null,
@@ -34,21 +42,26 @@ describe('useSlideshow additional coverage', () => {
       slideshowTimerId: null,
       isTimerRunning: false,
       timerDuration: 30,
-      albumsSelectedForSlideshow: {},
-      allAlbums: [],
-      totalMediaInPool: 0,
     });
 
-    // Setup the mock implementation for useAppState
-    (useAppState as Mock).mockReturnValue({
-      state: mockState,
+    mockUIState = reactive({
+      mediaFilter: 'All',
+    });
+
+    (useLibraryStore as Mock).mockReturnValue({
+      state: mockLibraryState,
+      ...toRefs(mockLibraryState),
+    });
+
+    (usePlayerStore as Mock).mockReturnValue({
+      state: mockPlayerState,
+      ...toRefs(mockPlayerState),
       stopSlideshow: vi.fn(),
-      imageExtensionsSet: computed(
-        () => new Set(mockState.supportedExtensions.images),
-      ),
-      videoExtensionsSet: computed(
-        () => new Set(mockState.supportedExtensions.videos),
-      ),
+    });
+
+    (useUIStore as Mock).mockReturnValue({
+      state: mockUIState,
+      ...toRefs(mockUIState),
     });
   });
 
@@ -58,6 +71,7 @@ describe('useSlideshow additional coverage', () => {
         { path: 'a', name: 'a', viewCount: 1e9 }, // Very high view count, near-zero weight
         { path: 'b', name: 'b', viewCount: 1e9 },
       ];
+      // Reuse the hook, which will pick up the mocks
       const { selectWeightedRandom } = useSlideshow();
 
       const mathRandomSpy = vi
@@ -75,6 +89,109 @@ describe('useSlideshow additional coverage', () => {
       const { selectWeightedRandom } = useSlideshow();
       const selected = selectWeightedRandom(items, ['a']);
       expect(selected).not.toBeNull();
+    });
+  });
+
+  describe('Additional function coverage', () => {
+    it('toggleAlbumSelection supports explicit boolean argument', () => {
+      const { toggleAlbumSelection } = useSlideshow();
+      mockLibraryState.albumsSelectedForSlideshow['test'] = true;
+      toggleAlbumSelection('test', true);
+      expect(mockLibraryState.albumsSelectedForSlideshow['test']).toBe(true);
+      toggleAlbumSelection('test', false);
+      expect(mockLibraryState.albumsSelectedForSlideshow['test']).toBe(false);
+    });
+
+    it('displayMedia handles API errors gracefully', async () => {
+      const { pickAndDisplayNextMediaItem } = useSlideshow();
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      vi.mocked(global.window.electronAPI.recordMediaView).mockRejectedValue(
+        new Error('API fail'),
+      );
+      // We also need to mock api.ts if it's used directly
+      // In this test file, api is not mocked globally at top level, but windows.electronAPI is.
+      // useSlideshow imports 'api' from '../api'. 'api' calls window.electronAPI.
+      // So mocking window.electronAPI should be sufficient if api wrapper is thin.
+      // Actually checking imports... import { api } from '../api';
+      // ../api/index.ts usually wraps it.
+
+      mockLibraryState.globalMediaPoolForSelection = [{ path: 'a', name: 'a' }];
+      mockUIState.mediaFilter = 'All';
+
+      await pickAndDisplayNextMediaItem();
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Error recording media view:',
+        expect.any(Error),
+      );
+      consoleSpy.mockRestore();
+    });
+
+    it('pauseSlideshowTimer clears existing timer', () => {
+      const { pauseSlideshowTimer } = useSlideshow();
+      mockPlayerState.slideshowTimerId = 123;
+      mockPlayerState.isTimerRunning = true;
+      const clearIntervalSpy = vi.spyOn(global, 'clearInterval');
+
+      pauseSlideshowTimer();
+
+      expect(clearIntervalSpy).toHaveBeenCalledWith(123);
+      expect(mockPlayerState.slideshowTimerId).toBeNull();
+      expect(mockPlayerState.isTimerRunning).toBe(false);
+      clearIntervalSpy.mockRestore();
+    });
+
+    it('openAlbumInGrid sets view mode and stops slideshow', () => {
+      const { openAlbumInGrid } = useSlideshow();
+      const album = { id: 'a', textures: [{ path: 'p', name: 'n' }] };
+      mockPlayerState.isSlideshowActive = true;
+
+      openAlbumInGrid(album as any);
+
+      expect(mockUIState.viewMode).toBe('grid');
+      expect(mockPlayerState.isSlideshowActive).toBe(false);
+      expect(mockUIState.gridMediaFiles).toHaveLength(1);
+    });
+
+    it('pickAndDisplayNextMediaItem warns if filtered pool is empty', async () => {
+      const { pickAndDisplayNextMediaItem } = useSlideshow();
+      mockLibraryState.globalMediaPoolForSelection = [
+        { path: 'a.txt', name: 'a.txt' },
+      ]; // txt not in supported
+      mockUIState.mediaFilter = 'Images'; // Filter mismatch
+      const consoleWarnSpy = vi
+        .spyOn(console, 'warn')
+        .mockImplementation(() => {});
+
+      await pickAndDisplayNextMediaItem();
+
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        'Media pool is empty or no media matches the filter.',
+      );
+      consoleWarnSpy.mockRestore();
+    });
+
+    it('truncates displayedMediaFiles history', async () => {
+      const { pickAndDisplayNextMediaItem } = useSlideshow();
+      mockLibraryState.globalMediaPoolForSelection = [
+        { path: 'a.png', name: 'a.png' },
+      ];
+      mockUIState.mediaFilter = 'All';
+
+      // Fill history with 100 items
+      const history = new Array(100)
+        .fill(null)
+        .map((_, i) => ({ path: `Item${i}`, name: `Item${i}` }));
+      mockPlayerState.displayedMediaFiles = history;
+      mockPlayerState.currentMediaIndex = 99;
+
+      await pickAndDisplayNextMediaItem();
+
+      // Should be 100 (one added, one removed)
+      expect(mockPlayerState.displayedMediaFiles.length).toBe(100);
+      expect(mockPlayerState.displayedMediaFiles[99].path).toBe('a.png');
     });
   });
 });

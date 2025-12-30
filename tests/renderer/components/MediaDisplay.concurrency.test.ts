@@ -1,14 +1,26 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+  type Mock,
+} from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
-import { ref } from 'vue';
+import { reactive, toRefs } from 'vue';
 import MediaDisplay from '../../../src/renderer/components/MediaDisplay.vue';
-import { useAppState } from '../../../src/renderer/composables/useAppState';
+import { useLibraryStore } from '../../../src/renderer/composables/useLibraryStore';
+import { usePlayerStore } from '../../../src/renderer/composables/usePlayerStore';
+import { useUIStore } from '../../../src/renderer/composables/useUIStore';
 import { api } from '../../../src/renderer/api';
 import { useSlideshow } from '../../../src/renderer/composables/useSlideshow';
 
 // Mock dependencies
 vi.mock('../../../src/renderer/api');
-vi.mock('../../../src/renderer/composables/useAppState');
+vi.mock('../../../src/renderer/composables/useLibraryStore');
+vi.mock('../../../src/renderer/composables/usePlayerStore');
+vi.mock('../../../src/renderer/composables/useUIStore');
 vi.mock('../../../src/renderer/composables/useSlideshow');
 
 // Mock components
@@ -20,38 +32,59 @@ vi.mock('../../../src/renderer/components/icons/StarIcon.vue', () => ({
 }));
 
 describe('MediaDisplay Race Condition', () => {
-  const mockCurrentMediaItem = ref<any>(null);
+  let mockLibraryState: any;
+  let mockPlayerState: any;
+  let mockUIState: any;
 
   // Helper to control promise resolution
   let loadMediaReject: ((err: any) => void) | null = null;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockCurrentMediaItem.value = null;
 
     // Reset promise controllers
     loadMediaReject = null;
 
-    // Mock useAppState
-    vi.mocked(useAppState).mockReturnValue({
-      currentMediaItem: mockCurrentMediaItem,
-      displayedMediaFiles: ref([]),
-      currentMediaIndex: ref(0),
-      isSlideshowActive: ref(true),
-      mediaFilter: ref('All'),
-      totalMediaInPool: ref(10),
-      supportedExtensions: ref({
+    mockLibraryState = reactive({
+      totalMediaInPool: 10,
+      supportedExtensions: {
         images: ['.jpg', '.png'],
         videos: ['.mp4', '.mkv', '.avi'],
         all: ['.jpg', '.png', '.mp4', '.mkv', '.avi'],
-      }),
-      imageExtensionsSet: ref(new Set(['.jpg', '.png'])),
-      videoExtensionsSet: ref(new Set(['.mp4', '.mkv', '.avi'])),
-      playFullVideo: ref(false),
-      pauseTimerOnPlay: ref(false),
-      isTimerRunning: ref(true),
-      mainVideoElement: ref(null),
-    } as any);
+      },
+      imageExtensionsSet: new Set(['.jpg', '.png']),
+      videoExtensionsSet: new Set(['.mp4', '.mkv', '.avi']),
+    });
+
+    mockPlayerState = reactive({
+      currentMediaItem: null,
+      displayedMediaFiles: [],
+      currentMediaIndex: 0,
+      isSlideshowActive: true,
+      playFullVideo: false,
+      pauseTimerOnPlay: false,
+      isTimerRunning: true,
+      mainVideoElement: null,
+    });
+
+    mockUIState = reactive({
+      mediaFilter: 'All',
+    });
+
+    (useLibraryStore as Mock).mockReturnValue({
+      state: mockLibraryState,
+      ...toRefs(mockLibraryState),
+    });
+
+    (usePlayerStore as Mock).mockReturnValue({
+      state: mockPlayerState,
+      ...toRefs(mockPlayerState),
+    });
+
+    (useUIStore as Mock).mockReturnValue({
+      state: mockUIState,
+      ...toRefs(mockUIState),
+    });
 
     // Mock useSlideshow
     vi.mocked(useSlideshow).mockReturnValue({
@@ -99,7 +132,7 @@ describe('MediaDisplay Race Condition', () => {
     const vm = wrapper.vm as any;
 
     // 1. Start loading Item A
-    mockCurrentMediaItem.value = {
+    mockPlayerState.currentMediaItem = {
       name: 'videoA.mp4',
       path: '/path/to/videoA.mp4',
       type: 'video',
@@ -111,7 +144,7 @@ describe('MediaDisplay Race Condition', () => {
     const rejectItemA = loadMediaReject;
 
     // 2. Simulate rapid navigation to Item B
-    mockCurrentMediaItem.value = {
+    mockPlayerState.currentMediaItem = {
       name: 'videoB.mp4',
       path: '/path/to/videoB.mp4',
       type: 'video',
@@ -150,7 +183,7 @@ describe('MediaDisplay Race Condition', () => {
     const vm = wrapper.vm as any;
 
     // 1. Start loading a Legacy Video (forces transcoding)
-    mockCurrentMediaItem.value = {
+    mockPlayerState.currentMediaItem = {
       name: 'legacy.mkv',
       path: '/path/to/legacy.mkv',
       type: 'video',

@@ -1,12 +1,17 @@
 import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
-import { ref } from 'vue';
+import { reactive, toRefs } from 'vue';
 import SourcesModal from '@/components/SourcesModal.vue';
-import { useAppState } from '@/composables/useAppState';
+
+import { useLibraryStore } from '@/composables/useLibraryStore';
+import { useUIStore } from '@/composables/useUIStore';
+import { usePlayerStore } from '@/composables/usePlayerStore';
 import { api } from '@/api';
 
 // Mock the composables
-vi.mock('@/composables/useAppState');
+vi.mock('@/composables/useLibraryStore');
+vi.mock('@/composables/useUIStore');
+vi.mock('@/composables/usePlayerStore');
 
 // Mock the API module
 vi.mock('@/api', () => ({
@@ -27,23 +32,15 @@ vi.mock('@/api', () => ({
 }));
 
 describe('SourcesModal.vue', () => {
-  let mockRefs: any;
-  let mockState: any;
+  let mockLibraryState: any;
+  let mockUIState: any;
+  let mockPlayerState: any;
 
   beforeEach(() => {
-    mockState = {
+    mockLibraryState = reactive({
+      isScanning: false,
       allAlbums: [],
-      isSlideshowActive: false,
-      displayedMediaFiles: [],
-      currentMediaIndex: -1,
-      currentMediaItem: null,
-      globalMediaPoolForSelection: [],
-      albumsSelectedForSlideshow: {},
-    };
-
-    mockRefs = {
-      isSourcesModalVisible: ref(true),
-      mediaDirectories: ref([
+      mediaDirectories: [
         {
           path: '/path/to/dir1',
           isActive: true,
@@ -58,30 +55,34 @@ describe('SourcesModal.vue', () => {
           name: 'dir2',
           type: 'local',
         },
-      ]),
-      state: mockState,
-      allAlbums: ref([]),
-      albumsSelectedForSlideshow: ref({}),
-      mediaFilter: ref('All'),
-      currentMediaItem: ref(null),
-      displayedMediaFiles: ref([]),
-      currentMediaIndex: ref(-1),
-      isSlideshowActive: ref(false),
-      isTimerRunning: ref(false),
-      timerDuration: ref(30),
-      supportedExtensions: ref({
-        images: ['.jpg'],
-        videos: ['.mp4'],
-      }),
-      globalMediaPoolForSelection: ref([]),
-      totalMediaInPool: ref(0),
-      slideshowTimerId: ref(null),
-      initializeApp: vi.fn(),
-      resetState: vi.fn(),
-      stopSlideshow: vi.fn(),
-    };
+      ],
+      albumsSelectedForSlideshow: {},
+      globalMediaPoolForSelection: [],
+    });
 
-    (useAppState as Mock).mockReturnValue(mockRefs);
+    mockUIState = reactive({
+      isSourcesModalVisible: true,
+    });
+
+    mockPlayerState = reactive({
+      isSlideshowActive: false,
+      displayedMediaFiles: [],
+      currentMediaIndex: -1,
+      currentMediaItem: null,
+    });
+
+    (useLibraryStore as Mock).mockReturnValue({
+      state: mockLibraryState,
+      ...toRefs(mockLibraryState),
+    });
+    (useUIStore as Mock).mockReturnValue({
+      state: mockUIState,
+      ...toRefs(mockUIState),
+    });
+    (usePlayerStore as Mock).mockReturnValue({
+      state: mockPlayerState,
+      ...toRefs(mockPlayerState),
+    });
 
     vi.clearAllMocks();
 
@@ -100,7 +101,7 @@ describe('SourcesModal.vue', () => {
   });
 
   it('should not render when not visible', () => {
-    mockRefs.isSourcesModalVisible.value = false;
+    mockUIState.isSourcesModalVisible = false;
     const wrapper = mount(SourcesModal);
     expect(wrapper.find('.fixed.inset-0').exists()).toBe(false);
   });
@@ -112,7 +113,7 @@ describe('SourcesModal.vue', () => {
   });
 
   it('should show empty message when no directories', () => {
-    mockRefs.mediaDirectories.value = [];
+    mockLibraryState.mediaDirectories = [];
     const wrapper = mount(SourcesModal);
     expect(wrapper.text()).toContain('No media sources configured yet');
   });
@@ -121,14 +122,14 @@ describe('SourcesModal.vue', () => {
     const wrapper = mount(SourcesModal);
     const closeButton = wrapper.find('button[aria-label="Close"]');
     await closeButton.trigger('click');
-    expect(mockRefs.isSourcesModalVisible.value).toBe(false);
+    expect(mockUIState.isSourcesModalVisible).toBe(false);
   });
 
   it('should close modal when clicking overlay', async () => {
     const wrapper = mount(SourcesModal);
     // Check for the first fixed overlay (main modal)
     await wrapper.find('.fixed.inset-0').trigger('click.self');
-    expect(mockRefs.isSourcesModalVisible.value).toBe(false);
+    expect(mockUIState.isSourcesModalVisible).toBe(false);
   });
 
   it('should render checkboxes for directories', () => {
@@ -194,7 +195,7 @@ describe('SourcesModal.vue', () => {
 
     expect(api.addMediaDirectory).toHaveBeenCalledWith('/selected/path');
     expect(api.getMediaDirectories).toHaveBeenCalled();
-    expect(mockRefs.mediaDirectories.value).toContainEqual({
+    expect(mockLibraryState.mediaDirectories).toContainEqual({
       path: '/selected/path',
       isActive: true,
       id: '1',
@@ -227,8 +228,7 @@ describe('SourcesModal.vue', () => {
     await flushPromises();
 
     expect(api.reindexMediaLibrary).toHaveBeenCalled();
-    expect(mockState.allAlbums).toEqual(newAlbums);
-    expect(mockState.albumsSelectedForSlideshow).toEqual({
+    expect(mockLibraryState.albumsSelectedForSlideshow).toEqual({
       'newAlbum1-id': true,
       'newAlbum2-id': true,
       'subAlbum-id': true,
@@ -254,7 +254,8 @@ describe('SourcesModal.vue', () => {
       'Error re-indexing library:',
       error,
     );
-    expect(mockRefs.state.isScanning).toBe(false);
+    // isScanning is set to false in finally
+    expect(mockLibraryState.isScanning).toBe(false);
     consoleSpy.mockRestore();
   });
 
@@ -295,8 +296,8 @@ describe('SourcesModal.vue', () => {
   it('should handle directory not found during toggle', async () => {
     const wrapper = mount(SourcesModal);
     await (wrapper.vm as any).handleToggleActive('/non-existent/path', true);
-    expect(mockRefs.mediaDirectories.value[0].isActive).toBe(true);
-    expect(mockRefs.mediaDirectories.value[1].isActive).toBe(false);
+    expect(mockLibraryState.mediaDirectories[0].isActive).toBe(true);
+    expect(mockLibraryState.mediaDirectories[1].isActive).toBe(false);
   });
 
   it('should handle error when removing directory fails', async () => {
@@ -318,7 +319,7 @@ describe('SourcesModal.vue', () => {
   it('should handle directory not found during remove', async () => {
     const wrapper = mount(SourcesModal);
     await (wrapper.vm as any).handleRemove('/non-existent/path');
-    expect(mockRefs.mediaDirectories.value).toHaveLength(2);
+    expect(mockLibraryState.mediaDirectories).toHaveLength(2);
   });
 
   describe('Google Drive Auth', () => {

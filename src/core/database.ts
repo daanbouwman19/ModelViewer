@@ -3,7 +3,7 @@
  * This module acts as a bridge between the main process (or server) and the database worker thread.
  */
 
-import { Worker, type WorkerOptions } from 'worker_threads';
+import { type WorkerOptions } from 'worker_threads';
 import { FILE_INDEX_CACHE_KEY } from './constants.ts';
 import type {
   Album,
@@ -12,81 +12,12 @@ import type {
   MediaMetadata,
   MediaLibraryItem,
 } from './types.ts';
+import { WorkerClient } from './worker-client.ts';
 
 /**
- * The database worker thread instance.
+ * The database worker client instance.
  */
-let dbWorker: Worker | null = null;
-
-/**
- * A flag to indicate if the worker is being terminated intentionally.
- */
-let isTerminating = false;
-
-/**
- * A counter for generating unique message IDs for worker communication.
- */
-let messageIdCounter = 0;
-
-interface PendingMessage<T = unknown> {
-  resolve: (value: T) => void;
-  reject: (reason?: unknown) => void;
-  timeoutId: NodeJS.Timeout;
-}
-
-/**
- * A map of pending promises waiting for worker responses, keyed by message ID.
- */
-const pendingMessages = new Map<number, PendingMessage<unknown>>();
-
-/**
- * The timeout duration for database operations in milliseconds.
- */
-let operationTimeout = 30000;
-
-/**
- * Sends a message to the database worker and returns a promise that resolves with the result.
- * @param type - The type of operation to perform (e.g., 'init', 'recordMediaView').
- * @param payload - The data payload for the operation.
- * @returns A promise that resolves with the worker's response data.
- * @throws {Error} If the worker is not initialized or the operation times out.
- */
-function sendMessageToWorker<T = unknown>(
-  type: string,
-  payload: unknown = {},
-): Promise<T> {
-  return new Promise((resolve, reject) => {
-    if (!dbWorker) {
-      return reject(new Error('Database worker not initialized'));
-    }
-
-    const id = messageIdCounter++;
-
-    const timeoutId = setTimeout(() => {
-      if (pendingMessages.has(id)) {
-        pendingMessages.delete(id);
-        reject(new Error(`Database operation timed out: ${type}`));
-      }
-    }, operationTimeout);
-
-    pendingMessages.set(id, {
-      resolve: resolve as (value: unknown) => void,
-      reject,
-      timeoutId,
-    });
-
-    try {
-      dbWorker.postMessage({ id, type, payload });
-    } catch (error: unknown) {
-      console.error(
-        `[database.js] Error posting message to worker: ${(error as Error).message}`,
-      );
-      clearTimeout(timeoutId);
-      pendingMessages.delete(id);
-      reject(error);
-    }
-  });
-}
+let dbWorkerClient: WorkerClient | null = null;
 
 /**
  * Initializes the database by creating and managing a worker thread.
@@ -102,84 +33,28 @@ async function initDatabase(
   workerScriptPath: string | URL,
   workerOptions?: WorkerOptions,
 ): Promise<void> {
-  if (dbWorker) {
-    console.log(
-      '[database.js] Terminating existing database worker before re-init.',
-    );
-    isTerminating = true;
-    await dbWorker.terminate();
-    dbWorker = null;
+  if (dbWorkerClient) {
+    await dbWorkerClient.terminate();
   }
 
-  isTerminating = false;
+  dbWorkerClient = new WorkerClient(workerScriptPath, {
+    workerOptions,
+    operationTimeout: 30000,
+    name: 'database.js',
+    autoRestart: true,
+    restartDelay: 2000,
+  });
+  await dbWorkerClient.init({ type: 'init', payload: { dbPath: userDbPath } });
+}
 
-  try {
-    dbWorker = new Worker(workerScriptPath, workerOptions);
-
-    dbWorker.on(
-      'message',
-      (message: {
-        id: number;
-        result: { success: boolean; data?: unknown; error?: string };
-      }) => {
-        const { id, result } = message;
-        const pending = pendingMessages.get(id);
-        if (pending) {
-          clearTimeout(pending.timeoutId);
-          pendingMessages.delete(id);
-          if (result.success) {
-            pending.resolve(result.data);
-          } else {
-            pending.reject(new Error(result.error || 'Unknown database error'));
-          }
-        }
-      },
-    );
-
-    dbWorker.on('error', (error) => {
-      console.error('[database.js] Database worker error:', error);
-      for (const [id, pending] of pendingMessages.entries()) {
-        clearTimeout(pending.timeoutId);
-        pending.reject(error);
-        pendingMessages.delete(id);
-      }
-    });
-
-    dbWorker.on('exit', (code) => {
-      if (code !== 0 && !isTerminating) {
-        console.error(
-          `[database.js] Database worker exited unexpectedly with code ${code}`,
-        );
-        // Attempt to restart worker logic
-        // We use a small delay to avoid rapid crash loops
-        console.log('[database.js] Attempting to restart worker in 1s...');
-        setTimeout(() => {
-          initDatabase(userDbPath, workerScriptPath, workerOptions).catch(
-            (err) =>
-              console.error('[database.js] Failed to restart worker:', err),
-          );
-        }, 1000);
-      }
-      for (const [id, pending] of pendingMessages.entries()) {
-        clearTimeout(pending.timeoutId);
-        pending.reject(new Error('Database worker exited unexpectedly'));
-        pendingMessages.delete(id);
-      }
-    });
-
-    await sendMessageToWorker<void>('init', { dbPath: userDbPath });
-
-    if (process.env.NODE_ENV !== 'test') {
-      console.log('[database.js] Database worker initialized successfully.');
-    }
-  } catch (error) {
-    console.error(
-      '[database.js] CRITICAL ERROR: Failed to initialize database worker:',
-      error,
-    );
-    dbWorker = null;
-    throw error;
+/**
+ * Helper to get the client or throw if not initialized.
+ */
+function getClient(): WorkerClient {
+  if (!dbWorkerClient) {
+    throw new Error('Database worker not initialized');
   }
+  return dbWorkerClient;
 }
 
 /**
@@ -189,7 +64,7 @@ async function initDatabase(
  */
 async function recordMediaView(filePath: string): Promise<void> {
   try {
-    await sendMessageToWorker<void>('recordMediaView', { filePath });
+    await getClient().sendMessage<void>('recordMediaView', { filePath });
   } catch (error: unknown) {
     if (process.env.NODE_ENV !== 'test') {
       console.warn(
@@ -211,7 +86,7 @@ async function getMediaViewCounts(
     return {};
   }
   try {
-    return await sendMessageToWorker<{ [filePath: string]: number }>(
+    return await getClient().sendMessage<{ [filePath: string]: number }>(
       'getMediaViewCounts',
       { filePaths },
     );
@@ -228,7 +103,7 @@ async function getMediaViewCounts(
  */
 async function cacheAlbums(albums: Album[]): Promise<void> {
   try {
-    await sendMessageToWorker<void>('cacheAlbums', {
+    await getClient().sendMessage<void>('cacheAlbums', {
       cacheKey: FILE_INDEX_CACHE_KEY,
       albums,
     });
@@ -243,7 +118,7 @@ async function cacheAlbums(albums: Album[]): Promise<void> {
  */
 async function getCachedAlbums(): Promise<Album[] | null> {
   try {
-    return await sendMessageToWorker<Album[] | null>('getCachedAlbums', {
+    return await getClient().sendMessage<Album[] | null>('getCachedAlbums', {
       cacheKey: FILE_INDEX_CACHE_KEY,
     });
   } catch (error: unknown) {
@@ -261,26 +136,17 @@ async function getCachedAlbums(): Promise<Album[] | null> {
  * @returns A promise that resolves when the worker has been terminated.
  */
 async function closeDatabase(): Promise<void> {
-  if (dbWorker) {
-    isTerminating = true;
+  if (dbWorkerClient) {
+    // Send close signal if needed, then terminate
     try {
-      await sendMessageToWorker<void>('close');
+      await dbWorkerClient.sendMessage<void>('close');
     } catch (error) {
       if (process.env.NODE_ENV !== 'test') {
         console.warn('[database.js] Warning during worker shutdown:', error);
       }
     } finally {
-      try {
-        if (dbWorker) {
-          await dbWorker.terminate();
-        }
-      } catch (error) {
-        console.error('[database.js] Error closing database worker:', error);
-      } finally {
-        dbWorker = null;
-        isTerminating = false;
-        console.log('[database.js] Database worker terminated.');
-      }
+      await dbWorkerClient.terminate();
+      dbWorkerClient = null;
     }
   }
 }
@@ -290,7 +156,9 @@ async function closeDatabase(): Promise<void> {
  * @param timeout - The timeout in milliseconds.
  */
 function setOperationTimeout(timeout: number): void {
-  operationTimeout = timeout;
+  if (dbWorkerClient) {
+    dbWorkerClient.setOperationTimeout(timeout);
+  }
 }
 
 /**
@@ -313,7 +181,7 @@ async function addMediaDirectory(
     const payload =
       typeof directory === 'string' ? { path: directory } : directory;
 
-    await sendMessageToWorker<void>('addMediaDirectory', {
+    await getClient().sendMessage<void>('addMediaDirectory', {
       directoryObj: payload,
     });
   } catch (error) {
@@ -331,7 +199,7 @@ async function addMediaDirectory(
  */
 async function getMediaDirectories(): Promise<MediaDirectory[]> {
   try {
-    const directories = await sendMessageToWorker<MediaDirectory[]>(
+    const directories = await getClient().sendMessage<MediaDirectory[]>(
       'getMediaDirectories',
     );
     return directories || [];
@@ -349,7 +217,9 @@ async function getMediaDirectories(): Promise<MediaDirectory[]> {
  */
 async function removeMediaDirectory(directoryPath: string): Promise<void> {
   try {
-    await sendMessageToWorker<void>('removeMediaDirectory', { directoryPath });
+    await getClient().sendMessage<void>('removeMediaDirectory', {
+      directoryPath,
+    });
   } catch (error) {
     console.error(
       `[database.js] Error removing media directory '${directoryPath}':`,
@@ -371,7 +241,7 @@ async function setDirectoryActiveState(
   isActive: boolean,
 ): Promise<void> {
   try {
-    await sendMessageToWorker<void>('setDirectoryActiveState', {
+    await getClient().sendMessage<void>('setDirectoryActiveState', {
       directoryPath,
       isActive,
     });
@@ -392,7 +262,7 @@ async function upsertMetadata(
   metadata: MediaMetadata,
 ): Promise<void> {
   try {
-    await sendMessageToWorker<void>('upsertMetadata', {
+    await getClient().sendMessage<void>('upsertMetadata', {
       filePath,
       ...metadata,
     });
@@ -409,7 +279,7 @@ async function bulkUpsertMetadata(
   payloads: ({ filePath: string } & MediaMetadata)[],
 ): Promise<void> {
   try {
-    await sendMessageToWorker<void>('bulkUpsertMetadata', payloads);
+    await getClient().sendMessage<void>('bulkUpsertMetadata', payloads);
   } catch (error) {
     console.error('[database.js] Error bulk upserting metadata:', error);
     throw error;
@@ -421,7 +291,7 @@ async function bulkUpsertMetadata(
  */
 async function setRating(filePath: string, rating: number): Promise<void> {
   try {
-    await sendMessageToWorker<void>('setRating', {
+    await getClient().sendMessage<void>('setRating', {
       filePath,
       rating,
     });
@@ -438,7 +308,7 @@ async function getMetadata(
   filePaths: string[],
 ): Promise<{ [path: string]: MediaMetadata }> {
   try {
-    return await sendMessageToWorker<{ [path: string]: MediaMetadata }>(
+    return await getClient().sendMessage<{ [path: string]: MediaMetadata }>(
       'getMetadata',
       { filePaths },
     );
@@ -469,10 +339,13 @@ async function createSmartPlaylist(
   }
 
   try {
-    return await sendMessageToWorker<{ id: number }>('createSmartPlaylist', {
-      name,
-      criteria,
-    });
+    return await getClient().sendMessage<{ id: number }>(
+      'createSmartPlaylist',
+      {
+        name,
+        criteria,
+      },
+    );
   } catch (error) {
     console.error('[database.js] Error creating smart playlist:', error);
     throw error;
@@ -484,7 +357,7 @@ async function createSmartPlaylist(
  */
 async function getSmartPlaylists(): Promise<SmartPlaylist[]> {
   try {
-    return await sendMessageToWorker<SmartPlaylist[]>('getSmartPlaylists');
+    return await getClient().sendMessage<SmartPlaylist[]>('getSmartPlaylists');
   } catch (error) {
     console.error('[database.js] Error getting smart playlists:', error);
     return [];
@@ -496,7 +369,7 @@ async function getSmartPlaylists(): Promise<SmartPlaylist[]> {
  */
 async function deleteSmartPlaylist(id: number): Promise<void> {
   try {
-    await sendMessageToWorker<void>('deleteSmartPlaylist', { id });
+    await getClient().sendMessage<void>('deleteSmartPlaylist', { id });
   } catch (error) {
     console.error('[database.js] Error deleting smart playlist:', error);
     throw error;
@@ -525,7 +398,7 @@ async function updateSmartPlaylist(
   }
 
   try {
-    await sendMessageToWorker<void>('updateSmartPlaylist', {
+    await getClient().sendMessage<void>('updateSmartPlaylist', {
       id,
       name,
       criteria,
@@ -541,7 +414,7 @@ async function updateSmartPlaylist(
  */
 async function saveSetting(key: string, value: string): Promise<void> {
   try {
-    await sendMessageToWorker<void>('saveSetting', { key, value });
+    await getClient().sendMessage<void>('saveSetting', { key, value });
   } catch (error) {
     console.error('[database.js] Error saving setting:', error);
     throw error;
@@ -553,7 +426,7 @@ async function saveSetting(key: string, value: string): Promise<void> {
  */
 async function getSetting(key: string): Promise<string | null> {
   try {
-    return await sendMessageToWorker<string | null>('getSetting', { key });
+    return await getClient().sendMessage<string | null>('getSetting', { key });
   } catch (error) {
     console.error('[database.js] Error getting setting:', error);
     return null;
@@ -566,7 +439,7 @@ async function getSetting(key: string): Promise<string | null> {
  */
 async function getAllMetadataAndStats(): Promise<MediaLibraryItem[]> {
   try {
-    return await sendMessageToWorker<MediaLibraryItem[]>(
+    return await getClient().sendMessage<MediaLibraryItem[]>(
       'executeSmartPlaylist',
       {
         criteria: '{}',
@@ -611,9 +484,12 @@ export {
  */
 async function getRecentlyPlayed(limit = 50): Promise<MediaLibraryItem[]> {
   try {
-    return await sendMessageToWorker<MediaLibraryItem[]>('getRecentlyPlayed', {
-      limit,
-    });
+    return await getClient().sendMessage<MediaLibraryItem[]>(
+      'getRecentlyPlayed',
+      {
+        limit,
+      },
+    );
   } catch (error) {
     console.error('[database.js] Error getting recently played:', error);
     throw error;
@@ -625,7 +501,7 @@ async function getRecentlyPlayed(limit = 50): Promise<MediaLibraryItem[]> {
  */
 async function getPendingMetadata(): Promise<string[]> {
   try {
-    return await sendMessageToWorker<string[]>('getPendingMetadata');
+    return await getClient().sendMessage<string[]>('getPendingMetadata');
   } catch (error) {
     console.error('[database.js] Error getting pending metadata:', error);
     return [];

@@ -1,16 +1,20 @@
 import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { mount } from '@vue/test-utils';
-import { ref } from 'vue';
+import { reactive, toRefs } from 'vue';
 import MediaDisplay from '@/components/MediaDisplay.vue';
 import VideoPlayer from '@/components/VideoPlayer.vue';
 import SourcesModal from '@/components/SourcesModal.vue';
 import AlbumTree from '@/components/AlbumTree.vue';
-import { useAppState } from '@/composables/useAppState';
+import { useLibraryStore } from '@/composables/useLibraryStore';
+import { usePlayerStore } from '@/composables/usePlayerStore';
+import { useUIStore } from '@/composables/useUIStore';
 import { useSlideshow } from '@/composables/useSlideshow';
 import { api } from '@/api';
 
 // Mock the composables
-vi.mock('@/composables/useAppState');
+vi.mock('@/composables/useLibraryStore');
+vi.mock('@/composables/usePlayerStore');
+vi.mock('@/composables/useUIStore');
 vi.mock('@/composables/useSlideshow');
 
 // Mock VlcIcon
@@ -34,45 +38,64 @@ vi.mock('@/api', () => ({
 }));
 
 describe('Palette Accessibility Improvements', () => {
-  let mockRefs: any;
+  let mockLibraryState: any;
+  let mockPlayerState: any;
+  let mockUIState: any;
 
   beforeEach(() => {
     // Setup minimal state for MediaDisplay
-    mockRefs = {
-      // MediaDisplay needs:
-      currentMediaItem: ref({ name: 'test.jpg', path: '/test.jpg' }),
-      displayedMediaFiles: ref([{ name: 'test.jpg', path: '/test.jpg' }]),
-      currentMediaIndex: ref(0),
-      isSlideshowActive: ref(true),
-      mediaFilter: ref('All'),
-      totalMediaInPool: ref(1),
-      supportedExtensions: ref({ images: ['.jpg'], videos: ['.mp4'] }),
-      imageExtensionsSet: ref(new Set(['.jpg'])),
-      videoExtensionsSet: ref(new Set(['.mp4'])),
-      playFullVideo: ref(false),
-      pauseTimerOnPlay: ref(false),
-      isTimerRunning: ref(false),
-      mainVideoElement: ref(null),
+    mockLibraryState = reactive({
+      totalMediaInPool: 1,
+      supportedExtensions: { images: ['.jpg'], videos: ['.mp4'] },
+      imageExtensionsSet: new Set(['.jpg']),
+      videoExtensionsSet: new Set(['.mp4']),
+      mediaDirectories: [],
+      allAlbums: [],
+      albumsSelectedForSlideshow: {},
+      globalMediaPoolForSelection: [],
+    });
 
-      // SourcesModal needs:
-      isSourcesModalVisible: ref(true),
-      mediaDirectories: ref([]),
-      state: {
-        allAlbums: [],
-        albumsSelectedForSlideshow: {},
-      },
-      allAlbums: ref([]),
-      albumsSelectedForSlideshow: ref({}),
-      globalMediaPoolForSelection: ref([]),
-      slideshowTimerId: ref(null),
+    mockPlayerState = reactive({
+      currentMediaItem: { name: 'test.jpg', path: '/test.jpg' },
+      displayedMediaFiles: [{ name: 'test.jpg', path: '/test.jpg' }],
+      currentMediaIndex: 0,
+      isSlideshowActive: true,
+      playFullVideo: false,
+      pauseTimerOnPlay: false,
+      isTimerRunning: false,
+      mainVideoElement: null,
+      slideshowTimerId: null,
+    });
 
-      // Functions
-      initializeApp: vi.fn(),
+    mockUIState = reactive({
+      mediaFilter: 'All',
+      isSourcesModalVisible: true,
+    });
+
+    (useLibraryStore as Mock).mockReturnValue({
+      state: mockLibraryState,
+      ...toRefs(mockLibraryState),
+      // Functions usually returned by store?
+      // Based on other tests, we just mock logic.
+      // SourcesModal usually calls `libraryStore.addMediaDirectory` etc.
+      // I should verify if tests call these.
+      // Tests below check `remove-button` labels, but don't seem to trigger actions that require store methods
+      // except `toggleAlbumSelection` which is from slideshow mock? No, likely from store in new design?
+      // AlbumTree might use store actions.
+      // But for now let's just use state as `useAppState` did.
+    });
+
+    (usePlayerStore as Mock).mockReturnValue({
+      state: mockPlayerState,
+      ...toRefs(mockPlayerState),
       resetState: vi.fn(),
-      stopSlideshow: vi.fn(),
-    };
+    });
 
-    (useAppState as Mock).mockReturnValue(mockRefs);
+    (useUIStore as Mock).mockReturnValue({
+      state: mockUIState,
+      ...toRefs(mockUIState),
+      initializeApp: vi.fn(),
+    });
 
     (useSlideshow as Mock).mockReturnValue({
       setFilter: vi.fn(),
@@ -90,6 +113,7 @@ describe('Palette Accessibility Improvements', () => {
       pickAndDisplayNextMediaItem: vi.fn(),
       filterMedia: vi.fn(),
       selectWeightedRandom: vi.fn(),
+      stopSlideshow: vi.fn(),
     });
 
     vi.clearAllMocks();
@@ -114,14 +138,11 @@ describe('Palette Accessibility Improvements', () => {
 
     it('VLC button should have accessible label', async () => {
       // Need a video to show VLC button
-      mockRefs.currentMediaItem.value = {
+      mockPlayerState.currentMediaItem = {
         name: 'video.mp4',
         path: '/video.mp4',
       };
-      mockRefs.supportedExtensions.value = {
-        images: ['.jpg'],
-        videos: ['.mp4'],
-      };
+      // supported exts are already set
 
       const wrapper = mount(MediaDisplay);
       await wrapper.vm.$nextTick(); // Wait for re-render
@@ -133,13 +154,9 @@ describe('Palette Accessibility Improvements', () => {
 
     it('video progress bar should be accessible', async () => {
       // Setup video media
-      mockRefs.currentMediaItem.value = {
+      mockPlayerState.currentMediaItem = {
         name: 'video.mp4',
         path: '/video.mp4',
-      };
-      mockRefs.supportedExtensions.value = {
-        images: ['.jpg'],
-        videos: ['.mp4'],
       };
 
       const wrapper = mount(MediaDisplay);
@@ -158,7 +175,7 @@ describe('Palette Accessibility Improvements', () => {
 
     it('should handle keyboard navigation on progress bar', async () => {
       // Setup video media with a specific duration
-      mockRefs.currentMediaItem.value = {
+      mockPlayerState.currentMediaItem = {
         name: 'video.mp4',
         path: '/video.mp4',
       };
@@ -196,7 +213,7 @@ describe('Palette Accessibility Improvements', () => {
 
     it('should handle keyboard navigation on progress bar in transcoding mode', async () => {
       // Setup video media
-      mockRefs.currentMediaItem.value = {
+      mockPlayerState.currentMediaItem = {
         name: 'video.mp4',
         path: '/video.mp4',
       };
@@ -255,7 +272,7 @@ describe('Palette Accessibility Improvements', () => {
     });
 
     it('remove buttons should have specific accessible labels', async () => {
-      mockRefs.mediaDirectories.value = [
+      mockLibraryState.mediaDirectories = [
         { path: '/home/user/media', isActive: true },
         { path: '/mnt/data/photos', isActive: false },
       ];
@@ -366,7 +383,7 @@ describe('Palette Accessibility Improvements', () => {
   describe('Rating System', () => {
     it('rating buttons should have accessible labels', async () => {
       // Setup media item with existing rating
-      mockRefs.currentMediaItem.value = {
+      mockPlayerState.currentMediaItem = {
         name: 'photo.jpg',
         path: '/photo.jpg',
         rating: 3,

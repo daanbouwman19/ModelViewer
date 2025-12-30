@@ -73,10 +73,15 @@ import SmartPlaylistModal from './components/SmartPlaylistModal.vue';
 import LoadingMask from './components/LoadingMask.vue';
 import MenuIcon from './components/icons/MenuIcon.vue';
 import CloseIcon from './components/icons/CloseIcon.vue';
-import { useAppState } from './composables/useAppState';
+import { useLibraryStore } from './composables/useLibraryStore';
+import { useUIStore } from './composables/useUIStore';
 import { useSlideshow } from './composables/useSlideshow';
 
-const { initializeApp, isScanning, viewMode, playlistToEdit } = useAppState();
+const libraryStore = useLibraryStore();
+const uiStore = useUIStore();
+const { isScanning } = libraryStore;
+const { viewMode, playlistToEdit } = uiStore;
+const initializeApp = libraryStore.loadInitialData;
 const { navigateMedia, toggleSlideshowTimer } = useSlideshow();
 
 const showSidebar = ref(true);

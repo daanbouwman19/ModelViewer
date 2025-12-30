@@ -1,24 +1,45 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+  type Mock,
+} from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
-import { ref } from 'vue';
+import { reactive, toRefs } from 'vue';
 import AmbientBackground from '../../../src/renderer/components/AmbientBackground.vue';
-import { useAppState } from '../../../src/renderer/composables/useAppState';
+import { usePlayerStore } from '../../../src/renderer/composables/usePlayerStore';
+import { useLibraryStore } from '../../../src/renderer/composables/useLibraryStore';
 import { api } from '../../../src/renderer/api';
 
-vi.mock('../../../src/renderer/composables/useAppState');
+vi.mock('../../../src/renderer/composables/usePlayerStore');
+vi.mock('../../../src/renderer/composables/useLibraryStore');
 vi.mock('../../../src/renderer/api');
 
 describe('AmbientBackground.vue', () => {
-  let mockAppState: any;
+  let mockPlayerState: any;
+  let mockLibraryState: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockAppState = {
-      currentMediaItem: ref(null),
-      supportedExtensions: ref({ images: ['.jpg', '.png'], videos: ['.mp4'] }),
-      mainVideoElement: ref(null),
-    };
-    vi.mocked(useAppState).mockReturnValue(mockAppState);
+    mockPlayerState = reactive({
+      currentMediaItem: null,
+      mainVideoElement: null,
+    });
+    mockLibraryState = reactive({
+      supportedExtensions: { images: ['.jpg', '.png'], videos: ['.mp4'] },
+    });
+
+    (usePlayerStore as Mock).mockReturnValue({
+      state: mockPlayerState,
+      ...toRefs(mockPlayerState),
+    });
+    (useLibraryStore as Mock).mockReturnValue({
+      state: mockLibraryState,
+      ...toRefs(mockLibraryState),
+    });
 
     // Mock API
     vi.mocked(api.loadFileAsDataURL).mockResolvedValue({
@@ -47,16 +68,9 @@ describe('AmbientBackground.vue', () => {
   });
 
   it('loads media when currentMediaItem changes (Image)', async () => {
-    mockAppState.currentMediaItem.value = { path: '/test/image.jpg' };
+    mockPlayerState.currentMediaItem = { path: '/test/image.jpg' };
 
     // Mock Image loading
-    // In happy-dom/jsdom, Image is global. We can spy on it or setter.
-    // Or simply wait for the effect.
-    // The component does: new Image(), img.src = ..., img.onload.
-
-    // To test onload, we can hijack global Image or just assume standard behavior works if we wait enough.
-    // But better trigger onload manually if we can catch the instance.
-
     const originalImage = window.Image;
     window.Image = class FakeImage {
       onload: any;
@@ -90,32 +104,19 @@ describe('AmbientBackground.vue', () => {
   });
 
   it('starts video loop when video', async () => {
-    mockAppState.currentMediaItem.value = { path: '/test/video.mp4' };
+    mockPlayerState.currentMediaItem = { path: '/test/video.mp4' };
     const mockVideo = { paused: false, ended: false } as HTMLVideoElement;
-    mockAppState.mainVideoElement.value = mockVideo;
+    mockPlayerState.mainVideoElement = mockVideo;
 
     const wrapper = mount(AmbientBackground);
     await flushPromises();
-
-    // It uses requestAnimationFrame.
-    // We can advance timers or just check if loop ran.
-    // The loop checks mainVideoElement.
 
     // Force a frame
     await new Promise((r) => setTimeout(r, 50));
 
     const canvas = wrapper.find('canvas').element as HTMLCanvasElement;
     const ctx = canvas.getContext('2d');
-    // We expect drawImage to be called if video is playing
-    // But rAF is async.
-    // Also we need to make sure loop runs.
-    // Testing rAF loops usually implies using vi.useFakeTimers or ensuring rAF is called.
 
-    // For now, simple check.
-    // Wait, the component calls startVideoLoop which calls loop which calls ctx.drawImage IMMEDIATELY if conditions met?
-    // No, loop calls if checks pass.
-
-    // We need to wait for next tick maybe.
     await new Promise((r) => setTimeout(r, 50));
 
     expect(ctx?.drawImage).toHaveBeenCalled();
@@ -126,7 +127,7 @@ describe('AmbientBackground.vue', () => {
     const consoleErrorSpy = vi
       .spyOn(console, 'error')
       .mockImplementation(() => {});
-    mockAppState.currentMediaItem.value = { path: '/test/fail.jpg' };
+    mockPlayerState.currentMediaItem = { path: '/test/fail.jpg' };
     vi.mocked(api.loadFileAsDataURL).mockRejectedValue(new Error('Load fail'));
 
     mount(AmbientBackground);
@@ -141,9 +142,9 @@ describe('AmbientBackground.vue', () => {
 
   it('video loop handles missing video element gracefully', async () => {
     // Clear previous intervals/animations
-    mockAppState.currentMediaItem.value = { path: '/test/video.mp4' };
+    mockPlayerState.currentMediaItem = { path: '/test/video.mp4' };
     // Video not set yet
-    mockAppState.mainVideoElement.value = null;
+    mockPlayerState.mainVideoElement = null;
 
     const wrapper = mount(AmbientBackground);
     await flushPromises();
@@ -158,8 +159,8 @@ describe('AmbientBackground.vue', () => {
   });
 
   it('video loop swallows drawImage errors', async () => {
-    mockAppState.currentMediaItem.value = { path: '/test/video.mp4' };
-    mockAppState.mainVideoElement.value = {
+    mockPlayerState.currentMediaItem = { path: '/test/video.mp4' };
+    mockPlayerState.mainVideoElement = {
       paused: false,
       ended: false,
     } as any;
@@ -183,7 +184,7 @@ describe('AmbientBackground.vue', () => {
   });
 
   it('handles http-url media', async () => {
-    mockAppState.currentMediaItem.value = { path: '/test/image.jpg' };
+    mockPlayerState.currentMediaItem = { path: '/test/image.jpg' };
     vi.mocked(api.loadFileAsDataURL).mockResolvedValue({
       type: 'http-url',
       url: 'http://foo.com/img.jpg',
@@ -199,7 +200,7 @@ describe('AmbientBackground.vue', () => {
   });
 
   it('handles no media', async () => {
-    mockAppState.currentMediaItem.value = null;
+    mockPlayerState.currentMediaItem = null;
     await flushPromises();
     expect(api.loadFileAsDataURL).not.toHaveBeenCalled();
   });

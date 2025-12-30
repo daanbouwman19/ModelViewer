@@ -625,7 +625,7 @@ describe('Additional Function Coverage', () => {
     mockWorkerInstance!.simulateExit(1);
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      '[database.js] Database worker exited unexpectedly with code 1',
+      '[database.js] Worker exited unexpectedly with code 1',
     );
 
     consoleErrorSpy.mockRestore();
@@ -681,7 +681,7 @@ describe('Additional Function Coverage', () => {
     await expect(getViewCountsPromise).resolves.toEqual({});
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      '[database.js] Database worker error:',
+      '[database.js] Worker error:',
       testError,
     );
 
@@ -718,7 +718,7 @@ describe('Additional Function Coverage', () => {
     await db.closeDatabase();
 
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      '[database.js] Error closing database worker:',
+      '[database.js] Error terminating worker:',
       terminateError,
     );
 

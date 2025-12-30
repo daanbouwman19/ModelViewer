@@ -91,10 +91,22 @@ describe('media-service', () => {
 
       const promise = scanDiskForAlbumsAndCache();
       await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Get the ID from the postMessage call
+      const lastCall = sharedState.lastWorker.postMessage.mock.lastCall;
+      const msgId = lastCall?.[0]?.id;
+
       const onMessage = sharedState.lastWorker.on.mock.calls.find(
         (c: any) => c[0] === 'message',
       )?.[1];
-      if (onMessage) onMessage({ type: 'SCAN_COMPLETE', albums: [] });
+
+      if (onMessage && msgId !== undefined) {
+        onMessage({
+          id: msgId,
+          result: { success: true, data: [] },
+        });
+      }
+
       await promise;
       expect(vi.mocked(Worker)).toHaveBeenCalledWith(
         expect.stringMatching(/scan-worker\.js$/),
@@ -114,10 +126,21 @@ describe('media-service', () => {
       ] as any);
       const promise = scanDiskForAlbumsAndCache();
       await new Promise((resolve) => setTimeout(resolve, 50));
+
+      const lastCall = sharedState.lastWorker.postMessage.mock.lastCall;
+      const msgId = lastCall?.[0]?.id;
+
       const onMessage = sharedState.lastWorker.on.mock.calls.find(
         (c: any) => c[0] === 'message',
       )?.[1];
-      if (onMessage) onMessage({ type: 'SCAN_COMPLETE', albums: [] });
+
+      if (onMessage && msgId !== undefined) {
+        onMessage({
+          id: msgId,
+          result: { success: true, data: [] },
+        });
+      }
+
       await promise;
       expect(vi.mocked(Worker)).toHaveBeenCalledWith(
         expect.any(URL),
@@ -137,10 +160,21 @@ describe('media-service', () => {
       ] as any);
       const promise = scanDiskForAlbumsAndCache();
       await new Promise((resolve) => setTimeout(resolve, 50));
+
+      const lastCall = sharedState.lastWorker.postMessage.mock.lastCall;
+      const msgId = lastCall?.[0]?.id;
+
       const onMessage = sharedState.lastWorker.on.mock.calls.find(
         (c: any) => c[0] === 'message',
       )?.[1];
-      if (onMessage) onMessage({ type: 'SCAN_COMPLETE', albums: [] });
+
+      if (onMessage && msgId !== undefined) {
+        onMessage({
+          id: msgId,
+          result: { success: true, data: [] },
+        });
+      }
+
       await promise;
       expect(vi.mocked(Worker)).toHaveBeenCalledWith(
         expect.stringMatching(/scan-worker\.js$/),
@@ -155,10 +189,21 @@ describe('media-service', () => {
       ] as any);
       const promise = scanDiskForAlbumsAndCache();
       await new Promise((resolve) => setTimeout(resolve, 50));
+
+      const lastCall = sharedState.lastWorker.postMessage.mock.lastCall;
+      const msgId = lastCall?.[0]?.id;
+
       const onMessage = sharedState.lastWorker.on.mock.calls.find(
         (c: any) => c[0] === 'message',
       )?.[1];
-      if (onMessage) onMessage({ type: 'SCAN_ERROR', error: 'Worker error' });
+
+      if (onMessage && msgId !== undefined) {
+        onMessage({
+          id: msgId,
+          result: { success: false, error: 'Worker error' },
+        });
+      }
+
       await expect(promise).rejects.toThrow('Worker error');
     });
 
@@ -185,7 +230,7 @@ describe('media-service', () => {
         (c: any) => c[0] === 'exit',
       )?.[1];
       if (onExit) onExit(1);
-      await expect(promise).rejects.toThrow('Worker stopped with exit code 1');
+      await expect(promise).rejects.toThrow('Worker exited unexpectedly');
     });
 
     it('handles worker zero exit without message', async () => {
@@ -198,9 +243,7 @@ describe('media-service', () => {
         (c: any) => c[0] === 'exit',
       )?.[1];
       if (onExit) onExit(0);
-      await expect(promise).rejects.toThrow(
-        'Worker exited without sending a result.',
-      );
+      await expect(promise).rejects.toThrow('Worker exited unexpectedly');
     });
 
     it('triggers background metadata extraction and handles its failure', async () => {
@@ -217,10 +260,21 @@ describe('media-service', () => {
       const albums = [{ id: 1, textures: [{ path: '/v.mp4' }] }];
       const promise = scanDiskForAlbumsAndCache('/ffmpeg');
       await new Promise((resolve) => setTimeout(resolve, 50));
+
+      const lastCall = sharedState.lastWorker.postMessage.mock.lastCall;
+      const msgId = lastCall?.[0]?.id;
+
       const onMessage = sharedState.lastWorker.on.mock.calls.find(
         (c: any) => c[0] === 'message',
       )?.[1];
-      if (onMessage) onMessage({ type: 'SCAN_COMPLETE', albums });
+
+      if (onMessage && msgId !== undefined) {
+        onMessage({
+          id: msgId,
+          result: { success: true, data: albums },
+        });
+      }
+
       await promise;
 
       await new Promise((resolve) => setTimeout(resolve, 100));
@@ -247,10 +301,21 @@ describe('media-service', () => {
       ] as any);
       const promise = getAlbumsFromCacheOrDisk();
       await new Promise((resolve) => setTimeout(resolve, 50));
+
+      const lastCall = sharedState.lastWorker.postMessage.mock.lastCall;
+      const msgId = lastCall?.[0]?.id;
+
       const onMessage = sharedState.lastWorker.on.mock.calls.find(
         (c: any) => c[0] === 'message',
       )?.[1];
-      if (onMessage) onMessage({ type: 'SCAN_COMPLETE', albums: [{ id: 2 }] });
+
+      if (onMessage && msgId !== undefined) {
+        onMessage({
+          id: msgId,
+          result: { success: true, data: [{ id: 2 }] },
+        });
+      }
+
       const result = await promise;
       expect(result).toEqual([{ id: 2 }]);
     });
@@ -267,10 +332,20 @@ describe('media-service', () => {
       const albums = [{ id: 1, textures: [{ path: '/v1.mp4' }] }];
       const promise = getAlbumsWithViewCountsAfterScan();
       await new Promise((resolve) => setTimeout(resolve, 50));
+
+      const lastCall = sharedState.lastWorker.postMessage.mock.lastCall;
+      const msgId = lastCall?.[0]?.id;
+
       const onMessage = sharedState.lastWorker.on.mock.calls.find(
         (c: any) => c[0] === 'message',
       )?.[1];
-      if (onMessage) onMessage({ type: 'SCAN_COMPLETE', albums });
+
+      if (onMessage && msgId !== undefined) {
+        onMessage({
+          id: msgId,
+          result: { success: true, data: albums },
+        });
+      }
       const result = await promise;
       expect(result[0].textures[0].viewCount).toBe(5);
     });
@@ -287,10 +362,20 @@ describe('media-service', () => {
       ] as any);
       const promise = getAlbumsWithViewCountsAfterScan();
       await new Promise((resolve) => setTimeout(resolve, 50));
+
+      const lastCall = sharedState.lastWorker.postMessage.mock.lastCall;
+      const msgId = lastCall?.[0]?.id;
+
       const onMessage = sharedState.lastWorker.on.mock.calls.find(
         (c: any) => c[0] === 'message',
       )?.[1];
-      if (onMessage) onMessage({ type: 'SCAN_COMPLETE', albums: [] });
+
+      if (onMessage && msgId !== undefined) {
+        onMessage({
+          id: msgId,
+          result: { success: true, data: [] },
+        });
+      }
       const result = await promise;
       expect(result).toEqual([]);
     });

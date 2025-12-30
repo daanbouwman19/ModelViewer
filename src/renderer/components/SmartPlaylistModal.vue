@@ -180,7 +180,8 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
-import { useAppState } from '../composables/useAppState';
+import { useUIStore } from '../composables/useUIStore';
+import { useLibraryStore } from '../composables/useLibraryStore';
 import { api } from '../api';
 import CloseIcon from './icons/CloseIcon.vue';
 
@@ -194,7 +195,11 @@ const props = defineProps<{
 
 const emit = defineEmits(['close']);
 
-const { isSmartPlaylistModalVisible, smartPlaylists } = useAppState();
+const uiStore = useUIStore();
+const libraryStore = useLibraryStore();
+
+const { isSmartPlaylistModalVisible } = uiStore;
+const { smartPlaylists } = libraryStore;
 
 const name = ref('');
 const minRating = ref(0);

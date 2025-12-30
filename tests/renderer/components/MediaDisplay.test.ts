@@ -1,31 +1,14 @@
 import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
+import { ref, reactive, toRefs } from 'vue';
 import MediaDisplay from '@/components/MediaDisplay.vue';
 import VideoPlayer from '@/components/VideoPlayer.vue';
 import MediaControls from '@/components/MediaControls.vue';
+import { useSlideshow } from '@/composables/useSlideshow';
+import { useLibraryStore } from '@/composables/useLibraryStore';
+import { usePlayerStore } from '@/composables/usePlayerStore';
+import { useUIStore } from '@/composables/useUIStore';
 import { api } from '@/api';
-import { ref } from 'vue';
-
-const mockRefs = {
-  currentMediaItem: ref<any>(null),
-  displayedMediaFiles: ref<any[]>([]),
-  currentMediaIndex: ref(0),
-  isSlideshowActive: ref(false),
-  mediaFilter: ref('All'),
-  totalMediaInPool: ref(0),
-  imageExtensionsSet: ref(new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp'])),
-  playFullVideo: ref(false),
-  pauseTimerOnPlay: ref(false),
-  isTimerRunning: ref(false),
-  mainVideoElement: ref<any>(null),
-};
-
-const slideshowMock = {
-  navigateMedia: vi.fn(),
-  reapplyFilter: vi.fn(),
-  pauseSlideshowTimer: vi.fn(),
-  resumeSlideshowTimer: vi.fn(),
-};
 
 // Mock child components
 vi.mock('@/components/VideoPlayer.vue', () => ({
@@ -86,26 +69,62 @@ vi.mock('@/api', () => ({
 }));
 
 // Mock composables
-vi.mock('@/composables/useSlideshow', () => ({
-  useSlideshow: () => slideshowMock,
-}));
-
-vi.mock('@/composables/useAppState', () => ({
-  useAppState: vi.fn(() => mockRefs),
-}));
+vi.mock('@/composables/useSlideshow');
+vi.mock('@/composables/useLibraryStore');
+vi.mock('@/composables/usePlayerStore');
+vi.mock('@/composables/useUIStore');
 
 describe('MediaDisplay.vue', () => {
+  let mockLibraryState: any;
+  let mockPlayerState: any;
+  let mockUIState: any;
+  let slideshowMock: any;
+
   beforeEach(() => {
     vi.clearAllMocks();
-    mockRefs.currentMediaItem.value = null;
-    mockRefs.displayedMediaFiles.value = [];
-    mockRefs.currentMediaIndex.value = 0;
-    mockRefs.isSlideshowActive.value = false;
-    mockRefs.mediaFilter.value = 'All';
-    mockRefs.totalMediaInPool.value = 0;
-    mockRefs.playFullVideo.value = false;
-    mockRefs.pauseTimerOnPlay.value = false;
-    mockRefs.isTimerRunning.value = false;
+
+    mockLibraryState = reactive({
+      totalMediaInPool: 0,
+      imageExtensionsSet: new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp']),
+    });
+
+    mockPlayerState = reactive({
+      currentMediaItem: null,
+      displayedMediaFiles: [],
+      currentMediaIndex: 0,
+      isSlideshowActive: false,
+      playFullVideo: false,
+      pauseTimerOnPlay: false,
+      isTimerRunning: false,
+      mainVideoElement: null,
+    });
+
+    mockUIState = reactive({
+      mediaFilter: 'All',
+    });
+
+    (useLibraryStore as Mock).mockReturnValue({
+      state: mockLibraryState,
+      ...toRefs(mockLibraryState),
+    });
+
+    (usePlayerStore as Mock).mockReturnValue({
+      state: mockPlayerState,
+      ...toRefs(mockPlayerState),
+    });
+
+    (useUIStore as Mock).mockReturnValue({
+      state: mockUIState,
+      ...toRefs(mockUIState),
+    });
+
+    slideshowMock = {
+      navigateMedia: vi.fn(),
+      reapplyFilter: vi.fn(),
+      pauseSlideshowTimer: vi.fn(),
+      resumeSlideshowTimer: vi.fn(),
+    };
+    (useSlideshow as Mock).mockReturnValue(slideshowMock);
 
     (api.loadFileAsDataURL as Mock).mockResolvedValue({
       type: 'success',
@@ -125,7 +144,10 @@ describe('MediaDisplay.vue', () => {
 
   describe('Media Loading', () => {
     it('loads image when currentMediaItem changes', async () => {
-      mockRefs.currentMediaItem.value = { name: 'test.jpg', path: '/test.jpg' };
+      mockPlayerState.currentMediaItem = {
+        name: 'test.jpg',
+        path: '/test.jpg',
+      };
       const wrapper = mount(MediaDisplay);
       await flushPromises();
 
@@ -135,7 +157,7 @@ describe('MediaDisplay.vue', () => {
 
     it('clears mediaUrl when switching between media types to prevent race conditions', async () => {
       // Start with a video file
-      mockRefs.currentMediaItem.value = {
+      mockPlayerState.currentMediaItem = {
         name: 'video.mp4',
         path: '/video.mp4',
       };
@@ -154,7 +176,7 @@ describe('MediaDisplay.vue', () => {
       });
 
       // Switch to an image file
-      mockRefs.currentMediaItem.value = {
+      mockPlayerState.currentMediaItem = {
         name: 'image.jpg',
         path: '/image.jpg',
       };
@@ -169,7 +191,10 @@ describe('MediaDisplay.vue', () => {
     });
 
     it('handles load error', async () => {
-      mockRefs.currentMediaItem.value = { name: 'test.jpg', path: '/test.jpg' };
+      mockPlayerState.currentMediaItem = {
+        name: 'test.jpg',
+        path: '/test.jpg',
+      };
       (api.loadFileAsDataURL as Mock).mockResolvedValue({
         type: 'error',
         message: 'Load failed',
@@ -184,7 +209,7 @@ describe('MediaDisplay.vue', () => {
 
   describe('Sub-component Interactions', () => {
     it('handles set-rating event from MediaControls', async () => {
-      mockRefs.currentMediaItem.value = {
+      mockPlayerState.currentMediaItem = {
         name: 't.jpg',
         path: '/t.jpg',
         rating: 0,
@@ -196,7 +221,7 @@ describe('MediaDisplay.vue', () => {
       await controls.vm.$emit('set-rating', 4);
 
       expect(api.setRating).toHaveBeenCalledWith('/t.jpg', 4);
-      expect(mockRefs.currentMediaItem.value.rating).toBe(4);
+      expect(mockPlayerState.currentMediaItem.rating).toBe(4);
     });
 
     it('handles navigation events from MediaControls', async () => {
@@ -211,7 +236,7 @@ describe('MediaDisplay.vue', () => {
     });
 
     it('handles buffering event from VideoPlayer', async () => {
-      mockRefs.currentMediaItem.value = { name: 't.mp4', path: '/t.mp4' };
+      mockPlayerState.currentMediaItem = { name: 't.mp4', path: '/t.mp4' };
       const wrapper = mount(MediaDisplay);
       await flushPromises();
 
@@ -227,7 +252,7 @@ describe('MediaDisplay.vue', () => {
 
   describe('Additional Coverage', () => {
     it('covers Space key to toggle play', async () => {
-      mockRefs.currentMediaItem.value = { name: 't.mp4', path: '/t.mp4' };
+      mockPlayerState.currentMediaItem = { name: 't.mp4', path: '/t.mp4' };
       const wrapper = mount(MediaDisplay);
       await flushPromises();
       expect(wrapper.exists()).toBe(true);
@@ -240,7 +265,7 @@ describe('MediaDisplay.vue', () => {
     });
 
     it('covers setRating error branch', async () => {
-      mockRefs.currentMediaItem.value = { name: 't.jpg', path: '/t.jpg' };
+      mockPlayerState.currentMediaItem = { name: 't.jpg', path: '/t.jpg' };
       const wrapper = mount(MediaDisplay);
       await flushPromises();
 
@@ -260,7 +285,7 @@ describe('MediaDisplay.vue', () => {
     });
 
     it('covers handleMediaError transcoding branch', async () => {
-      mockRefs.currentMediaItem.value = { name: 't.mp4', path: '/t.mp4' };
+      mockPlayerState.currentMediaItem = { name: 't.mp4', path: '/t.mp4' };
       const wrapper = mount(MediaDisplay);
       await flushPromises();
 
@@ -275,7 +300,7 @@ describe('MediaDisplay.vue', () => {
     });
 
     it('covers proactive transcoding for legacy formats', async () => {
-      mockRefs.currentMediaItem.value = { name: 't.mov', path: '/t.mov' };
+      mockPlayerState.currentMediaItem = { name: 't.mov', path: '/t.mov' };
       const wrapper = mount(MediaDisplay);
       await flushPromises();
 
@@ -283,9 +308,9 @@ describe('MediaDisplay.vue', () => {
     });
 
     it('covers handleVideoPlay and handleVideoPause effects on timer', async () => {
-      mockRefs.currentMediaItem.value = { name: 't.mp4', path: '/t.mp4' };
-      mockRefs.isTimerRunning.value = true;
-      mockRefs.playFullVideo.value = true;
+      mockPlayerState.currentMediaItem = { name: 't.mp4', path: '/t.mp4' };
+      mockPlayerState.isTimerRunning = true;
+      mockPlayerState.playFullVideo = true;
 
       const wrapper = mount(MediaDisplay);
       await flushPromises();
@@ -295,9 +320,9 @@ describe('MediaDisplay.vue', () => {
       await videoPlayer.vm.$emit('play');
       expect(slideshowMock.pauseSlideshowTimer).toHaveBeenCalled();
 
-      mockRefs.isTimerRunning.value = false;
-      mockRefs.pauseTimerOnPlay.value = true;
-      mockRefs.playFullVideo.value = false;
+      mockPlayerState.isTimerRunning = false;
+      mockPlayerState.pauseTimerOnPlay = true;
+      mockPlayerState.playFullVideo = false;
 
       await videoPlayer.vm.$emit('pause');
       expect(slideshowMock.resumeSlideshowTimer).toHaveBeenCalled();
@@ -320,7 +345,7 @@ describe('MediaDisplay.vue', () => {
     });
 
     it('covers tryTranscoding URL with query params', async () => {
-      mockRefs.currentMediaItem.value = { name: 't.mp4', path: '/t.mp4' };
+      mockPlayerState.currentMediaItem = { name: 't.mp4', path: '/t.mp4' };
       const generator = (p: string) =>
         `http://localhost/stream?foo=bar&path=${p}`;
       (api.getVideoStreamUrlGenerator as Mock).mockResolvedValue(generator);
@@ -334,7 +359,7 @@ describe('MediaDisplay.vue', () => {
     });
 
     it('covers tryTranscoding URL without query params', async () => {
-      mockRefs.currentMediaItem.value = { name: 't.mp4', path: '/t.mp4' };
+      mockPlayerState.currentMediaItem = { name: 't.mp4', path: '/t.mp4' };
       const generator = (p: string) => `http://localhost/stream/${p}`;
       (api.getVideoStreamUrlGenerator as Mock).mockResolvedValue(generator);
       (api.getVideoMetadata as Mock).mockResolvedValue({ duration: 100 });
@@ -347,7 +372,7 @@ describe('MediaDisplay.vue', () => {
     });
 
     it('covers handleMediaError in transcoding mode', async () => {
-      mockRefs.currentMediaItem.value = { name: 't.mp4', path: '/t.mp4' };
+      mockPlayerState.currentMediaItem = { name: 't.mp4', path: '/t.mp4' };
       const wrapper = mount(MediaDisplay);
       await flushPromises();
 
@@ -357,23 +382,23 @@ describe('MediaDisplay.vue', () => {
     });
 
     it('covers countInfo branches', async () => {
-      mockRefs.isSlideshowActive.value = false;
+      mockPlayerState.isSlideshowActive = false;
       const wrapper = mount(MediaDisplay);
       expect((wrapper.vm as any).countInfo).toBe('\u00A0');
 
-      mockRefs.isSlideshowActive.value = true;
-      mockRefs.displayedMediaFiles.value = [
+      mockPlayerState.isSlideshowActive = true;
+      mockPlayerState.displayedMediaFiles = [
         { name: '1.jpg', path: '1.jpg' },
         { name: '2.jpg', path: '2.jpg' },
       ];
-      mockRefs.currentMediaIndex.value = 0;
-      mockRefs.totalMediaInPool.value = 10;
+      mockPlayerState.currentMediaIndex = 0;
+      mockLibraryState.totalMediaInPool = 10;
       await wrapper.vm.$nextTick();
       expect((wrapper.vm as any).countInfo).toBe('1 / 10');
     });
 
     it('covers tryTranscoding requestId mismatch', async () => {
-      mockRefs.currentMediaItem.value = { name: 't.mp4', path: '/t.mp4' };
+      mockPlayerState.currentMediaItem = { name: 't.mp4', path: '/t.mp4' };
       const wrapper = mount(MediaDisplay);
       await flushPromises();
 
@@ -382,7 +407,7 @@ describe('MediaDisplay.vue', () => {
     });
 
     it('covers setRating unrate branch', async () => {
-      mockRefs.currentMediaItem.value = {
+      mockPlayerState.currentMediaItem = {
         name: 't.jpg',
         path: '/t.jpg',
         rating: 5,
@@ -392,18 +417,18 @@ describe('MediaDisplay.vue', () => {
 
       const controls = wrapper.findComponent(MediaControls);
       await controls.vm.$emit('set-rating', 5);
-      expect(mockRefs.currentMediaItem.value.rating).toBe(0);
+      expect(mockPlayerState.currentMediaItem.rating).toBe(0);
     });
 
     it('covers loadMediaUrl null currentMediaItem', async () => {
-      mockRefs.currentMediaItem.value = null;
+      mockPlayerState.currentMediaItem = null;
       const wrapper = mount(MediaDisplay);
       await flushPromises();
       expect((wrapper.vm as any).mediaUrl).toBeNull();
     });
 
     it('covers loadMediaUrl videoElement cleanup fallback', async () => {
-      mockRefs.currentMediaItem.value = { name: 't.jpg', path: '/t.jpg' };
+      mockPlayerState.currentMediaItem = { name: 't.jpg', path: '/t.jpg' };
       const wrapper = mount(MediaDisplay);
       await flushPromises();
 
@@ -415,7 +440,7 @@ describe('MediaDisplay.vue', () => {
       (wrapper.vm as any).videoElement = mockVideo;
       (wrapper.vm as any).videoPlayerRef = null;
 
-      mockRefs.currentMediaItem.value = { name: 't2.jpg', path: '/t2.jpg' };
+      mockPlayerState.currentMediaItem = { name: 't2.jpg', path: '/t2.jpg' };
       await flushPromises();
       expect(mockVideo.pause).toHaveBeenCalled();
     });
@@ -428,7 +453,7 @@ describe('MediaDisplay.vue', () => {
     });
 
     it('covers openInVlc failure branch', async () => {
-      mockRefs.currentMediaItem.value = { name: 't.mp4', path: '/t.mp4' };
+      mockPlayerState.currentMediaItem = { name: 't.mp4', path: '/t.mp4' };
       const wrapper = mount(MediaDisplay);
       await flushPromises();
 
@@ -465,7 +490,7 @@ describe('MediaDisplay.vue', () => {
     });
 
     it('covers request cancellation guards', async () => {
-      mockRefs.currentMediaItem.value = { name: '1.jpg', path: '/1.jpg' };
+      mockPlayerState.currentMediaItem = { name: '1.jpg', path: '/1.jpg' };
 
       let resolveLoad1: (value: any) => void;
       const loadPromise1 = new Promise((resolve) => {
@@ -476,7 +501,7 @@ describe('MediaDisplay.vue', () => {
       const wrapperLoad = mount(MediaDisplay);
       expect(wrapperLoad.exists()).toBe(true);
 
-      mockRefs.currentMediaItem.value = { name: '2.jpg', path: '/2.jpg' };
+      mockPlayerState.currentMediaItem = { name: '2.jpg', path: '/2.jpg' };
       (api.loadFileAsDataURL as Mock).mockResolvedValue({
         type: 'success',
         url: 'url2',
@@ -491,7 +516,10 @@ describe('MediaDisplay.vue', () => {
     });
 
     it('covers loadMediaUrl error catch branch', async () => {
-      mockRefs.currentMediaItem.value = { name: 'fail.jpg', path: '/fail.jpg' };
+      mockPlayerState.currentMediaItem = {
+        name: 'fail.jpg',
+        path: '/fail.jpg',
+      };
       (api.loadFileAsDataURL as Mock).mockRejectedValue(
         new Error('Load Error'),
       );
@@ -510,9 +538,9 @@ describe('MediaDisplay.vue', () => {
     });
 
     it('covers currentMediaItem watch resumeSlideshowTimer branch', async () => {
-      mockRefs.currentMediaItem.value = { name: 't.jpg', path: '/t.jpg' };
-      mockRefs.playFullVideo.value = true;
-      mockRefs.isTimerRunning.value = false;
+      mockPlayerState.currentMediaItem = { name: 't.jpg', path: '/t.jpg' };
+      mockPlayerState.playFullVideo = true;
+      mockPlayerState.isTimerRunning = false;
 
       const wrapper = mount(MediaDisplay);
       expect(wrapper.exists()).toBe(true);
@@ -522,7 +550,7 @@ describe('MediaDisplay.vue', () => {
     });
 
     it('covers Try Transcoding button click', async () => {
-      mockRefs.currentMediaItem.value = { name: 't.mp4', path: '/t.mp4' };
+      mockPlayerState.currentMediaItem = { name: 't.mp4', path: '/t.mp4' };
       const wrapper = mount(MediaDisplay);
       (wrapper.vm as any).isVideoSupported = false;
       (wrapper.vm as any).isTranscodingMode = false;
@@ -540,10 +568,10 @@ describe('MediaDisplay.vue', () => {
       const inputs = wrapper.findAll('input[type="checkbox"]');
 
       await inputs[0].setValue(true);
-      expect(mockRefs.playFullVideo.value).toBe(true);
+      expect(mockPlayerState.playFullVideo).toBe(true);
 
       await inputs[1].setValue(true);
-      expect(mockRefs.pauseTimerOnPlay.value).toBe(true);
+      expect(mockPlayerState.pauseTimerOnPlay).toBe(true);
     });
   });
 });

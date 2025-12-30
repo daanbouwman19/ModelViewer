@@ -4,7 +4,9 @@
  * and selecting media items based on a weighted random algorithm.
  */
 import { computed } from 'vue';
-import { useAppState } from './useAppState';
+import { useLibraryStore } from './useLibraryStore';
+import { usePlayerStore } from './usePlayerStore';
+import { useUIStore } from './useUIStore';
 import {
   collectTexturesRecursive,
   collectSelectedTextures,
@@ -22,8 +24,12 @@ const extensionCache = new WeakMap<MediaFile, string>();
  * A Vue composable that provides functions for controlling the media slideshow.
  */
 export function useSlideshow() {
-  const { state, stopSlideshow, imageExtensionsSet, videoExtensionsSet } =
-    useAppState();
+  const libraryStore = useLibraryStore();
+  const playerStore = usePlayerStore();
+  const uiStore = useUIStore();
+
+  const { imageExtensionsSet, videoExtensionsSet } = libraryStore;
+  const { stopSlideshow } = playerStore;
 
   /**
    * Shuffles an array in place.
@@ -67,7 +73,7 @@ export function useSlideshow() {
   const filterMedia = (mediaFiles: MediaFile[]): MediaFile[] => {
     if (!mediaFiles || mediaFiles.length === 0) return [];
 
-    const filter = state.mediaFilter;
+    const filter = uiStore.state.mediaFilter;
 
     return mediaFiles.filter((file) => {
       // Guard against missing path property
@@ -95,7 +101,7 @@ export function useSlideshow() {
    * This significantly reduces CPU usage when the media pool is large (e.g., 10k+ items).
    */
   const filteredGlobalMediaPool = computed(() => {
-    return filterMedia(state.globalMediaPoolForSelection);
+    return filterMedia(libraryStore.state.globalMediaPoolForSelection);
   });
 
   /**
@@ -190,7 +196,7 @@ export function useSlideshow() {
       mediaItem.viewCount++;
 
       await api.recordMediaView(mediaItem.path);
-      if (state.isTimerRunning) {
+      if (playerStore.state.isTimerRunning) {
         resumeSlideshowTimer();
       }
     } catch (error) {
@@ -207,21 +213,24 @@ export function useSlideshow() {
 
     // Standard Logic (fallback or default)
     if (!selectedMedia) {
-      if (state.globalMediaPoolForSelection.length === 0) {
+      if (libraryStore.state.globalMediaPoolForSelection.length === 0) {
         console.warn('No media files available in the pool.');
         return;
       }
       // Use memoized filtered pool
       const filteredPool = filteredGlobalMediaPool.value;
-      state.totalMediaInPool = filteredPool.length;
+      libraryStore.state.totalMediaInPool = filteredPool.length;
 
       if (filteredPool.length === 0) {
         console.warn('Media pool is empty or no media matches the filter.');
         return;
       }
 
-      const historySize = Math.min(5, state.displayedMediaFiles.length);
-      const historyPaths = state.displayedMediaFiles
+      const historySize = Math.min(
+        5,
+        playerStore.state.displayedMediaFiles.length,
+      );
+      const historyPaths = playerStore.state.displayedMediaFiles
         .slice(-historySize)
         .map((item) => item.path);
 
@@ -231,14 +240,15 @@ export function useSlideshow() {
     }
 
     if (selectedMedia) {
-      state.displayedMediaFiles.push(selectedMedia);
-      state.currentMediaIndex = state.displayedMediaFiles.length - 1;
-      state.currentMediaItem = selectedMedia;
-      if (state.displayedMediaFiles.length > 100) {
-        state.displayedMediaFiles.shift();
-        state.currentMediaIndex--;
+      playerStore.state.displayedMediaFiles.push(selectedMedia);
+      playerStore.state.currentMediaIndex =
+        playerStore.state.displayedMediaFiles.length - 1;
+      playerStore.state.currentMediaItem = selectedMedia;
+      if (playerStore.state.displayedMediaFiles.length > 100) {
+        playerStore.state.displayedMediaFiles.shift();
+        playerStore.state.currentMediaIndex--;
       }
-      await displayMedia(state.currentMediaItem);
+      await displayMedia(playerStore.state.currentMediaItem);
     }
   };
 
@@ -248,25 +258,32 @@ export function useSlideshow() {
    * @param direction - The direction to navigate (-1 for previous, 1 for next).
    */
   const navigateMedia = async (direction: number) => {
-    if (!state.isSlideshowActive) return;
+    if (!playerStore.state.isSlideshowActive) return;
 
     if (direction > 0) {
       // Next
-      if (state.currentMediaIndex < state.displayedMediaFiles.length - 1) {
-        state.currentMediaIndex++;
-        state.currentMediaItem =
-          state.displayedMediaFiles[state.currentMediaIndex];
-        await displayMedia(state.currentMediaItem);
+      if (
+        playerStore.state.currentMediaIndex <
+        playerStore.state.displayedMediaFiles.length - 1
+      ) {
+        playerStore.state.currentMediaIndex++;
+        playerStore.state.currentMediaItem =
+          playerStore.state.displayedMediaFiles[
+            playerStore.state.currentMediaIndex
+          ];
+        await displayMedia(playerStore.state.currentMediaItem);
       } else {
         await pickAndDisplayNextMediaItem();
       }
     } else {
       // Previous
-      if (state.currentMediaIndex > 0) {
-        state.currentMediaIndex--;
-        state.currentMediaItem =
-          state.displayedMediaFiles[state.currentMediaIndex];
-        await displayMedia(state.currentMediaItem);
+      if (playerStore.state.currentMediaIndex > 0) {
+        playerStore.state.currentMediaIndex--;
+        playerStore.state.currentMediaItem =
+          playerStore.state.displayedMediaFiles[
+            playerStore.state.currentMediaIndex
+          ];
+        await displayMedia(playerStore.state.currentMediaItem);
       }
     }
   };
@@ -275,23 +292,24 @@ export function useSlideshow() {
    * Resumes the slideshow timer.
    */
   const resumeSlideshowTimer = () => {
-    if (state.slideshowTimerId) {
-      clearInterval(state.slideshowTimerId);
+    if (playerStore.state.slideshowTimerId) {
+      clearInterval(playerStore.state.slideshowTimerId);
     }
-    state.isTimerRunning = true;
-    state.timerProgress = 100;
+    playerStore.state.isTimerRunning = true;
+    playerStore.state.timerProgress = 100;
 
-    const duration = state.timerDuration * 1000;
+    const duration = playerStore.state.timerDuration * 1000;
     const interval = 50; // Update every 50ms
     let elapsed = 0;
 
-    state.slideshowTimerId = setInterval(() => {
+    playerStore.state.slideshowTimerId = setInterval(() => {
       elapsed += interval;
       const progress = Math.max(0, 100 - (elapsed / duration) * 100);
-      state.timerProgress = progress;
+      playerStore.state.timerProgress = progress;
 
       if (progress <= 0) {
-        if (state.slideshowTimerId) clearInterval(state.slideshowTimerId);
+        if (playerStore.state.slideshowTimerId)
+          clearInterval(playerStore.state.slideshowTimerId);
         navigateMedia(1);
       }
     }, interval);
@@ -301,18 +319,18 @@ export function useSlideshow() {
    * Pauses the slideshow timer.
    */
   const pauseSlideshowTimer = () => {
-    if (state.slideshowTimerId) {
-      clearInterval(state.slideshowTimerId);
-      state.slideshowTimerId = null;
+    if (playerStore.state.slideshowTimerId) {
+      clearInterval(playerStore.state.slideshowTimerId);
+      playerStore.state.slideshowTimerId = null;
     }
-    state.isTimerRunning = false;
+    playerStore.state.isTimerRunning = false;
   };
 
   /**
    * Toggles the slideshow timer on or off.
    */
   const toggleSlideshowTimer = () => {
-    if (state.isTimerRunning) {
+    if (playerStore.state.isTimerRunning) {
       pauseSlideshowTimer();
     } else {
       resumeSlideshowTimer();
@@ -326,10 +344,10 @@ export function useSlideshow() {
    */
   const toggleAlbumSelection = (albumId: string, isSelected?: boolean) => {
     if (typeof isSelected === 'boolean') {
-      state.albumsSelectedForSlideshow[albumId] = isSelected;
+      libraryStore.state.albumsSelectedForSlideshow[albumId] = isSelected;
     } else {
-      state.albumsSelectedForSlideshow[albumId] =
-        !state.albumsSelectedForSlideshow[albumId];
+      libraryStore.state.albumsSelectedForSlideshow[albumId] =
+        !libraryStore.state.albumsSelectedForSlideshow[albumId];
     }
   };
 
@@ -337,21 +355,21 @@ export function useSlideshow() {
    * Starts a global slideshow using all selected albums.
    */
   const startSlideshow = async () => {
-    if (!state.allAlbums) {
+    if (!libraryStore.state.allAlbums) {
       return;
     }
-    state.globalMediaPoolForSelection = collectSelectedTextures(
-      state.allAlbums,
-      state.albumsSelectedForSlideshow,
+    libraryStore.state.globalMediaPoolForSelection = collectSelectedTextures(
+      libraryStore.state.allAlbums,
+      libraryStore.state.albumsSelectedForSlideshow,
     );
 
-    if (state.globalMediaPoolForSelection.length === 0) {
+    if (libraryStore.state.globalMediaPoolForSelection.length === 0) {
       console.warn('No albums selected for slideshow.');
       return;
     }
-    state.isSlideshowActive = true;
-    state.displayedMediaFiles = [];
-    state.currentMediaIndex = -1;
+    playerStore.state.isSlideshowActive = true;
+    playerStore.state.displayedMediaFiles = [];
+    playerStore.state.currentMediaIndex = -1;
     await pickAndDisplayNextMediaItem();
   };
 
@@ -368,10 +386,10 @@ export function useSlideshow() {
       console.warn('No media files in this album.');
       return;
     }
-    state.globalMediaPoolForSelection = [...album.textures];
-    state.isSlideshowActive = true;
-    state.displayedMediaFiles = [];
-    state.currentMediaIndex = -1;
+    libraryStore.state.globalMediaPoolForSelection = [...album.textures];
+    playerStore.state.isSlideshowActive = true;
+    playerStore.state.displayedMediaFiles = [];
+    playerStore.state.currentMediaIndex = -1;
     await pickAndDisplayNextMediaItem();
   };
 
@@ -381,9 +399,9 @@ export function useSlideshow() {
    */
   const openAlbumInGrid = (album: Album) => {
     const allMedia = collectTexturesRecursive(album);
-    state.gridMediaFiles = filterMedia(allMedia);
-    state.viewMode = 'grid';
-    state.isSlideshowActive = false;
+    uiStore.state.gridMediaFiles = filterMedia(allMedia);
+    uiStore.state.viewMode = 'grid';
+    playerStore.state.isSlideshowActive = false;
     stopSlideshow();
   };
 
@@ -391,13 +409,13 @@ export function useSlideshow() {
    * Re-applies the current media filter and picks a new item.
    */
   const reapplyFilter = async () => {
-    if (state.isSlideshowActive) {
-      state.globalMediaPoolForSelection = collectSelectedTextures(
-        state.allAlbums,
-        state.albumsSelectedForSlideshow,
+    if (playerStore.state.isSlideshowActive) {
+      libraryStore.state.globalMediaPoolForSelection = collectSelectedTextures(
+        libraryStore.state.allAlbums,
+        libraryStore.state.albumsSelectedForSlideshow,
       );
-      state.displayedMediaFiles = [];
-      state.currentMediaIndex = -1;
+      playerStore.state.displayedMediaFiles = [];
+      playerStore.state.currentMediaIndex = -1;
       await pickAndDisplayNextMediaItem();
     }
   };
