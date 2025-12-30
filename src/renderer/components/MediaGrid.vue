@@ -64,15 +64,21 @@
  * Uses vue-virtual-scroller for performance on large albums.
  */
 import { ref, onMounted, onUnmounted, computed, watch, reactive } from 'vue';
-import { useAppState } from '../composables/useAppState';
+import { useLibraryStore } from '../composables/useLibraryStore';
+import { usePlayerStore } from '../composables/usePlayerStore';
+import { useUIStore } from '../composables/useUIStore';
 import type { MediaFile } from '../../core/types';
 import { api } from '../api';
 import MediaGridItem from './MediaGridItem.vue';
 
-const { state, imageExtensionsSet, videoExtensionsSet } = useAppState();
+const libraryStore = useLibraryStore();
+const playerStore = usePlayerStore();
+const uiStore = useUIStore();
+
+const { imageExtensionsSet, videoExtensionsSet } = libraryStore;
 
 // Reactive reference to the full list from state
-const allMediaFiles = computed(() => state.gridMediaFiles);
+const allMediaFiles = computed(() => uiStore.state.gridMediaFiles);
 
 interface GridRow {
   id: string;
@@ -205,18 +211,18 @@ const handleItemClick = async (item: MediaFile) => {
   }
 
   // When clicking an item, we pass the FULL list to the player
-  state.displayedMediaFiles = [...allMediaFiles.value];
-  const index = state.displayedMediaFiles.findIndex(
+  playerStore.state.displayedMediaFiles = [...allMediaFiles.value];
+  const index = playerStore.state.displayedMediaFiles.findIndex(
     (f) => f.path === item.path,
   );
-  state.currentMediaIndex = index;
-  state.currentMediaItem = item;
-  state.viewMode = 'player';
-  state.isSlideshowActive = true;
-  state.isTimerRunning = false;
+  playerStore.state.currentMediaIndex = index;
+  playerStore.state.currentMediaItem = item;
+  uiStore.state.viewMode = 'player';
+  playerStore.state.isSlideshowActive = true;
+  playerStore.state.isTimerRunning = false;
 };
 
 const closeGrid = () => {
-  state.viewMode = 'player';
+  uiStore.state.viewMode = 'player';
 };
 </script>

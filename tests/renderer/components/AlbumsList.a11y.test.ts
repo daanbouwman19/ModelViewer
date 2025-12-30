@@ -1,13 +1,17 @@
 import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { mount } from '@vue/test-utils';
-import { ref } from 'vue';
+import { reactive, toRefs } from 'vue';
 import AlbumsList from '@/components/AlbumsList.vue';
-import { useAppState } from '@/composables/useAppState';
 import { useSlideshow } from '@/composables/useSlideshow';
+import { useLibraryStore } from '@/composables/useLibraryStore';
+import { usePlayerStore } from '@/composables/usePlayerStore';
+import { useUIStore } from '@/composables/useUIStore';
 
 // Mock the composables
-vi.mock('@/composables/useAppState');
 vi.mock('@/composables/useSlideshow');
+vi.mock('@/composables/useLibraryStore');
+vi.mock('@/composables/usePlayerStore');
+vi.mock('@/composables/useUIStore');
 
 // Mock child components
 vi.mock('@/components/AlbumTree.vue', () => ({
@@ -44,25 +48,47 @@ vi.mock('@/components/icons/DeleteIcon.vue', () => ({
 }));
 
 describe('AlbumsList Accessibility', () => {
-  let mockRefs: any;
+  let mockLibraryState: any;
+  let mockPlayerState: any;
+  let mockUIState: any;
 
   beforeEach(() => {
-    mockRefs = {
-      allAlbums: ref([]),
-      albumsSelectedForSlideshow: ref({}),
-      timerDuration: ref(5),
-      isTimerRunning: ref(false),
-      isSourcesModalVisible: ref(false),
-      isSmartPlaylistModalVisible: ref(false),
-      timerProgress: ref(0),
-      smartPlaylists: ref([]),
-      gridMediaFiles: ref([]),
-      viewMode: ref('player'),
-      playlistToEdit: ref(null),
-      isSlideshowActive: ref(false),
-    };
+    mockLibraryState = reactive({
+      allAlbums: [],
+      albumsSelectedForSlideshow: {},
+      smartPlaylists: [],
+      historyMedia: [],
+    });
 
-    (useAppState as Mock).mockReturnValue(mockRefs);
+    mockPlayerState = reactive({
+      timerDuration: 5,
+      isTimerRunning: false,
+      timerProgress: 0,
+      isSlideshowActive: false,
+    });
+
+    mockUIState = reactive({
+      isSourcesModalVisible: false,
+      isSmartPlaylistModalVisible: false,
+      gridMediaFiles: [],
+      viewMode: 'player',
+      playlistToEdit: null,
+    });
+
+    (useLibraryStore as Mock).mockReturnValue({
+      state: mockLibraryState,
+      ...toRefs(mockLibraryState),
+    });
+
+    (usePlayerStore as Mock).mockReturnValue({
+      state: mockPlayerState,
+      ...toRefs(mockPlayerState),
+    });
+
+    (useUIStore as Mock).mockReturnValue({
+      state: mockUIState,
+      ...toRefs(mockUIState),
+    });
 
     (useSlideshow as Mock).mockReturnValue({
       toggleSlideshowTimer: vi.fn(),
@@ -73,7 +99,7 @@ describe('AlbumsList Accessibility', () => {
   });
 
   it('smart playlist items should be semantic buttons with accessible labels', async () => {
-    mockRefs.smartPlaylists.value = [
+    mockLibraryState.smartPlaylists = [
       { id: 1, name: 'My Top Rated', criteria: '{}' },
     ];
 
@@ -100,7 +126,7 @@ describe('AlbumsList Accessibility', () => {
   });
 
   it('controls should be visible on focus within', async () => {
-    mockRefs.smartPlaylists.value = [
+    mockLibraryState.smartPlaylists = [
       { id: 1, name: 'Test List', criteria: '{}' },
     ];
 

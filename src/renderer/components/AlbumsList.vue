@@ -230,7 +230,9 @@
  * Clicking on an album's name starts a slideshow for that specific album and its sub-albums.
  */
 import { nextTick } from 'vue';
-import { useAppState } from '../composables/useAppState';
+import { useLibraryStore } from '../composables/useLibraryStore';
+import { usePlayerStore } from '../composables/usePlayerStore';
+import { useUIStore } from '../composables/useUIStore';
 import { useSlideshow } from '../composables/useSlideshow';
 import AlbumTree from './AlbumTree.vue';
 import CloseIcon from './icons/CloseIcon.vue';
@@ -255,27 +257,28 @@ import type {
   MediaLibraryItem,
 } from '../../core/types';
 import { RECENTLY_PLAYED_FETCH_LIMIT } from '../../core/constants';
-import { useLibraryStore } from '../composables/useLibraryStore';
+
+const libraryStore = useLibraryStore();
+const playerStore = usePlayerStore();
+const uiStore = useUIStore();
+
+const { allAlbums, albumsSelectedForSlideshow, smartPlaylists } = libraryStore;
+
+const { timerDuration, isTimerRunning, timerProgress, isSlideshowActive } =
+  playerStore;
 
 const {
-  allAlbums,
-  albumsSelectedForSlideshow,
-  timerDuration,
-  isTimerRunning,
   isSourcesModalVisible,
   isSmartPlaylistModalVisible,
-  timerProgress,
-  smartPlaylists,
   gridMediaFiles,
   viewMode,
   playlistToEdit,
-  isSlideshowActive,
-} = useAppState();
+} = uiStore;
 
 defineEmits(['close']);
 
 const slideshow = useSlideshow();
-const libraryStore = useLibraryStore();
+// libraryStore is already defined above
 
 /**
  * Toggles the selection of an album. Can be recursive (children included) or single.

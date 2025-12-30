@@ -1,13 +1,17 @@
 import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
-import { ref } from 'vue';
+import { reactive, toRefs } from 'vue';
 import MediaDisplay from '@/components/MediaDisplay.vue';
-import { useAppState } from '@/composables/useAppState';
+import { useLibraryStore } from '@/composables/useLibraryStore';
+import { usePlayerStore } from '@/composables/usePlayerStore';
+import { useUIStore } from '@/composables/useUIStore';
 import { useSlideshow } from '@/composables/useSlideshow';
 import { api } from '@/api';
 
 // Mock the composables
-vi.mock('@/composables/useAppState');
+vi.mock('@/composables/useLibraryStore');
+vi.mock('@/composables/usePlayerStore');
+vi.mock('@/composables/useUIStore');
 vi.mock('@/composables/useSlideshow');
 
 // Mock Icons
@@ -31,33 +35,48 @@ vi.mock('@/api', () => ({
 }));
 
 describe('MediaDisplay.vue Additional Coverage', () => {
-  let mockRefs: any;
+  let mockLibraryState: any;
+  let mockPlayerState: any;
+  let mockUIState: any;
 
   beforeEach(() => {
-    mockRefs = {
-      mediaFilter: ref('All'),
-      currentMediaItem: ref({ name: 'test.mp4', path: '/test.mp4' }),
-      displayedMediaFiles: ref([]),
-      currentMediaIndex: ref(0),
-      isSlideshowActive: ref(false),
-      isTimerRunning: ref(false),
-      supportedExtensions: ref({ images: [], videos: ['.mp4'] }),
-      imageExtensionsSet: ref(new Set([])),
-      videoExtensionsSet: ref(new Set(['.mp4'])),
-      playFullVideo: ref(false),
-      pauseTimerOnPlay: ref(false),
-      mainVideoElement: ref(null),
-      // Add other refs if needed to prevent errors
-      allAlbums: ref([]),
-      albumsSelectedForSlideshow: ref({}),
-      globalMediaPoolForSelection: ref([]),
-      totalMediaInPool: ref(0),
-      slideshowTimerId: ref(null),
-      isSourcesModalVisible: ref(false),
-      mediaDirectories: ref([]),
-    };
+    mockLibraryState = reactive({
+      totalMediaInPool: 0,
+      supportedExtensions: { images: [], videos: ['.mp4'] },
+      imageExtensionsSet: new Set([]),
+      videoExtensionsSet: new Set(['.mp4']),
+    });
 
-    (useAppState as Mock).mockReturnValue(mockRefs);
+    mockPlayerState = reactive({
+      currentMediaItem: { name: 'test.mp4', path: '/test.mp4' },
+      displayedMediaFiles: [],
+      currentMediaIndex: 0,
+      isSlideshowActive: false,
+      isTimerRunning: false,
+      playFullVideo: false,
+      pauseTimerOnPlay: false,
+      mainVideoElement: null,
+    });
+
+    mockUIState = reactive({
+      mediaFilter: 'All',
+    });
+
+    (useLibraryStore as Mock).mockReturnValue({
+      state: mockLibraryState,
+      ...toRefs(mockLibraryState),
+    });
+
+    (usePlayerStore as Mock).mockReturnValue({
+      state: mockPlayerState,
+      ...toRefs(mockPlayerState),
+    });
+
+    (useUIStore as Mock).mockReturnValue({
+      state: mockUIState,
+      ...toRefs(mockUIState),
+    });
+
     (useSlideshow as Mock).mockReturnValue({
       // Essential mocks
       navigateMedia: vi.fn(),

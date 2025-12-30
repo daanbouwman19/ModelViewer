@@ -1,11 +1,16 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { mount } from '@vue/test-utils';
-import { ref } from 'vue';
+import { reactive, toRefs } from 'vue';
 import AlbumsList from '../../../src/renderer/components/AlbumsList.vue';
-import { useAppState } from '../../../src/renderer/composables/useAppState';
+import { useLibraryStore } from '../../../src/renderer/composables/useLibraryStore';
+import { usePlayerStore } from '../../../src/renderer/composables/usePlayerStore';
+import { useUIStore } from '../../../src/renderer/composables/useUIStore';
 import { api } from '../../../src/renderer/api';
 
-vi.mock('../../../src/renderer/composables/useAppState');
+vi.mock('../../../src/renderer/composables/useLibraryStore');
+vi.mock('../../../src/renderer/composables/usePlayerStore');
+vi.mock('../../../src/renderer/composables/useUIStore');
+
 vi.mock('../../../src/renderer/composables/useSlideshow', () => ({
   useSlideshow: () => ({
     toggleAlbumSelection: vi.fn(),
@@ -24,37 +29,61 @@ vi.mock('../../../src/renderer/api', () => ({
 }));
 
 describe('AlbumsList Coverage (Filtering)', () => {
-  let mockAppState: any;
+  let mockLibraryState: any;
+  let mockPlayerState: any;
+  let mockUIState: any;
 
   beforeEach(() => {
     vi.resetAllMocks();
-    mockAppState = {
-      allAlbums: ref([]),
-      albumsSelectedForSlideshow: ref({}),
-      timerDuration: ref(5),
-      isTimerRunning: ref(false),
-      isSourcesModalVisible: ref(false),
-      isSmartPlaylistModalVisible: ref(false),
-      playFullVideo: ref(false),
-      pauseTimerOnPlay: ref(false),
-      smartPlaylists: ref([]),
-      gridMediaFiles: ref([]),
-      viewMode: ref('player'),
-      timerProgress: ref(0),
-      playlistToEdit: ref(null),
-    };
-    (useAppState as Mock).mockReturnValue(mockAppState);
+
+    mockLibraryState = reactive({
+      allAlbums: [],
+      albumsSelectedForSlideshow: {},
+      smartPlaylists: [],
+      historyMedia: [],
+    });
+
+    mockPlayerState = reactive({
+      timerDuration: 5,
+      isTimerRunning: false,
+      timerProgress: 0,
+      isSlideshowActive: false,
+    });
+
+    mockUIState = reactive({
+      isSourcesModalVisible: false,
+      isSmartPlaylistModalVisible: false,
+      gridMediaFiles: [],
+      viewMode: 'player',
+      playlistToEdit: null,
+    });
+
+    (useLibraryStore as Mock).mockReturnValue({
+      state: mockLibraryState,
+      ...toRefs(mockLibraryState),
+    });
+
+    (usePlayerStore as Mock).mockReturnValue({
+      state: mockPlayerState,
+      ...toRefs(mockPlayerState),
+    });
+
+    (useUIStore as Mock).mockReturnValue({
+      state: mockUIState,
+      ...toRefs(mockUIState),
+    });
+
     (api.getSmartPlaylists as Mock).mockResolvedValue([]);
   });
 
   const mountList = () => mount(AlbumsList);
 
   it('filters by minDuration', async () => {
-    mockAppState.smartPlaylists.value = [
+    mockLibraryState.smartPlaylists = [
       { id: 1, name: 'Long', criteria: JSON.stringify({ minDuration: 60 }) },
     ];
     // Mock allAlbums to contain the files we are testing
-    mockAppState.allAlbums.value = [
+    mockLibraryState.allAlbums = [
       {
         name: 'Root',
         children: [],
@@ -74,22 +103,6 @@ describe('AlbumsList Coverage (Filtering)', () => {
     const wrapper = mountList();
     await wrapper.vm.$nextTick();
 
-    // We expect the button to start the slideshow now
-    await wrapper
-      .findAll('button')
-      .find((b) => b.text().includes('Long'))
-      ?.trigger('click');
-
-    // The new logic calls startIndividualAlbumSlideshow instead of setting gridMediaFiles directly
-    // Wait, the test expects gridMediaFiles to be set.
-    // BUT I changed the click handler to handleSmartPlaylistSlideshow.
-    // The "Grid" button calls handleSmartPlaylistGrid.
-    // The test was clicking the main button (playlist name).
-    // So now it should call startIndividualAlbumSlideshow.
-
-    // I should check if the mock startIndividualAlbumSlideshow was called with the correct filtered items.
-    // However, to keep the test asserting gridMediaFiles, I should click the GRID button.
-
     const playlistItem = wrapper
       .findAll('li')
       .find((li) => li.text().includes('Long'));
@@ -99,15 +112,15 @@ describe('AlbumsList Coverage (Filtering)', () => {
     // Wait for async operations
     await new Promise(process.nextTick);
 
-    expect(mockAppState.gridMediaFiles.value).toHaveLength(1);
-    expect(mockAppState.gridMediaFiles.value[0].path).toBe('/long.mp4');
+    expect(mockUIState.gridMediaFiles).toHaveLength(1);
+    expect(mockUIState.gridMediaFiles[0].path).toBe('/long.mp4');
   });
 
   it('filters by minViews', async () => {
-    mockAppState.smartPlaylists.value = [
+    mockLibraryState.smartPlaylists = [
       { id: 1, name: 'Popular', criteria: JSON.stringify({ minViews: 5 }) },
     ];
-    mockAppState.allAlbums.value = [
+    mockLibraryState.allAlbums = [
       {
         name: 'Root',
         children: [],
@@ -133,15 +146,15 @@ describe('AlbumsList Coverage (Filtering)', () => {
 
     await new Promise(process.nextTick);
 
-    expect(mockAppState.gridMediaFiles.value).toHaveLength(1);
-    expect(mockAppState.gridMediaFiles.value[0].path).toBe('/popular.mp4');
+    expect(mockUIState.gridMediaFiles).toHaveLength(1);
+    expect(mockUIState.gridMediaFiles[0].path).toBe('/popular.mp4');
   });
 
   it('filters by maxViews', async () => {
-    mockAppState.smartPlaylists.value = [
+    mockLibraryState.smartPlaylists = [
       { id: 1, name: 'Unseen', criteria: JSON.stringify({ maxViews: 0 }) },
     ];
-    mockAppState.allAlbums.value = [
+    mockLibraryState.allAlbums = [
       {
         name: 'Root',
         children: [],
@@ -167,19 +180,19 @@ describe('AlbumsList Coverage (Filtering)', () => {
 
     await new Promise(process.nextTick);
 
-    expect(mockAppState.gridMediaFiles.value).toHaveLength(1);
-    expect(mockAppState.gridMediaFiles.value[0].path).toBe('/unseen.mp4');
+    expect(mockUIState.gridMediaFiles).toHaveLength(1);
+    expect(mockUIState.gridMediaFiles[0].path).toBe('/unseen.mp4');
   });
 
   it('filters by minDaysSinceView', async () => {
-    mockAppState.smartPlaylists.value = [
+    mockLibraryState.smartPlaylists = [
       {
         id: 1,
         name: 'Forgotten',
         criteria: JSON.stringify({ minDaysSinceView: 30 }),
       },
     ];
-    mockAppState.allAlbums.value = [
+    mockLibraryState.allAlbums = [
       {
         name: 'Root',
         children: [],
@@ -215,14 +228,14 @@ describe('AlbumsList Coverage (Filtering)', () => {
 
     await new Promise(process.nextTick);
 
-    expect(mockAppState.gridMediaFiles.value.map((f: any) => f.path)).toEqual([
+    expect(mockUIState.gridMediaFiles.map((f: any) => f.path)).toEqual([
       '/old.mp4',
       '/never.mp4',
     ]);
   });
 
   it('handles error in filtering', async () => {
-    mockAppState.smartPlaylists.value = [
+    mockLibraryState.smartPlaylists = [
       { id: 1, name: 'Broken', criteria: '{}' },
     ];
     (api.getAllMetadataAndStats as Mock).mockRejectedValue(

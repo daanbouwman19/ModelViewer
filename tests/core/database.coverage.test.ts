@@ -86,7 +86,7 @@ describe('Database Core Coverage', () => {
     const opPromise = database.addMediaDirectory('test');
 
     // Wait for timeout
-    await expect(opPromise).rejects.toThrow('Database operation timed out');
+    await expect(opPromise).rejects.toThrow('Worker operation timed out');
   });
 
   it('sendMessageToWorker handles worker postMessage exception', async () => {
@@ -243,9 +243,7 @@ describe('Database Core Coverage', () => {
     await expect(database.saveSetting('key', 'val')).rejects.toThrow();
 
     // Restore mock
-    worker.postMessage.mockImplementation(() => {
-      // do nothing
-    });
+    // Mock automatically restores after Once
 
     // getSetting success
     const getPromise = database.getSetting('key');

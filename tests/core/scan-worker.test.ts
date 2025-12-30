@@ -45,9 +45,12 @@ describe('scan-worker', () => {
     )?.[1];
 
     await callback({
+      id: 1,
       type: 'START_SCAN',
-      directories: ['/dir'],
-      tokens,
+      payload: {
+        directories: ['/dir'],
+        tokens,
+      },
     });
 
     expect(googleAuth.initializeManualCredentials).toHaveBeenCalledWith(tokens);
@@ -73,12 +76,16 @@ describe('scan-worker', () => {
     )?.[1];
     expect(callback).toBeDefined();
 
-    await callback({ type: 'START_SCAN', directories: ['/dir'] });
+    await callback({
+      id: 1,
+      type: 'START_SCAN',
+      payload: { directories: ['/dir'] },
+    });
 
     expect(mediaScanner.performFullMediaScan).toHaveBeenCalledWith(['/dir']);
     expect(mockPostMessage).toHaveBeenCalledWith({
-      type: 'SCAN_COMPLETE',
-      albums,
+      id: 1,
+      result: { success: true, data: albums },
     });
   });
 
@@ -93,11 +100,15 @@ describe('scan-worker', () => {
     )?.[1];
     expect(callback).toBeDefined();
 
-    await callback({ type: 'START_SCAN', directories: ['/dir'] });
+    await callback({
+      id: 1,
+      type: 'START_SCAN',
+      payload: { directories: ['/dir'] },
+    });
 
     expect(mockPostMessage).toHaveBeenCalledWith({
-      type: 'SCAN_ERROR',
-      error: 'Fail',
+      id: 1,
+      result: { success: false, error: 'Fail' },
     });
   });
 
@@ -107,7 +118,7 @@ describe('scan-worker', () => {
       (call) => call[0] === 'message',
     )?.[1];
 
-    await callback({ type: 'UNKNOWN' });
+    await callback({ id: 1, type: 'UNKNOWN', payload: {} });
 
     expect(mediaScanner.performFullMediaScan).not.toHaveBeenCalled();
     expect(mockPostMessage).not.toHaveBeenCalled();
@@ -123,11 +134,15 @@ describe('scan-worker', () => {
       (call) => call[0] === 'message',
     )?.[1];
 
-    await callback({ type: 'START_SCAN', directories: ['/dir'] });
+    await callback({
+      id: 1,
+      type: 'START_SCAN',
+      payload: { directories: ['/dir'] },
+    });
 
     expect(mockPostMessage).toHaveBeenCalledWith({
-      type: 'SCAN_ERROR',
-      error: 'String Error',
+      id: 1,
+      result: { success: false, error: 'String Error' },
     });
   });
 });

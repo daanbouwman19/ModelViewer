@@ -8,21 +8,32 @@ if (!port) {
 }
 
 port.on('message', async (message) => {
-  if (message.type === 'START_SCAN') {
-    try {
-      const { directories, tokens } = message;
+  // Handle calls that match { id, type, payload } structure for WorkerClient
+  if (message && typeof message === 'object' && 'id' in message) {
+    const { id, type, payload } = message;
 
-      if (tokens) {
-        initializeManualCredentials(tokens);
+    if (type === 'START_SCAN') {
+      try {
+        const { directories, tokens } = payload || {};
+
+        if (tokens) {
+          initializeManualCredentials(tokens);
+        }
+
+        const albums = await performFullMediaScan(directories);
+        port.postMessage({
+          id,
+          result: { success: true, data: albums },
+        });
+      } catch (error) {
+        port.postMessage({
+          id,
+          result: {
+            success: false,
+            error: error instanceof Error ? error.message : String(error),
+          },
+        });
       }
-
-      const albums = await performFullMediaScan(directories);
-      port.postMessage({ type: 'SCAN_COMPLETE', albums });
-    } catch (error) {
-      port.postMessage({
-        type: 'SCAN_ERROR',
-        error: error instanceof Error ? error.message : String(error),
-      });
     }
   }
 });

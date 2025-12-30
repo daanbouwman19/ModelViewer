@@ -1,13 +1,17 @@
 import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { mount } from '@vue/test-utils';
-import { ref, nextTick } from 'vue';
+import { reactive, toRefs, nextTick } from 'vue';
 import App from '@/App.vue';
-import { useAppState } from '@/composables/useAppState';
 import { useSlideshow } from '@/composables/useSlideshow';
+import { useLibraryStore } from '@/composables/useLibraryStore';
+import { usePlayerStore } from '@/composables/usePlayerStore';
+import { useUIStore } from '@/composables/useUIStore';
 
 // Mock the composables
-vi.mock('@/composables/useAppState.js');
-vi.mock('@/composables/useSlideshow.js');
+vi.mock('@/composables/useSlideshow');
+vi.mock('@/composables/useLibraryStore');
+vi.mock('@/composables/usePlayerStore');
+vi.mock('@/composables/useUIStore');
 
 // Mock the child components
 vi.mock('@/components/AlbumsList.vue', () => ({
@@ -32,7 +36,10 @@ vi.mock('@/components/AmbientBackground.vue', () => ({
 }));
 
 describe('App.vue', () => {
-  let mockRefs: any;
+  let mockLibraryState: any;
+  let mockPlayerState: any;
+  let mockUIState: any;
+
   let initializeApp: Mock;
   let navigateMedia: Mock;
   let toggleSlideshowTimer: Mock;
@@ -42,36 +49,55 @@ describe('App.vue', () => {
     navigateMedia = vi.fn();
     toggleSlideshowTimer = vi.fn();
 
-    mockRefs = {
-      allAlbums: ref([]),
-      albumsSelectedForSlideshow: ref({}),
-      mediaFilter: ref('All'),
-      currentMediaItem: ref(null),
-      displayedMediaFiles: ref([]),
-      currentMediaIndex: ref(-1),
-      isSlideshowActive: ref(false),
-      isTimerRunning: ref(false),
-      timerDuration: ref(30),
-      supportedExtensions: ref({
+    mockLibraryState = reactive({
+      allAlbums: [],
+      albumsSelectedForSlideshow: {},
+      isScanning: false,
+      smartPlaylists: [],
+      globalMediaPoolForSelection: [],
+      totalMediaInPool: 0,
+      mediaDirectories: [],
+      supportedExtensions: {
         images: ['.jpg'],
         videos: ['.mp4'],
-      }),
-      globalMediaPoolForSelection: ref([]),
-      totalMediaInPool: ref(0),
-      slideshowTimerId: ref(null),
-      isSourcesModalVisible: ref(false),
-      mediaDirectories: ref([]),
-      isScanning: ref(false),
-      viewMode: ref('player'),
-      isSmartPlaylistModalVisible: ref(false),
-      smartPlaylists: ref([]),
-      state: {},
+      },
       initializeApp,
-      resetState: vi.fn(),
-      stopSlideshow: vi.fn(),
-    };
+    });
 
-    (useAppState as Mock).mockReturnValue(mockRefs);
+    mockPlayerState = reactive({
+      currentMediaItem: null,
+      displayedMediaFiles: [],
+      currentMediaIndex: -1,
+      isSlideshowActive: false,
+      isTimerRunning: false,
+      timerDuration: 30,
+      slideshowTimerId: null,
+      stopSlideshow: vi.fn(),
+    });
+
+    mockUIState = reactive({
+      isSourcesModalVisible: false,
+      viewMode: 'player',
+      isSmartPlaylistModalVisible: false,
+      mediaFilter: 'All',
+    });
+
+    (useLibraryStore as Mock).mockReturnValue({
+      state: mockLibraryState,
+      ...toRefs(mockLibraryState),
+      loadInitialData: initializeApp,
+    });
+
+    (usePlayerStore as Mock).mockReturnValue({
+      state: mockPlayerState,
+      ...toRefs(mockPlayerState),
+      stopSlideshow: vi.fn(),
+    });
+
+    (useUIStore as Mock).mockReturnValue({
+      state: mockUIState,
+      ...toRefs(mockUIState),
+    });
 
     (useSlideshow as Mock).mockReturnValue({
       navigateMedia,
@@ -100,14 +126,14 @@ describe('App.vue', () => {
   });
 
   it('should render MediaDisplay component when viewMode is player', () => {
-    mockRefs.viewMode.value = 'player';
+    mockUIState.viewMode = 'player';
     const wrapper = mount(App);
     expect(wrapper.find('.media-display-mock').exists()).toBe(true);
     expect(wrapper.find('.media-grid-mock').exists()).toBe(false);
   });
 
   it('should render MediaGrid component when viewMode is grid', () => {
-    mockRefs.viewMode.value = 'grid';
+    mockUIState.viewMode = 'grid';
     const wrapper = mount(App);
     expect(wrapper.find('.media-grid-mock').exists()).toBe(true);
     expect(wrapper.find('.media-display-mock').exists()).toBe(false);
@@ -119,14 +145,14 @@ describe('App.vue', () => {
   });
 
   it('should render LoadingMask when isScanning is true', async () => {
-    mockRefs.isScanning.value = true;
+    mockLibraryState.isScanning = true;
     const wrapper = mount(App);
     await nextTick();
     expect(wrapper.find('.loading-mask-mock').exists()).toBe(true);
   });
 
   it('should NOT render LoadingMask when isScanning is false', async () => {
-    mockRefs.isScanning.value = false;
+    mockLibraryState.isScanning = false;
     const wrapper = mount(App);
     await nextTick();
     expect(wrapper.find('.loading-mask-mock').exists()).toBe(false);

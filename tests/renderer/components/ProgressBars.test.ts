@@ -1,16 +1,18 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { mount } from '@vue/test-utils';
-import { nextTick, ref } from 'vue';
+import { nextTick, reactive, toRefs } from 'vue';
 import AlbumsList from '@/components/AlbumsList.vue';
 import MediaDisplay from '@/components/MediaDisplay.vue';
-import { useAppState } from '@/composables/useAppState';
+import { useLibraryStore } from '@/composables/useLibraryStore';
+import { usePlayerStore } from '@/composables/usePlayerStore';
+import { useUIStore } from '@/composables/useUIStore';
 import { createMockElectronAPI } from '../mocks/electronAPI';
 import type { LoadResult } from '../../../src/preload/preload';
 
 // Mock the composables
-vi.mock('@/composables/useAppState', () => ({
-  useAppState: vi.fn(),
-}));
+vi.mock('@/composables/useLibraryStore');
+vi.mock('@/composables/usePlayerStore');
+vi.mock('@/composables/useUIStore');
 
 vi.mock('@/composables/useSlideshow', () => ({
   useSlideshow: () => ({
@@ -27,6 +29,10 @@ vi.mock('@/composables/useSlideshow', () => ({
 global.window.electronAPI = createMockElectronAPI();
 
 describe('Progress Bars', () => {
+  let mockLibraryState: any;
+  let mockPlayerState: any;
+  let mockUIState: any;
+
   beforeEach(() => {
     // Reset any previous mock implementations from other tests
     vi.clearAllMocks();
@@ -34,27 +40,62 @@ describe('Progress Bars', () => {
       type: 'data-url',
       url: '',
     } as LoadResult);
+
+    mockLibraryState = reactive({
+      allAlbums: [],
+      albumsSelectedForSlideshow: {},
+      smartPlaylists: [],
+      totalMediaInPool: 0,
+      supportedExtensions: { images: ['.jpg'], videos: ['.mp4'] },
+      imageExtensionsSet: new Set(['.jpg']),
+      videoExtensionsSet: new Set(['.mp4']),
+    });
+
+    mockPlayerState = reactive({
+      timerDuration: 5,
+      isTimerRunning: false,
+      timerProgress: 50,
+      currentMediaItem: { path: 'video.mp4', name: 'video.mp4' },
+      displayedMediaFiles: [],
+      currentMediaIndex: -1,
+      isSlideshowActive: true,
+      playFullVideo: false,
+      pauseTimerOnPlay: false,
+      mainVideoElement: null,
+    });
+
+    mockUIState = reactive({
+      isSourcesModalVisible: false,
+      gridMediaFiles: [],
+      viewMode: 'player',
+      mediaFilter: 'All',
+    });
+
+    (useLibraryStore as Mock).mockReturnValue({
+      state: mockLibraryState,
+      ...toRefs(mockLibraryState),
+    });
+
+    (usePlayerStore as Mock).mockReturnValue({
+      state: mockPlayerState,
+      ...toRefs(mockPlayerState),
+    });
+
+    (useUIStore as Mock).mockReturnValue({
+      state: mockUIState,
+      ...toRefs(mockUIState),
+    });
   });
 
   it('should display the slideshow progress bar in AlbumsList when the timer is running', async () => {
     // Arrange
-    const isTimerRunning = ref(false);
-    (useAppState as Mock).mockReturnValue({
-      allAlbums: ref([]),
-      albumsSelectedForSlideshow: ref({}),
-      timerDuration: ref(5),
-      isTimerRunning,
-      isSourcesModalVisible: ref(false),
-      timerProgress: ref(50),
-      smartPlaylists: ref([]),
-      gridMediaFiles: ref([]),
-      viewMode: ref('player'),
-    });
+    mockPlayerState.isTimerRunning = false;
+    mockPlayerState.timerProgress = 50;
 
     const wrapper = mount(AlbumsList);
 
     // Act
-    isTimerRunning.value = true;
+    mockPlayerState.isTimerRunning = true;
     await nextTick();
 
     // Assert
@@ -71,22 +112,8 @@ describe('Progress Bars', () => {
       url: 'fake-video-url.mp4',
     } as LoadResult);
 
-    (useAppState as Mock).mockReturnValue({
-      currentMediaItem: ref({ path: 'video.mp4', name: 'video.mp4' }),
-      displayedMediaFiles: ref([]),
-      currentMediaIndex: ref(-1),
-      isSlideshowActive: ref(true),
-      mediaFilter: ref('All'),
-      totalMediaInPool: ref(0),
-      supportedExtensions: ref({ images: ['.jpg'], videos: ['.mp4'] }),
-      imageExtensionsSet: ref(new Set(['.jpg'])),
-      videoExtensionsSet: ref(new Set(['.mp4'])),
-      playFullVideo: ref(false),
-      pauseTimerOnPlay: ref(false),
-
-      isTimerRunning: ref(false),
-      mainVideoElement: ref(null),
-    });
+    mockPlayerState.currentMediaItem = { path: 'video.mp4', name: 'video.mp4' };
+    mockPlayerState.isTimerRunning = false;
 
     const wrapper = mount(MediaDisplay);
 

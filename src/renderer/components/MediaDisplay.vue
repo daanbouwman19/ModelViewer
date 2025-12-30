@@ -152,7 +152,9 @@
  * and providing navigation controls to move between media items.
  */
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
-import { useAppState } from '../composables/useAppState';
+import { useLibraryStore } from '../composables/useLibraryStore';
+import { usePlayerStore } from '../composables/usePlayerStore';
+import { useUIStore } from '../composables/useUIStore';
 import { useSlideshow } from '../composables/useSlideshow';
 import { api } from '../api';
 import VlcIcon from './icons/VlcIcon.vue';
@@ -165,19 +167,24 @@ import {
   type MediaFilter,
 } from '../../core/constants';
 
+const libraryStore = useLibraryStore();
+const playerStore = usePlayerStore();
+const uiStore = useUIStore();
+
+const { totalMediaInPool, imageExtensionsSet } = libraryStore;
+
 const {
   currentMediaItem,
   displayedMediaFiles,
   currentMediaIndex,
   isSlideshowActive,
-  mediaFilter,
-  totalMediaInPool,
-  imageExtensionsSet,
   playFullVideo,
   pauseTimerOnPlay,
   isTimerRunning,
   mainVideoElement,
-} = useAppState();
+} = playerStore;
+
+const { mediaFilter } = uiStore;
 
 const {
   navigateMedia,

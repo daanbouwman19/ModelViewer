@@ -1,13 +1,18 @@
 import { describe, it, expect, vi, type Mock, beforeEach } from 'vitest';
 import { mount } from '@vue/test-utils';
-import { ref } from 'vue';
+import { reactive, toRefs } from 'vue';
 import MediaDisplay from '@/components/MediaDisplay.vue';
-import { useAppState } from '@/composables/useAppState';
+import { useLibraryStore } from '@/composables/useLibraryStore';
+import { usePlayerStore } from '@/composables/usePlayerStore';
+import { useUIStore } from '@/composables/useUIStore';
 import { useSlideshow } from '@/composables/useSlideshow';
 import { api } from '@/api';
 
 // Mock the composables
-vi.mock('@/composables/useAppState');
+// Mock the composables
+vi.mock('@/composables/useLibraryStore');
+vi.mock('@/composables/usePlayerStore');
+vi.mock('@/composables/useUIStore');
 vi.mock('@/composables/useSlideshow');
 
 // Mock child components
@@ -31,20 +36,44 @@ vi.mock('@/api', () => ({
 }));
 
 describe('MediaDisplay.vue Layout', () => {
+  let mockLibraryState: any;
+  let mockPlayerState: any;
+  let mockUIState: any;
+
   beforeEach(() => {
-    // Default App State
-    (useAppState as Mock).mockReturnValue({
-      currentMediaItem: ref({ name: 'test.jpg', path: '/test.jpg' }),
-      displayedMediaFiles: ref([{ name: 'test.jpg', path: '/test.jpg' }]),
-      currentMediaIndex: ref(0),
-      isSlideshowActive: ref(false),
-      mediaFilter: ref('All'),
-      totalMediaInPool: ref(1),
-      imageExtensionsSet: ref(new Set(['.jpg'])),
-      playFullVideo: ref(false),
-      pauseTimerOnPlay: ref(false),
-      isTimerRunning: ref(false),
-      mainVideoElement: ref(null),
+    mockLibraryState = reactive({
+      totalMediaInPool: 1,
+      imageExtensionsSet: new Set(['.jpg']),
+    });
+
+    mockPlayerState = reactive({
+      currentMediaItem: { name: 'test.jpg', path: '/test.jpg' },
+      displayedMediaFiles: [{ name: 'test.jpg', path: '/test.jpg' }],
+      currentMediaIndex: 0,
+      isSlideshowActive: false,
+      playFullVideo: false,
+      pauseTimerOnPlay: false,
+      isTimerRunning: false,
+      mainVideoElement: null,
+    });
+
+    mockUIState = reactive({
+      mediaFilter: 'All',
+    });
+
+    (useLibraryStore as Mock).mockReturnValue({
+      state: mockLibraryState,
+      ...toRefs(mockLibraryState),
+    });
+
+    (usePlayerStore as Mock).mockReturnValue({
+      state: mockPlayerState,
+      ...toRefs(mockPlayerState),
+    });
+
+    (useUIStore as Mock).mockReturnValue({
+      state: mockUIState,
+      ...toRefs(mockUIState),
     });
 
     // Default Slideshow State
@@ -76,27 +105,16 @@ describe('MediaDisplay.vue Layout', () => {
     expect(classes).not.toContain('md:w-auto');
   });
 
-  it('should have flex layout for title centering and truncation', () => {
+  it('should have flex layout for title centering and truncation', async () => {
     // Override currentMediaItem for this specific test case to simulate a long title
-    (useAppState as Mock).mockReturnValue({
-      currentMediaItem: ref({
-        name: 'Very Long Title That Should Truncate In The Middle Of The Screen Because It Is Too Long.jpg',
-        path: '/test.jpg',
-      }),
-      displayedMediaFiles: ref([{ name: 'test.jpg', path: '/test.jpg' }]),
-      currentMediaIndex: ref(0),
-      isSlideshowActive: ref(false),
-      mediaFilter: ref('All'),
-      totalMediaInPool: ref(1),
-      imageExtensionsSet: ref(new Set(['.jpg'])),
-      playFullVideo: ref(false),
-      pauseTimerOnPlay: ref(false),
-      isTimerRunning: ref(false),
-      mainVideoElement: ref(null),
-    });
+    mockPlayerState.currentMediaItem = {
+      name: 'Very Long Title That Should Truncate In The Middle Of The Screen Because It Is Too Long.jpg',
+      path: '/test.jpg',
+    };
 
     // Re-mount with overridden state
     const wrapper = mount(MediaDisplay);
+    await wrapper.vm.$nextTick();
 
     const mediaInfo = wrapper.find('.media-info');
     expect(mediaInfo.classes()).toContain('flex-1');

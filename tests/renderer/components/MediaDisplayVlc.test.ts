@@ -1,13 +1,17 @@
 import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
-import { ref } from 'vue';
+import { reactive, toRefs } from 'vue';
 import MediaDisplay from '@/components/MediaDisplay.vue';
-import { useAppState } from '@/composables/useAppState';
+import { useLibraryStore } from '@/composables/useLibraryStore';
+import { usePlayerStore } from '@/composables/usePlayerStore';
+import { useUIStore } from '@/composables/useUIStore';
 import { useSlideshow } from '@/composables/useSlideshow';
 import { api } from '@/api';
 
 // Mock the composables
-vi.mock('@/composables/useAppState');
+vi.mock('@/composables/useLibraryStore');
+vi.mock('@/composables/usePlayerStore');
+vi.mock('@/composables/useUIStore');
 vi.mock('@/composables/useSlideshow');
 
 // Mock VlcIcon component
@@ -31,7 +35,9 @@ describe('MediaDisplay.vue', () => {
   let mockNextMedia: Mock;
   let mockToggleTimer: Mock;
 
-  let mockRefs: any;
+  let mockLibraryState: any;
+  let mockPlayerState: any;
+  let mockUIState: any;
 
   beforeEach(() => {
     mockSetFilter = vi.fn();
@@ -39,38 +45,46 @@ describe('MediaDisplay.vue', () => {
     mockNextMedia = vi.fn();
     mockToggleTimer = vi.fn();
 
-    // useAppState returns ...toRefs(state), so each property is a ref
-    mockRefs = {
-      mediaFilter: ref('All'),
-      currentMediaItem: ref(null),
-      displayedMediaFiles: ref([]),
-      currentMediaIndex: ref(-1),
-      isSlideshowActive: ref(false),
-      isTimerRunning: ref(false),
-      timerDuration: ref(30),
-      supportedExtensions: ref({
+    mockLibraryState = reactive({
+      totalMediaInPool: 0,
+      supportedExtensions: {
         images: ['.jpg', '.png', '.gif'],
         videos: ['.mp4', '.webm'],
-      }),
-      imageExtensionsSet: ref(new Set(['.jpg', '.png', '.gif'])),
-      videoExtensionsSet: ref(new Set(['.mp4', '.webm'])),
-      allAlbums: ref([]),
-      albumsSelectedForSlideshow: ref({}),
-      globalMediaPoolForSelection: ref([]),
-      totalMediaInPool: ref(0),
-      slideshowTimerId: ref(null),
-      isSourcesModalVisible: ref(false),
-      mediaDirectories: ref([]),
-      playFullVideo: ref(false),
-      pauseTimerOnPlay: ref(false),
-      mainVideoElement: ref(null),
-      state: {}, // Also include state for compatibility
-      initializeApp: vi.fn(),
-      resetState: vi.fn(),
-      stopSlideshow: vi.fn(),
-    };
+      },
+      imageExtensionsSet: new Set(['.jpg', '.png', '.gif']),
+      videoExtensionsSet: new Set(['.mp4', '.webm']),
+    });
 
-    (useAppState as Mock).mockReturnValue(mockRefs);
+    mockPlayerState = reactive({
+      currentMediaItem: null,
+      displayedMediaFiles: [],
+      currentMediaIndex: -1,
+      isSlideshowActive: false,
+      isTimerRunning: false,
+      timerDuration: 30,
+      playFullVideo: false,
+      pauseTimerOnPlay: false,
+      mainVideoElement: null,
+    });
+
+    mockUIState = reactive({
+      mediaFilter: 'All',
+    });
+
+    (useLibraryStore as Mock).mockReturnValue({
+      state: mockLibraryState,
+      ...toRefs(mockLibraryState),
+    });
+
+    (usePlayerStore as Mock).mockReturnValue({
+      state: mockPlayerState,
+      ...toRefs(mockPlayerState),
+    });
+
+    (useUIStore as Mock).mockReturnValue({
+      state: mockUIState,
+      ...toRefs(mockUIState),
+    });
 
     (useSlideshow as Mock).mockReturnValue({
       setFilter: mockSetFilter,
@@ -111,7 +125,10 @@ describe('MediaDisplay.vue', () => {
 
   describe('VLC Integration', () => {
     it('should not show VLC button for images', async () => {
-      mockRefs.currentMediaItem.value = { name: 'test.jpg', path: '/test.jpg' };
+      mockPlayerState.currentMediaItem = {
+        name: 'test.jpg',
+        path: '/test.jpg',
+      };
       const wrapper = mount(MediaDisplay);
       await wrapper.vm.$nextTick();
 
@@ -120,7 +137,10 @@ describe('MediaDisplay.vue', () => {
     });
 
     it('should show VLC button for videos', async () => {
-      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
+      mockPlayerState.currentMediaItem = {
+        name: 'test.mp4',
+        path: '/test.mp4',
+      };
       const wrapper = mount(MediaDisplay);
       await wrapper.vm.$nextTick();
       await wrapper.vm.$nextTick();
@@ -130,7 +150,10 @@ describe('MediaDisplay.vue', () => {
     });
 
     it('should pause video and call openInVlc when button clicked', async () => {
-      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
+      mockPlayerState.currentMediaItem = {
+        name: 'test.mp4',
+        path: '/test.mp4',
+      };
 
       const wrapper = mount(MediaDisplay, {
         attachTo: document.body,
@@ -152,7 +175,10 @@ describe('MediaDisplay.vue', () => {
     });
 
     it('should display error if openInVlc fails', async () => {
-      mockRefs.currentMediaItem.value = { name: 'test.mp4', path: '/test.mp4' };
+      mockPlayerState.currentMediaItem = {
+        name: 'test.mp4',
+        path: '/test.mp4',
+      };
 
       (api.openInVlc as Mock).mockResolvedValue({
         success: false,

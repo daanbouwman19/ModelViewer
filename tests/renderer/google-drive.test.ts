@@ -1,12 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
+import { reactive, toRefs } from 'vue';
 import SourcesModal from '@/components/SourcesModal.vue';
-import { useAppState } from '@/composables/useAppState';
+import { useLibraryStore } from '@/composables/useLibraryStore';
+import { useUIStore } from '@/composables/useUIStore';
 import { api } from '@/api';
-import { ref } from 'vue';
 
 // Mock dependencies
-vi.mock('@/composables/useAppState');
+vi.mock('@/composables/useLibraryStore');
+vi.mock('@/composables/useUIStore');
 vi.mock('@/api', () => ({
   api: {
     addMediaDirectory: vi.fn(),
@@ -21,19 +23,31 @@ vi.mock('@/api', () => ({
 }));
 
 describe('Google Drive Integration in SourcesModal', () => {
-  let mockRefs: any;
+  let mockLibraryState: any;
+  let mockUIState: any;
 
   beforeEach(() => {
-    mockRefs = {
-      isSourcesModalVisible: ref(true),
-      mediaDirectories: ref([]),
-      state: {
-        isScanning: false,
-        allAlbums: [],
-        albumsSelectedForSlideshow: {},
-      },
-    };
-    (useAppState as any).mockReturnValue(mockRefs);
+    mockLibraryState = reactive({
+      isScanning: false,
+      allAlbums: [],
+      albumsSelectedForSlideshow: {},
+      mediaDirectories: [],
+    });
+
+    mockUIState = reactive({
+      isSourcesModalVisible: true,
+    });
+
+    (useLibraryStore as unknown as Mock).mockReturnValue({
+      state: mockLibraryState,
+      ...toRefs(mockLibraryState),
+    });
+
+    (useUIStore as unknown as Mock).mockReturnValue({
+      state: mockUIState,
+      ...toRefs(mockUIState),
+    });
+
     vi.clearAllMocks();
   });
 

@@ -12,7 +12,8 @@ import {
   getPendingMetadata,
   getSetting,
 } from './database.ts';
-import { Worker, type WorkerOptions } from 'worker_threads';
+import { type WorkerOptions } from 'worker_threads';
+import { WorkerClient } from './worker-client.ts';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { getVideoDuration } from './media-handler.ts';
@@ -73,58 +74,46 @@ export async function scanDiskForAlbumsAndCache(
 
   // Run scan in a worker
   const albums = await new Promise<Album[]>(async (resolve, reject) => {
-    const worker = new Worker(workerPath, workerOptions);
+    const client = new WorkerClient(
+      workerPath,
+      workerOptions,
+      86400000,
+      'scan-worker',
+    ); // 24h timeout
 
-    const cleanup = () => {
-      worker.removeAllListeners();
-      worker.terminate();
-    };
-
-    worker.on('message', (message) => {
-      cleanup();
-      if (message.type === 'SCAN_COMPLETE') {
-        resolve(message.albums);
-      } else if (message.type === 'SCAN_ERROR') {
-        reject(new Error(message.error));
-      }
-    });
-
-    worker.on('error', (err) => {
-      cleanup();
-      reject(err);
-    });
-
-    worker.on('exit', (code) => {
-      cleanup();
-      // This is a fallback. If we get here, it means the worker exited without
-      // sending a message or emitting an 'error' event.
-      if (code !== 0) {
-        reject(new Error(`Worker stopped with exit code ${code}`));
-      } else {
-        // A clean exit without a message is an error for us, as the promise would otherwise hang.
-        reject(new Error('Worker exited without sending a result.'));
-      }
-    });
-
-    // Fetch tokens to pass to worker
-    let tokens = null;
     try {
-      const tokenString = await getSetting('google_tokens');
-      if (tokenString) {
-        tokens = JSON.parse(tokenString);
-      }
-    } catch (e) {
-      console.warn(
-        '[media-service] Failed to fetch google tokens for worker:',
-        e,
-      );
-    }
+      // Init client (starts worker)
+      // We can skip 'init' message if the worker doesn't expect one, or send one if needed.
+      // The worker expects START_SCAN.
+      // WorkerClient init() creates the worker.
 
-    worker.postMessage({
-      type: 'START_SCAN',
-      directories: activeDirectories,
-      tokens,
-    });
+      // Fetch tokens
+      let tokens = null;
+      try {
+        const tokenString = await getSetting('google_tokens');
+        if (tokenString) {
+          tokens = JSON.parse(tokenString);
+        }
+      } catch (e) {
+        console.warn(
+          '[media-service] Failed to fetch google tokens for worker:',
+          e,
+        );
+      }
+
+      await client.init();
+
+      const result = await client.sendMessage<Album[]>('START_SCAN', {
+        directories: activeDirectories,
+        tokens,
+      });
+
+      resolve(result);
+    } catch (err) {
+      reject(err);
+    } finally {
+      await client.terminate();
+    }
   });
 
   await cacheAlbums(albums || []);
