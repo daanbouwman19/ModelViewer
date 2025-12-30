@@ -277,6 +277,35 @@ describe('Server', () => {
     });
   });
 
+  describe('GET /api/media/history', () => {
+    it('should return recently played items', async () => {
+      const mockItems = [{ id: 1, path: '/file.mp4' }];
+      vi.mocked(database.getRecentlyPlayed).mockResolvedValue(mockItems as any);
+
+      const response = await request(app)
+        .get('/api/media/history')
+        .query({ limit: 10 });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual(mockItems);
+      expect(database.getRecentlyPlayed).toHaveBeenCalledWith(10);
+    });
+
+    it('should default limit to 50', async () => {
+      vi.mocked(database.getRecentlyPlayed).mockResolvedValue([]);
+      await request(app).get('/api/media/history');
+      expect(database.getRecentlyPlayed).toHaveBeenCalledWith(50);
+    });
+
+    it('should handle errors', async () => {
+      vi.mocked(database.getRecentlyPlayed).mockRejectedValue(
+        new Error('Db error'),
+      );
+      const response = await request(app).get('/api/media/history');
+      expect(response.status).toBe(500);
+    });
+  });
+
   describe('GET /api/fs/ls', () => {
     it('should list directory', async () => {
       const dirPath = '/dir';
