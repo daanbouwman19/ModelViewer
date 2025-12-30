@@ -352,7 +352,7 @@ export async function serveTranscodedStream(
   res: Response,
   source: IMediaSource,
   ffmpegPath: string,
-  startTime: string | null,
+  startTime: string | undefined,
 ) {
   const inputPath = await source.getFFmpegInput();
 

@@ -88,7 +88,7 @@ export function isValidTimeFormat(time: string): boolean {
 
 export function getTranscodeArgs(
   inputPath: string,
-  startTime: string | null,
+  startTime: string | undefined | null,
 ): string[] {
   const args: string[] = [];
 

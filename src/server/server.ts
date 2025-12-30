@@ -585,7 +585,7 @@ export async function createApp() {
           res,
           source,
           ffmpegStatic,
-          startTime || null,
+          startTime || undefined,
         );
       } else {
         await serveRawStream(req, res, source);
