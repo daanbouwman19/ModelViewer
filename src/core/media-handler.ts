@@ -21,6 +21,7 @@ import {
   getThumbnailArgs,
   runFFmpeg,
   parseHttpRange,
+  getQueryParam,
 } from './media-utils.ts';
 import { getProvider } from './fs-provider-factory.ts';
 import { authorizeFilePath } from './security.ts';
@@ -44,14 +45,8 @@ export async function handleStreamRequest(
   res: Response,
   ffmpegPath: string | null,
 ) {
-  const filePath = (
-    Array.isArray(req.query.file) ? req.query.file[0] : req.query.file
-  ) as string;
-  const startTime = (
-    Array.isArray(req.query.startTime)
-      ? req.query.startTime[0]
-      : req.query.startTime
-  ) as string;
+  const filePath = getQueryParam(req.query, 'file');
+  const startTime = getQueryParam(req.query, 'startTime');
   const isTranscodeForced = req.query.transcode === 'true';
 
   if (!filePath) {
@@ -357,7 +352,7 @@ export async function serveTranscodedStream(
   res: Response,
   source: IMediaSource,
   ffmpegPath: string,
-  startTime: string | null,
+  startTime: string | undefined,
 ) {
   const inputPath = await source.getFFmpegInput();
 
@@ -467,9 +462,7 @@ export function createMediaApp(options: MediaHandlerOptions) {
 
   // Metadata Route
   app.get(MediaRoutes.METADATA, async (req, res) => {
-    const filePath = (
-      Array.isArray(req.query.file) ? req.query.file[0] : req.query.file
-    ) as string;
+    const filePath = getQueryParam(req.query, 'file');
     if (!filePath) {
       res.status(400).send('Missing file parameter');
       return;
@@ -485,9 +478,7 @@ export function createMediaApp(options: MediaHandlerOptions) {
 
   // Thumbnail Route
   app.get(MediaRoutes.THUMBNAIL, async (req, res) => {
-    const filePath = (
-      Array.isArray(req.query.file) ? req.query.file[0] : req.query.file
-    ) as string;
+    const filePath = getQueryParam(req.query, 'file');
     if (!filePath) {
       res.status(400).send('Missing file parameter');
       return;
