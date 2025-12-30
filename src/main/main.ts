@@ -14,6 +14,7 @@ import fs from 'fs/promises';
 log.initialize();
 
 import { initDatabase, closeDatabase } from './database';
+import { loadSecurityConfig } from '../core/security';
 import {
   startLocalServer,
   stopLocalServer,
@@ -83,6 +84,14 @@ app.on('ready', () => {
 
   const driveCacheDir = path.join(app.getPath('userData'), 'drive-cache');
   initializeDriveCacheManager(driveCacheDir);
+
+  const securityConfigPath = path.join(
+    app.getPath('userData'),
+    'security-config.json',
+  );
+  loadSecurityConfig(securityConfigPath).catch((err) => {
+    log.error('[main.js] Failed to load security config:', err);
+  });
 
   initDatabase()
     .then(async () => {

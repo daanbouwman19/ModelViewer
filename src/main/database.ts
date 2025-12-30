@@ -25,8 +25,19 @@ export async function initDatabase(): Promise<void> {
     process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
 
   if (app.isPackaged) {
-    // In a packaged app, the worker is a JS file relative to the main script.
-    workerPath = path.join(__dirname, 'database-worker.js');
+    // In a packaged app, resources are inside the ASAR archive.
+    // electron-vite puts main process files in 'out/main'.
+    // We assume the worker is strictly output to 'out/main/database-worker.js'.
+    // app.getAppPath() returns the path to the app.asar file (or directory if unpacked).
+    // However, consistency depends on how electron-builder packages it.
+    // Usually, inside ASAR: /resources/app.asar/out/main/database-worker.js
+    // app.getAppPath() -> .../resources/app.asar
+    workerPath = path.join(
+      app.getAppPath(),
+      'out',
+      'main',
+      'database-worker.js',
+    );
   } else if (isTest) {
     // In a test environment (Vitest), resolve the path to the TS source file.
     const pathModule = await import('path');

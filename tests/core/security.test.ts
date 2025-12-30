@@ -12,6 +12,7 @@ vi.mock('fs/promises', () => {
   return {
     default: {
       realpath: vi.fn(),
+      readFile: vi.fn(),
     },
   };
 });
@@ -167,5 +168,65 @@ describe('Path Restriction Security', () => {
   it('handles edge cases', () => {
     expect(isSensitiveDirectory('')).toBe(true); // Fail safe
     expect(isRestrictedPath('')).toBe(true);
+  });
+});
+
+describe('Security Config Loading', () => {
+  const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+    vi.doMock('fs/promises', () => ({
+      default: {
+        realpath: vi.fn(),
+        readFile: vi.fn(),
+      },
+    }));
+  });
+
+  afterEach(() => {
+    vi.doUnmock('fs/promises');
+  });
+
+  it('loads custom sensitive directories from a valid config file', async () => {
+    const mockConfig = JSON.stringify({
+      sensitiveSubdirectories: ['custom_secret'],
+    });
+    const fsMock = await import('fs/promises');
+    vi.mocked(fsMock.default.readFile).mockResolvedValue(mockConfig);
+
+    const { loadSecurityConfig: loadConfig, isRestrictedPath: checkPath } =
+      await import('../../src/core/security');
+
+    await loadConfig('/path/to/config.json');
+
+    Object.defineProperty(process, 'platform', { value: 'linux' });
+    expect(checkPath('/home/user/custom_secret')).toBe(true);
+  });
+
+  it('ignores missing config file (ENOENT)', async () => {
+    const error: any = new Error('File not found');
+    error.code = 'ENOENT';
+    const fsMock = await import('fs/promises');
+    vi.mocked(fsMock.default.readFile).mockRejectedValue(error);
+
+    const { loadSecurityConfig: loadConfig } =
+      await import('../../src/core/security');
+    await loadConfig('/missing/config.json');
+
+    expect(consoleWarnSpy).not.toHaveBeenCalled();
+  });
+
+  it('warns and throws on invalid JSON or read error', async () => {
+    // Re-import fs to get the fresh mock instance after resetModules
+    const fsMock = await import('fs/promises');
+    vi.mocked(fsMock.default.readFile).mockResolvedValue('{ invalid json ');
+
+    const { loadSecurityConfig: loadConfig } =
+      await import('../../src/core/security');
+    await expect(loadConfig('/bad/config.json')).rejects.toThrow();
+
+    expect(consoleWarnSpy).toHaveBeenCalled();
   });
 });
