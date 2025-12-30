@@ -203,3 +203,22 @@ export function parseHttpRange(
   // Success: Return the first range
   return { start: ranges[0].start, end: ranges[0].end };
 }
+
+/**
+ * Extracts a query parameter from a query object, handling array/string cases.
+ * Returns the first value if it's an array.
+ *
+ * @param query - The query object (e.g. req.query).
+ * @param key - The query parameter key.
+ * @returns The value as a string, or undefined if missing.
+ */
+export function getQueryParam(
+  query: Record<string, unknown>,
+  key: string,
+): string | undefined {
+  const value = query[key];
+  if (Array.isArray(value)) {
+    return value[0] as string;
+  }
+  return value as string | undefined;
+}
