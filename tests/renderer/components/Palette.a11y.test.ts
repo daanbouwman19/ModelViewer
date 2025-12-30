@@ -344,6 +344,33 @@ describe('Palette Accessibility Improvements', () => {
       const checkbox = wrapper.find('[data-testid="album-checkbox"]');
       expect(checkbox.attributes('aria-label')).toBe('Select Test Album');
     });
+
+    it('action buttons (Play/Grid) should have accessible labels with album name', () => {
+      const album = {
+        id: 'test-id',
+        name: 'Holiday Photos',
+        children: [],
+        textures: [],
+      };
+      const wrapper = mount(AlbumTree, {
+        props: {
+          album,
+          selection: {},
+        },
+      });
+
+      // These buttons are initially opacity-0 but still present in DOM
+      const playBtn = wrapper.find('button[title="Play Album"]');
+      const gridBtn = wrapper.find('button[title="Open in Grid"]');
+
+      expect(playBtn.exists()).toBe(true);
+      expect(gridBtn.exists()).toBe(true);
+
+      expect(playBtn.attributes('aria-label')).toBe('Play Holiday Photos');
+      expect(gridBtn.attributes('aria-label')).toBe(
+        'Open Holiday Photos in Grid',
+      );
+    });
   });
 
   describe('Rating System', () => {
