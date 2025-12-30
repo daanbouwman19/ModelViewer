@@ -12,6 +12,19 @@ export interface AuthorizationResult {
   message?: string;
 }
 
+interface ErrnoException extends Error {
+  errno?: number;
+  code?: string;
+  path?: string;
+  syscall?: string;
+}
+
+function isErrnoException(error: unknown): error is ErrnoException {
+  return (
+    error instanceof Error && typeof (error as ErrnoException).code === 'string'
+  );
+}
+
 // Mutable set of sensitive directories, initialized with defaults.
 const sensitiveSubdirectoriesSet = new Set(SENSITIVE_SUBDIRECTORIES);
 
@@ -37,13 +50,16 @@ export async function loadSecurityConfig(configPath: string): Promise<void> {
       );
     }
   } catch (error) {
-    if ((error as { code?: string }).code !== 'ENOENT') {
-      console.warn(
-        `[Security] Failed to load security config from ${configPath}:`,
-        error,
-      );
+    if (isErrnoException(error) && error.code === 'ENOENT') {
+      // Ignore missing config file, use defaults.
+      return;
     }
-    // Ignore missing config file, use defaults.
+
+    console.warn(
+      `[Security] Failed to load security config from ${configPath}:`,
+      error,
+    );
+    throw error;
   }
 }
 
@@ -69,7 +85,7 @@ export async function authorizeFilePath(
       realPath = await fs.realpath(filePath);
     } catch (error) {
       // Treat missing files or access errors as "Access denied" without logging spam for mundane checks.
-      if ((error as { code?: string }).code !== 'ENOENT') {
+      if (!isErrnoException(error) || error.code !== 'ENOENT') {
         console.warn(
           `[Security] File check failed for ${filePath}: ${(error as Error).message}`,
         );
