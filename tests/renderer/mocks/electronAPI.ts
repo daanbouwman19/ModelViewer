@@ -32,6 +32,7 @@ export const createMockElectronAPI = (): ElectronAPI => ({
   updateSmartPlaylist: vi.fn().mockResolvedValue(undefined),
 
   getAllMetadataAndStats: vi.fn().mockResolvedValue([]),
+  getRecentlyPlayed: vi.fn().mockResolvedValue([]),
   extractMetadata: vi.fn().mockResolvedValue(undefined),
   startGoogleDriveAuth: vi.fn(),
   submitGoogleDriveAuthCode: vi.fn(),

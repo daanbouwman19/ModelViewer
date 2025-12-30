@@ -269,7 +269,6 @@ const {
   viewMode,
   playlistToEdit,
   isSlideshowActive,
-  historyMedia,
 } = useAppState();
 
 defineEmits(['close']);
@@ -459,7 +458,7 @@ const editPlaylist = (playlist: SmartPlaylist) => {
 const loadHistory = async () => {
   await libraryStore.fetchHistory(100);
   // Ensure we have actual media files
-  if (historyMedia.value.length === 0) {
+  if (libraryStore.state.historyMedia.length === 0) {
     throw new Error('No history items found');
   }
 };
@@ -467,7 +466,7 @@ const loadHistory = async () => {
 const handleHistoryGrid = async () => {
   try {
     await loadHistory();
-    gridMediaFiles.value = historyMedia.value;
+    gridMediaFiles.value = libraryStore.state.historyMedia;
     await nextTick();
     viewMode.value = 'grid';
   } catch (e) {
@@ -482,7 +481,7 @@ const handleHistorySlideshow = async () => {
     const fakeAlbum: Album = {
       id: 'history-playlist',
       name: 'Recently Played',
-      textures: historyMedia.value,
+      textures: libraryStore.state.historyMedia,
       children: [],
     };
     slideshow.startIndividualAlbumSlideshow(fakeAlbum);

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { registerMediaHandlers } from '../../../src/main/ipc/media-controller';
 import { handleIpc } from '../../../src/main/utils/ipc-helper';
 import { IPC_CHANNELS } from '../../../src/shared/ipc-channels';
@@ -11,10 +11,9 @@ vi.mock('../../../src/main/utils/ipc-helper', () => ({
 vi.mock('../../../src/main/database', () => ({
   recordMediaView: vi.fn(),
   getMediaViewCounts: vi.fn(),
-  getRecentlyPlayed: vi.fn(), // Mock the new function
+  getRecentlyPlayed: vi.fn(),
 }));
 
-// Mock other dependencies to avoid errors
 vi.mock('../../../src/main/utils/security-utils', () => ({
   validatePathAccess: vi.fn(),
   filterAuthorizedPaths: vi.fn(),
@@ -24,9 +23,9 @@ vi.mock('../../../src/core/media-handler', () => ({
   getVideoDuration: vi.fn(),
 }));
 vi.mock('../../../src/main/google-drive-service', () => ({
-    getDriveFileMetadata: vi.fn(),
-    listDriveDirectory: vi.fn(),
-    getDriveParent: vi.fn(),
+  getDriveFileMetadata: vi.fn(),
+  listDriveDirectory: vi.fn(),
+  getDriveParent: vi.fn(),
 }));
 vi.mock('../../../src/core/media-service', () => ({
   getAlbumsWithViewCounts: vi.fn(),
@@ -45,14 +44,14 @@ describe('Media Controller - Recently Played', () => {
 
   it('should register GET_RECENTLY_PLAYED handler', () => {
     expect(handleIpc).toHaveBeenCalledWith(
-        IPC_CHANNELS.DB_GET_RECENTLY_PLAYED,
-        expect.any(Function)
+      IPC_CHANNELS.DB_GET_RECENTLY_PLAYED,
+      expect.any(Function),
     );
   });
 
   it('GET_RECENTLY_PLAYED handler should call getRecentlyPlayed with limit', async () => {
     const handler = (handleIpc as any).mock.calls.find(
-        (call: any) => call[0] === IPC_CHANNELS.DB_GET_RECENTLY_PLAYED
+      (call: any) => call[0] === IPC_CHANNELS.DB_GET_RECENTLY_PLAYED,
     )[1];
 
     const limit = 25;

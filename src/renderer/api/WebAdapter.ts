@@ -261,7 +261,9 @@ export class WebAdapter implements IMediaBackend {
   }
 
   async getRecentlyPlayed(limit = 50): Promise<MediaLibraryItem[]> {
-    return this.request<MediaLibraryItem[]>(`/api/media/history?limit=${limit}`);
+    return this.request<MediaLibraryItem[]>(
+      `/api/media/history?limit=${limit}`,
+    );
   }
 
   async extractMetadata(filePaths: string[]): Promise<void> {

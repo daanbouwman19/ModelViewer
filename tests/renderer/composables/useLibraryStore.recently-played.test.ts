@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useLibraryStore } from '../../../src/renderer/composables/useLibraryStore';
 import { api } from '../../../src/renderer/api';
 import { MediaLibraryItem } from '../../../src/core/types';
@@ -62,11 +62,15 @@ describe('useLibraryStore - Recently Played', () => {
     expect(store.state.historyMedia[0].viewCount).toBe(5);
     expect(store.state.historyMedia[0].rating).toBe(4);
     // JS timestamp for date
-    expect(store.state.historyMedia[0].lastViewed).toBe(new Date('2023-01-01T12:00:00.000Z').getTime());
+    expect(store.state.historyMedia[0].lastViewed).toBe(
+      new Date('2023-01-01T12:00:00.000Z').getTime(),
+    );
   });
 
   it('fetchHistory should handle API errors gracefully', async () => {
-    (api.getRecentlyPlayed as any).mockRejectedValue(new Error('Network error'));
+    (api.getRecentlyPlayed as any).mockRejectedValue(
+      new Error('Network error'),
+    );
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     await store.fetchHistory();

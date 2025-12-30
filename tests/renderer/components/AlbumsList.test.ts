@@ -4,6 +4,7 @@ import { ref, type Ref } from 'vue';
 import AlbumsList from '../../../src/renderer/components/AlbumsList.vue';
 import { useAppState } from '../../../src/renderer/composables/useAppState';
 import { collectTexturesRecursive } from '../../../src/renderer/utils/albumUtils';
+import { useLibraryStore } from '../../../src/renderer/composables/useLibraryStore';
 
 // --- New Mocking Strategy ---
 import { api } from '../../../src/renderer/api';
@@ -32,6 +33,7 @@ vi.mock('../../../src/renderer/api', () => ({
 }));
 
 vi.mock('../../../src/renderer/composables/useAppState');
+vi.mock('../../../src/renderer/composables/useLibraryStore');
 // --- End New Mocking Strategy ---
 
 const mockAlbums = [
@@ -72,7 +74,10 @@ describe('AlbumsList.vue', () => {
     timerProgress: Ref<number>;
     playlistToEdit: Ref<any>;
     isSlideshowActive: Ref<boolean>;
+    historyMedia: Ref<any[]>;
   };
+
+  let mockLibraryStore: any;
 
   beforeEach(() => {
     vi.resetAllMocks();
@@ -92,10 +97,19 @@ describe('AlbumsList.vue', () => {
       timerProgress: ref(0),
       playlistToEdit: ref(null),
       isSlideshowActive: ref(false),
+      historyMedia: ref([]),
     };
 
     (useAppState as Mock).mockReturnValue(mockAppState);
     (api.getSmartPlaylists as Mock).mockResolvedValue([]);
+
+    mockLibraryStore = {
+      fetchHistory: vi.fn(),
+      state: {
+        historyMedia: [],
+      },
+    };
+    (useLibraryStore as Mock).mockReturnValue(mockLibraryStore);
   });
 
   it('renders AlbumTree components for each root album', () => {
@@ -301,6 +315,63 @@ describe('AlbumsList.vue', () => {
 
       expect(mockAppState.playlistToEdit.value).toEqual(playlist);
       expect(mockAppState.isSmartPlaylistModalVisible.value).toBe(true);
+    });
+  });
+
+  describe('History Playlist', () => {
+    it('handles history grid click', async () => {
+      const wrapper = mount(AlbumsList);
+      const historyItem = wrapper.find(
+        'button[aria-label="Open History in Grid"]',
+      );
+
+      mockLibraryStore.state.historyMedia = [{ path: '/history.jpg' }];
+
+      await historyItem.trigger('click');
+      await wrapper.vm.$nextTick();
+
+      expect(mockLibraryStore.fetchHistory).toHaveBeenCalledWith(100);
+      expect(mockAppState.gridMediaFiles.value).toHaveLength(1);
+      expect(mockAppState.viewMode.value).toBe('grid');
+    });
+
+    it('handles history slideshow click', async () => {
+      const wrapper = mount(AlbumsList);
+      const historyBtn = wrapper.find(
+        'button[aria-label="Recently Played Slideshow"]',
+      );
+
+      mockLibraryStore.state.historyMedia = [{ path: '/history.jpg' }];
+
+      await historyBtn.trigger('click');
+      await wrapper.vm.$nextTick();
+
+      expect(mockLibraryStore.fetchHistory).toHaveBeenCalledWith(100);
+      expect(mockStartIndividualAlbumSlideshow).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'history-playlist',
+          textures: [{ path: '/history.jpg' }],
+        }),
+      );
+    });
+
+    it('logs error if no history found', async () => {
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      const wrapper = mount(AlbumsList);
+      const historyBtn = wrapper.find(
+        'button[aria-label="Recently Played Slideshow"]',
+      );
+
+      mockLibraryStore.state.historyMedia = [];
+
+      await historyBtn.trigger('click');
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Error starting history slideshow',
+        expect.any(Error),
+      );
     });
   });
 });
