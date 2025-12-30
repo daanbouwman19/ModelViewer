@@ -297,6 +297,21 @@ describe('Server', () => {
       expect(database.getRecentlyPlayed).toHaveBeenCalledWith(50);
     });
 
+    it('should default invalid/negative limit to 50', async () => {
+      vi.mocked(database.getRecentlyPlayed).mockResolvedValue([]);
+      await request(app).get('/api/media/history').query({ limit: -5 });
+      expect(database.getRecentlyPlayed).toHaveBeenCalledWith(50);
+
+      await request(app).get('/api/media/history').query({ limit: 'abc' });
+      expect(database.getRecentlyPlayed).toHaveBeenCalledWith(50);
+    });
+
+    it('should cap limit at 1000', async () => {
+      vi.mocked(database.getRecentlyPlayed).mockResolvedValue([]);
+      await request(app).get('/api/media/history').query({ limit: 9999 });
+      expect(database.getRecentlyPlayed).toHaveBeenCalledWith(1000);
+    });
+
     it('should handle errors', async () => {
       vi.mocked(database.getRecentlyPlayed).mockRejectedValue(
         new Error('Db error'),

@@ -294,7 +294,7 @@ describe('Database Core Coverage', () => {
     worker.postMessage.mockImplementationOnce(() => {
       throw new Error('Err');
     });
-    await expect(database.getRecentlyPlayed(10)).resolves.toEqual([]);
+    await expect(database.getRecentlyPlayed(10)).rejects.toThrow('Err');
   });
 
   it('getPendingMetadata handles success and error', async () => {

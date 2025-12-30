@@ -275,7 +275,9 @@ export async function createApp() {
   });
 
   app.get('/api/media/history', async (req, res) => {
-    const limit = parseInt(req.query.limit as string) || 50;
+    const rawLimit = parseInt(req.query.limit as string, 10);
+    const limit =
+      !isNaN(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 1000) : 50;
     try {
       const items = await getRecentlyPlayed(limit);
       res.json(items);

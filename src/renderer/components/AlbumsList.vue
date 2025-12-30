@@ -254,6 +254,7 @@ import type {
   MediaFile,
   MediaLibraryItem,
 } from '../../core/types';
+import { RECENTLY_PLAYED_FETCH_LIMIT } from '../../core/constants';
 import { useLibraryStore } from '../composables/useLibraryStore';
 
 const {
@@ -456,7 +457,7 @@ const editPlaylist = (playlist: SmartPlaylist) => {
 
 // History Handling
 const loadHistory = async () => {
-  await libraryStore.fetchHistory(100);
+  await libraryStore.fetchHistory(RECENTLY_PLAYED_FETCH_LIMIT);
   // Ensure we have actual media files
   if (libraryStore.state.historyMedia.length === 0) {
     throw new Error('No history items found');

@@ -616,7 +616,7 @@ async function getRecentlyPlayed(limit = 50): Promise<MediaLibraryItem[]> {
     });
   } catch (error) {
     console.error('[database.js] Error getting recently played:', error);
-    return [];
+    throw error;
   }
 }
 
