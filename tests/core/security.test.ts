@@ -4,6 +4,7 @@ import {
   escapeHtml,
   isRestrictedPath,
   isSensitiveDirectory,
+  loadSecurityConfig,
 } from '../../src/core/security';
 import fs from 'fs/promises';
 import * as database from '../../src/core/database';
@@ -12,6 +13,7 @@ vi.mock('fs/promises', () => {
   return {
     default: {
       realpath: vi.fn(),
+      readFile: vi.fn(),
     },
   };
 });
@@ -167,5 +169,46 @@ describe('Path Restriction Security', () => {
   it('handles edge cases', () => {
     expect(isSensitiveDirectory('')).toBe(true); // Fail safe
     expect(isRestrictedPath('')).toBe(true);
+  });
+});
+
+describe('Security Config Loading', () => {
+  const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('loads custom sensitive directories from a valid config file', async () => {
+    const mockConfig = JSON.stringify({
+      sensitiveSubdirectories: ['custom_secret'],
+    });
+    vi.mocked(fs.readFile).mockResolvedValue(mockConfig);
+
+    await loadSecurityConfig('/path/to/config.json');
+
+    // Verify it was added to the set by checking isRestrictedPath
+    // We mock platform to linux to ensure consistent path separator behavior for this test
+    Object.defineProperty(process, 'platform', { value: 'linux' });
+    // isSensitiveDirectory does not use the dynamic set (it checks system roots), so we don't assert on it here.
+    expect(isRestrictedPath('/home/user/custom_secret')).toBe(true);
+  });
+
+  it('ignores missing config file (ENOENT)', async () => {
+    const error: any = new Error('File not found');
+    error.code = 'ENOENT';
+    vi.mocked(fs.readFile).mockRejectedValue(error);
+
+    await loadSecurityConfig('/missing/config.json');
+
+    expect(consoleWarnSpy).not.toHaveBeenCalled();
+  });
+
+  it('warns on invalid JSON or read error', async () => {
+    vi.mocked(fs.readFile).mockResolvedValue('{ invalid json ');
+
+    await loadSecurityConfig('/bad/config.json');
+
+    expect(consoleWarnSpy).toHaveBeenCalled();
   });
 });

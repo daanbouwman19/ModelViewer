@@ -26,6 +26,7 @@ describe('Main Process Database Initialization Paths', () => {
     vi.doMock('electron', () => ({
       app: {
         getPath: () => '/user/data',
+        getAppPath: () => '/app/asar',
         isPackaged: true,
       },
     }));

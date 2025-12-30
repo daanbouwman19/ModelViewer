@@ -12,10 +12,45 @@ export interface AuthorizationResult {
   message?: string;
 }
 
+// Mutable set of sensitive directories, initialized with defaults.
+const sensitiveSubdirectoriesSet = new Set(SENSITIVE_SUBDIRECTORIES);
+
+/**
+ * Loads security configuration from a JSON file to extend sensitive directories.
+ * @param configPath - Path to the security configuration file.
+ */
+export async function loadSecurityConfig(configPath: string): Promise<void> {
+  try {
+    const content = await fs.readFile(configPath, 'utf-8');
+    const config = JSON.parse(content);
+    if (
+      Array.isArray(config.sensitiveSubdirectories) &&
+      config.sensitiveSubdirectories.every(
+        (i: unknown) => typeof i === 'string',
+      )
+    ) {
+      for (const dir of config.sensitiveSubdirectories) {
+        sensitiveSubdirectoriesSet.add(dir);
+      }
+      console.log(
+        `[Security] Loaded ${config.sensitiveSubdirectories.length} custom sensitive directories.`,
+      );
+    }
+  } catch (error) {
+    if ((error as { code?: string }).code !== 'ENOENT') {
+      console.warn(
+        `[Security] Failed to load security config from ${configPath}:`,
+        error,
+      );
+    }
+    // Ignore missing config file, use defaults.
+  }
+}
+
 /**
  * Validates if a file path is within the allowed media directories.
  * @param filePath - The path to validate.
- * @returns Authorization result containing allowed status, resolved path, or error message.
+ * @returns Authorization result containing allowed status, resolved path, or error/denied message.
  */
 export async function authorizeFilePath(
   filePath: string,
@@ -33,10 +68,12 @@ export async function authorizeFilePath(
     try {
       realPath = await fs.realpath(filePath);
     } catch (error) {
-      console.warn(
-        `[Security] File existence check failed for ${filePath}:`,
-        error,
-      );
+      // Treat missing files or access errors as "Access denied" without logging spam for mundane checks.
+      if ((error as { code?: string }).code !== 'ENOENT') {
+        console.warn(
+          `[Security] File check failed for ${filePath}: ${(error as Error).message}`,
+        );
+      }
       return {
         isAllowed: false,
         message: 'Access denied',
@@ -54,7 +91,7 @@ export async function authorizeFilePath(
       // It is inside. Now check for sensitive subdirectories.
       const segments = relative.split(path.sep);
       const hasSensitiveSegment = segments.some((segment) =>
-        SENSITIVE_SUBDIRECTORIES.has(segment),
+        sensitiveSubdirectoriesSet.has(segment),
       );
 
       if (hasSensitiveSegment) {
@@ -71,6 +108,8 @@ export async function authorizeFilePath(
   }
 
   if (!isPathAllowed) {
+    // Only warn if it's genuinely outside allowed paths, ensuring we don't leak info but helpful for debugging
+    // checking if we should log based on environment could be better, but this is fine for now on failures.
     console.warn(
       `[Security] Access denied to file outside media directories: ${realPath} (resolved from ${filePath})`,
     );
@@ -140,7 +179,7 @@ export function isRestrictedPath(dirPath: string): boolean {
   // We use the same list, but check if the *target* directory itself is sensitive
   // or if we are trying to list inside it.
   // Note: listing /home/user is fine, listing /home/user/.ssh is not.
-  if (segments.some((s) => SENSITIVE_SUBDIRECTORIES.has(s))) {
+  if (segments.some((s) => sensitiveSubdirectoriesSet.has(s))) {
     return true;
   }
 
