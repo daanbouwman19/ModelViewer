@@ -552,6 +552,54 @@ watch(pauseTimerOnPlay, (newValue) => {
   }
 });
 
+/**
+ * Preloads the next media item in the list if it's an image.
+ * This helps eliminate loading times between slides.
+ */
+const preloadNextMedia = async () => {
+  // 1. Identify where we are
+  const currentIndex = currentMediaIndex.value;
+  const list = displayedMediaFiles.value;
+
+  // 2. Wrap around logic is handled by playerStore generally,
+  // but let's just look at the next physical index for simplicity
+  // or handle wrapping if we want seamless loop prefetching.
+  let nextIndex = currentIndex + 1;
+  if (nextIndex >= list.length) {
+    nextIndex = 0; // Loop back to start
+  }
+
+  // If list is empty or single item, nothing to preload
+  if (list.length <= 1) return;
+
+  const nextItem = list[nextIndex];
+  if (!nextItem) return;
+
+  // 3. Check if it's an image
+  // Same logic as isImage computed:
+  const sourceString = nextItem.path.startsWith('gdrive://')
+    ? nextItem.name
+    : nextItem.path;
+  const lastDotIndex = sourceString.lastIndexOf('.');
+  if (lastDotIndex === -1) return;
+
+  const ext = sourceString.slice(lastDotIndex).toLowerCase();
+  if (imageExtensionsSet.value.has(ext)) {
+    // 4. Preload
+    try {
+      const result = await api.loadFileAsDataURL(nextItem.path);
+      if (result.type !== 'error' && result.url) {
+        // Create a hidden image to cache the resource
+        const img = new Image();
+        img.src = result.url;
+      }
+    } catch (e) {
+      // Silently fail prefetching, it's an optimization only
+      console.warn('Failed to preload next item', e);
+    }
+  }
+};
+
 watch(
   currentMediaItem,
   (newItem) => {
@@ -564,6 +612,8 @@ watch(
     ) {
       resumeSlideshowTimer();
     }
+    // Trigger prefetch of the NEXT item
+    preloadNextMedia();
   },
   { immediate: true },
 );
