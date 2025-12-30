@@ -37,12 +37,13 @@ async function initDatabase(
     await dbWorkerClient.terminate();
   }
 
-  dbWorkerClient = new WorkerClient(
-    workerScriptPath,
+  dbWorkerClient = new WorkerClient(workerScriptPath, {
     workerOptions,
-    30000,
-    'database.js',
-  );
+    operationTimeout: 30000,
+    name: 'database.js',
+    autoRestart: true,
+    restartDelay: 2000,
+  });
   await dbWorkerClient.init({ type: 'init', payload: { dbPath: userDbPath } });
 }
 

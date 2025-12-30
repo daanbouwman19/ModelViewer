@@ -74,12 +74,11 @@ export async function scanDiskForAlbumsAndCache(
 
   // Run scan in a worker
   const albums = await new Promise<Album[]>(async (resolve, reject) => {
-    const client = new WorkerClient(
-      workerPath,
+    const client = new WorkerClient(workerPath, {
       workerOptions,
-      86400000,
-      'scan-worker',
-    ); // 24h timeout
+      operationTimeout: 86400000, // 24h timeout
+      name: 'scan-worker',
+    });
 
     try {
       // Init client (starts worker)

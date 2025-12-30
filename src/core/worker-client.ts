@@ -19,6 +19,15 @@ interface PendingMessage<T = unknown> {
   timeoutId: NodeJS.Timeout;
 }
 
+interface WorkerClientOptions {
+  workerOptions?: WorkerOptions;
+  operationTimeout?: number;
+  name?: string;
+  autoRestart?: boolean;
+  maxRestarts?: number;
+  restartDelay?: number;
+}
+
 export class WorkerClient {
   private worker: Worker | null = null;
   private pendingMessages = new Map<number, PendingMessage<unknown>>();
@@ -29,16 +38,21 @@ export class WorkerClient {
   private workerOptions?: WorkerOptions;
   private name: string;
 
-  constructor(
-    workerPath: string | URL,
-    options?: WorkerOptions,
-    operationTimeout = 30000,
-    name = 'Worker',
-  ) {
+  // Auto-restart configuration
+  private autoRestart: boolean;
+  private maxRestarts: number;
+  private restartDelay: number;
+  private restartCount = 0;
+  private initialPayload?: { type: string; payload?: unknown };
+
+  constructor(workerPath: string | URL, options: WorkerClientOptions = {}) {
     this.workerPath = workerPath;
-    this.workerOptions = options;
-    this.operationTimeout = operationTimeout;
-    this.name = name;
+    this.workerOptions = options.workerOptions;
+    this.operationTimeout = options.operationTimeout ?? 30000;
+    this.name = options.name ?? 'Worker';
+    this.autoRestart = options.autoRestart ?? false;
+    this.maxRestarts = options.maxRestarts ?? 5;
+    this.restartDelay = options.restartDelay ?? 1000;
   }
 
   /**
@@ -49,9 +63,13 @@ export class WorkerClient {
     type: string;
     payload?: unknown;
   }): Promise<void> {
+    if (initialPayload) {
+      this.initialPayload = initialPayload;
+    }
+
     if (this.worker) {
       console.log(`[${this.name}] Terminating existing worker before re-init.`);
-      await this.terminate();
+      await this.terminate(false); // Do not reset restart count on manual re-init
     }
 
     this.isTerminating = false;
@@ -60,6 +78,11 @@ export class WorkerClient {
       this.worker = new Worker(this.workerPath, this.workerOptions);
 
       this.worker.on('message', (message: WorkerResponse) => {
+        // Successful message means worker is healthy, reset restart count
+        if (this.restartCount > 0) {
+          this.restartCount = 0;
+        }
+
         const { id, result } = message;
         const pending = this.pendingMessages.get(id);
         if (pending) {
@@ -75,22 +98,24 @@ export class WorkerClient {
 
       this.worker.on('error', (error) => {
         console.error(`[${this.name}] Worker error:`, error);
+        // Error doesn't necessarily mean exit, but commonly does.
+        // We let the 'exit' handler manage restarts.
         this.rejectAllPending(error);
       });
 
       this.worker.on('exit', (code) => {
-        if (code !== 0 && !this.isTerminating) {
-          console.error(
-            `[${this.name}] Worker exited unexpectedly with code ${code}`,
-          );
-          // Attempt to restart or just log. For now, we log.
-          // In a more advanced version, we could auto-restart.
+        if (!this.isTerminating) {
+          this.handleUnexpectedExit(code);
+        } else {
+          this.rejectAllPending(new Error('Worker terminated'));
         }
-        this.rejectAllPending(new Error('Worker exited unexpectedly'));
       });
 
-      if (initialPayload) {
-        await this.sendMessage(initialPayload.type, initialPayload.payload);
+      if (this.initialPayload) {
+        await this.sendMessage(
+          this.initialPayload.type,
+          this.initialPayload.payload,
+        );
       }
 
       if (process.env.NODE_ENV !== 'test') {
@@ -106,11 +131,40 @@ export class WorkerClient {
     }
   }
 
+  private handleUnexpectedExit(code: number) {
+    console.error(
+      `[${this.name}] Worker exited unexpectedly with code ${code}`,
+    );
+    this.rejectAllPending(new Error('Worker exited unexpectedly'));
+    this.worker = null;
+
+    if (this.autoRestart) {
+      if (this.restartCount < this.maxRestarts) {
+        this.restartCount++;
+        console.log(
+          `[${this.name}] Attempting restart ${this.restartCount}/${this.maxRestarts} in ${this.restartDelay}ms...`,
+        );
+        setTimeout(() => {
+          this.init(this.initialPayload).catch((e) => {
+            console.error(`[${this.name}] Failed to auto-restart worker:`, e);
+          });
+        }, this.restartDelay);
+      } else {
+        console.error(`[${this.name}] Max restarts reached. Giving up.`);
+      }
+    }
+  }
+
   /**
    * Sends a message to the worker and returns a promise that resolves with the result.
    */
   sendMessage<T = unknown>(type: string, payload: unknown = {}): Promise<T> {
     return new Promise((resolve, reject) => {
+      // If we are currently restarting (worker is null but autoRestart is true and count < max),
+      // maybe we should queue? For now, we reject to keep it simple,
+      // as the caller might need to know immediate failure.
+      // Or if we just crashed, the consumer might want to retry.
+
       if (!this.worker) {
         return reject(new Error('Worker not initialized'));
       }
@@ -146,25 +200,22 @@ export class WorkerClient {
   /**
    * Terminates the worker thread.
    */
-  async terminate(): Promise<void> {
+  async terminate(resetRestartCount = true): Promise<void> {
+    if (resetRestartCount) {
+      this.restartCount = 0;
+    }
+
     if (this.worker) {
       this.isTerminating = true;
       try {
-        // Optional: send soft close signal first
-        // await this.sendMessage('close');
-      } catch {
-        // ignore
+        await this.worker.terminate();
+      } catch (error) {
+        console.error(`[${this.name}] Error terminating worker:`, error);
       } finally {
-        try {
-          await this.worker.terminate();
-        } catch (error) {
-          console.error(`[${this.name}] Error terminating worker:`, error);
-        } finally {
-          this.worker = null;
-          this.isTerminating = false;
-          this.rejectAllPending(new Error('Worker terminated'));
-          console.log(`[${this.name}] Worker terminated.`);
-        }
+        this.worker = null;
+        this.isTerminating = false;
+        this.rejectAllPending(new Error('Worker terminated'));
+        console.log(`[${this.name}] Worker terminated.`);
       }
     }
   }
