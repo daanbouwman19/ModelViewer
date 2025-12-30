@@ -149,4 +149,180 @@ describe('Database Core Coverage', () => {
     // Emit exit with code 1
     worker.emit('exit', 1);
   });
+
+  it('removeMediaDirectory handles error', async () => {
+    // Init
+    const initPromise = database.initDatabase(':memory:', 'worker.js');
+    const worker = workerInstances[0];
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    const initMsg = worker.postMessage.mock.calls[0][0];
+    worker.emit('message', { id: initMsg.id, result: { success: true } });
+    await initPromise;
+
+    worker.postMessage.mockImplementationOnce(() => {
+      throw new Error('Worker communication error');
+    });
+
+    await expect(database.removeMediaDirectory('/path')).rejects.toThrow();
+  });
+
+  it('setDirectoryActiveState handles error', async () => {
+    // Init
+    const initPromise = database.initDatabase(':memory:', 'worker.js');
+    const worker = workerInstances[0];
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    const initMsg = worker.postMessage.mock.calls[0][0];
+    worker.emit('message', { id: initMsg.id, result: { success: true } });
+    await initPromise;
+
+    worker.postMessage.mockImplementationOnce(() => {
+      throw new Error('Worker communication error');
+    });
+
+    await expect(
+      database.setDirectoryActiveState('/path', true),
+    ).rejects.toThrow();
+  });
+
+  it('bulkUpsertMetadata handles error', async () => {
+    // Init
+    const initPromise = database.initDatabase(':memory:', 'worker.js');
+    const worker = workerInstances[0];
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    const initMsg = worker.postMessage.mock.calls[0][0];
+    worker.emit('message', { id: initMsg.id, result: { success: true } });
+    await initPromise;
+
+    worker.postMessage.mockImplementationOnce(() => {
+      throw new Error('Worker communication error');
+    });
+
+    await expect(
+      database.bulkUpsertMetadata([{ filePath: '/path' }]),
+    ).rejects.toThrow();
+  });
+
+  it('updateSmartPlaylist validates input', async () => {
+    await expect(database.updateSmartPlaylist(1, '', '{}')).rejects.toThrow(
+      'Invalid playlist name',
+    );
+    await expect(database.updateSmartPlaylist(1, 'Name', '')).rejects.toThrow(
+      'Invalid playlist criteria',
+    );
+    await expect(
+      database.updateSmartPlaylist(1, 'Name', 'invalid-json'),
+    ).rejects.toThrow('Criteria must be valid JSON');
+  });
+
+  it('saveSetting/getSetting handles success and error', async () => {
+    // Init
+    const initPromise = database.initDatabase(':memory:', 'worker.js');
+    const worker = workerInstances[0];
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    const initMsg = worker.postMessage.mock.calls[0][0];
+    worker.emit('message', { id: initMsg.id, result: { success: true } });
+    await initPromise;
+
+    // saveSetting success
+    const savePromise = database.saveSetting('key', 'value');
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    const saveMsg = worker.postMessage.mock.calls.find(
+      (c: any) => c[0].type === 'saveSetting',
+    );
+    expect(saveMsg).toBeDefined();
+    worker.emit('message', {
+      id: saveMsg[0].id,
+      result: { success: true },
+    });
+    await savePromise;
+
+    // saveSetting error
+    worker.postMessage.mockImplementationOnce(() => {
+      throw new Error('Err');
+    });
+    await expect(database.saveSetting('key', 'val')).rejects.toThrow();
+
+    // Restore mock
+    worker.postMessage.mockImplementation(() => {
+      // do nothing
+    });
+
+    // getSetting success
+    const getPromise = database.getSetting('key');
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    const getMsg = worker.postMessage.mock.calls.find(
+      (c: any) => c[0].type === 'getSetting',
+    );
+    expect(getMsg).toBeDefined();
+    worker.emit('message', {
+      id: getMsg[0].id,
+      result: { success: true, data: 'value' },
+    });
+    expect(await getPromise).toBe('value');
+
+    // getSetting error
+    worker.postMessage.mockImplementationOnce(() => {
+      throw new Error('Err');
+    });
+    expect(await database.getSetting('key')).toBeNull();
+  });
+
+  it('getRecentlyPlayed handles success and error', async () => {
+    // Init
+    const initPromise = database.initDatabase(':memory:', 'worker.js');
+    const worker = workerInstances[0];
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    const initMsg = worker.postMessage.mock.calls[0][0];
+    worker.emit('message', { id: initMsg.id, result: { success: true } });
+    await initPromise;
+
+    // Success
+    const promise = database.getRecentlyPlayed(10);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    const msg = worker.postMessage.mock.calls.find(
+      (c: any) => c[0].type === 'getRecentlyPlayed',
+    );
+    expect(msg).toBeDefined();
+    expect(msg[0].payload.limit).toBe(10);
+    worker.emit('message', {
+      id: msg[0].id,
+      result: { success: true, data: [] },
+    });
+    await expect(promise).resolves.toEqual([]);
+
+    // Error
+    worker.postMessage.mockImplementationOnce(() => {
+      throw new Error('Err');
+    });
+    await expect(database.getRecentlyPlayed(10)).rejects.toThrow('Err');
+  });
+
+  it('getPendingMetadata handles success and error', async () => {
+    // Init
+    const initPromise = database.initDatabase(':memory:', 'worker.js');
+    const worker = workerInstances[0];
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    const initMsg = worker.postMessage.mock.calls[0][0];
+    worker.emit('message', { id: initMsg.id, result: { success: true } });
+    await initPromise;
+
+    // Success
+    const promise = database.getPendingMetadata();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    const msg = worker.postMessage.mock.calls.find(
+      (c: any) => c[0].type === 'getPendingMetadata',
+    );
+    expect(msg).toBeDefined();
+    worker.emit('message', {
+      id: msg[0].id,
+      result: { success: true, data: ['/file'] },
+    });
+    await expect(promise).resolves.toEqual(['/file']);
+
+    // Error
+    worker.postMessage.mockImplementationOnce(() => {
+      throw new Error('Err');
+    });
+    await expect(database.getPendingMetadata()).resolves.toEqual([]);
+  });
 });

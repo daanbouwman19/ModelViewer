@@ -138,6 +138,11 @@ const DEFAULT_SERVER_PORT = 3000;
  */
 const DEFAULT_SERVER_HOST = '127.0.0.1';
 
+/**
+ * Limit for fetching recently played items.
+ */
+const RECENTLY_PLAYED_FETCH_LIMIT = 100;
+
 export {
   MAX_DATA_URL_SIZE_MB,
   DATA_URL_THRESHOLD_MB,
@@ -156,4 +161,5 @@ export {
   GOOGLE_TOKENS_KEY,
   DEFAULT_SERVER_PORT,
   DEFAULT_SERVER_HOST,
+  RECENTLY_PLAYED_FETCH_LIMIT,
 };

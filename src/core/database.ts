@@ -602,7 +602,23 @@ export {
   getSetting,
   getAllMetadataAndStats,
   getPendingMetadata,
+  getRecentlyPlayed,
 };
+
+/**
+ * Retrieves recently played media items.
+ * @param limit - Max items to return (default 50).
+ */
+async function getRecentlyPlayed(limit = 50): Promise<MediaLibraryItem[]> {
+  try {
+    return await sendMessageToWorker<MediaLibraryItem[]>('getRecentlyPlayed', {
+      limit,
+    });
+  } catch (error) {
+    console.error('[database.js] Error getting recently played:', error);
+    throw error;
+  }
+}
 
 /**
  * Retrieves a list of file paths that have pending metadata extraction.

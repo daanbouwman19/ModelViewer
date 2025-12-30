@@ -92,6 +92,7 @@ export function useAppState() {
 
     mediaDirectories: libraryStore.mediaDirectories,
     supportedExtensions: libraryStore.supportedExtensions,
+    historyMedia: libraryStore.historyMedia,
   }) as AppState;
 
   const resetInternalState = () => {

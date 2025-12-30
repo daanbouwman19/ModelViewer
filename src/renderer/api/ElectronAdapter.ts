@@ -172,6 +172,10 @@ export class ElectronAdapter implements IMediaBackend {
     return this.invoke(this.bridge.getAllMetadataAndStats());
   }
 
+  async getRecentlyPlayed(limit?: number): Promise<MediaLibraryItem[]> {
+    return this.invoke(this.bridge.getRecentlyPlayed(limit));
+  }
+
   async extractMetadata(filePaths: string[]): Promise<void> {
     return this.invoke(this.bridge.extractMetadata(filePaths));
   }

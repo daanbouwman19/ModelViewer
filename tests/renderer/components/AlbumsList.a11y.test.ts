@@ -80,7 +80,11 @@ describe('AlbumsList Accessibility', () => {
     const wrapper = mount(AlbumsList);
     await wrapper.vm.$nextTick();
 
-    const playlistItem = wrapper.find('li div.group');
+    // Now we have "Recently Played" as the first item in the list
+    // so we need to find the specific playlist item we injected
+    const items = wrapper.findAll('li div.group');
+    // Assuming Recently Played is first, "My Top Rated" is second
+    const playlistItem = items[1];
     expect(playlistItem.exists()).toBe(true);
 
     // This checks for the NEW structure

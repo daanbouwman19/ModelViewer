@@ -27,6 +27,7 @@ import {
   updateSmartPlaylist,
   setRating,
   getAllMetadataAndStats,
+  getRecentlyPlayed,
 } from '../core/database.ts';
 import {
   getAlbumsWithViewCounts,
@@ -270,6 +271,19 @@ export async function createApp() {
     } catch (e) {
       console.error(e);
       res.status(500).json({ error: 'Failed to get all media' });
+    }
+  });
+
+  app.get('/api/media/history', async (req, res) => {
+    const rawLimit = parseInt(req.query.limit as string, 10);
+    const limit =
+      !isNaN(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 1000) : 50;
+    try {
+      const items = await getRecentlyPlayed(limit);
+      res.json(items);
+    } catch (e) {
+      console.error(e);
+      res.status(500).json({ error: 'Failed to get recently played media' });
     }
   });
 
