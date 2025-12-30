@@ -20,6 +20,9 @@ import { ConcurrencyLimiter } from './utils/concurrency-limiter.ts';
 // Note: This limit applies only to the `readdir` call itself, not the whole recursion.
 const scanLimiter = new ConcurrencyLimiter(DISK_SCAN_CONCURRENCY);
 
+// Optimization: Use a Set for O(1) extension lookups in the hot loop
+const SUPPORTED_EXTENSIONS_SET = new Set(ALL_SUPPORTED_EXTENSIONS);
+
 /**
  * Asynchronously and recursively scans a directory to build a hierarchical album structure.
  * An album is created for any directory that contains media files or has subdirectories
@@ -47,7 +50,8 @@ async function scanDirectoryRecursive(
         childrenPromises.push(scanDirectoryRecursive(fullPath));
       } else if (item.isFile()) {
         const fileExtension = path.extname(item.name).toLowerCase();
-        if (ALL_SUPPORTED_EXTENSIONS.includes(fileExtension)) {
+        // Bolt Optimization: Set.has is O(1) vs Array.includes O(N)
+        if (SUPPORTED_EXTENSIONS_SET.has(fileExtension)) {
           textures.push({ name: item.name, path: fullPath });
         }
       }
