@@ -161,6 +161,7 @@ import VlcIcon from './icons/VlcIcon.vue';
 import TranscodingStatus from './TranscodingStatus.vue';
 import MediaControls from './MediaControls.vue';
 import VideoPlayer from './VideoPlayer.vue';
+import type { MediaFile } from '../../core/types';
 import {
   LEGACY_VIDEO_EXTENSIONS,
   MEDIA_FILTERS,
@@ -284,21 +285,28 @@ onUnmounted(() => {
 });
 
 /**
- * A computed property that determines if the current media item is an image.
+ * Helper to check if a media file is an image based on its extension.
  */
-const isImage = computed(() => {
-  if (!currentMediaItem.value) return false;
-
+const isMediaItemImage = (item: MediaFile): boolean => {
   // For Google Drive (or paths without extension), rely on the name
-  const sourceString = currentMediaItem.value.path.startsWith('gdrive://')
-    ? currentMediaItem.value.name
-    : currentMediaItem.value.path;
+  const sourceString = item.path.startsWith('gdrive://')
+    ? item.name
+    : item.path;
 
   const lastDotIndex = sourceString.lastIndexOf('.');
   if (lastDotIndex === -1) return false; // No extension found
 
   const ext = sourceString.slice(lastDotIndex).toLowerCase();
   return imageExtensionsSet.value.has(ext);
+};
+
+/**
+ * A computed property that determines if the current media item is an image.
+ */
+const isImage = computed(() => {
+  return currentMediaItem.value
+    ? isMediaItemImage(currentMediaItem.value)
+    : false;
 });
 
 /**
@@ -552,6 +560,45 @@ watch(pauseTimerOnPlay, (newValue) => {
   }
 });
 
+/**
+ * Preloads the next media item in the list if it's an image.
+ * This helps eliminate loading times between slides.
+ */
+const preloadNextMedia = async () => {
+  // 1. Identify where we are
+  const currentIndex = currentMediaIndex.value;
+  const list = displayedMediaFiles.value;
+
+  // 2. Wrap around logic is handled by playerStore generally,
+  // but let's just look at the next physical index for simplicity
+  // or handle wrapping if we want seamless loop prefetching.
+  let nextIndex = currentIndex + 1;
+  if (nextIndex >= list.length) {
+    nextIndex = 0; // Loop back to start
+  }
+
+  // If list is empty or single item, nothing to preload
+  if (list.length <= 1) return;
+
+  const nextItem = list[nextIndex];
+
+  // 3. Check if it's an image
+  if (isMediaItemImage(nextItem)) {
+    // 4. Preload
+    try {
+      const result = await api.loadFileAsDataURL(nextItem.path);
+      if (result.type !== 'error' && result.url) {
+        // Create a hidden image to cache the resource
+        const img = new Image();
+        img.src = result.url;
+      }
+    } catch (e) {
+      // Silently fail prefetching, it's an optimization only
+      console.warn('Failed to preload next item', e);
+    }
+  }
+};
+
 watch(
   currentMediaItem,
   (newItem) => {
@@ -563,6 +610,10 @@ watch(
       !isTimerRunning.value
     ) {
       resumeSlideshowTimer();
+    }
+    // Trigger prefetch of the NEXT item if current item is valid
+    if (newItem) {
+      preloadNextMedia();
     }
   },
   { immediate: true },
