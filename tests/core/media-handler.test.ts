@@ -357,7 +357,7 @@ describe('media-handler unit tests', () => {
       mockAuthorizeFilePath.mockRejectedValue(new Error('Auth error'));
       await serveMetadata(req, res, '/local/file', 'ffmpeg');
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.send).toHaveBeenCalledWith('Internal Error');
+      expect(res.send).toHaveBeenCalledWith('Internal server error.');
     });
 
     it('returns error if ffmpeg path missing for local file', async () => {
@@ -713,7 +713,7 @@ describe('media-handler unit tests', () => {
       mockAuthorizeFilePath.mockRejectedValue(new Error('Auth fail'));
       await serveThumbnail(req, res, '/local/vid.mp4', 'ffmpeg', '/cache');
       expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.send).toHaveBeenCalledWith('Internal Error');
+      expect(res.send).toHaveBeenCalledWith('Internal server error.');
     });
 
     it('handles ffmpg generation for local file', async () => {

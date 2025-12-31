@@ -38,6 +38,34 @@ export interface MediaHandlerOptions {
 }
 
 /**
+ * Helper: Validates access to the file path.
+ * If validation fails, it sends the appropriate error response and returns false.
+ * If validation succeeds, it returns true.
+ *
+ * This encapsulates the logic of checking "gdrive://" bypass vs local file authorization.
+ */
+async function validateFileAccess(
+  res: Response,
+  filePath: string,
+): Promise<boolean> {
+  // GDrive files are handled by their specific providers/logic
+  if (filePath.startsWith('gdrive://')) return true;
+
+  try {
+    const auth = await authorizeFilePath(filePath);
+    if (!auth.isAllowed) {
+      if (!res.headersSent) res.status(403).send('Access denied.');
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('[Access] Validation error:', error);
+    if (!res.headersSent) res.status(500).send('Internal server error.');
+    return false;
+  }
+}
+
+/**
  * Handles video stream requests (raw or transcoded).
  */
 export async function handleStreamRequest(
@@ -57,17 +85,21 @@ export async function handleStreamRequest(
     const source = createMediaSource(filePath);
 
     // Optimization: If local file and no transcode, use res.sendFile for better range support
-    if (!isTranscodeForced && !filePath.startsWith('gdrive://')) {
-      try {
-        const auth = await authorizeFilePath(filePath);
-        if (!auth.isAllowed) {
-          res.status(403).send('Access denied.');
-          return;
+    if (!isTranscodeForced) {
+      // Check if allowed
+      if (await validateFileAccess(res, filePath)) {
+        // If it is a local file, we can use the optimization
+        if (!filePath.startsWith('gdrive://')) {
+          try {
+            return res.sendFile(filePath);
+          } catch (e) {
+            console.error('[Handler] SendFile check failed:', e);
+            // Fallback to manual source handling if sendFile fails
+          }
         }
-        return res.sendFile(filePath);
-      } catch (e) {
-        console.error('[Handler] SendFile check failed:', e);
-        // Fallback to manual source handling if something fails (though unlikely)
+      } else {
+        // Validation failed and response sent
+        return;
       }
     }
 
@@ -176,16 +208,8 @@ async function generateLocalThumbnail(
   cacheFile: string,
   ffmpegPath: string | null,
 ): Promise<void> {
-  try {
-    const auth = await authorizeFilePath(filePath);
-    if (!auth.isAllowed) {
-      res.status(403).send('Access denied.');
-      return;
-    }
-  } catch {
-    res.status(500).send('Internal Error');
-    return;
-  }
+  // Use validateFileAccess to enforce security
+  if (!(await validateFileAccess(res, filePath))) return;
 
   if (!ffmpegPath) {
     res.status(500).send('FFmpeg binary not found');
@@ -274,19 +298,7 @@ export async function serveMetadata(
   filePath: string,
   ffmpegPath: string | null,
 ) {
-  if (!filePath.startsWith('gdrive://')) {
-    try {
-      const auth = await authorizeFilePath(filePath);
-      if (!auth.isAllowed) {
-        res.status(403).send('Access denied.');
-        return;
-      }
-    } catch (error) {
-      console.error('[Metadata] Path validation error:', error);
-      res.status(500).send('Internal Error');
-      return;
-    }
-  }
+  if (!(await validateFileAccess(res, filePath))) return;
 
   if (!ffmpegPath && !filePath.startsWith('gdrive://')) {
     res.status(500).send('FFmpeg binary not found');
@@ -421,14 +433,13 @@ export async function serveStaticFile(
   filePath: string,
 ) {
   try {
-    // If local file, use res.sendFile for optimizing range/seeking
-    if (!filePath.startsWith('gdrive://')) {
-      const auth = await authorizeFilePath(filePath);
-      if (!auth.isAllowed) {
-        res.status(403).send('Access denied.');
-        return;
+    if (await validateFileAccess(res, filePath)) {
+      // If local file, use res.sendFile for optimizing range/seeking
+      if (!filePath.startsWith('gdrive://')) {
+        return res.sendFile(filePath);
       }
-      return res.sendFile(filePath);
+    } else {
+      return; // validateFileAccess already responded
     }
 
     const source = createMediaSource(filePath);
