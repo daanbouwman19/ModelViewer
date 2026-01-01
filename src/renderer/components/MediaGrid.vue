@@ -47,9 +47,7 @@
                 :media-url-generator="mediaUrlGenerator"
                 :thumbnail-url-generator="thumbnailUrlGenerator"
                 :failed-image-paths="failedImagePaths"
-                @click="
-                  (item) => handleItemClick(item, row.startIndex + i - 1)
-                "
+                @click="(item) => handleItemClick(item, row.startIndex + i - 1)"
               />
             </template>
           </div>
