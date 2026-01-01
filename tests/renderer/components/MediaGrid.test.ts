@@ -206,8 +206,48 @@ describe('MediaGrid.vue', () => {
 
     expect(mockUIState.viewMode).toBe('player');
     expect(mockPlayerState.isSlideshowActive).toBe(true);
-    // expect(mockPlayerState.currentMediaItem).toEqual(expect.objectContaining(item1));
-    // Usually currentMediaItem is updated.
+    expect(mockPlayerState.currentMediaIndex).toBe(0);
+    expect(mockPlayerState.currentMediaItem).toEqual(
+      expect.objectContaining(item1),
+    );
+  });
+
+  it('passes correct index when clicking item in second row', async () => {
+    // 3 items. If width=1000, items per row depends on logic.
+    // 1000px width -> 3 cols (logic in component: w < 1024 -> 3)
+    // Row 1: index 0, 1, 2
+    // Row 2: index 3...
+    const items = [
+      { path: '0.jpg', name: '0.jpg' },
+      { path: '1.jpg', name: '1.jpg' },
+      { path: '2.jpg', name: '2.jpg' },
+      { path: '3.jpg', name: '3.jpg' },
+    ];
+    mockUIState.gridMediaFiles = items;
+
+    const wrapper = mountGrid();
+    await flushPromises();
+
+    // Trigger ResizeObserver (3 cols)
+    const calls = (ResizeObserverMock as any).mock.calls;
+    const observerCallback = calls[calls.length - 1][0];
+    observerCallback([
+      { contentRect: { width: 1000 }, contentBoxSize: [{ inlineSize: 1000 }] },
+    ]);
+    await wrapper.vm.$nextTick();
+
+    // Click item at index 3 (first item of second row)
+    // Items are rendered via RecycleScroller slots.
+    // We need to find the specific grid item.
+    // The wrapper finds all .grid-item across all rows rendered by stub.
+    const gridItems = wrapper.findAll('.grid-item');
+    // We expect 4 items rendered
+    expect(gridItems).toHaveLength(4);
+
+    await gridItems[3].trigger('click');
+
+    expect(mockPlayerState.currentMediaIndex).toBe(3);
+    expect(mockPlayerState.currentMediaItem.path).toBe('3.jpg');
   });
 
   it('closes grid view when Close button is clicked', async () => {
