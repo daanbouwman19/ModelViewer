@@ -23,12 +23,14 @@
     v-if="!isPlaying && !isTranscodingLoading && !isBuffering"
     class="absolute inset-0 flex items-center justify-center z-10 pointer-events-none"
   >
-    <div
-      class="bg-black/40 p-4 rounded-full backdrop-blur-sm pointer-events-auto cursor-pointer hover:bg-[var(--accent-color)]/80 transition-colors"
+    <button
+      type="button"
+      class="bg-black/40 p-4 rounded-full backdrop-blur-sm pointer-events-auto hover:bg-[var(--accent-color)]/80 transition-colors focus:outline-none focus:ring-2 focus:ring-white/50"
+      aria-label="Play video"
       @click="togglePlay"
     >
       <PlayIcon class="w-12 h-12 text-white" />
-    </div>
+    </button>
   </div>
 
   <!-- Progress Bar (Controls) -->

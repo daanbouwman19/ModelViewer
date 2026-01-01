@@ -25,6 +25,36 @@ describe('VideoPlayer.vue', () => {
     expect(video.attributes('src')).toBe(defaultProps.src);
   });
 
+  it('renders accessible play button overlay when paused', async () => {
+    const wrapper = mount(VideoPlayer, {
+      props: defaultProps,
+      attachTo: document.body, // Try attaching to body to ensure visibility/layout if needed, though usually not needed for v-if
+    });
+
+    // Debug initial state
+    // console.log('Init isPlaying:', (wrapper.vm as any).isPlaying);
+
+    // Force paused state explicitly
+    (wrapper.vm as any).isPlaying = false;
+    await wrapper.vm.$nextTick();
+
+    // console.log('After set isPlaying:', (wrapper.vm as any).isPlaying);
+    // console.log('HTML:', wrapper.html());
+
+    const playButton = wrapper.find('button[aria-label="Play video"]');
+
+    // Assertion with better error message if fails
+    if (!playButton.exists()) {
+      console.error('Play button not found in HTML:', wrapper.html());
+    }
+
+    expect(playButton.exists()).toBe(true);
+    expect(playButton.attributes('type')).toBe('button');
+    expect(playButton.classes()).toContain('pointer-events-auto');
+
+    wrapper.unmount();
+  });
+
   it('emits play event when video plays', async () => {
     const wrapper = mount(VideoPlayer, { props: defaultProps });
     const video = wrapper.find('video');
@@ -49,18 +79,6 @@ describe('VideoPlayer.vue', () => {
   it('formats time correctly', () => {
     const wrapper = mount(VideoPlayer, { props: defaultProps });
     const vm = wrapper.vm as any;
-    // formatTime is not exposed, but used in template.
-    // We can check rendered text if we set state.
-    // But testing private function via 'as any' is what we had.
-    // VideoPlayer does not expose formatTime.
-    // Let's rely on template output for integration or just SKIP this unit test if considered private.
-    // However, I can test it by setting currentVideoTime and checking DOM.
-    // State is private (ref). I can't easily set it without triggering handleTimeUpdate.
-
-    // Simulate time update
-    // wrapper and vm are already defined at start of test
-
-    // Trigger timeupdate
     const event = {
       target: {
         currentTime: 65,
@@ -68,7 +86,6 @@ describe('VideoPlayer.vue', () => {
       },
     };
     vm.handleTimeUpdate(event);
-    // Wait for render
     return wrapper.vm.$nextTick().then(() => {
       expect(wrapper.text()).toContain('01:05');
     });
@@ -78,7 +95,6 @@ describe('VideoPlayer.vue', () => {
     const wrapper = mount(VideoPlayer, { props: defaultProps });
     await flushPromises();
 
-    // Mock video element ref interactions
     const videoElement = {
       duration: 100,
       currentTime: 0,
@@ -88,7 +104,6 @@ describe('VideoPlayer.vue', () => {
     };
     (wrapper.vm as any).videoElement = videoElement;
 
-    // Simulate click event
     const event = {
       currentTarget: {
         getBoundingClientRect: () => ({ left: 0, width: 100 }),
@@ -109,7 +124,6 @@ describe('VideoPlayer.vue', () => {
       },
     });
 
-    // Simulate click event via handler call for reliability
     const event = {
       currentTarget: {
         getBoundingClientRect: () => ({ left: 0, width: 100 }),
@@ -130,7 +144,6 @@ describe('VideoPlayer.vue', () => {
         transcodedDuration: 100,
       },
     });
-    // Set internal state currentVideoTime to 50
     (wrapper.vm as any).currentVideoTime = 50;
 
     const progressBar = wrapper.find('[data-testid="video-progress-bar"]');
@@ -143,7 +156,6 @@ describe('VideoPlayer.vue', () => {
   it('emits trigger-transcode if video dimensions are 0 (HEVC check)', async () => {
     const wrapper = mount(VideoPlayer, { props: defaultProps });
 
-    // Simulate loadedmetadata via handler call
     const event = {
       target: {
         videoWidth: 0,
@@ -161,13 +173,11 @@ describe('VideoPlayer.vue', () => {
     const wrapper = mount(VideoPlayer, { props: defaultProps });
     const video = wrapper.find('video');
 
-    // Mock buffered
     const bufferedMock = {
       length: 1,
       start: () => 0,
       end: () => 50,
     };
-    // We need to inject this into the event target or mock the element property
     const videoEl = video.element as HTMLVideoElement;
     Object.defineProperty(videoEl, 'duration', {
       value: 100,
@@ -179,13 +189,6 @@ describe('VideoPlayer.vue', () => {
     });
 
     await video.trigger('progress');
-
-    // Check internal state or rendered DOM
-    // "bufferedRanges" is rendered as style.
-    const ranges = wrapper.findAll('.absolute.h-full.bg-white\\/30');
-    expect(ranges.length).toBeGreaterThan(0);
-    // There should be one range div
-    // We need to wait for render?
     await wrapper.vm.$nextTick();
     const rangeDivs = wrapper.findAll('.absolute.h-full.bg-white\\/30');
     expect(rangeDivs.length).toBe(1);
@@ -257,7 +260,6 @@ describe('VideoPlayer.vue', () => {
     const wrapper = mount(VideoPlayer, { props: defaultProps });
     const vm = wrapper.vm as any;
 
-    // Simulate 1h 1m 5s
     vm.handleTimeUpdate({ target: { currentTime: 3665, duration: 4000 } });
     await wrapper.vm.$nextTick();
     expect(wrapper.text()).toContain('1:01:05');
