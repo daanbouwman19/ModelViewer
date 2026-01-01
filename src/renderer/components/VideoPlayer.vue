@@ -44,6 +44,7 @@
     aria-valuemin="0"
     aria-valuemax="100"
     :aria-valuenow="videoProgress"
+    :aria-valuetext="`${formattedCurrentTime} of ${formattedDuration}`"
     @click="handleProgressBarClick"
     @keydown="handleProgressBarKeydown"
   >
