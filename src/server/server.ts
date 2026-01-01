@@ -255,6 +255,11 @@ export async function createApp() {
     const { filePath, rating } = req.body;
     if (!filePath || typeof rating !== 'number')
       return res.status(400).send('Missing filePath or rating');
+
+    const auth = await authorizeFilePath(filePath);
+    if (!auth.isAllowed)
+      return res.status(403).send(auth.message || 'Access denied');
+
     try {
       await setRating(filePath, rating);
       res.sendStatus(200);
@@ -291,6 +296,11 @@ export async function createApp() {
     const { filePath, metadata } = req.body;
     if (!filePath || !metadata)
       return res.status(400).send('Missing arguments');
+
+    const auth = await authorizeFilePath(filePath);
+    if (!auth.isAllowed)
+      return res.status(403).send(auth.message || 'Access denied');
+
     try {
       await upsertMetadata(filePath, metadata);
       res.sendStatus(200);
@@ -304,8 +314,18 @@ export async function createApp() {
     const { filePaths } = req.body;
     if (!Array.isArray(filePaths))
       return res.status(400).send('Invalid filePaths');
+
+    // Filter out unauthorized paths to prevent probing
+    const allowedPaths: string[] = [];
+    for (const p of filePaths) {
+      const auth = await authorizeFilePath(p);
+      if (auth.isAllowed) {
+        allowedPaths.push(p);
+      }
+    }
+
     try {
-      const result = await getMetadata(filePaths);
+      const result = await getMetadata(allowedPaths);
       res.json(result);
     } catch (e) {
       console.error(e);
