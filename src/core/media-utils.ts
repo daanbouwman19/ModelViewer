@@ -4,6 +4,7 @@ import fs from 'fs';
 import { spawn } from 'child_process';
 import rangeParser from 'range-parser';
 
+import { getFileExtension } from './utils/file-utils';
 import {
   SUPPORTED_IMAGE_EXTENSIONS,
   SUPPORTED_VIDEO_EXTENSIONS,
@@ -28,12 +29,14 @@ export function getMimeType(filePath: string): string {
     return 'application/octet-stream';
   }
 
-  const extension = path.extname(filePath).substring(1).toLowerCase();
-  if (SUPPORTED_IMAGE_EXTENSIONS.includes(`.${extension}`)) {
-    return KNOWN_MIME_TYPES[extension] || `image/${extension}`;
+  const extension = getFileExtension(filePath);
+  const extWithoutDot = extension.substring(1);
+
+  if (SUPPORTED_IMAGE_EXTENSIONS.includes(extension)) {
+    return KNOWN_MIME_TYPES[extWithoutDot] || `image/${extWithoutDot}`;
   }
-  if (SUPPORTED_VIDEO_EXTENSIONS.includes(`.${extension}`)) {
-    return KNOWN_MIME_TYPES[extension] || `video/${extension}`;
+  if (SUPPORTED_VIDEO_EXTENSIONS.includes(extension)) {
+    return KNOWN_MIME_TYPES[extWithoutDot] || `video/${extWithoutDot}`;
   }
   return 'application/octet-stream';
 }

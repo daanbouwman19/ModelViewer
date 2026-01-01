@@ -13,6 +13,7 @@ import {
 } from '../utils/albumUtils';
 import type { Album, MediaFile } from '../../core/types';
 import { api } from '../api';
+import { getFileExtension } from '../../core/utils/file-utils';
 
 /**
  * Cache for file extensions to reduce string operations.
@@ -54,12 +55,7 @@ export function useSlideshow() {
     }
 
     const fileName = file.name || file.path;
-    const lastDotIndex = fileName.lastIndexOf('.');
-
-    let ext = '';
-    if (lastDotIndex !== -1) {
-      ext = fileName.slice(lastDotIndex).toLowerCase();
-    }
+    const ext = getFileExtension(fileName);
 
     extensionCache.set(file, ext);
     return ext;

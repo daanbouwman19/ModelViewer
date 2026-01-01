@@ -12,18 +12,14 @@
  * It uses a canvas to draw the current image or video frame and applies
  * heavy blur and saturation filters to create an immersive atmosphere.
  */
-import { ref, watch, onUnmounted, computed } from 'vue';
+import { ref, watch, onUnmounted } from 'vue';
 import { usePlayerStore } from '../composables/usePlayerStore';
-import { useLibraryStore } from '../composables/useLibraryStore';
 import { api } from '../api';
+import { isImageFile } from '../../core/utils/file-utils';
 
 const playerStore = usePlayerStore();
-const libraryStore = useLibraryStore();
 
 const { currentMediaItem, mainVideoElement } = playerStore;
-const supportedExtensions = computed(
-  () => libraryStore.state.supportedExtensions,
-);
 
 const canvas = ref<HTMLCanvasElement | null>(null);
 const mediaUrl = ref<string | null>(null);
@@ -48,10 +44,9 @@ const loadMedia = async () => {
     ) {
       mediaUrl.value = result.url;
 
-      const ext = currentMediaItem.value.path
-        .slice(currentMediaItem.value.path.lastIndexOf('.'))
-        .toLowerCase();
-      isImage.value = supportedExtensions.value.images.includes(ext);
+      isImage.value = isImageFile(
+        currentMediaItem.value.name || currentMediaItem.value.path,
+      );
 
       if (isImage.value) {
         drawImageToCanvas();

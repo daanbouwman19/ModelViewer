@@ -161,7 +161,7 @@ import VlcIcon from './icons/VlcIcon.vue';
 import TranscodingStatus from './TranscodingStatus.vue';
 import MediaControls from './MediaControls.vue';
 import VideoPlayer from './VideoPlayer.vue';
-import type { MediaFile } from '../../core/types';
+import { isImageFile } from '../../core/utils/file-utils';
 import {
   LEGACY_VIDEO_EXTENSIONS,
   MEDIA_FILTERS,
@@ -172,7 +172,7 @@ const libraryStore = useLibraryStore();
 const playerStore = usePlayerStore();
 const uiStore = useUIStore();
 
-const { totalMediaInPool, imageExtensionsSet } = libraryStore;
+const { totalMediaInPool } = libraryStore;
 
 const {
   currentMediaItem,
@@ -285,27 +285,11 @@ onUnmounted(() => {
 });
 
 /**
- * Helper to check if a media file is an image based on its extension.
- */
-const isMediaItemImage = (item: MediaFile): boolean => {
-  // For Google Drive (or paths without extension), rely on the name
-  const sourceString = item.path.startsWith('gdrive://')
-    ? item.name
-    : item.path;
-
-  const lastDotIndex = sourceString.lastIndexOf('.');
-  if (lastDotIndex === -1) return false; // No extension found
-
-  const ext = sourceString.slice(lastDotIndex).toLowerCase();
-  return imageExtensionsSet.value.has(ext);
-};
-
-/**
  * A computed property that determines if the current media item is an image.
  */
 const isImage = computed(() => {
   return currentMediaItem.value
-    ? isMediaItemImage(currentMediaItem.value)
+    ? isImageFile(currentMediaItem.value.name || currentMediaItem.value.path)
     : false;
 });
 
@@ -583,7 +567,7 @@ const preloadNextMedia = async () => {
   const nextItem = list[nextIndex];
 
   // 3. Check if it's an image
-  if (isMediaItemImage(nextItem)) {
+  if (isImageFile(nextItem.name || nextItem.path)) {
     // 4. Preload
     try {
       const result = await api.loadFileAsDataURL(nextItem.path);
