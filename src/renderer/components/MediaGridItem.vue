@@ -69,6 +69,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { MediaFile } from '../../core/types';
+import { getCachedExtension } from '../utils/mediaUtils';
 
 const props = defineProps<{
   item: MediaFile;
@@ -84,21 +85,7 @@ defineEmits<{
   (e: 'image-error', item: MediaFile): void;
 }>();
 
-const getExtension = (nameOrPath: string) => {
-  const lastDotIndex = nameOrPath.lastIndexOf('.');
-  if (lastDotIndex === -1) return '';
-
-  const lastSlashIndex = Math.max(
-    nameOrPath.lastIndexOf('/'),
-    nameOrPath.lastIndexOf('\\'),
-  );
-  if (lastDotIndex < lastSlashIndex) return ''; // Dot is in directory name
-  if (lastDotIndex === lastSlashIndex + 1) return ''; // Dotfile (e.g. .gitignore)
-
-  return nameOrPath.substring(lastDotIndex).toLowerCase();
-};
-
-const ext = computed(() => getExtension(props.item.name || props.item.path));
+const ext = computed(() => getCachedExtension(props.item));
 
 // We need to handle the case where props.imageExtensionsSet might be wrapped in a Ref/Object if passed incorrectly,
 // OR simply ensure we access it correctly.

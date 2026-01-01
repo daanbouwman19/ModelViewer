@@ -11,14 +11,9 @@ import {
   collectTexturesRecursive,
   collectSelectedTextures,
 } from '../utils/albumUtils';
+import { getCachedExtension } from '../utils/mediaUtils';
 import type { Album, MediaFile } from '../../core/types';
 import { api } from '../api';
-
-/**
- * Cache for file extensions to reduce string operations.
- * Keyed by MediaFile object reference.
- */
-const extensionCache = new WeakMap<MediaFile, string>();
 
 /**
  * A Vue composable that provides functions for controlling the media slideshow.
@@ -43,26 +38,6 @@ export function useSlideshow() {
       [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
     return shuffled;
-  };
-
-  /**
-   * Helper to get or compute extension for a media file.
-   */
-  const getCachedExtension = (file: MediaFile): string | null => {
-    if (extensionCache.has(file)) {
-      return extensionCache.get(file)!;
-    }
-
-    const fileName = file.name || file.path;
-    const lastDotIndex = fileName.lastIndexOf('.');
-
-    let ext = '';
-    if (lastDotIndex !== -1) {
-      ext = fileName.slice(lastDotIndex).toLowerCase();
-    }
-
-    extensionCache.set(file, ext);
-    return ext;
   };
 
   /**

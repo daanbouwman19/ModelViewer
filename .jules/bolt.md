@@ -1,4 +1,5 @@
-## 2025-02-19 - Batch SQL Statement Caching
+## 2025-02-19 - Vue Component Optimization
 
-**Learning:** Recompiling SQL statements (`db.prepare`) inside a loop is a significant performance anti-pattern, especially for batch operations.
-**Action:** Prepare a single parameterized statement for the standard batch size (e.g., 900) during initialization. Reuse this statement for all full batches, and only fallback to dynamic preparation for the final partial batch. This reduces SQL parsing overhead by O(N/BatchSize).
+**Learning:** When rendering large lists (even virtualized ones), minimize the work done in child components' `computed` properties. Moving repetitive logic (like string parsing for file extensions) to a shared utility with a `WeakMap` cache prevents redundant recalculations across thousands of component instances.
+
+**Action:** Identify derived properties that depend only on stable object references (like `MediaFile`). Extract them to a shared utility using `WeakMap` for caching. This turns O(N) rendering work into O(1) lookups.

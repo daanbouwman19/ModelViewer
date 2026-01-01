@@ -47,7 +47,9 @@
                 :media-url-generator="mediaUrlGenerator"
                 :thumbnail-url-generator="thumbnailUrlGenerator"
                 :failed-image-paths="failedImagePaths"
-                @click="handleItemClick"
+                @click="
+                  (item) => handleItemClick(item, row.startIndex + i - 1)
+                "
               />
             </template>
           </div>
@@ -204,17 +206,17 @@ onUnmounted(() => {
 /**
  * Handlers for interactions
  */
-const handleItemClick = async (item: MediaFile) => {
+const handleItemClick = async (item: MediaFile, index: number) => {
   if (failedImagePaths.has(item.path)) {
     // Optional: Prevent clicking broken images or let it handle error in player?
     // For now, let's allow trying to play/view it, maybe player handles it.
   }
 
   // When clicking an item, we pass the FULL list to the player
-  playerStore.state.displayedMediaFiles = [...allMediaFiles.value];
-  const index = playerStore.state.displayedMediaFiles.findIndex(
-    (f) => f.path === item.path,
-  );
+  // Optimization: Use slice() which is slightly faster than spread for shallow copies of large arrays
+  playerStore.state.displayedMediaFiles = allMediaFiles.value.slice();
+
+  // Optimization: We now pass the index directly, avoiding an O(N) findIndex scan
   playerStore.state.currentMediaIndex = index;
   playerStore.state.currentMediaItem = item;
   uiStore.state.viewMode = 'player';
