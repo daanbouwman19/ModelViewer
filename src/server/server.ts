@@ -117,7 +117,34 @@ export async function createApp() {
       : false,
   };
   app.use(cors(corsOptions));
-  app.use(express.json());
+  // [SECURITY] Limit JSON body size to 10MB to prevent DoS attacks while allowing batch metadata operations
+  app.use(express.json({ limit: '10mb' }));
+
+  // [SECURITY] Simple in-memory rate limiter for sensitive endpoints
+  const rateLimitMap = new Map<string, { count: number; lastReset: number }>();
+  const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
+  const RATE_LIMIT_MAX = 20;
+
+  const authRateLimiter: express.RequestHandler = (req, res, next) => {
+    const ip = req.ip || 'unknown';
+    const now = Date.now();
+
+    let record = rateLimitMap.get(ip);
+    if (!record || now - record.lastReset > RATE_LIMIT_WINDOW) {
+      record = { count: 0, lastReset: now };
+      rateLimitMap.set(ip, record);
+    }
+
+    if (record.count >= RATE_LIMIT_MAX) {
+      res
+        .status(429)
+        .json({ error: 'Too many requests, please try again later.' });
+      return;
+    }
+
+    record.count++;
+    next();
+  };
 
   // Initialize Database
   console.log(
@@ -458,7 +485,7 @@ export async function createApp() {
     }
   });
 
-  app.post('/api/auth/google-drive/code', async (req, res) => {
+  app.post('/api/auth/google-drive/code', authRateLimiter, async (req, res) => {
     const { code } = req.body;
     if (!code) return res.status(400).send('Missing code');
     try {
