@@ -80,8 +80,11 @@ export default defineConfig(({ mode }) => {
         output: {
           manualChunks(id) {
             if (id.includes('node_modules')) {
-              if (id.includes('three')) {
+              if (id.includes('node_modules/three/')) {
                 return 'three';
+              }
+              if (id.includes('node_modules/vue')) {
+                return 'vue';
               }
               return 'vendor';
             }
