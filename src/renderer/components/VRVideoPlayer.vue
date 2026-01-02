@@ -31,6 +31,11 @@ import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
+const STEREO_ASPECT_RATIO_THRESHOLD = 1.9;
+const SPHERE_RADIUS = 500;
+const SPHERE_WIDTH_SEGMENTS = 60;
+const SPHERE_HEIGHT_SEGMENTS = 40;
+
 const props = defineProps<{
   src: string;
   isPlaying: boolean;
@@ -95,7 +100,7 @@ const checkAspectRatioAndSetMode = () => {
     // SBS 180 videos are typically 2:1 (e.g. 5760x2880) or similar.
     // Standard 16:9 is 1.77.
     // Let's use 1.9 as threshold.
-    if (ar > 1.9) {
+    if (ar > STEREO_ASPECT_RATIO_THRESHOLD) {
       isStereo.value = true;
     } else {
       isStereo.value = false;
@@ -166,9 +171,9 @@ const initThree = () => {
   // Radius 500, 60 width segments, 40 height segments
   // phiStart: 0, phiLength: Math.PI (180 degrees)
   const geometry = new THREE.SphereGeometry(
-    500,
-    60,
-    40,
+    SPHERE_RADIUS,
+    SPHERE_WIDTH_SEGMENTS,
+    SPHERE_HEIGHT_SEGMENTS,
     0,
     Math.PI,
     0,
