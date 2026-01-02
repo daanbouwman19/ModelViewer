@@ -110,10 +110,8 @@ const handleKeydown = (event: KeyboardEvent) => {
       navigateMedia(1); // Navigate to the next media item
       break;
     case ' ':
-      // Keep spacebar logic for now, but ensure it doesn't conflict if MediaDisplay handles it too.
-      // Actually, if we are in player mode (viewMode !== 'grid'), MediaDisplay handles spacebar.
-      // So we should let App.vue handle it ONLY if NOT in player mode?
-      // Or just keep the safe check:
+      // In grid view, spacebar toggles the slideshow timer.
+      // In player view, this is handled by the MediaDisplay component.
       if (viewMode.value === 'grid') {
         event.preventDefault();
         toggleSlideshowTimer();

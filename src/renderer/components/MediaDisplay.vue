@@ -392,12 +392,9 @@ const tryTranscoding = async (startTime = 0, requestId?: number) => {
   // But usually starting a new attempt clears old errors.
   error.value = null;
 
-  // IMPORTANT: For smooth transitions, we delay updating displayedItem until mediaUrl is ready.
-  // BUT for transcoding, we might need to update it sooner if the UI depends on it?
-  // Actually, transcoding sets mediaUrl almost immediately (stream link).
-  // For smooth transitions, `displayedItem` is updated only when the new media URL is ready.
-  // With transcoding, the stream URL is available almost instantly, so we update `displayedItem`
-  // in the success block below to ensure UI consistency during the process.
+  // For smooth transitions, `displayedItem` is updated once the new media URL is fully loaded.
+  // With transcoding, the stream URL is available immediately, so we update `displayedItem`
+  // right away to ensure UI consistency while the video buffers.
 
   currentTranscodeStartTime.value = startTime;
 
@@ -465,7 +462,6 @@ const loadMediaUrl = async () => {
   // Reset state flags for the new item, but KEEP mediaUrl to show old image while loading
   error.value = null;
   isVideoSupported.value = true;
-  // If we are switching to video, we might want to clear, but for now let's keep consistency
   isTranscodingMode.value = false;
   isTranscodingLoading.value = false;
   isBuffering.value = false;
@@ -563,7 +559,6 @@ const handleGlobalKeydown = (event: KeyboardEvent) => {
         videoElement.value.currentTime + 5,
       );
     }
-    // No fallback navigation for ArrowRight
   } else if (event.code === 'ArrowLeft') {
     if (videoElement.value) {
       event.preventDefault();
@@ -572,7 +567,6 @@ const handleGlobalKeydown = (event: KeyboardEvent) => {
         videoElement.value.currentTime - 5,
       );
     }
-    // No fallback navigation for ArrowLeft
   }
 };
 
