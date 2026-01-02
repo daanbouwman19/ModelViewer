@@ -22,6 +22,7 @@ import {
   runFFmpeg,
   parseHttpRange,
   getQueryParam,
+  getFFmpegDuration,
 } from './media-utils.ts';
 import { getProvider } from './fs-provider-factory.ts';
 import { authorizeFilePath } from './security.ts';
@@ -233,28 +234,6 @@ async function generateLocalThumbnail(
     if (!res.headersSent) {
       res.status(500).send('Generation failed');
     }
-  }
-}
-
-export async function getFFmpegDuration(
-  filePath: string,
-  ffmpegPath: string,
-): Promise<number> {
-  try {
-    const { stderr } = await runFFmpeg(ffmpegPath, ['-i', filePath]);
-    const match = stderr.match(/Duration:\s+(\d+):(\d+):(\d+(?:\.\d+)?)/);
-    if (match) {
-      const hours = parseFloat(match[1]);
-      const minutes = parseFloat(match[2]);
-      const seconds = parseFloat(match[3]);
-      return hours * 3600 + minutes * 60 + seconds;
-    } else {
-      throw new Error('Could not determine duration');
-    }
-  } catch (err) {
-    if ((err as Error).message === 'Could not determine duration') throw err;
-    console.error('[Metadata] FFmpeg spawn error:', err);
-    throw new Error('FFmpeg execution failed');
   }
 }
 
