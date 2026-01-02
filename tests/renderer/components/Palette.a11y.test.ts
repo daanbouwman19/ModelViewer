@@ -223,7 +223,15 @@ describe('Palette Accessibility Improvements', () => {
       // Enable transcoding mode
       (wrapper.vm as any).isTranscodingMode = true;
       (wrapper.vm as any).transcodedDuration = 100;
-      (wrapper.vm as any).currentVideoTime = 10;
+      await wrapper.vm.$nextTick();
+
+      let videoPlayer = wrapper.findComponent(VideoPlayer);
+      // Force update the internal state
+      (videoPlayer.vm as any).currentVideoTime = 10;
+      // We might need to trick the component into thinking time updated if it's reactive
+      (videoPlayer.vm as any).$emit('update:video-element', {
+        currentTime: 10,
+      } as any);
       await wrapper.vm.$nextTick();
 
       const progressBar = wrapper.find('[data-testid="video-progress-bar"]');
@@ -237,8 +245,10 @@ describe('Palette Accessibility Improvements', () => {
       expect((wrapper.vm as any).currentTranscodeStartTime).toBe(15);
 
       // Reset state for next assertion
+      // Reset state for next assertion
       (wrapper.vm as any).isTranscodingLoading = false;
-      (wrapper.vm as any).currentVideoTime = 15;
+      videoPlayer = wrapper.findComponent(VideoPlayer);
+      (videoPlayer.vm as any).currentVideoTime = 15;
 
       // Left arrow - backward 5s from 15 -> 10
       await progressBar.trigger('keydown', { key: 'ArrowLeft' });

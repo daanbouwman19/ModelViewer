@@ -28,8 +28,8 @@
     </div>
 
     <div
-      class="smart-timer-controls-media z-20 transition-transform-opacity duration-500 ease-in-out will-change-transform flex flex-row justify-center gap-4 w-full mb-2 md:absolute md:top-4 md:right-4 md:flex-col md:gap-2 md:w-auto md:items-end md:mb-0"
-      :class="{ 'opacity-0 md:-translate-y-20': !isControlsVisible }"
+      class="smart-timer-controls-media z-20 transition-transform-opacity duration-500 ease-in-out will-change-transform flex flex-row justify-center gap-4 w-full mb-2"
+      :class="{ 'opacity-0': !isControlsVisible }"
     >
       <label class="glass-toggle" title="Play Full Video">
         <input v-model="playFullVideo" type="checkbox" />
@@ -105,8 +105,15 @@
           :alt="currentMediaItem.name"
           @error="handleMediaError"
         />
+        <VRVideoPlayer
+          v-if="currentMediaItem && mediaUrl && !isImage && isVrMode"
+          :src="mediaUrl"
+          :is-playing="isPlaying"
+          :initial-time="savedCurrentTime"
+          @timeupdate="handleTimeUpdate"
+        />
         <VideoPlayer
-          v-if="currentMediaItem && mediaUrl && !isImage"
+          v-if="currentMediaItem && mediaUrl && !isImage && !isVrMode"
           ref="videoPlayerRef"
           :src="mediaUrl"
           :is-transcoding-mode="isTranscodingMode"
@@ -115,6 +122,7 @@
           :current-transcode-start-time="currentTranscodeStartTime"
           :is-transcoding-loading="isTranscodingLoading"
           :is-buffering="isBuffering"
+          :initial-time="savedCurrentTime"
           @play="handleVideoPlay"
           @pause="handleVideoPause"
           @ended="handleVideoEnded"
@@ -123,6 +131,7 @@
           @buffering="handleBuffering"
           @playing="handleVideoPlaying"
           @update:video-element="handleVideoElementUpdate"
+          @timeupdate="handleTimeUpdate"
         />
       </template>
     </div>
@@ -136,11 +145,13 @@
       :is-controls-visible="isControlsVisible"
       :is-image="isImage"
       :count-info="countInfo"
+      :is-vr-mode="isVrMode"
       @previous="handlePrevious"
       @next="handleNext"
       @toggle-play="togglePlay"
       @open-in-vlc="openInVlc"
       @set-rating="setRating"
+      @toggle-vr="toggleVrMode"
     />
   </div>
 </template>
@@ -160,6 +171,7 @@ import { api } from '../api';
 import VlcIcon from './icons/VlcIcon.vue';
 import TranscodingStatus from './TranscodingStatus.vue';
 import MediaControls from './MediaControls.vue';
+import VRVideoPlayer from './VRVideoPlayer.vue'; // [NEW]
 import VideoPlayer from './VideoPlayer.vue';
 import type { MediaFile } from '../../core/types';
 import {
@@ -226,15 +238,16 @@ const isTranscodingLoading = ref(false);
 const isBuffering = ref(false);
 const transcodedDuration = ref(0);
 const currentTranscodeStartTime = ref(0);
+const isVrMode = ref(false); // [NEW]
+const savedCurrentTime = ref(0); // [NEW] Sync time between players
 
 const isControlsVisible = ref(true);
 const isPlaying = ref(false);
+// Removed computed currentVideoTime relying on ref, using state instead
 const currentVideoTime = computed({
-  get: () => videoPlayerRef.value?.currentVideoTime ?? 0,
+  get: () => savedCurrentTime.value,
   set: (val) => {
-    if (videoPlayerRef.value) {
-      videoPlayerRef.value.currentVideoTime = val;
-    }
+    savedCurrentTime.value = val;
   },
 });
 let controlsTimeout: NodeJS.Timeout | null = null;
@@ -481,6 +494,17 @@ const loadMediaUrl = async () => {
       isLoading.value = false;
     }
   }
+};
+
+const handleTimeUpdate = (time: number) => {
+  savedCurrentTime.value = time;
+};
+
+/**
+ * Toggles VR mode.
+ */
+const toggleVrMode = () => {
+  isVrMode.value = !isVrMode.value;
 };
 
 /**

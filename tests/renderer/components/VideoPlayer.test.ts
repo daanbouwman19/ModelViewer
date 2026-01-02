@@ -251,9 +251,39 @@ describe('VideoPlayer.vue', () => {
 
     vm.handleTimeUpdate({ target: { currentTime: 10, duration: 0 } });
     expect(vm.videoProgress).toBe(0);
+    expect(wrapper.emitted('timeupdate')?.[0]).toEqual([0]);
 
     vm.handleTimeUpdate({ target: { currentTime: 10, duration: Infinity } });
     expect(vm.videoProgress).toBe(0);
+  });
+
+  it('sets initialTime on video element', async () => {
+    const wrapper = mount(VideoPlayer, {
+      props: { ...defaultProps, initialTime: 42 },
+    });
+    const videoElement = { currentTime: 0 };
+    (wrapper.vm as any).videoElement = videoElement;
+
+    // Trigger watcher by updating the ref, or manually calling it?
+    // The watcher is on videoElement (the ref).
+    // When we set (wrapper.vm as any).videoElement, it updates the ref.
+    await wrapper.vm.$nextTick();
+
+    expect(videoElement.currentTime).toBe(42);
+  });
+
+  it('emits timeupdate event', () => {
+    const wrapper = mount(VideoPlayer, { props: defaultProps });
+    const vm = wrapper.vm as any;
+    const event = {
+      target: {
+        currentTime: 10,
+        duration: 100,
+      },
+    };
+    vm.handleTimeUpdate(event);
+    expect(wrapper.emitted('timeupdate')).toBeTruthy();
+    expect(wrapper.emitted('timeupdate')?.slice(-1)[0]).toEqual([10]);
   });
 
   it('covers formatTime with h > 0', async () => {
