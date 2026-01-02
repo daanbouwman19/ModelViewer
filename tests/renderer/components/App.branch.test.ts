@@ -106,14 +106,14 @@ describe('App.vue', () => {
     // Mock handlers from useSlideshow
     const { navigateMedia, toggleSlideshowTimer } = useSlideshow();
 
-    // ArrowLeft
-    const leftEvent = new KeyboardEvent('keydown', { key: 'ArrowLeft' });
+    // ArrowLeft -> Z
+    const leftEvent = new KeyboardEvent('keydown', { key: 'z' });
     Object.defineProperty(leftEvent, 'target', { value: document.body });
     await document.dispatchEvent(leftEvent);
     expect(navigateMedia).toHaveBeenCalledWith(-1);
 
-    // ArrowRight
-    const rightEvent = new KeyboardEvent('keydown', { key: 'ArrowRight' });
+    // ArrowRight -> X
+    const rightEvent = new KeyboardEvent('keydown', { key: 'x' });
     Object.defineProperty(rightEvent, 'target', { value: document.body });
     await document.dispatchEvent(rightEvent);
     expect(navigateMedia).toHaveBeenCalledWith(1);
@@ -137,7 +137,7 @@ describe('App.vue', () => {
     document.body.appendChild(textarea);
 
     const event = new KeyboardEvent('keydown', {
-      key: 'ArrowLeft',
+      key: 'z',
       bubbles: true,
     });
     Object.defineProperty(event, 'target', {
