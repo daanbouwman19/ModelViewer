@@ -48,7 +48,7 @@
 
       <!-- 1. Loading / Transcoding / Buffering Overlay -->
       <TranscodingStatus
-        :is-loading="isLoading"
+        :is-loading="isLoading && !mediaUrl"
         :is-transcoding-loading="isTranscodingLoading"
         :is-buffering="isBuffering"
         :transcoded-duration="transcodedDuration"
@@ -99,40 +99,46 @@
 
       <!-- 5. Media Content -->
       <template v-else>
-        <img
-          v-if="currentMediaItem && mediaUrl && isImage"
-          :src="mediaUrl"
-          :alt="currentMediaItem.name"
-          @error="handleMediaError"
-        />
-        <VRVideoPlayer
-          v-if="currentMediaItem && mediaUrl && !isImage && isVrMode"
-          :src="mediaUrl"
-          :is-playing="isPlaying"
-          :initial-time="savedCurrentTime"
-          @timeupdate="handleTimeUpdate"
-        />
-        <VideoPlayer
-          v-if="currentMediaItem && mediaUrl && !isImage && !isVrMode"
-          ref="videoPlayerRef"
-          :src="mediaUrl"
-          :is-transcoding-mode="isTranscodingMode"
-          :is-controls-visible="isControlsVisible"
-          :transcoded-duration="transcodedDuration"
-          :current-transcode-start-time="currentTranscodeStartTime"
-          :is-transcoding-loading="isTranscodingLoading"
-          :is-buffering="isBuffering"
-          :initial-time="savedCurrentTime"
-          @play="handleVideoPlay"
-          @pause="handleVideoPause"
-          @ended="handleVideoEnded"
-          @error="handleMediaError"
-          @trigger-transcode="tryTranscoding"
-          @buffering="handleBuffering"
-          @playing="handleVideoPlaying"
-          @update:video-element="handleVideoElementUpdate"
-          @timeupdate="handleTimeUpdate"
-        />
+        <Transition v-if="mediaUrl" name="media-fade" mode="out-in">
+          <img
+            v-if="displayedIsImage"
+            :key="(displayedItem?.path || '') + '-img'"
+            :src="mediaUrl"
+            :alt="displayedItem?.name"
+            @error="handleMediaError"
+          />
+          <VRVideoPlayer
+            v-else-if="isVrMode"
+            :key="(displayedItem?.path || '') + '-vr'"
+            :src="mediaUrl"
+            :is-playing="isPlaying"
+            :initial-time="savedCurrentTime"
+            @timeupdate="handleTimeUpdate"
+            @update:video-element="handleVideoElementUpdate"
+          />
+          <VideoPlayer
+            v-else
+            ref="videoPlayerRef"
+            :key="(displayedItem?.path || '') + '-video'"
+            :src="mediaUrl"
+            :is-transcoding-mode="isTranscodingMode"
+            :is-controls-visible="isControlsVisible"
+            :transcoded-duration="transcodedDuration"
+            :current-transcode-start-time="currentTranscodeStartTime"
+            :is-transcoding-loading="isTranscodingLoading"
+            :is-buffering="isBuffering"
+            :initial-time="savedCurrentTime"
+            @play="handleVideoPlay"
+            @pause="handleVideoPause"
+            @ended="handleVideoEnded"
+            @error="handleMediaError"
+            @trigger-transcode="tryTranscoding"
+            @buffering="handleBuffering"
+            @playing="handleVideoPlaying"
+            @update:video-element="handleVideoElementUpdate"
+            @timeupdate="handleTimeUpdate"
+          />
+        </Transition>
       </template>
     </div>
 
@@ -204,6 +210,7 @@ const {
   reapplyFilter,
   pauseSlideshowTimer,
   resumeSlideshowTimer,
+  toggleSlideshowTimer,
 } = useSlideshow();
 
 /**
@@ -225,6 +232,15 @@ const isLoading = ref(false);
  * A string to hold any error message that occurs during media loading.
  */
 const error = ref<string | null>(null);
+
+const displayedItem = ref<MediaFile | null>(null);
+
+/**
+ * A computed property that determines if the displayed media item is an image.
+ */
+const displayedIsImage = computed(() => {
+  return !!displayedItem.value && isMediaItemImage(displayedItem.value);
+});
 
 /**
  * Reference to the video element.
@@ -376,6 +392,10 @@ const tryTranscoding = async (startTime = 0, requestId?: number) => {
   // But usually starting a new attempt clears old errors.
   error.value = null;
 
+  // For smooth transitions, `displayedItem` is updated once the new media URL is fully loaded.
+  // With transcoding, the stream URL is available immediately, so we update `displayedItem`
+  // right away to ensure UI consistency while the video buffers.
+
   currentTranscodeStartTime.value = startTime;
 
   try {
@@ -408,6 +428,9 @@ const tryTranscoding = async (startTime = 0, requestId?: number) => {
     console.log('Transcoding URL:', transcodeUrl);
     mediaUrl.value = transcodeUrl;
 
+    // Sync displayed item when transcoding starts successfully
+    displayedItem.value = currentMediaItem.value;
+
     isVideoSupported.value = true;
   } catch (e) {
     if (effectiveRequestId !== currentLoadRequestId) return;
@@ -436,8 +459,7 @@ const loadMediaUrl = async () => {
 
   isLoading.value = true;
 
-  // Reset all state flags for the new item
-  mediaUrl.value = null;
+  // Reset state flags for the new item, but KEEP mediaUrl to show old image while loading
   error.value = null;
   isVideoSupported.value = true;
   isTranscodingMode.value = false;
@@ -480,8 +502,11 @@ const loadMediaUrl = async () => {
     if (result.type === 'error') {
       error.value = result.message || 'Unknown error';
       mediaUrl.value = null;
+      displayedItem.value = null;
     } else {
+      const itemToLoad = currentMediaItem.value; // Capture valid item
       mediaUrl.value = result.url || null;
+      displayedItem.value = mediaUrl.value ? itemToLoad : null;
     }
   } catch (err) {
     if (requestId !== currentLoadRequestId) return;
@@ -519,7 +544,29 @@ const togglePlay = () => {
 const handleGlobalKeydown = (event: KeyboardEvent) => {
   if (event.code === 'Space') {
     event.preventDefault(); // Prevent scrolling
-    togglePlay();
+    if (isImage.value) {
+      // If it's an image, spacebar toggles the slideshow timer (restoring App.vue behavior)
+      toggleSlideshowTimer();
+    } else {
+      // If it's a video, spacebar toggles playback
+      togglePlay();
+    }
+  } else if (event.code === 'ArrowRight') {
+    if (videoElement.value) {
+      event.preventDefault();
+      videoElement.value.currentTime = Math.min(
+        videoElement.value.duration,
+        videoElement.value.currentTime + 5,
+      );
+    }
+  } else if (event.code === 'ArrowLeft') {
+    if (videoElement.value) {
+      event.preventDefault();
+      videoElement.value.currentTime = Math.max(
+        0,
+        videoElement.value.currentTime - 5,
+      );
+    }
   }
 };
 
@@ -779,6 +826,16 @@ defineExpose({
 
 .glass-button:hover {
   background: rgba(255, 255, 255, 0.2);
+}
+
+.media-fade-enter-active,
+.media-fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.media-fade-enter-from,
+.media-fade-leave-to {
+  opacity: 0;
 }
 
 .glass-toggle {

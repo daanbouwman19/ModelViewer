@@ -123,6 +123,7 @@ describe('MediaDisplay.vue', () => {
       reapplyFilter: vi.fn(),
       pauseSlideshowTimer: vi.fn(),
       resumeSlideshowTimer: vi.fn(),
+      toggleSlideshowTimer: vi.fn(),
     };
     (useSlideshow as Mock).mockReturnValue(slideshowMock);
 
@@ -155,7 +156,7 @@ describe('MediaDisplay.vue', () => {
       expect((wrapper.vm as any).mediaUrl).toBe('test-url');
     });
 
-    it('clears mediaUrl when switching between media types to prevent race conditions', async () => {
+    it('retains old mediaUrl when switching between media types to allow smooth transition', async () => {
       // Start with a video file
       mockPlayerState.currentMediaItem = {
         name: 'video.mp4',
@@ -182,9 +183,9 @@ describe('MediaDisplay.vue', () => {
       };
       await flushPromises();
 
-      // Verify that mediaUrl was null when the API was called
-      // This proves it was cleared synchronously before the async load
-      expect(mediaUrlDuringApiCall).toBeNull();
+      // Verify that mediaUrl was NOT null when the API was called
+      // It should retain the old value (test-url) to allow smooth transition
+      expect(mediaUrlDuringApiCall).toBe('test-url');
 
       // Verify the image URL is now set after loading completes
       expect((wrapper.vm as any).mediaUrl).toBe('image-url');

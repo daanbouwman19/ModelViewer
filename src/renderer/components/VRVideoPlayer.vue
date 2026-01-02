@@ -44,6 +44,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'timeupdate', time: number): void;
+  (e: 'update:video-element', el: HTMLVideoElement | null): void;
 }>();
 
 const container = ref<HTMLElement | null>(null);
@@ -143,6 +144,9 @@ const initThree = () => {
   video.crossOrigin = 'anonymous';
   video.playsInline = true;
   video.setAttribute('webkit-playsinline', 'true'); // iOS support
+
+  // Emit the video element so parent can control it (seeking, etc.)
+  emit('update:video-element', video);
 
   // Sync initial time
   if (props.initialTime) {

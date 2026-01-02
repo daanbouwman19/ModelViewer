@@ -91,7 +91,6 @@ const showSidebar = ref(true);
  * @param event - The keyboard event object.
  */
 const handleKeydown = (event: KeyboardEvent) => {
-  // Ignore keyboard events if an input field is focused
   if (
     (event.target as HTMLElement).tagName === 'INPUT' ||
     (event.target as HTMLElement).tagName === 'TEXTAREA'
@@ -99,18 +98,24 @@ const handleKeydown = (event: KeyboardEvent) => {
     return;
   }
 
-  switch (event.key) {
-    case 'ArrowLeft':
+  // Handle navigation (Z = Previous, X = Next)
+  // We allow this globally as Z/X are unlikely to conflict with standard typing unless focused on input (handled above)
+  switch (event.key.toLowerCase()) {
+    case 'z':
       event.preventDefault();
       navigateMedia(-1); // Navigate to the previous media item
       break;
-    case 'ArrowRight':
+    case 'x':
       event.preventDefault();
       navigateMedia(1); // Navigate to the next media item
       break;
     case ' ':
-      event.preventDefault();
-      toggleSlideshowTimer(); // Play or pause the slideshow timer
+      // In grid view, spacebar toggles the slideshow timer.
+      // In player view, this is handled by the MediaDisplay component.
+      if (viewMode.value === 'grid') {
+        event.preventDefault();
+        toggleSlideshowTimer();
+      }
       break;
   }
 };
