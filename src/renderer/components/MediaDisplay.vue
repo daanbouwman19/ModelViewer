@@ -393,7 +393,9 @@ const tryTranscoding = async (startTime = 0, requestId?: number) => {
   // IMPORTANT: For smooth transitions, we delay updating displayedItem until mediaUrl is ready.
   // BUT for transcoding, we might need to update it sooner if the UI depends on it?
   // Actually, transcoding sets mediaUrl almost immediately (stream link).
-  // So we handle it in the success block.
+  // For smooth transitions, `displayedItem` is updated only when the new media URL is ready.
+  // With transcoding, the stream URL is available almost instantly, so we update `displayedItem`
+  // in the success block below to ensure UI consistency during the process.
 
   currentTranscodeStartTime.value = startTime;
 
@@ -490,8 +492,6 @@ const loadMediaUrl = async () => {
     // Only turn off loading if this request is still active
     if (requestId === currentLoadRequestId) {
       isLoading.value = false;
-      // Also update displayed item if we successfully kicked off proactive transcoding
-      // (Actually tryTranscoding logic updates it above)
     }
     return;
   }
@@ -547,6 +547,26 @@ const handleGlobalKeydown = (event: KeyboardEvent) => {
   if (event.code === 'Space') {
     event.preventDefault(); // Prevent scrolling
     togglePlay();
+  } else if (event.code === 'ArrowRight') {
+    if (videoElement.value) {
+      event.preventDefault();
+      videoElement.value.currentTime = Math.min(
+        videoElement.value.duration,
+        videoElement.value.currentTime + 5,
+      );
+    } else {
+      handleNext();
+    }
+  } else if (event.code === 'ArrowLeft') {
+    if (videoElement.value) {
+      event.preventDefault();
+      videoElement.value.currentTime = Math.max(
+        0,
+        videoElement.value.currentTime - 5,
+      );
+    } else {
+      handlePrevious();
+    }
   }
 };
 

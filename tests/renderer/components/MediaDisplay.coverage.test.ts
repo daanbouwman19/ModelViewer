@@ -9,10 +9,45 @@ import { useSlideshow } from '@/composables/useSlideshow';
 import { api } from '@/api';
 
 // Mock the composables
-vi.mock('@/composables/useLibraryStore');
-vi.mock('@/composables/usePlayerStore');
-vi.mock('@/composables/useUIStore');
-vi.mock('@/composables/useSlideshow');
+vi.mock('@/composables/useLibraryStore', () => ({
+  useLibraryStore: vi.fn(() => ({
+    state: { totalMediaInPool: 0 },
+    totalMediaInPool: { value: 0 },
+    imageExtensionsSet: { value: new Set() },
+    videoExtensionsSet: { value: new Set() },
+    supportedExtensions: { value: { images: [], videos: [] } },
+  })),
+}));
+
+vi.mock('@/composables/usePlayerStore', () => ({
+  usePlayerStore: vi.fn(() => ({
+    state: { currentMediaItem: null },
+    currentMediaItem: { value: null },
+    displayedMediaFiles: { value: [] },
+    currentMediaIndex: { value: 0 },
+    isSlideshowActive: { value: false },
+    playFullVideo: { value: false },
+    pauseTimerOnPlay: { value: false },
+    isTimerRunning: { value: false },
+    mainVideoElement: { value: null },
+  })),
+}));
+
+vi.mock('@/composables/useUIStore', () => ({
+  useUIStore: vi.fn(() => ({
+    state: { mediaFilter: 'All' },
+    mediaFilter: { value: 'All' },
+  })),
+}));
+
+vi.mock('@/composables/useSlideshow', () => ({
+  useSlideshow: vi.fn(() => ({
+    navigateMedia: vi.fn(),
+    reapplyFilter: vi.fn(),
+    pauseSlideshowTimer: vi.fn(),
+    resumeSlideshowTimer: vi.fn(),
+  })),
+}));
 
 // Mock Icons
 vi.mock('@/components/icons/VlcIcon.vue', () => ({
@@ -27,8 +62,30 @@ vi.mock('@/components/VRVideoPlayer.vue', () => ({
   default: { template: '<div class="vr-player-mock"></div>' },
 }));
 
+// Mock VideoPlayer to emit a plain mock object instead of real DOM element
+vi.mock('@/components/VideoPlayer.vue', () => ({
+  default: {
+    template: '<div class="video-player-mock"></div>',
+    emits: ['update:video-element'],
+    setup(_: any, { emit }: any) {
+      // Emit a mock object that mimics the video element
+      const mockVideo = {
+        currentTime: 10,
+        duration: 100,
+        paused: false,
+        elementName: 'MockVideoElement',
+      };
+
+      emit('update:video-element', mockVideo);
+
+      return { mockVideo };
+    },
+  },
+}));
+
 // Mock API
 vi.mock('@/api', () => ({
+  // ... lines 30-34 ...
   api: {
     loadFileAsDataURL: vi.fn(),
     openInVlc: vi.fn(),
@@ -37,6 +94,9 @@ vi.mock('@/api', () => ({
     setRating: vi.fn(),
   },
 }));
+// ...
+
+// ... (inside the test suite)
 
 describe('MediaDisplay.vue Additional Coverage', () => {
   let mockLibraryState: any;
@@ -341,6 +401,80 @@ describe('MediaDisplay.vue Additional Coverage', () => {
       expect((wrapper.vm as any).isVrMode).toBe(false);
       (wrapper.vm as any).toggleVrMode();
       expect((wrapper.vm as any).isVrMode).toBe(true);
+    });
+
+    it('should handle global arrow keys for seeking', async () => {
+      // Mock API success for video loading
+      (api.loadFileAsDataURL as Mock).mockResolvedValue({
+        type: 'success',
+        url: 'blob:test',
+      });
+
+      // Override store state locally for this test
+      mockPlayerState.currentMediaItem = {
+        name: 'test.mp4',
+        path: '/test.mp4',
+      };
+      mockPlayerState.displayedMediaFiles = [];
+      mockPlayerState.currentMediaIndex = 0;
+      mockLibraryState.videoExtensionsSet = new Set(['.mp4']);
+      mockLibraryState.supportedExtensions.videos = ['.mp4'];
+
+      const wrapper = mount(MediaDisplay, {
+        attachTo: document.body,
+        global: {
+          stubs: {
+            Transition: true,
+            VideoPlayer: {
+              name: 'VideoPlayer', // Add name for easier finding
+              template: '<div class="video-player-stub"></div>',
+              emits: ['update:video-element'],
+              props: ['src', 'options'],
+            },
+          },
+        },
+      });
+      await flushPromises();
+      await wrapper.vm.$nextTick();
+
+      // Emit event from the stubbed VideoPlayer manually
+      const mockVideo = {
+        currentTime: 10,
+        duration: 100,
+        paused: false,
+        elementName: 'MockVideoElement',
+      };
+
+      // Since we named the stub, this should work
+      const videoPlayerComp = wrapper.findComponent({ name: 'VideoPlayer' });
+      if (videoPlayerComp.exists()) {
+        videoPlayerComp.vm.$emit('update:video-element', mockVideo);
+      }
+
+      await wrapper.vm.$nextTick();
+
+      // Retrieve the mock object from the component state
+      const videoEl = (wrapper.vm as any).videoElement;
+
+      // Verify validation is bypassed
+      expect(videoEl).toBeTruthy();
+      if (videoEl) {
+        expect(videoEl.elementName).toBe('MockVideoElement');
+
+        // Trigger ArrowRight (Seek +5)
+        window.dispatchEvent(
+          new KeyboardEvent('keydown', { code: 'ArrowRight' }),
+        );
+        expect(videoEl.currentTime).toBe(15);
+
+        // Trigger ArrowLeft (Seek -5)
+        window.dispatchEvent(
+          new KeyboardEvent('keydown', { code: 'ArrowLeft' }),
+        );
+        expect(videoEl.currentTime).toBe(10); // Back to 10
+      }
+
+      wrapper.unmount();
     });
   });
 });
