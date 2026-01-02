@@ -72,9 +72,20 @@ export default defineConfig(({ mode }) => {
       target: 'es2020',
       sourcemap: mode === 'production' ? 'hidden' : true,
       outDir: 'dist/client',
+      chunkSizeWarningLimit: 1000,
       rollupOptions: {
         input: {
           index: resolve(__dirname, 'index.html'),
+        },
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('three')) {
+                return 'three';
+              }
+              return 'vendor';
+            }
+          },
         },
       },
     },
