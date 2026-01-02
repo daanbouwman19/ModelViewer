@@ -69,7 +69,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { MediaFile } from '../../core/types';
-import { getCachedExtension } from '../utils/mediaUtils';
+import { getCachedExtension, getDisplayName } from '../utils/mediaUtils';
 
 const props = defineProps<{
   item: MediaFile;
@@ -131,9 +131,7 @@ const posterUrl = computed(() => {
   return '';
 });
 
-const displayName = computed(
-  () => props.item.name || props.item.path.replace(/^.*[\\/]/, ''),
-);
+const displayName = computed(() => getDisplayName(props.item));
 
 const hasFailed = computed(() => props.failedImagePaths.has(props.item.path));
 

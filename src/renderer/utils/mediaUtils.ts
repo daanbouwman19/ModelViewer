@@ -10,6 +10,12 @@ import type { MediaFile } from '../../core/types';
 const extensionCache = new WeakMap<MediaFile, string>();
 
 /**
+ * Cache for display names to reduce regex and string operations.
+ * Keyed by MediaFile object reference.
+ */
+const displayNameCache = new WeakMap<MediaFile, string>();
+
+/**
  * Gets the file extension for a media file, using a cache to avoid repeated string operations.
  * @param file - The media file object.
  * @returns The lowercased file extension (including the dot), or an empty string.
@@ -43,4 +49,28 @@ export const getCachedExtension = (file: MediaFile): string => {
 
   extensionCache.set(file, ext);
   return ext;
+};
+
+/**
+ * Gets the display name for a media file, using a cache to avoid repeated string/regex operations.
+ * @param file - The media file object.
+ * @returns The display name (either file.name or the basename of file.path).
+ */
+export const getDisplayName = (file: MediaFile): string => {
+  if (displayNameCache.has(file)) {
+    return displayNameCache.get(file)!;
+  }
+
+  // Optimization: file.name is preferred. If not present, extract basename from path.
+  // Using simple string manipulation instead of regex for better performance.
+  let displayName = file.name;
+
+  if (!displayName) {
+    const path = file.path;
+    const lastSlash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+    displayName = lastSlash !== -1 ? path.substring(lastSlash + 1) : path;
+  }
+
+  displayNameCache.set(file, displayName);
+  return displayName;
 };
