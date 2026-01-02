@@ -78,7 +78,10 @@ vi.mock('@/components/VideoPlayer.vue', () => ({
 
       emit('update:video-element', mockVideo);
 
-      return { mockVideo };
+      const reset = vi.fn();
+      const togglePlay = vi.fn();
+
+      return { mockVideo, reset, togglePlay };
     },
   },
 }));
@@ -147,6 +150,7 @@ describe('MediaDisplay.vue Additional Coverage', () => {
       reapplyFilter: vi.fn(),
       pauseSlideshowTimer: vi.fn(),
       resumeSlideshowTimer: vi.fn(),
+      toggleSlideshowTimer: vi.fn(),
     });
 
     vi.clearAllMocks();
@@ -475,6 +479,46 @@ describe('MediaDisplay.vue Additional Coverage', () => {
       }
 
       wrapper.unmount();
+    });
+
+    it('should NOT navigate if video element is missing but item is video', async () => {
+      // Setup: 2 items, current is video
+      const item1 = { name: '1.mp4', path: '1.mp4' };
+      const item2 = { name: '2.jpg', path: '2.jpg' };
+      mockPlayerState.displayedMediaFiles = [item1, item2];
+      mockPlayerState.currentMediaItem = item1;
+      mockPlayerState.currentMediaIndex = 0;
+      mockLibraryState.imageExtensionsSet = new Set(['.jpg']);
+      mockLibraryState.videoExtensionsSet = new Set(['.mp4']);
+
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      // Ensure NO video element is present
+      (wrapper.vm as any).handleVideoElementUpdate(null);
+      await wrapper.vm.$nextTick();
+
+      const { navigateMedia } = useSlideshow();
+
+      // Trigger ArrowRight
+      window.dispatchEvent(
+        new KeyboardEvent('keydown', { code: 'ArrowRight' }),
+      );
+
+      // Should NOT navigate
+      expect(navigateMedia).not.toHaveBeenCalled();
+
+      // Change to image and try again
+      mockPlayerState.currentMediaItem = item2;
+      mockPlayerState.currentMediaIndex = 1;
+      await wrapper.vm.$nextTick();
+
+      window.dispatchEvent(
+        new KeyboardEvent('keydown', { code: 'ArrowRight' }),
+      );
+
+      // Arrow keys should ONLY seek now, never navigate, even for images
+      expect(navigateMedia).not.toHaveBeenCalled();
     });
   });
 });

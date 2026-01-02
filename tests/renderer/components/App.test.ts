@@ -164,22 +164,22 @@ describe('App.vue', () => {
     expect(initializeApp).toHaveBeenCalled();
   });
 
-  it('should handle left arrow key', async () => {
+  it('should handle "z" key for previous media', async () => {
     const wrapper = mount(App, { attachTo: document.body });
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    const event = new KeyboardEvent('keydown', { key: 'ArrowLeft' });
+    const event = new KeyboardEvent('keydown', { key: 'z' });
     document.dispatchEvent(event);
 
     expect(navigateMedia).toHaveBeenCalledWith(-1);
     wrapper.unmount();
   });
 
-  it('should handle right arrow key', async () => {
+  it('should handle "x" key for next media', async () => {
     const wrapper = mount(App, { attachTo: document.body });
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    const event = new KeyboardEvent('keydown', { key: 'ArrowRight' });
+    const event = new KeyboardEvent('keydown', { key: 'x' });
     document.dispatchEvent(event);
 
     expect(navigateMedia).toHaveBeenCalledWith(1);
@@ -187,6 +187,7 @@ describe('App.vue', () => {
   });
 
   it('should handle space key for timer toggle', async () => {
+    mockUIState.viewMode = 'grid'; // Ensure grid mode for App global key handling
     const wrapper = mount(App, { attachTo: document.body });
     await new Promise((resolve) => setTimeout(resolve, 0));
 

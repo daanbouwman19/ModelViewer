@@ -123,6 +123,7 @@ describe('MediaDisplay.vue', () => {
       reapplyFilter: vi.fn(),
       pauseSlideshowTimer: vi.fn(),
       resumeSlideshowTimer: vi.fn(),
+      toggleSlideshowTimer: vi.fn(),
     };
     (useSlideshow as Mock).mockReturnValue(slideshowMock);
 

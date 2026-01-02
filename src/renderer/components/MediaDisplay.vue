@@ -114,6 +114,7 @@
             :is-playing="isPlaying"
             :initial-time="savedCurrentTime"
             @timeupdate="handleTimeUpdate"
+            @update:video-element="handleVideoElementUpdate"
           />
           <VideoPlayer
             v-else
@@ -209,6 +210,7 @@ const {
   reapplyFilter,
   pauseSlideshowTimer,
   resumeSlideshowTimer,
+  toggleSlideshowTimer,
 } = useSlideshow();
 
 /**
@@ -546,7 +548,13 @@ const togglePlay = () => {
 const handleGlobalKeydown = (event: KeyboardEvent) => {
   if (event.code === 'Space') {
     event.preventDefault(); // Prevent scrolling
-    togglePlay();
+    if (isImage.value) {
+      // If it's an image, spacebar toggles the slideshow timer (restoring App.vue behavior)
+      toggleSlideshowTimer();
+    } else {
+      // If it's a video, spacebar toggles playback
+      togglePlay();
+    }
   } else if (event.code === 'ArrowRight') {
     if (videoElement.value) {
       event.preventDefault();
@@ -554,9 +562,8 @@ const handleGlobalKeydown = (event: KeyboardEvent) => {
         videoElement.value.duration,
         videoElement.value.currentTime + 5,
       );
-    } else {
-      handleNext();
     }
+    // No fallback navigation for ArrowRight
   } else if (event.code === 'ArrowLeft') {
     if (videoElement.value) {
       event.preventDefault();
@@ -564,9 +571,8 @@ const handleGlobalKeydown = (event: KeyboardEvent) => {
         0,
         videoElement.value.currentTime - 5,
       );
-    } else {
-      handlePrevious();
     }
+    // No fallback navigation for ArrowLeft
   }
 };
 
