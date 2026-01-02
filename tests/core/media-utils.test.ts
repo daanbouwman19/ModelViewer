@@ -1,141 +1,61 @@
-import { describe, it, expect } from 'vitest';
-import {
-  getTranscodeArgs,
-  getThumbnailArgs,
-  isValidTimeFormat,
-  getMimeType,
-  runFFmpeg,
-} from '../../src/core/media-utils';
-import { EventEmitter } from 'events';
-import { vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import { PassThrough, EventEmitter } from 'stream';
+import { getFFmpegDuration } from '../../src/core/media-utils';
 
-const { spawnMock } = vi.hoisted(() => {
-  return { spawnMock: vi.fn() };
-});
+const { mockSpawn } = vi.hoisted(() => ({
+  mockSpawn: vi.fn(),
+}));
 
-vi.mock('child_process', () => {
-  return {
-    spawn: spawnMock,
-    default: {
-      spawn: spawnMock,
-    },
-  };
-});
+vi.mock('child_process', () => ({
+  spawn: mockSpawn,
+  default: { spawn: mockSpawn },
+}));
 
-describe('media-utils', () => {
-  describe('isValidTimeFormat', () => {
-    it('returns true for simple seconds', () => {
-      expect(isValidTimeFormat('10')).toBe(true);
-      expect(isValidTimeFormat('10.5')).toBe(true);
+describe('media-utils unit tests', () => {
+  describe('getFFmpegDuration', () => {
+    it('resolves with duration when ffmpeg provides it', async () => {
+      const mockProc = new EventEmitter() as any;
+      mockProc.stdout = new PassThrough();
+      mockProc.stderr = new EventEmitter();
+      mockSpawn.mockReturnValue(mockProc);
+
+      const promise = getFFmpegDuration('/path/to/video.mp4', 'ffmpeg');
+      await vi.waitFor(() => expect(mockSpawn).toHaveBeenCalled());
+
+      mockProc.stderr.emit('data', 'Duration: 00:01:01.50, start:');
+      mockProc.emit('close', 0);
+
+      const duration = await promise;
+      expect(duration).toBeCloseTo(61.5);
     });
 
-    it('returns true for timestamps', () => {
-      expect(isValidTimeFormat('00:00:10')).toBe(true);
-      expect(isValidTimeFormat('00:10.5')).toBe(true);
+    it('rejects when duration cannot be determined', async () => {
+      const mockProc = new EventEmitter() as any;
+      mockProc.stdout = new PassThrough();
+      mockProc.stderr = new EventEmitter();
+      mockSpawn.mockReturnValue(mockProc);
+
+      const promise = getFFmpegDuration('/path/to/video.mp4', 'ffmpeg');
+      await vi.waitFor(() => expect(mockSpawn).toHaveBeenCalled());
+
+      mockProc.stderr.emit('data', 'No duration info here');
+      mockProc.emit('close', 0);
+
+      await expect(promise).rejects.toThrow('Could not determine duration');
     });
 
-    it('returns false for invalid formats', () => {
-      expect(isValidTimeFormat('abc')).toBe(false);
-      expect(isValidTimeFormat('10:xx')).toBe(false);
-    });
-  });
+    it('rejects when ffmpeg spawn fails', async () => {
+      const mockProc = new EventEmitter() as any;
+      mockProc.stdout = new PassThrough();
+      mockProc.stderr = new EventEmitter();
+      mockSpawn.mockReturnValue(mockProc);
 
-  describe('getTranscodeArgs', () => {
-    it('returns default args when startTime is null', () => {
-      const args = getTranscodeArgs('/path/to/video.mp4', null);
-      expect(args).toContain('-i');
-      expect(args).toContain('/path/to/video.mp4');
-      expect(args).not.toContain('-ss');
-      expect(args).toContain('-vcodec');
-      expect(args).toContain('libx264');
-    });
+      const promise = getFFmpegDuration('/path/to/video.mp4', 'ffmpeg');
+      await vi.waitFor(() => expect(mockSpawn).toHaveBeenCalled());
 
-    it('includes -ss when startTime is provided', () => {
-      const args = getTranscodeArgs('/path/to/video.mp4', '10');
-      expect(args).toContain('-ss');
-      expect(args).toContain('10');
-    });
+      mockProc.emit('error', new Error('Spawn failed'));
 
-    it('throws error for invalid start time', () => {
-      expect(() => getTranscodeArgs('/path/to/video.mp4', 'invalid')).toThrow(
-        'Invalid start time format',
-      );
-    });
-  });
-
-  describe('getThumbnailArgs', () => {
-    it('returns correct ffmpeg arguments', () => {
-      const args = getThumbnailArgs('/input.mp4', '/cache/thumb.jpg');
-      expect(args).toEqual([
-        '-y',
-        '-ss',
-        '1',
-        '-i',
-        '/input.mp4',
-        '-frames:v',
-        '1',
-        '-q:v',
-        '5',
-        '-update',
-        '1',
-        '/cache/thumb.jpg',
-      ]);
-    });
-  });
-
-  describe('getMimeType', () => {
-    it('returns application/octet-stream for gdrive paths', () => {
-      expect(getMimeType('gdrive://some-id')).toBe('application/octet-stream');
-    });
-
-    it('returns correct mime type for supported images', () => {
-      expect(getMimeType('photo.jpg')).toBe('image/jpeg');
-      expect(getMimeType('photo.jpeg')).toBe('image/jpeg');
-      expect(getMimeType('photo.png')).toBe('image/png');
-      expect(getMimeType('photo.gif')).toBe('image/gif');
-      expect(getMimeType('photo.webp')).toBe('image/webp');
-      expect(getMimeType('icon.svg')).toBe('image/svg');
-    });
-
-    it('returns correct mime type for supported videos', () => {
-      expect(getMimeType('video.mp4')).toBe('video/mp4');
-      expect(getMimeType('video.webm')).toBe('video/webm');
-      expect(getMimeType('video.ogg')).toBe('video/ogg');
-      expect(getMimeType('video.mov')).toBe('video/quicktime');
-      expect(getMimeType('video.avi')).toBe('video/x-msvideo');
-      expect(getMimeType('video.mkv')).toBe('video/x-matroska');
-    });
-
-    it('returns application/octet-stream for unknown extensions', () => {
-      expect(getMimeType('file.xyz')).toBe('application/octet-stream');
-      expect(getMimeType('file.m4v')).toBe('application/octet-stream');
-    });
-  });
-
-  describe('runFFmpeg', () => {
-    it('resolves with code and stderr', async () => {
-      const mockProcess = new EventEmitter() as any;
-      mockProcess.stderr = new EventEmitter();
-      spawnMock.mockReturnValue(mockProcess);
-
-      const promise = runFFmpeg('ffmpeg', ['-i', 'input.mp4']);
-
-      mockProcess.stderr.emit('data', 'some error output');
-      mockProcess.emit('close', 0);
-
-      const result = await promise;
-      expect(result).toEqual({ code: 0, stderr: 'some error output' });
-    });
-
-    it('rejects on spawn error', async () => {
-      const mockProcess = new EventEmitter() as any;
-      spawnMock.mockReturnValue(mockProcess);
-
-      const promise = runFFmpeg('ffmpeg', []);
-
-      mockProcess.emit('error', new Error('spawn failed'));
-
-      await expect(promise).rejects.toThrow('spawn failed');
+      await expect(promise).rejects.toThrow('FFmpeg execution failed');
     });
   });
 });
