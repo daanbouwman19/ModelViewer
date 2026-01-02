@@ -23,6 +23,10 @@ vi.mock('@/components/icons/StarIcon.vue', () => ({
   default: { template: '<svg class="star-icon-mock"></svg>' },
 }));
 
+vi.mock('@/components/VRVideoPlayer.vue', () => ({
+  default: { template: '<div class="vr-player-mock"></div>' },
+}));
+
 // Mock API
 vi.mock('@/api', () => ({
   api: {
@@ -270,6 +274,7 @@ describe('MediaDisplay.vue Additional Coverage', () => {
 
   describe('Additional Branch Coverage', () => {
     it('should handle filter button clicks', async () => {
+      const { reapplyFilter } = useSlideshow();
       const wrapper = mount(MediaDisplay);
       await flushPromises();
 
@@ -277,11 +282,7 @@ describe('MediaDisplay.vue Additional Coverage', () => {
       // Assume "All" is active, click the second one
       if (buttons.length > 1) {
         await buttons[1].trigger('click');
-        // useSlideshow.reapplyFilter should be called
-        // We can't easily check the mock directly here unless we expose it, but we can verify it doesn't crash
-        // and we can verify uiState update if we had access.
-        // But lines 23 coverage is @click="setFilter(filter)" so just triggering it is enough.
-        expect(buttons[1].exists()).toBe(true);
+        expect(reapplyFilter).toHaveBeenCalled();
       }
     });
 
@@ -308,15 +309,13 @@ describe('MediaDisplay.vue Additional Coverage', () => {
     });
 
     it('should handle handleVideoEnded when playFullVideo is true', async () => {
+      const { navigateMedia } = useSlideshow();
       const wrapper = mount(MediaDisplay);
       await flushPromises();
 
       mockPlayerState.playFullVideo = true;
       (wrapper.vm as any).handleVideoEnded();
-      // Expect navigateMedia(1)
-      // We need to access the mock from setup to verify, but since we didn't expose it from beforeEach,
-      // we can just ensure it runs without error. Coverage is the goal here.
-      expect(mockPlayerState.playFullVideo).toBe(true);
+      expect(navigateMedia).toHaveBeenCalledWith(1);
     });
 
     it('should handle handleVideoPlaying state updates', async () => {

@@ -237,7 +237,7 @@ const displayedItem = ref<MediaFile | null>(null);
  * A computed property that determines if the displayed media item is an image.
  */
 const displayedIsImage = computed(() => {
-  return displayedItem.value ? isMediaItemImage(displayedItem.value) : false;
+  return !!displayedItem.value && isMediaItemImage(displayedItem.value);
 });
 
 /**
@@ -508,11 +508,7 @@ const loadMediaUrl = async () => {
     } else {
       const itemToLoad = currentMediaItem.value; // Capture valid item
       mediaUrl.value = result.url || null;
-      if (mediaUrl.value) {
-        displayedItem.value = itemToLoad;
-      } else {
-        displayedItem.value = null;
-      }
+      displayedItem.value = mediaUrl.value ? itemToLoad : null;
     }
   } catch (err) {
     if (requestId !== currentLoadRequestId) return;

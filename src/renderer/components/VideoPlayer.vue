@@ -1,75 +1,77 @@
 <template>
-  <!-- Video Element -->
-  <video
-    ref="videoElement"
-    class="w-full h-full object-contain rounded-xl shadow-2xl"
-    :src="src || undefined"
-    autoplay
-    @error="handleError"
-    @ended="handleEnded"
-    @play="handlePlay"
-    @playing="handlePlaying"
-    @pause="handlePause"
-    @timeupdate="handleTimeUpdate"
-    @loadedmetadata="handleLoadedMetadata"
-    @waiting="handleWaiting"
-    @canplay="handleCanPlay"
-    @progress="handleProgress"
-    @click="togglePlay"
-  />
-
-  <!-- Pause Overlay -->
-  <div
-    v-if="!isPlaying && !isTranscodingLoading && !isBuffering"
-    class="absolute inset-0 flex items-center justify-center z-10 pointer-events-none"
-  >
-    <button
-      type="button"
-      class="bg-black/40 p-4 rounded-full backdrop-blur-sm pointer-events-auto hover:bg-[var(--accent-color)]/80 transition-colors focus:outline-none focus:ring-2 focus:ring-white/50"
-      aria-label="Play video"
+  <div class="video-player-container relative w-full h-full">
+    <!-- Video Element -->
+    <video
+      ref="videoElement"
+      class="w-full h-full object-contain rounded-xl shadow-2xl"
+      :src="src || undefined"
+      autoplay
+      @error="handleError"
+      @ended="handleEnded"
+      @play="handlePlay"
+      @playing="handlePlaying"
+      @pause="handlePause"
+      @timeupdate="handleTimeUpdate"
+      @loadedmetadata="handleLoadedMetadata"
+      @waiting="handleWaiting"
+      @canplay="handleCanPlay"
+      @progress="handleProgress"
       @click="togglePlay"
+    />
+
+    <!-- Pause Overlay -->
+    <div
+      v-if="!isPlaying && !isTranscodingLoading && !isBuffering"
+      class="absolute inset-0 flex items-center justify-center z-10 pointer-events-none"
     >
-      <PlayIcon class="w-12 h-12 text-white" />
-    </button>
-  </div>
+      <button
+        type="button"
+        class="bg-black/40 p-4 rounded-full backdrop-blur-sm pointer-events-auto hover:bg-[var(--accent-color)]/80 transition-colors focus:outline-none focus:ring-2 focus:ring-white/50"
+        aria-label="Play video"
+        @click="togglePlay"
+      >
+        <PlayIcon class="w-12 h-12 text-white" />
+      </button>
+    </div>
 
-  <!-- Progress Bar (Controls) -->
-  <div
-    v-if="isControlsVisible"
-    data-testid="video-progress-bar"
-    class="video-progress-bar-container cursor-pointer transition-transform-opacity duration-300 ease-in-out will-change-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500"
-    role="slider"
-    tabindex="0"
-    aria-label="Seek video"
-    aria-valuemin="0"
-    aria-valuemax="100"
-    :aria-valuenow="videoProgress"
-    :aria-valuetext="`${formattedCurrentTime} of ${formattedDuration}`"
-    @click="handleProgressBarClick"
-    @keydown="handleProgressBarKeydown"
-  >
-    <!-- Buffered Ranges -->
+    <!-- Progress Bar (Controls) -->
     <div
-      v-for="(range, index) in bufferedRanges"
-      :key="index"
-      class="absolute h-full bg-white/30 rounded-full pointer-events-none transition-all duration-300"
-      :style="{
-        left: `${range.start}%`,
-        width: `${range.end - range.start}%`,
-      }"
-    ></div>
-    <div
-      class="video-progress-bar"
-      :style="{ width: `${videoProgress}%` }"
-    ></div>
-  </div>
+      v-if="isControlsVisible"
+      data-testid="video-progress-bar"
+      class="video-progress-bar-container cursor-pointer transition-transform-opacity duration-300 ease-in-out will-change-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500"
+      role="slider"
+      tabindex="0"
+      aria-label="Seek video"
+      aria-valuemin="0"
+      aria-valuemax="100"
+      :aria-valuenow="videoProgress"
+      :aria-valuetext="`${formattedCurrentTime} of ${formattedDuration}`"
+      @click="handleProgressBarClick"
+      @keydown="handleProgressBarKeydown"
+    >
+      <!-- Buffered Ranges -->
+      <div
+        v-for="(range, index) in bufferedRanges"
+        :key="index"
+        class="absolute h-full bg-white/30 rounded-full pointer-events-none transition-all duration-300"
+        :style="{
+          left: `${range.start}%`,
+          width: `${range.end - range.start}%`,
+        }"
+      ></div>
+      <div
+        class="video-progress-bar"
+        :style="{ width: `${videoProgress}%` }"
+      ></div>
+    </div>
 
-  <!-- Time Display -->
-  <div
-    v-if="isControlsVisible"
-    class="absolute right-2 bottom-3 text-xs text-white font-mono bg-black/60 px-2 py-1 rounded pointer-events-none z-20 transition-transform-opacity duration-500 ease-in-out will-change-transform"
-  >
-    {{ formattedCurrentTime }} / {{ formattedDuration }}
+    <!-- Time Display -->
+    <div
+      v-if="isControlsVisible"
+      class="absolute right-2 bottom-3 text-xs text-white font-mono bg-black/60 px-2 py-1 rounded pointer-events-none z-20 transition-transform-opacity duration-500 ease-in-out will-change-transform"
+    >
+      {{ formattedCurrentTime }} / {{ formattedDuration }}
+    </div>
   </div>
 </template>
 
