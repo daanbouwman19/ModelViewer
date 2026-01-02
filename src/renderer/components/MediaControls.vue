@@ -87,6 +87,22 @@
 
     <button
       v-if="!isImage && currentMediaItem"
+      class="p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white transition-all duration-200 hover:bg-[var(--accent-color)]"
+      :class="{ 'bg-[var(--accent-color)]': isVrMode }"
+      title="Toggle VR Mode (180°)"
+      aria-label="Toggle VR Mode"
+      @click="$emit('toggle-vr')"
+    >
+      <VRIcon class="w-6 h-6" />
+    </button>
+
+    <div
+      v-if="!isImage && currentMediaItem"
+      class="w-px h-8 bg-white/10 mx-2"
+    ></div>
+
+    <button
+      v-if="!isImage && currentMediaItem"
       class="vlc-button p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white transition-all duration-200 hover:bg-[var(--accent-color)]"
       title="Open in VLC"
       aria-label="Open in VLC"
@@ -99,6 +115,7 @@
 
 <script setup lang="ts">
 import VlcIcon from './icons/VlcIcon.vue';
+import VRIcon from './icons/VRIcon.vue';
 import StarIcon from './icons/StarIcon.vue';
 import ChevronLeftIcon from './icons/ChevronLeftIcon.vue';
 import ChevronRightIcon from './icons/ChevronRightIcon.vue';
@@ -113,6 +130,7 @@ defineProps<{
   isControlsVisible: boolean;
   isImage: boolean;
   countInfo: string;
+  isVrMode?: boolean;
 }>();
 
 defineEmits<{
@@ -121,5 +139,6 @@ defineEmits<{
   (e: 'toggle-play'): void;
   (e: 'open-in-vlc'): void;
   (e: 'set-rating', star: number): void;
+  (e: 'toggle-vr'): void;
 }>();
 </script>

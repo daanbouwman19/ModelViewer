@@ -21,7 +21,7 @@ const state = reactive<PlayerState>({
   timerDuration: 5,
   isTimerRunning: false,
   timerProgress: 0,
-  playFullVideo: false,
+  playFullVideo: true,
   pauseTimerOnPlay: false,
   displayedMediaFiles: [],
   currentMediaItem: null,

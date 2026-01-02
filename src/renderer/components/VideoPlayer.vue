@@ -85,6 +85,7 @@ const props = defineProps<{
   currentTranscodeStartTime: number;
   isTranscodingLoading: boolean;
   isBuffering: boolean;
+  initialTime?: number;
 }>();
 
 const emit = defineEmits<{
@@ -96,6 +97,7 @@ const emit = defineEmits<{
   (e: 'buffering', isBuffering: boolean): void;
   (e: 'playing'): void;
   (e: 'update:video-element', el: HTMLVideoElement | null): void;
+  (e: 'timeupdate', time: number): void;
 }>();
 
 const videoElement = ref<HTMLVideoElement | null>(null);
@@ -107,6 +109,9 @@ const bufferedRanges = ref<{ start: number; end: number }[]>([]);
 
 watch(videoElement, (el) => {
   emit('update:video-element', el);
+  if (el && props.initialTime && props.initialTime > 0) {
+    el.currentTime = props.initialTime;
+  }
 });
 
 // Watch src to reset state if needed
@@ -190,14 +195,17 @@ const handleTimeUpdate = (event: Event) => {
     videoProgress.value = (realCurrentTime / props.transcodedDuration) * 100;
     currentVideoTime.value = realCurrentTime;
     currentVideoDuration.value = props.transcodedDuration;
+    emit('timeupdate', realCurrentTime);
   } else if (duration > 0 && duration !== Infinity) {
     videoProgress.value = (currentTime / duration) * 100;
     currentVideoTime.value = currentTime;
     currentVideoDuration.value = duration;
+    emit('timeupdate', currentTime);
   } else {
     videoProgress.value = 0;
     currentVideoTime.value = 0;
     currentVideoDuration.value = 0;
+    emit('timeupdate', 0);
   }
 };
 
