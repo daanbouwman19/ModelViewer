@@ -44,3 +44,8 @@
 
 **Learning:** Using HTML entities like `&times;` for icons leads to inconsistency in sizing and styling compared to SVG components. It also risks screen readers announcing "times" or "multiplication sign".
 **Action:** Use dedicated SVG icon components (e.g., `<CloseIcon />`) instead of text characters for UI controls to ensure consistent visual language and better accessibility control.
+
+## 2025-10-31 - [Rich ARIA Labels for Media Items]
+
+**Learning:** Simple "View [Name]" labels for media grid items miss critical context like file type (Video/Image) and rating, forcing screen reader users to guess or open the item to find out.
+**Action:** Construct rich computed `aria-label` strings that include the action ("View"), the item name, and key metadata (Type, Rating) to provide a complete summary (e.g., "View sunset.jpg, Image, Rated 5 stars").
