@@ -155,7 +155,7 @@ describe('Server Coverage', () => {
       expect(res.status).toBe(400);
     });
 
-    it('GET /api/stream handles access denied from source creation', async () => {
+    it('GET /api/stream handles access denied from validation pre-check', async () => {
       // If validateFileAccess returns false (denied), request stops with 403.
       // We must mock the response sending too, or the request hangs.
       mocks.mockValidateFileAccess.mockImplementation(async (res: any) => {
