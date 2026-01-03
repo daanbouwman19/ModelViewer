@@ -67,6 +67,23 @@ async function validateFileAccess(
 }
 
 /**
+ * Helper: Attempts to serve a local file directly using Express's sendFile.
+ * Returns true if the file was sent (or at least attempted without immediate error),
+ * false if we should fall back to manual streaming.
+ */
+function tryServeDirectFile(res: Response, filePath: string): boolean {
+  if (filePath.startsWith('gdrive://')) return false;
+
+  try {
+    res.sendFile(filePath);
+    return true;
+  } catch (e) {
+    console.error('[Handler] SendFile check failed:', e);
+    return false;
+  }
+}
+
+/**
  * Handles video stream requests (raw or transcoded).
  */
 export async function handleStreamRequest(
@@ -83,26 +100,22 @@ export async function handleStreamRequest(
   }
 
   try {
-    const source = createMediaSource(filePath);
+    // 1. Authorization Check (Unified)
+    // Always validate access first, regardless of transcode or direct play
+    if (!(await validateFileAccess(res, filePath))) return;
 
-    // Optimization: If local file and no transcode, use res.sendFile for better range support
+    // 2. Direct File Optimization
+    // If not transcoding and it's a local file, try sendFile for better performance/range support
     if (!isTranscodeForced) {
-      // Check if allowed
-      if (await validateFileAccess(res, filePath)) {
-        // If it is a local file, we can use the optimization
-        if (!filePath.startsWith('gdrive://')) {
-          try {
-            return res.sendFile(filePath);
-          } catch (e) {
-            console.error('[Handler] SendFile check failed:', e);
-            // Fallback to manual source handling if sendFile fails
-          }
-        }
-      } else {
-        // Validation failed and response sent
-        return;
-      }
+      if (tryServeDirectFile(res, filePath)) return;
     }
+
+    // 3. Fallback / Transcoding Logic
+    // If we are here, either:
+    // a) Transcoding is forced
+    // b) It is a GDrive file
+    // c) Local sendFile failed (fallback to manual stream)
+    const source = createMediaSource(filePath);
 
     if (isTranscodeForced) {
       if (!ffmpegPath) {

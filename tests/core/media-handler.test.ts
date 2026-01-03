@@ -904,6 +904,8 @@ describe('media-handler unit tests', () => {
 
     it('handles initialization errors', async () => {
       req.query = { file: '/bad' };
+      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+
       // To force error in top level, we can fail createMediaSource
       vi.mocked(createMediaSource).mockImplementation(() => {
         throw new Error('Init fail');
