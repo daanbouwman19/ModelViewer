@@ -82,25 +82,24 @@ export async function handleStreamRequest(
     return res.status(400).send('Missing file parameter');
   }
 
+  // [SECURITY] Ensure access is validated for all requests (transcoded or raw)
+  if (!(await validateFileAccess(res, filePath))) {
+    return;
+  }
+
   try {
     const source = createMediaSource(filePath);
 
     // Optimization: If local file and no transcode, use res.sendFile for better range support
     if (!isTranscodeForced) {
-      // Check if allowed
-      if (await validateFileAccess(res, filePath)) {
-        // If it is a local file, we can use the optimization
-        if (!filePath.startsWith('gdrive://')) {
-          try {
-            return res.sendFile(filePath);
-          } catch (e) {
-            console.error('[Handler] SendFile check failed:', e);
-            // Fallback to manual source handling if sendFile fails
-          }
+      // If it is a local file, we can use the optimization
+      if (!filePath.startsWith('gdrive://')) {
+        try {
+          return res.sendFile(filePath);
+        } catch (e) {
+          console.error('[Handler] SendFile check failed:', e);
+          // Fallback to manual source handling if sendFile fails
         }
-      } else {
-        // Validation failed and response sent
-        return;
       }
     }
 
