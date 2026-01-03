@@ -903,7 +903,11 @@ describe('media-handler unit tests', () => {
     });
 
     it('handles initialization errors', async () => {
-      req.query = { file: '/bad' };
+      // Use transcode=true to bypass the tryServeDirectFile optimization
+      // so we definitely hit createMediaSource
+      req.query = { file: '/bad', transcode: 'true' };
+      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+
       // To force error in top level, we can fail createMediaSource
       vi.mocked(createMediaSource).mockImplementation(() => {
         throw new Error('Init fail');
