@@ -6,6 +6,7 @@ import {
   serveThumbnail,
 } from '../../src/core/media-handler';
 import * as security from '../../src/core/security';
+import { createMediaSource } from '../../src/core/media-source';
 
 // Mock dependencies
 vi.mock('../../src/core/security');
@@ -17,7 +18,15 @@ vi.mock('../../src/core/media-source', async () => {
     IMediaSource: class {},
   };
 });
-import { createMediaSource } from '../../src/core/media-source';
+
+vi.mock('../../src/core/media-utils', async () => {
+  const actual = await vi.importActual('../../src/core/media-utils');
+  return {
+    ...actual,
+    getTranscodeArgs: vi.fn().mockReturnValue(['-i', 'input', 'output']),
+    getQueryParam: (query, key) => query[key],
+  };
+});
 
 vi.mock('fs', () => {
   return {
@@ -40,13 +49,28 @@ vi.mock('fs', () => {
   };
 });
 
+// Mock child_process to avoid actual FFmpeg spawning
+vi.mock('child_process', () => {
+  const spawn = vi.fn().mockReturnValue({
+    stdout: { pipe: vi.fn() },
+    stderr: { pipe: vi.fn(), on: vi.fn() },
+    on: vi.fn(),
+    kill: vi.fn(),
+    unref: vi.fn(),
+  });
+  return {
+    spawn,
+    default: { spawn }, // Required for default import compatibility
+  };
+});
+
 describe('media-handler security', () => {
   let req: any;
   let res: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    req = { headers: {}, url: '', query: {}, method: 'GET' };
+    req = { headers: {}, url: '', query: {}, method: 'GET', on: vi.fn() };
     res = {
       writeHead: vi.fn(),
       end: vi.fn(),
@@ -127,5 +151,44 @@ describe('media-handler security', () => {
 
     expect(res.status).toHaveBeenCalledWith(403);
     expect(res.send).toHaveBeenCalledWith('Access denied.');
+  });
+
+  it('should BLOCK authorization bypass when transcode=true', async () => {
+    // Setup malicious request
+    req.query = {
+      file: '/etc/passwd', // Sensitive file
+      transcode: 'true',
+    };
+
+    // Mock authorizeFilePath to DENY access
+    vi.mocked(security.authorizeFilePath).mockResolvedValue({
+      isAllowed: false,
+      message: 'Access denied',
+    });
+
+    // Mock createMediaSource
+    // Note: It shouldn't even be called if security check works
+    vi.mocked(createMediaSource).mockReturnValue({
+      getFFmpegInput: vi.fn().mockResolvedValue('/etc/passwd'),
+    } as any);
+
+    // Execute handler
+    await handleStreamRequest(req, res, '/usr/bin/ffmpeg');
+
+    // ASSERTIONS
+
+    // 1. Should respond with 403 Forbidden
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.send).toHaveBeenCalledWith('Access denied.');
+
+    // 2. Should NOT attempt to transcode
+    const { spawn } = await import('child_process');
+    expect(spawn).not.toHaveBeenCalled();
+
+    // 3. Should NOT initialize media source (optimization)
+    // Actually, createMediaSource is called AFTER validation now?
+    // Let's check logic: if (!validate) return; try { source = create... }
+    // So createMediaSource should NOT be called.
+    expect(createMediaSource).not.toHaveBeenCalled();
   });
 });
