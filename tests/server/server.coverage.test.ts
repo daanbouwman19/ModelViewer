@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   mockSetDirectoryActiveState: vi.fn(),
   mockListDriveDirectory: vi.fn(),
   mockGetDriveParent: vi.fn(),
+  mockValidateFileAccess: vi.fn(),
 }));
 
 // Mock Dependencies
@@ -69,6 +70,7 @@ vi.mock('../../src/core/media-handler', () => ({
   serveTranscodedStream: mocks.mockServeTranscodedStream,
   serveRawStream: mocks.mockServeRawStream,
   serveStaticFile: vi.fn(),
+  validateFileAccess: mocks.mockValidateFileAccess,
 }));
 
 vi.mock('../../src/main/google-auth', () => ({
@@ -95,6 +97,7 @@ describe('Server Coverage', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     mocks.mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+    mocks.mockValidateFileAccess.mockResolvedValue(true);
     // Reload app to ensure clean state if possible, though server.ts might have global state
     // For integration tests, we just assume createApp returns a fresh express instance.
     const { createApp } = await import('../../src/server/server');
@@ -152,8 +155,13 @@ describe('Server Coverage', () => {
       expect(res.status).toBe(400);
     });
 
-    it('GET /api/stream handles access denied from source creation', async () => {
-      mocks.mockServeRawStream.mockRejectedValue(new Error('Access denied'));
+    it('GET /api/stream handles access denied from validation pre-check', async () => {
+      // If validateFileAccess returns false (denied), request stops with 403.
+      // We must mock the response sending too, or the request hangs.
+      mocks.mockValidateFileAccess.mockImplementation(async (res: any) => {
+        res.status(403).send('Access denied');
+        return false;
+      });
       const res = await request(app)
         .get('/api/stream')
         .query({ file: '/test.mp4' });

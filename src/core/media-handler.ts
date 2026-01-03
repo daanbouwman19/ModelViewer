@@ -45,7 +45,7 @@ export interface MediaHandlerOptions {
  *
  * This encapsulates the logic of checking "gdrive://" bypass vs local file authorization.
  */
-async function validateFileAccess(
+export async function validateFileAccess(
   res: Response,
   filePath: string,
 ): Promise<boolean> {

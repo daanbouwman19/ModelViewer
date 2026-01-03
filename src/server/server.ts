@@ -59,6 +59,7 @@ import {
   serveTranscodedStream,
   serveRawStream,
   serveThumbnail,
+  validateFileAccess,
 } from '../core/media-handler.ts';
 import { createMediaSource } from '../core/media-source.ts';
 import ffmpegStatic from 'ffmpeg-static';
@@ -624,6 +625,10 @@ export async function createApp() {
     if (!filePath) return res.status(400).send('Missing file');
 
     try {
+      // [SECURITY] Explicitly validate access before creating source or streaming.
+      // This prevents unauthorized access even if the source implementation fails to check.
+      if (!(await validateFileAccess(res, filePath))) return;
+
       const source = createMediaSource(filePath);
       if (isTranscode) {
         if (!ffmpegStatic) return res.status(500).send('FFmpeg not found');
