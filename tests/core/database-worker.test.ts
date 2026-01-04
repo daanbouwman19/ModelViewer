@@ -224,6 +224,30 @@ describe('Database Worker', () => {
       expect(statSpy).not.toHaveBeenCalled();
     });
 
+    it('should NOT call fs.stat during recordMediaView if file is already in DB (Optimization)', async () => {
+      const filePath = path.join(tempDir, 'opt-record-test.jpg');
+      fs.writeFileSync(filePath, 'data');
+
+      // First call - should call fs.stat (and insert into DB)
+      const res1 = await sendMessage('recordMediaView', { filePath });
+      expect(res1.success).toBe(true);
+
+      // Verify DB has the record
+      const counts = await sendMessage('getMediaViewCounts', { filePaths: [filePath] });
+      expect((counts.data as any)[filePath]).toBe(1);
+
+      // Remove the file to prove we don't touch it again
+      fs.unlinkSync(filePath);
+
+      // Second call - should SUCCEED using cached ID from DB, avoiding fs.stat (which would fail)
+      const res2 = await sendMessage('recordMediaView', { filePath });
+      expect(res2.success).toBe(true);
+
+      // Verify count incremented
+      const counts2 = await sendMessage('getMediaViewCounts', { filePaths: [filePath] });
+      expect((counts2.data as any)[filePath]).toBe(2);
+    });
+
     it('should update file path in DB when file is renamed and played', async () => {
       const oldPath = path.join(tempDir, 'old.jpg');
       const newPath = path.join(tempDir, 'new.jpg');

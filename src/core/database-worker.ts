@@ -264,6 +264,9 @@ function initDatabase(dbPath: string): WorkerResult {
     statements.getMediaView = db.prepare(
       `SELECT file_path_hash, view_count FROM media_views WHERE file_path_hash = ?`,
     );
+    statements.getFileIdByPath = db.prepare(
+      `SELECT file_path_hash FROM media_views WHERE file_path = ?`,
+    );
     statements.cacheAlbum = db.prepare(
       `INSERT OR REPLACE INTO app_cache (cache_key, cache_value, last_updated) VALUES (?, ?, ?)`,
     );
@@ -626,7 +629,24 @@ async function recordMediaView(filePath: string): Promise<WorkerResult> {
   if (!db) return { success: false, error: 'Database not initialized' };
 
   try {
-    const fileId = await generateFileId(filePath);
+    // Optimization: Try to get existing ID from DB to avoid fs.stat
+    let fileId: string | undefined;
+
+    try {
+      const row = statements.getFileIdByPath.get(filePath) as
+        | { file_path_hash: string }
+        | undefined;
+      if (row) {
+        fileId = row.file_path_hash;
+      }
+    } catch {
+      // Ignore DB read errors, fall back to generation
+    }
+
+    if (!fileId) {
+      fileId = await generateFileId(filePath);
+    }
+
     const now = new Date().toISOString();
 
     const transaction = db.transaction(() => {
