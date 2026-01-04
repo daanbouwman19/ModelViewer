@@ -56,12 +56,9 @@ export const DB_SCHEMA = {
  * Initializes the database schema.
  */
 export function initializeSchema(db: Database.Database): void {
-  db.prepare(DB_SCHEMA.MEDIA_VIEWS).run();
-  db.prepare(DB_SCHEMA.APP_CACHE).run();
-  // media_directories creation is handled with migration logic check
-  db.prepare(DB_SCHEMA.MEDIA_METADATA).run();
-  db.prepare(DB_SCHEMA.SMART_PLAYLISTS).run();
-  db.prepare(DB_SCHEMA.SETTINGS).run();
+  for (const schema of Object.values(DB_SCHEMA)) {
+    db.prepare(schema).run();
+  }
 }
 
 /**
@@ -74,37 +71,39 @@ export function migrateMediaDirectories(db: Database.Database): void {
   const hasId = dirTableInfo.some((col) => col.name === 'id');
   const tableExists = dirTableInfo.length > 0;
 
-  if (!tableExists) {
-    // Create new schema directly (using the constant, but we need to ensure it matches the CREATE IF NOT EXISTS minus the IF NOT EXISTS part if we want to be strict,
-    // but the Schema constant already has IF NOT EXISTS, so running it is safe.)
-    db.prepare(DB_SCHEMA.MEDIA_DIRECTORIES).run();
-  } else if (!hasId) {
-    // Migration needed
+  // If table exists but has no 'id' column, it's the old schema and needs migration.
+  // Note: if table didn't exist, initializeSchema would have created the new one, so hasId would be true.
+  if (tableExists && !hasId) {
     console.log('[worker] Migrating media_directories table...');
-    // 1. Rename old table
-    db.prepare(
-      'ALTER TABLE media_directories RENAME TO media_directories_old',
-    ).run();
 
-    // 2. Create new table
-    db.prepare(DB_SCHEMA.MEDIA_DIRECTORIES).run();
+    const migrate = db.transaction(() => {
+      // 1. Rename old table
+      db.prepare(
+        'ALTER TABLE media_directories RENAME TO media_directories_old',
+      ).run();
 
-    // 3. Migrate data
-    const oldRows = db
-      .prepare('SELECT path, is_active FROM media_directories_old')
-      .all() as { path: string; is_active: number }[];
-    const insertStmt = db.prepare(
-      'INSERT INTO media_directories (id, path, type, name, is_active) VALUES (?, ?, ?, ?, ?)',
-    );
+      // 2. Create new table
+      db.prepare(DB_SCHEMA.MEDIA_DIRECTORIES).run();
 
-    for (const row of oldRows) {
-      const id = crypto.randomUUID();
-      const name = path.basename(row.path) || row.path;
-      insertStmt.run(id, row.path, 'local', name, row.is_active);
-    }
+      // 3. Migrate data
+      const oldRows = db
+        .prepare('SELECT path, is_active FROM media_directories_old')
+        .all() as { path: string; is_active: number }[];
+      const insertStmt = db.prepare(
+        'INSERT INTO media_directories (id, path, type, name, is_active) VALUES (?, ?, ?, ?, ?)',
+      );
 
-    // 4. Drop old table
-    db.prepare('DROP TABLE media_directories_old').run();
+      for (const row of oldRows) {
+        const id = crypto.randomUUID();
+        const name = path.basename(row.path) || row.path;
+        insertStmt.run(id, row.path, 'local', name, row.is_active);
+      }
+
+      // 4. Drop old table
+      db.prepare('DROP TABLE media_directories_old').run();
+    });
+
+    migrate();
     console.log('[worker] Migration complete.');
   }
 }
