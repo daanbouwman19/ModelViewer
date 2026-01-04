@@ -14,7 +14,7 @@ import {
   initializeSchema,
   migrateMediaDirectories,
   migrateMediaMetadata,
-} from './database-schema';
+} from './database-schema.ts';
 
 /**
  * The database instance for this worker thread.
