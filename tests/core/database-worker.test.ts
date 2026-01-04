@@ -233,7 +233,9 @@ describe('Database Worker', () => {
       expect(res1.success).toBe(true);
 
       // Verify DB has the record
-      const counts = await sendMessage('getMediaViewCounts', { filePaths: [filePath] });
+      const counts = await sendMessage('getMediaViewCounts', {
+        filePaths: [filePath],
+      });
       expect((counts.data as any)[filePath]).toBe(1);
 
       // Remove the file to prove we don't touch it again
@@ -244,7 +246,9 @@ describe('Database Worker', () => {
       expect(res2.success).toBe(true);
 
       // Verify count incremented
-      const counts2 = await sendMessage('getMediaViewCounts', { filePaths: [filePath] });
+      const counts2 = await sendMessage('getMediaViewCounts', {
+        filePaths: [filePath],
+      });
       expect((counts2.data as any)[filePath]).toBe(2);
     });
 
