@@ -5,7 +5,7 @@
   >
     <button
       :disabled="!canNavigate"
-      class="nav-button p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white transition-all duration-200 hover:bg-[var(--accent-color)]"
+      class="nav-button p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white transition-all duration-200 hover:bg-[var(--accent-color)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-black/40 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
       aria-label="Previous media"
       @click="$emit('previous')"
     >
@@ -25,7 +25,7 @@
         <button
           v-for="star in 5"
           :key="star"
-          class="focus:outline-none transition-transform hover:scale-110"
+          class="transition-transform hover:scale-110 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/50"
           :aria-label="'Rate ' + star + ' star' + (star > 1 ? 's' : '')"
           @click="$emit('set-rating', star)"
         >
@@ -58,7 +58,7 @@
 
     <button
       :disabled="!canNavigate"
-      class="nav-button p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white transition-all duration-200 hover:bg-[var(--accent-color)]"
+      class="nav-button p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white transition-all duration-200 hover:bg-[var(--accent-color)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-black/40 focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
       aria-label="Next media"
       @click="$emit('next')"
     >
@@ -72,7 +72,7 @@
 
     <button
       v-if="!isImage && currentMediaItem"
-      class="play-pause-button p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white transition-all duration-200 hover:bg-[var(--accent-color)]"
+      class="play-pause-button p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white transition-all duration-200 hover:bg-[var(--accent-color)] focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
       :aria-label="isPlaying ? 'Pause video' : 'Play video'"
       @click="$emit('toggle-play')"
     >
@@ -87,7 +87,7 @@
 
     <button
       v-if="!isImage && currentMediaItem"
-      class="p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white transition-all duration-200 hover:bg-[var(--accent-color)]"
+      class="p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white transition-all duration-200 hover:bg-[var(--accent-color)] focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
       :class="{ 'bg-[var(--accent-color)]': isVrMode }"
       title="Toggle VR Mode (180°)"
       aria-label="Toggle VR Mode"
@@ -103,7 +103,7 @@
 
     <button
       v-if="!isImage && currentMediaItem"
-      class="vlc-button p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white transition-all duration-200 hover:bg-[var(--accent-color)]"
+      class="vlc-button p-2 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white transition-all duration-200 hover:bg-[var(--accent-color)] focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none"
       title="Open in VLC"
       aria-label="Open in VLC"
       @click="$emit('open-in-vlc')"
