@@ -574,5 +574,27 @@ describe('MediaDisplay.vue', () => {
       await inputs[1].setValue(true);
       expect(mockPlayerState.pauseTimerOnPlay).toBe(true);
     });
+
+    it('does NOT resume timer when video is paused due to navigation (loading)', async () => {
+      mockPlayerState.currentMediaItem = { name: 't.mp4', path: '/t.mp4' };
+      mockPlayerState.isTimerRunning = false;
+      mockPlayerState.pauseTimerOnPlay = true;
+      mockPlayerState.playFullVideo = false;
+
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      const videoPlayer = wrapper.findComponent(VideoPlayer);
+      expect(videoPlayer.exists()).toBe(true);
+
+      // Simulate loading state (navigation start)
+      (wrapper.vm as any).isLoading = true;
+
+      // Simulate pause event from VideoPlayer
+      await videoPlayer.vm.$emit('pause');
+
+      // Should NOT have resumed
+      expect(slideshowMock.resumeSlideshowTimer).not.toHaveBeenCalled();
+    });
   });
 });

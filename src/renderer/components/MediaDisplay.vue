@@ -552,16 +552,29 @@ const handleGlobalKeydown = (event: KeyboardEvent) => {
       togglePlay();
     }
   } else if (event.code === 'ArrowRight') {
-    if (videoElement.value) {
-      event.preventDefault();
+    event.preventDefault();
+    if (isTranscodingMode.value) {
+      if (transcodedDuration.value > 0) {
+        const newTime = Math.min(
+          transcodedDuration.value,
+          savedCurrentTime.value + 5,
+        );
+        tryTranscoding(newTime);
+      }
+    } else if (videoElement.value) {
       videoElement.value.currentTime = Math.min(
         videoElement.value.duration,
         videoElement.value.currentTime + 5,
       );
     }
   } else if (event.code === 'ArrowLeft') {
-    if (videoElement.value) {
-      event.preventDefault();
+    event.preventDefault();
+    if (isTranscodingMode.value) {
+      if (transcodedDuration.value > 0) {
+        const newTime = Math.max(0, savedCurrentTime.value - 5);
+        tryTranscoding(newTime);
+      }
+    } else if (videoElement.value) {
       videoElement.value.currentTime = Math.max(
         0,
         videoElement.value.currentTime - 5,
@@ -721,7 +734,14 @@ const handleVideoPlay = () => {
  * Handles the video pause event.
  */
 const handleVideoPause = () => {
-  if (!isTimerRunning.value && pauseTimerOnPlay.value && !playFullVideo.value) {
+  // If we are loading (navigating), do NOT resume the timer.
+  // The pause event here is a side-effect of resetting the player.
+  if (
+    !isTimerRunning.value &&
+    pauseTimerOnPlay.value &&
+    !playFullVideo.value &&
+    !isLoading.value
+  ) {
     resumeSlideshowTimer();
   }
   isPlaying.value = false;
