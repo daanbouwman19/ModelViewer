@@ -1,5 +1,5 @@
-## 2025-02-19 - Vue Component Optimization
+## 2026-04-01 - Database Worker I/O Optimization
 
-**Learning:** When rendering large lists (even virtualized ones), minimize the work done in child components' `computed` properties. Moving repetitive logic (like string parsing for file extensions) to a shared utility with a `WeakMap` cache prevents redundant recalculations across thousands of component instances.
+**Learning:** When performing frequent database operations that depend on file system metadata (like generating file IDs from stats), always check the database for existing records first. Using `fs.stat` is expensive and redundant if the record already exists.
 
-**Action:** Identify derived properties that depend only on stable object references (like `MediaFile`). Extract them to a shared utility using `WeakMap` for caching. This turns O(N) rendering work into O(1) lookups.
+**Action:** Before calling `generateFileId` (which calls `fs.stat`), query the database to see if the file path is already indexed. This turns a filesystem call + DB write into a pure DB read for known files, significantly reducing I/O overhead on high-frequency operations like `recordMediaView`.
