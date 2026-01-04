@@ -114,9 +114,9 @@ export function migrateMediaDirectories(db: Database.Database): void {
  */
 export function migrateMediaMetadata(db: Database.Database): void {
   try {
-    const tableInfo = db
-      .prepare('PRAGMA table_info(media_metadata)')
-      .all() as { name: string }[];
+    const tableInfo = db.prepare('PRAGMA table_info(media_metadata)').all() as {
+      name: string;
+    }[];
 
     const columns = new Set(tableInfo.map((col) => col.name));
 
