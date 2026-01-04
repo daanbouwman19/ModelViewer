@@ -663,6 +663,9 @@ export async function createApp() {
     const filePath = req.query.path as string;
     if (!filePath) return res.status(400).send('Missing path');
     try {
+      // [SECURITY] Explicitly validate access before creating source or streaming.
+      if (!(await validateFileAccess(res, filePath))) return;
+
       const source = createMediaSource(filePath);
       await serveRawStream(req, res, source);
     } catch (e: unknown) {
