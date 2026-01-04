@@ -25,7 +25,7 @@
       >
         <!-- Top Bar (Toggle Sidebar & Title) -->
         <div
-          class="flex justify-between items-center mb-4 p-3 shrink-0 transition-all duration-500 ease-in-out z-30"
+          class="flex justify-between items-center mb-4 p-3 shrink-0 transition-all duration-500 ease-in-out z-40"
           :class="[
             viewMode === 'player'
               ? 'absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent'
