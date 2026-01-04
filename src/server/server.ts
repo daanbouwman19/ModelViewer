@@ -11,6 +11,8 @@ import helmet from 'helmet';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
+import https from 'https';
+import selfsigned from 'selfsigned';
 import {
   initDatabase,
   addMediaDirectory,
@@ -82,6 +84,29 @@ const WORKER_PATH = isDev
 
 const CACHE_DIR = path.join(process.cwd(), 'cache', 'thumbnails');
 const DRIVE_CACHE_DIR = path.join(process.cwd(), 'cache', 'drive');
+const CERT_DIR = path.join(process.cwd(), 'certs');
+const KEY_PATH = path.join(CERT_DIR, 'server.key');
+const CERT_PATH = path.join(CERT_DIR, 'server.cert');
+
+async function ensureCertificates() {
+  try {
+    await fs.access(KEY_PATH);
+    await fs.access(CERT_PATH);
+    console.log('SSL Certificates found.');
+  } catch {
+    console.log('Generating SSL Certificates...');
+    await fs.mkdir(CERT_DIR, { recursive: true });
+
+    const attrs = [{ name: 'commonName', value: 'localhost' }];
+    // @ts-expect-error - The types might be slightly off or options vary by version, but days is standard.
+    const pems = await selfsigned.generate(attrs, { days: 365 });
+
+    await fs.writeFile(CERT_PATH, pems.cert);
+    await fs.writeFile(KEY_PATH, pems.private);
+
+    console.log('SSL Certificates generated successfully.');
+  }
+}
 
 export async function createApp() {
   const app = express();
@@ -692,12 +717,20 @@ export async function createApp() {
 }
 
 export async function bootstrap() {
+  await ensureCertificates();
+
   const app = await createApp();
   // [SECURITY] Default to localhost to prevent exposing unauthenticated endpoints
   // (like /api/fs/ls) to the local network. Use HOST=0.0.0.0 if network access is required.
   const host = process.env.HOST || DEFAULT_SERVER_HOST;
-  app.listen(DEFAULT_SERVER_PORT, host, () => {
-    console.log(`Server running at http://${host}:${DEFAULT_SERVER_PORT}`);
+
+  const credentials = {
+    key: await fs.readFile(KEY_PATH),
+    cert: await fs.readFile(CERT_PATH),
+  };
+
+  https.createServer(credentials, app).listen(DEFAULT_SERVER_PORT, host, () => {
+    console.log(`Server running at https://${host}:${DEFAULT_SERVER_PORT}`);
     console.log(`Environment: ${isDev ? 'Development' : 'Production'}`);
   });
 }
