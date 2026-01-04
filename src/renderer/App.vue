@@ -10,9 +10,9 @@
       <!-- Mobile: Fixed Overlay, Desktop: Static Sidebar with Width Transition -->
       <transition name="slide-fade">
         <AlbumsList
-          v-if="showSidebar"
+          v-if="isSidebarVisible"
           class="fixed inset-0 z-50 md:static md:shrink-0 w-full md:w-80 h-full bg-transparent p-0"
-          @close="showSidebar = false"
+          @close="isSidebarVisible = false"
         />
       </transition>
 
@@ -38,8 +38,8 @@
         >
           <button
             class="icon-button p-2 rounded-full hover:bg-white/10 transition-colors"
-            :aria-label="showSidebar ? 'Hide Albums' : 'Show Albums'"
-            @click="showSidebar = !showSidebar"
+            :aria-label="isSidebarVisible ? 'Hide Albums' : 'Show Albums'"
+            @click="isSidebarVisible = !isSidebarVisible"
           >
             <MenuIcon class="w-6 h-6 text-white" />
           </button>
@@ -83,7 +83,7 @@
  * It sets up the overall layout, initializes the application state,
  * and handles global keyboard shortcuts for media navigation.
  */
-import { onMounted, onBeforeUnmount, ref, watch } from 'vue';
+import { onMounted, onBeforeUnmount, watch } from 'vue';
 import AmbientBackground from './components/AmbientBackground.vue';
 import AlbumsList from './components/AlbumsList.vue';
 import MediaDisplay from './components/MediaDisplay.vue';
@@ -102,12 +102,12 @@ const libraryStore = useLibraryStore();
 const uiStore = useUIStore();
 const playerStore = usePlayerStore(); // Call the store to get the instance
 const { isScanning } = libraryStore;
-const { viewMode, playlistToEdit, isControlsVisible } = uiStore;
+const { viewMode, playlistToEdit, isControlsVisible, isSidebarVisible } =
+  uiStore;
 const { currentMediaItem, isSlideshowActive, mainVideoElement } = playerStore; // Destructure from the instance
 const initializeApp = libraryStore.loadInitialData;
 const { navigateMedia, toggleSlideshowTimer } = useSlideshow();
 
-const showSidebar = ref(true);
 let controlsTimeout: NodeJS.Timeout | null = null;
 
 const handleMouseMove = () => {
@@ -188,7 +188,7 @@ watch(
   isSlideshowActive, // Watch the ref directly
   (isActive) => {
     if (isActive) {
-      showSidebar.value = false;
+      isSidebarVisible.value = false;
     }
   },
 );

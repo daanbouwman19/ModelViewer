@@ -71,6 +71,7 @@ describe('Palette Accessibility Improvements', () => {
       mediaFilter: 'All',
       isSourcesModalVisible: true,
       isControlsVisible: true,
+      isSidebarVisible: false,
     });
 
     (useLibraryStore as Mock).mockReturnValue({

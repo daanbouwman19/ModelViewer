@@ -69,6 +69,7 @@ describe('MediaDisplay Race Condition', () => {
 
     mockUIState = reactive({
       mediaFilter: 'All',
+      isSidebarVisible: true,
     });
 
     (useLibraryStore as Mock).mockReturnValue({

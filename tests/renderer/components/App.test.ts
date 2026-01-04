@@ -82,6 +82,7 @@ describe('App.vue', () => {
       isSmartPlaylistModalVisible: false,
       mediaFilter: 'All',
       isControlsVisible: true,
+      isSidebarVisible: true,
     });
 
     (useLibraryStore as Mock).mockReturnValue({
@@ -238,15 +239,15 @@ describe('App.vue', () => {
   });
 
   it('should auto-close sidebar when slideshow becomes active', async () => {
-    const wrapper = mount(App);
+    mount(App);
     // Initially sidebar is open
-    expect((wrapper.vm as any).showSidebar).toBe(true);
+    expect(mockUIState.isSidebarVisible).toBe(true);
 
     // Simulate slideshow starting
     mockPlayerState.isSlideshowActive = true;
     await nextTick();
 
-    expect((wrapper.vm as any).showSidebar).toBe(false);
+    expect(mockUIState.isSidebarVisible).toBe(false);
   });
 
   describe('Controls Visibility interactions', () => {

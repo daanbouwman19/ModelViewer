@@ -70,6 +70,7 @@ describe('Progress Bars', () => {
       viewMode: 'player',
       mediaFilter: 'All',
       isControlsVisible: true,
+      isSidebarVisible: true,
     });
 
     (useLibraryStore as Mock).mockReturnValue({

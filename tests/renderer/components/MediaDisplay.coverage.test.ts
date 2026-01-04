@@ -35,8 +35,9 @@ vi.mock('@/composables/usePlayerStore', () => ({
 
 vi.mock('@/composables/useUIStore', () => ({
   useUIStore: vi.fn(() => ({
-    state: { mediaFilter: 'All' },
+    state: { mediaFilter: 'All', isSidebarVisible: true },
     mediaFilter: { value: 'All' },
+    isSidebarVisible: { value: true },
   })),
 }));
 
@@ -127,6 +128,7 @@ describe('MediaDisplay.vue Additional Coverage', () => {
 
     mockUIState = reactive({
       mediaFilter: 'All',
+      isSidebarVisible: true,
     });
 
     (useLibraryStore as Mock).mockReturnValue({
