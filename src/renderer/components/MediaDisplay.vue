@@ -113,7 +113,6 @@
       :can-navigate="canNavigate"
       :is-controls-visible="isControlsVisible"
       :is-image="isImage"
-      :count-info="countInfo"
       :is-vr-mode="isVrMode"
       :current-time="currentVideoTime"
       :duration="transcodedDuration || videoElement?.duration || 0"
@@ -152,13 +151,12 @@ const libraryStore = useLibraryStore();
 const playerStore = usePlayerStore();
 const uiStore = useUIStore();
 
-const { totalMediaInPool, imageExtensionsSet } = libraryStore;
+const { imageExtensionsSet } = libraryStore;
 
 const {
   currentMediaItem,
   displayedMediaFiles,
   currentMediaIndex,
-  isSlideshowActive,
   playFullVideo,
   pauseTimerOnPlay,
   isTimerRunning,
@@ -293,19 +291,6 @@ const isImage = computed(() => {
   return currentMediaItem.value
     ? isMediaItemImage(currentMediaItem.value)
     : false;
-});
-
-/**
- * A computed property that provides information about the current position in the slideshow.
- */
-const countInfo = computed(() => {
-  if (!isSlideshowActive.value || displayedMediaFiles.value.length === 0) {
-    return '\u00A0'; // Non-breaking space
-  }
-  const currentInHistory = currentMediaIndex.value + 1;
-  const historyLength = displayedMediaFiles.value.length;
-  const total = totalMediaInPool.value || historyLength;
-  return `${currentInHistory} / ${total}`;
 });
 
 /**

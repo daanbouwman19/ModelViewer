@@ -460,11 +460,6 @@ describe('VRVideoPlayer.vue', () => {
 
   it('handles recenterVR with permission denied', async () => {
     const wrapper = mount(VRVideoPlayer, { props: defaultProps });
-    // Ensure alert exists
-    if (typeof window.alert === 'undefined') {
-      (window as any).alert = () => {};
-    }
-    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
 
     const requestPermission = vi.fn().mockResolvedValue('denied');
     const originalDOE = (window as any).DeviceOrientationEvent;
@@ -475,10 +470,9 @@ describe('VRVideoPlayer.vue', () => {
     await flushPromises();
 
     expect(requestPermission).toHaveBeenCalled();
-    expect(alertSpy).toHaveBeenCalledWith('Permission denied');
+    expect((wrapper.vm as any).showPermissionDeniedToast).toBe(true);
     expect((wrapper.vm as any).isMotionControlActive).toBe(false);
 
-    alertSpy.mockRestore();
     (window as any).DeviceOrientationEvent = originalDOE;
   });
 

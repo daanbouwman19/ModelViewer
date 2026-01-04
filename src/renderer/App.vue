@@ -96,6 +96,7 @@ import { useLibraryStore } from './composables/useLibraryStore';
 import { usePlayerStore } from './composables/usePlayerStore';
 import { useUIStore } from './composables/useUIStore';
 import { useSlideshow } from './composables/useSlideshow';
+import { CONTROLS_HIDE_TIMEOUT_MS } from '../core/constants';
 
 const libraryStore = useLibraryStore();
 const uiStore = useUIStore();
@@ -128,7 +129,7 @@ const handleMouseMove = () => {
       if (!isVideoPaused) {
         isControlsVisible.value = false;
       }
-    }, 3000);
+    }, CONTROLS_HIDE_TIMEOUT_MS);
   }
 };
 

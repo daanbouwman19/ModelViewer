@@ -1,8 +1,6 @@
 import { test, expect } from '@playwright/test';
 
 test('verify media grid virtual scrolling', async ({ page, isMobile }) => {
-  test.skip(isMobile, 'Grid button is hover-only, inaccessible on mobile');
-
   // Mock necessary endpoints
   await page.route('**/api/albums', async (route) => {
     const items = [

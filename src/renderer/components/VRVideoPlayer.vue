@@ -69,6 +69,16 @@
         </button>
       </div>
     </div>
+
+    <!-- Permission Denied Toast -->
+    <transition name="fade">
+      <div
+        v-if="showPermissionDeniedToast"
+        class="absolute bottom-24 left-1/2 transform -translate-x-1/2 z-50 bg-red-500/90 text-white px-6 py-3 rounded-full text-sm font-bold shadow-lg backdrop-blur-md transition-all duration-300"
+      >
+        Motion control permission denied
+      </div>
+    </transition>
   </div>
 </template>
 
@@ -103,6 +113,7 @@ const container = ref<HTMLElement | null>(null);
 const isStereo = ref(false);
 const isFullscreen = ref(false);
 const isMotionControlActive = ref(false);
+const showPermissionDeniedToast = ref(false);
 
 // Three.js instances
 let scene: THREE.Scene | null = null;
@@ -140,7 +151,7 @@ const recenterVR = () => {
           if (response === 'granted') {
             activateMotion();
           } else {
-            alert('Permission denied');
+            showPermissionDenied();
           }
         })
         .catch(console.error);
@@ -153,6 +164,13 @@ const recenterVR = () => {
       initialOffsetAlpha = deviceOrientation.alpha;
     }
   }
+};
+
+const showPermissionDenied = () => {
+  showPermissionDeniedToast.value = true;
+  setTimeout(() => {
+    showPermissionDeniedToast.value = false;
+  }, 3000);
 };
 
 const activateMotion = () => {
@@ -453,5 +471,15 @@ defineExpose({
 }
 .vr-container:active {
   cursor: grabbing;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

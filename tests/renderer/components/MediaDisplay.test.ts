@@ -368,22 +368,6 @@ describe('MediaDisplay.vue', () => {
       expect((wrapper.vm as any).error).toBe('Failed to display media file.');
     });
 
-    it('covers countInfo branches', async () => {
-      mockPlayerState.isSlideshowActive = false;
-      const wrapper = mount(MediaDisplay);
-      expect((wrapper.vm as any).countInfo).toBe('\u00A0');
-
-      mockPlayerState.isSlideshowActive = true;
-      mockPlayerState.displayedMediaFiles = [
-        { name: '1.jpg', path: '1.jpg' },
-        { name: '2.jpg', path: '2.jpg' },
-      ];
-      mockPlayerState.currentMediaIndex = 0;
-      mockLibraryState.totalMediaInPool = 10;
-      await wrapper.vm.$nextTick();
-      expect((wrapper.vm as any).countInfo).toBe('1 / 10');
-    });
-
     it('covers tryTranscoding requestId mismatch', async () => {
       mockPlayerState.currentMediaItem = { name: 't.mp4', path: '/t.mp4' };
       const wrapper = mount(MediaDisplay);

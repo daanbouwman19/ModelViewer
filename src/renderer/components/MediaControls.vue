@@ -150,7 +150,6 @@ const props = defineProps<{
   canNavigate: boolean;
   isControlsVisible: boolean;
   isImage: boolean;
-  countInfo: string;
   isVrMode?: boolean;
   currentTime?: number;
   duration?: number;
@@ -167,7 +166,8 @@ defineEmits<{
 }>();
 
 const formatTime = (seconds: number) => {
-  if (!seconds || isNaN(seconds)) return '00:00';
+  if (typeof seconds !== 'number' || !isFinite(seconds) || seconds <= 0)
+    return '00:00';
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = Math.floor(seconds % 60);
@@ -185,11 +185,4 @@ const formattedTime = computed(() => {
 });
 </script>
 
-<style scoped>
-/* Hide Media Info on small landscape screens to prevent clutter/overflow */
-@media (max-height: 500px) and (orientation: landscape) {
-  .landscape-mobile-hidden {
-    display: none !important;
-  }
-}
-</style>
+<style scoped></style>
