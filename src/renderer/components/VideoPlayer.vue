@@ -26,7 +26,7 @@
     >
       <button
         type="button"
-        class="bg-black/40 p-4 rounded-full backdrop-blur-sm pointer-events-auto hover:bg-[var(--accent-color)]/80 transition-colors focus:outline-none focus:ring-2 focus:ring-white/50"
+        class="bg-black/40 p-4 rounded-full backdrop-blur-sm pointer-events-auto hover:bg-(--accent-color)/80 transition-colors focus:outline-none focus:ring-2 focus:ring-white/50"
         aria-label="Play video"
         @click="togglePlay"
       >

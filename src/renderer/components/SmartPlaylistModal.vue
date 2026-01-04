@@ -19,7 +19,7 @@
       >
         <!-- Decorative top gradient (Indigo/Violet) -->
         <div
-          class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500"
+          class="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-indigo-500 via-purple-500 to-indigo-500"
         ></div>
 
         <div class="p-8">

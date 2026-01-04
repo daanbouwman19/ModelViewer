@@ -69,6 +69,7 @@ describe('MediaDisplay.vue', () => {
 
     mockUIState = reactive({
       mediaFilter: 'All',
+      isSidebarVisible: true,
     });
 
     (useLibraryStore as Mock).mockReturnValue({

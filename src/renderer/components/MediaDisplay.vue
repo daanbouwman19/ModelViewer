@@ -107,7 +107,7 @@
 
     <!-- Media Controls -->
     <MediaControls
-      class="floating-controls md:w-[600px]"
+      class="floating-controls"
       :current-media-item="currentMediaItem"
       :is-playing="isPlaying"
       :can-navigate="canNavigate"

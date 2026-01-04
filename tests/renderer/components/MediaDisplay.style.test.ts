@@ -59,6 +59,7 @@ describe('MediaDisplay.vue Layout', () => {
 
     mockUIState = reactive({
       mediaFilter: 'All',
+      isSidebarVisible: true,
     });
 
     (useLibraryStore as Mock).mockReturnValue({
@@ -93,15 +94,15 @@ describe('MediaDisplay.vue Layout', () => {
     });
   });
 
-  it('should have consistent width class on desktop', () => {
+  it('should have correct layout classes on desktop', () => {
     const wrapper = mount(MediaDisplay);
 
-    const controls = wrapper.find('.floating-controls');
+    const controls = wrapper.find('.controls-pill');
     const classes = controls.classes();
 
-    // Check for the new width class
-    expect(classes).toContain('md:w-[600px]');
-    // Should NOT contain the old auto class
-    expect(classes).not.toContain('md:w-auto');
+    // The fixed md:w-[600px] was removed for better responsiveness
+    expect(classes).toContain('w-auto');
+    expect(classes).toContain('max-w-[98%]');
+    expect(classes).toContain('bg-black/40');
   });
 });

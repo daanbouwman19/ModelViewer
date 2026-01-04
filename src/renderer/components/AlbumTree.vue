@@ -95,7 +95,7 @@
 
       <!-- Hover Controls -->
       <div
-        class="album-controls flex items-center gap-1 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity"
+        class="album-controls flex items-center gap-1 opacity-100 md:opacity-40 group-hover:opacity-100 transition-opacity"
         @click.stop
       >
         <!-- Play Button for Folder/Album -->

@@ -10,6 +10,7 @@ interface UIState {
   isSmartPlaylistModalVisible: boolean;
   playlistToEdit: SmartPlaylist | null;
   isControlsVisible: boolean;
+  isSidebarVisible: boolean;
 }
 
 const state = reactive<UIState>({
@@ -20,6 +21,7 @@ const state = reactive<UIState>({
   isSmartPlaylistModalVisible: false,
   playlistToEdit: null,
   isControlsVisible: true,
+  isSidebarVisible: true,
 });
 
 export function useUIStore() {

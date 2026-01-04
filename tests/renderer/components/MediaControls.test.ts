@@ -25,6 +25,12 @@ vi.mock('@/components/icons/ExpandIcon.vue', () => ({
   default: { template: '<svg class="expand-icon-mock"></svg>' },
 }));
 
+vi.mock('@/composables/useUIStore', () => ({
+  useUIStore: () => ({
+    isSidebarVisible: { value: false },
+  }),
+}));
+
 describe('MediaControls.vue', () => {
   const defaultProps = {
     currentMediaItem: { name: 'test.jpg', path: '/test.jpg', rating: 3 },

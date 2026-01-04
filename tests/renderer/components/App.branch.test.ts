@@ -70,6 +70,7 @@ describe('App.vue', () => {
       playlistToEdit: null,
       gridMediaFiles: [],
       supportedExtensions: { images: [], videos: [] },
+      isSidebarVisible: true,
     });
 
     (useLibraryStore as Mock).mockReturnValue({
@@ -157,13 +158,13 @@ describe('App.vue', () => {
     const toggleBtn = wrapper.find('.icon-button');
     await toggleBtn.trigger('click');
 
-    const albumsList = wrapper.findComponent({ name: 'AlbumsList' });
-    expect(albumsList.exists()).toBe(false);
+    expect(mockUIState.isSidebarVisible).toBe(false);
 
     expect(toggleBtn.attributes('aria-label')).toBe('Show Albums');
     expect(wrapper.text()).not.toContain('Hide Albums');
 
     await toggleBtn.trigger('click');
+    expect(mockUIState.isSidebarVisible).toBe(true);
     expect(toggleBtn.attributes('aria-label')).toBe('Hide Albums');
   });
 
@@ -172,13 +173,13 @@ describe('App.vue', () => {
     await flushPromises();
 
     // Ensure sidebar is shown
-    expect(wrapper.findComponent({ name: 'AlbumsList' }).exists()).toBe(true);
+    expect(mockUIState.isSidebarVisible).toBe(true);
 
     const albumsList = wrapper.findComponent({ name: 'AlbumsList' });
     albumsList.vm.$emit('close');
     await flushPromises();
 
-    expect(wrapper.findComponent({ name: 'AlbumsList' }).exists()).toBe(false);
+    expect(mockUIState.isSidebarVisible).toBe(false);
   });
 
   it('clears playlistToEdit via @close event from SmartPlaylistModal', async () => {
