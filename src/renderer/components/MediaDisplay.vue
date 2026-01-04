@@ -1,46 +1,5 @@
 <template>
-  <div
-    class="w-full h-full flex flex-col justify-center items-center relative"
-    @mousemove="handleMouseMove"
-    @mouseleave="handleMouseLeave"
-  >
-    <div
-      class="flex flex-wrap justify-center items-center mb-2 mt-4 shrink-0 z-10 gap-4"
-    >
-      <h2
-        class="text-lg md:text-xl font-semibold text-center album-title max-w-[85vw] md:max-w-none"
-        :class="{ truncate: isSlideshowActive }"
-      >
-        {{ displayTitle }}
-      </h2>
-      <div class="filter-buttons flex flex-wrap justify-center gap-2">
-        <button
-          v-for="filter in filters"
-          :key="filter"
-          class="filter-button whitespace-nowrap text-sm md:text-base"
-          :class="{ active: mediaFilter === filter }"
-          :aria-pressed="mediaFilter === filter"
-          @click="setFilter(filter)"
-        >
-          {{ filter }}
-        </button>
-      </div>
-    </div>
-
-    <div
-      class="smart-timer-controls-media z-20 transition-transform-opacity duration-500 ease-in-out will-change-transform flex flex-row justify-center gap-4 w-full mb-2"
-      :class="{ 'opacity-0': !isControlsVisible }"
-    >
-      <label class="glass-toggle" title="Play Full Video">
-        <input v-model="playFullVideo" type="checkbox" />
-        <span class="toggle-label text-xs md:text-sm">Play Full Video</span>
-      </label>
-      <label class="glass-toggle" title="Pause Timer on Play">
-        <input v-model="pauseTimerOnPlay" type="checkbox" />
-        <span class="toggle-label text-xs md:text-sm">Pause Timer on Play</span>
-      </label>
-    </div>
-
+  <div class="w-full h-full flex flex-col justify-center items-center relative">
     <div
       class="media-display-area mb-3 grow w-full flex items-center justify-center relative"
     >
@@ -58,9 +17,9 @@
       <!-- 2. Placeholder (No Item & Not Loading) -->
       <p
         v-if="!currentMediaItem && !isLoading"
-        class="text-gray-500 placeholder"
+        class="text-gray-500 placeholder text-lg font-medium"
       >
-        Media will appear here.
+        Media will appear here
       </p>
 
       <!-- 3. Error Message (Only if not loading) -->
@@ -109,12 +68,16 @@
           />
           <VRVideoPlayer
             v-else-if="isVrMode"
+            ref="vrPlayerRef"
             :key="(displayedItem?.path || '') + '-vr'"
             :src="mediaUrl"
             :is-playing="isPlaying"
             :initial-time="savedCurrentTime"
+            :is-controls-visible="isControlsVisible"
             @timeupdate="handleTimeUpdate"
             @update:video-element="handleVideoElementUpdate"
+            @play="handleVideoPlay"
+            @pause="handleVideoPause"
           />
           <VideoPlayer
             v-else
@@ -144,20 +107,22 @@
 
     <!-- Media Controls -->
     <MediaControls
-      class="floating-controls"
+      class="floating-controls md:w-[600px]"
       :current-media-item="currentMediaItem"
       :is-playing="isPlaying"
       :can-navigate="canNavigate"
       :is-controls-visible="isControlsVisible"
       :is-image="isImage"
-      :count-info="countInfo"
       :is-vr-mode="isVrMode"
+      :current-time="currentVideoTime"
+      :duration="transcodedDuration || videoElement?.duration || 0"
       @previous="handlePrevious"
       @next="handleNext"
       @toggle-play="togglePlay"
       @open-in-vlc="openInVlc"
       @set-rating="setRating"
       @toggle-vr="toggleVrMode"
+      @toggle-fullscreen="toggleFullscreen"
     />
   </div>
 </template>
@@ -180,43 +145,30 @@ import MediaControls from './MediaControls.vue';
 import VRVideoPlayer from './VRVideoPlayer.vue'; // [NEW]
 import VideoPlayer from './VideoPlayer.vue';
 import type { MediaFile } from '../../core/types';
-import {
-  LEGACY_VIDEO_EXTENSIONS,
-  MEDIA_FILTERS,
-  type MediaFilter,
-} from '../../core/constants';
+import { LEGACY_VIDEO_EXTENSIONS } from '../../core/constants';
 
 const libraryStore = useLibraryStore();
 const playerStore = usePlayerStore();
 const uiStore = useUIStore();
 
-const { totalMediaInPool, imageExtensionsSet } = libraryStore;
+const { imageExtensionsSet } = libraryStore;
 
 const {
   currentMediaItem,
   displayedMediaFiles,
   currentMediaIndex,
-  isSlideshowActive,
   playFullVideo,
   pauseTimerOnPlay,
   isTimerRunning,
   mainVideoElement,
 } = playerStore;
 
-const { mediaFilter } = uiStore;
-
 const {
   navigateMedia,
-  reapplyFilter,
   pauseSlideshowTimer,
   resumeSlideshowTimer,
   toggleSlideshowTimer,
 } = useSlideshow();
-
-/**
- * An array of available media filters.
- */
-const filters = MEDIA_FILTERS;
 
 /**
  * The URL of the media to be displayed (can be a Data URL or an HTTP URL).
@@ -247,6 +199,7 @@ const displayedIsImage = computed(() => {
  */
 const videoElement = ref<HTMLVideoElement | null>(null);
 const videoPlayerRef = ref<InstanceType<typeof VideoPlayer> | null>(null);
+const vrPlayerRef = ref<InstanceType<typeof VRVideoPlayer> | null>(null);
 
 const isVideoSupported = ref(true);
 const isTranscodingMode = ref(false);
@@ -257,7 +210,9 @@ const currentTranscodeStartTime = ref(0);
 const isVrMode = ref(false); // [NEW]
 const savedCurrentTime = ref(0); // [NEW] Sync time between players
 
-const isControlsVisible = ref(true);
+// Use global controls visibility state
+const { isControlsVisible } = uiStore;
+
 const isPlaying = ref(false);
 // Removed computed currentVideoTime relying on ref, using state instead
 const currentVideoTime = computed({
@@ -266,7 +221,7 @@ const currentVideoTime = computed({
     savedCurrentTime.value = val;
   },
 });
-let controlsTimeout: NodeJS.Timeout | null = null;
+
 const videoStreamUrlGenerator = ref<
   ((filePath: string, startTime?: number) => string) | null
 >(null);
@@ -339,33 +294,32 @@ const isImage = computed(() => {
 });
 
 /**
- * A computed property for the title displayed above the media.
- */
-const displayTitle = computed(() => {
-  return isSlideshowActive.value
-    ? 'Slideshow'
-    : 'Select albums and start slideshow';
-});
-
-/**
- * A computed property that provides information about the current position in the slideshow.
- */
-const countInfo = computed(() => {
-  if (!isSlideshowActive.value || displayedMediaFiles.value.length === 0) {
-    return '\u00A0'; // Non-breaking space
-  }
-  const currentInHistory = currentMediaIndex.value + 1;
-  const historyLength = displayedMediaFiles.value.length;
-  const total = totalMediaInPool.value || historyLength;
-  return `${currentInHistory} / ${total}`;
-});
-
-/**
  * A computed property that determines if media navigation is possible.
  */
 const canNavigate = computed(() => {
   return displayedMediaFiles.value.length > 0;
 });
+
+/**
+ * Toggles fullscreen for the video element.
+ */
+const toggleFullscreen = () => {
+  if (isVrMode.value && vrPlayerRef.value) {
+    vrPlayerRef.value.toggleFullscreen();
+    return;
+  }
+  if (videoElement.value) {
+    if (!document.fullscreenElement) {
+      videoElement.value.requestFullscreen().catch((err) => {
+        console.error(
+          `Error attempting to enable fullscreen mode: ${err.message} (${err.name})`,
+        );
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  }
+};
 
 /**
  * Attempts to transcode the current video file starting from a specific time.
@@ -609,15 +563,6 @@ const handleNext = () => {
   navigateMedia(1);
 };
 
-/**
- * Sets the media filter and triggers a re-filter of the slideshow.
- * @param filter - The filter to apply.
- */
-const setFilter = async (filter: MediaFilter) => {
-  mediaFilter.value = filter;
-  await reapplyFilter();
-};
-
 const setRating = async (rating: number) => {
   if (!currentMediaItem.value) return;
 
@@ -781,28 +726,6 @@ const openInVlc = async () => {
   }
 };
 
-/**
- * Shows controls on mouse move and hides them after a timeout.
- */
-const handleMouseMove = () => {
-  isControlsVisible.value = true;
-  if (controlsTimeout) clearTimeout(controlsTimeout);
-  controlsTimeout = setTimeout(() => {
-    // Only hide if video is playing (not paused)
-    if (!videoElement.value?.paused) {
-      isControlsVisible.value = false;
-    }
-  }, 3000);
-};
-
-/**
- * Hides controls immediately when the mouse leaves the container.
- */
-const handleMouseLeave = () => {
-  if (!videoElement.value?.paused) {
-    isControlsVisible.value = false;
-  }
-};
 defineExpose({
   isTranscodingMode,
   isTranscodingLoading,

@@ -39,184 +39,269 @@
       </div>
     </div>
 
-    <!-- 2. CONTENT PANEL: Matched to Media Display -->
-    <div
-      class="grow glass-panel rounded-xl overflow-hidden relative flex flex-col min-h-0"
-    >
-      <!-- SCROLLABLE LIST -->
-      <div class="grow overflow-y-auto px-2 py-4 custom-scrollbar">
-        <!-- SECTION: ALBUMS -->
-        <div class="mb-6">
-          <h3
-            class="px-3 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2"
-          >
-            Albums
-          </h3>
-          <ul class="space-y-0.5">
-            <li
-              v-if="allAlbums.length === 0"
-              class="px-3 text-sm text-gray-600 italic"
+    <!-- 2. CONTENT WRAPPER: Scrollable container -->
+    <div class="grow relative flex flex-col min-h-0">
+      <!-- SINGLE SCROLLABLE AREA -->
+      <div class="grow overflow-y-auto custom-scrollbar flex flex-col gap-4">
+        <!-- A. ALBUMS & PLAYLISTS LIST CARD -->
+        <div class="shrink-0 px-2 py-4 glass-panel rounded-xl">
+          <!-- SECTION: ALBUMS -->
+          <div class="mb-6">
+            <h3
+              class="px-3 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2"
             >
-              No albums found. Add sources.
-            </li>
-            <AlbumTree
-              v-for="album in allAlbums"
-              :key="album.id"
-              :album="album"
-              :selection="albumsSelectedForSlideshow"
-              @toggle-selection="handleToggleSelection"
-              @album-click="handleClickAlbum"
-            />
-          </ul>
+              Albums
+            </h3>
+            <ul class="space-y-0.5">
+              <li
+                v-if="allAlbums.length === 0"
+                class="px-3 text-sm text-gray-600 italic"
+              >
+                No albums found. Add sources.
+              </li>
+              <AlbumTree
+                v-for="album in allAlbums"
+                :key="album.id"
+                :album="album"
+                :selection="albumsSelectedForSlideshow"
+                @toggle-selection="handleToggleSelection"
+                @album-click="handleClickAlbum"
+              />
+            </ul>
+          </div>
+
+          <!-- SECTION: SMART PLAYLISTS -->
+          <div class="mb-4">
+            <h3
+              class="px-3 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2"
+            >
+              Playlists
+            </h3>
+            <ul class="space-y-0.5">
+              <!-- RECENTLY PLAYED -->
+              <li>
+                <div
+                  class="group flex items-center justify-between px-3 py-2 rounded-md hover:bg-white/5 transition-colors"
+                >
+                  <!-- Name (Main Action - Slideshow) -->
+                  <button
+                    class="grow flex items-center gap-2 truncate text-sm text-gray-300 group-hover:text-white text-left focus:outline-none focus:text-white cursor-pointer min-w-0"
+                    aria-label="Recently Played Slideshow"
+                    @click="handleHistorySlideshow"
+                  >
+                    <span class="text-orange-400 shrink-0">
+                      <HistoryIcon class="w-4 h-4" />
+                    </span>
+                    <span class="truncate">Recently Played</span>
+                  </button>
+
+                  <!-- Controls on Hover -->
+                  <div
+                    class="flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity ml-2"
+                  >
+                    <!-- Grid Button for History -->
+                    <button
+                      class="text-xs text-gray-500 hover:text-white p-1"
+                      title="Open in Grid"
+                      aria-label="Open History in Grid"
+                      @click.stop="handleHistoryGrid"
+                    >
+                      <GridIcon class="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </li>
+
+              <li v-for="playlist in smartPlaylists" :key="playlist.id">
+                <div
+                  class="group flex items-center justify-between px-3 py-2 rounded-md hover:bg-white/5 transition-colors"
+                >
+                  <!-- Name (Main Action) -->
+                  <button
+                    class="grow flex items-center gap-2 truncate text-sm text-gray-300 group-hover:text-white text-left focus:outline-none focus:text-white cursor-pointer min-w-0"
+                    :aria-label="'Play ' + playlist.name"
+                    @click="handleSmartPlaylistSlideshow(playlist)"
+                  >
+                    <span class="text-indigo-500 shrink-0">
+                      <!-- Small Playlist Icon -->
+                      <PlaylistIcon class="w-4 h-4" />
+                    </span>
+                    <span class="truncate">{{ playlist.name }}</span>
+                  </button>
+
+                  <!-- Controls on Hover -->
+                  <div
+                    class="flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity ml-2"
+                  >
+                    <!-- Grid Button for Playlist -->
+                    <button
+                      class="text-xs text-gray-500 hover:text-white p-1"
+                      title="Open in Grid"
+                      :aria-label="'Open ' + playlist.name + ' in Grid'"
+                      @click.stop="handleSmartPlaylistGrid(playlist)"
+                    >
+                      <GridIcon class="w-4 h-4" />
+                    </button>
+                    <button
+                      class="text-xs text-gray-500 hover:text-blue-400 p-1"
+                      title="Edit"
+                      :aria-label="'Edit ' + playlist.name"
+                      @click.stop="editPlaylist(playlist)"
+                    >
+                      <EditIcon class="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      class="text-xs text-gray-500 hover:text-red-400 p-1"
+                      title="Delete"
+                      :aria-label="'Delete ' + playlist.name"
+                      @click.stop="deletePlaylist(playlist.id)"
+                    >
+                      <DeleteIcon class="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </li>
+              <li
+                v-if="smartPlaylists.length === 0"
+                class="px-3 text-sm text-gray-600 italic"
+              >
+                No playlists created.
+              </li>
+            </ul>
+          </div>
+        </div>
+        <!-- End of list content -->
+
+        <!-- B. SLIDESHOW SETTINGS CARD -->
+        <div class="shrink-0 p-3 flex flex-col gap-2 glass-panel rounded-xl">
+          <!-- Media Type Filters -->
+          <div class="flex justify-center bg-black/20 rounded-lg p-1 gap-1">
+            <button
+              v-for="filter in MEDIA_FILTERS"
+              :key="filter"
+              class="flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-all duration-200"
+              :class="
+                mediaFilter === filter
+                  ? 'bg-indigo-500 text-white shadow-sm'
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+              "
+              @click="setFilter(filter)"
+            >
+              {{ filter }}
+            </button>
+          </div>
+
+          <!-- Toggles -->
+          <div class="flex gap-2">
+            <label class="flex-1 glass-toggle-btn cursor-pointer group">
+              <input
+                v-model="playFullVideo"
+                type="checkbox"
+                class="peer sr-only"
+              />
+              <div
+                class="h-full px-3 py-2 rounded-md bg-black/20 border border-white/5 peer-checked:bg-indigo-500/20 peer-checked:border-indigo-500/50 transition-all flex items-center justify-center gap-2"
+              >
+                <div
+                  class="w-3 h-3 rounded-sm border border-gray-500 peer-checked:bg-indigo-500 peer-checked:border-indigo-500 flex items-center justify-center"
+                >
+                  <svg
+                    v-if="playFullVideo"
+                    class="w-2.5 h-2.5 text-white"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="4"
+                  >
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+                <span
+                  class="text-[10px] font-medium text-gray-400 group-hover:text-gray-200 peer-checked:text-indigo-200"
+                  >Play Full Video</span
+                >
+              </div>
+            </label>
+
+            <label class="flex-1 glass-toggle-btn cursor-pointer group">
+              <input
+                v-model="pauseTimerOnPlay"
+                type="checkbox"
+                class="peer sr-only"
+              />
+              <div
+                class="h-full px-3 py-2 rounded-md bg-black/20 border border-white/5 peer-checked:bg-indigo-500/20 peer-checked:border-indigo-500/50 transition-all flex items-center justify-center gap-2"
+              >
+                <div
+                  class="w-3 h-3 rounded-sm border border-gray-500 peer-checked:bg-indigo-500 peer-checked:border-indigo-500 flex items-center justify-center"
+                >
+                  <svg
+                    v-if="pauseTimerOnPlay"
+                    class="w-2.5 h-2.5 text-white"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="4"
+                  >
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                </div>
+                <span
+                  class="text-[10px] font-medium text-gray-400 group-hover:text-gray-200 peer-checked:text-indigo-200"
+                  >Pause Timer</span
+                >
+              </div>
+            </label>
+          </div>
         </div>
 
-        <!-- SECTION: SMART PLAYLISTS -->
-        <div class="mb-4">
-          <h3
-            class="px-3 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2"
-          >
-            Playlists
-          </h3>
-          <ul class="space-y-0.5">
-            <!-- RECENTLY PLAYED -->
-            <li>
-              <div
-                class="group flex items-center justify-between px-3 py-2 rounded-md hover:bg-white/5 transition-colors"
-              >
-                <!-- Name (Main Action - Slideshow) -->
-                <button
-                  class="grow flex items-center gap-2 truncate text-sm text-gray-300 group-hover:text-white text-left focus:outline-none focus:text-white cursor-pointer min-w-0"
-                  aria-label="Recently Played Slideshow"
-                  @click="handleHistorySlideshow"
-                >
-                  <span class="text-orange-400 shrink-0">
-                    <HistoryIcon class="w-4 h-4" />
-                  </span>
-                  <span class="truncate">Recently Played</span>
-                </button>
-
-                <!-- Controls on Hover -->
-                <div
-                  class="flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity ml-2"
-                >
-                  <!-- Grid Button for History -->
-                  <button
-                    class="text-xs text-gray-500 hover:text-white p-1"
-                    title="Open in Grid"
-                    aria-label="Open History in Grid"
-                    @click.stop="handleHistoryGrid"
-                  >
-                    <GridIcon class="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </li>
-
-            <li v-for="playlist in smartPlaylists" :key="playlist.id">
-              <div
-                class="group flex items-center justify-between px-3 py-2 rounded-md hover:bg-white/5 transition-colors"
-              >
-                <!-- Name (Main Action) -->
-                <button
-                  class="grow flex items-center gap-2 truncate text-sm text-gray-300 group-hover:text-white text-left focus:outline-none focus:text-white cursor-pointer min-w-0"
-                  :aria-label="'Play ' + playlist.name"
-                  @click="handleSmartPlaylistSlideshow(playlist)"
-                >
-                  <span class="text-indigo-500 shrink-0">
-                    <!-- Small Playlist Icon -->
-                    <PlaylistIcon class="w-4 h-4" />
-                  </span>
-                  <span class="truncate">{{ playlist.name }}</span>
-                </button>
-
-                <!-- Controls on Hover -->
-                <div
-                  class="flex shrink-0 items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity ml-2"
-                >
-                  <!-- Grid Button for Playlist -->
-                  <button
-                    class="text-xs text-gray-500 hover:text-white p-1"
-                    title="Open in Grid"
-                    :aria-label="'Open ' + playlist.name + ' in Grid'"
-                    @click.stop="handleSmartPlaylistGrid(playlist)"
-                  >
-                    <GridIcon class="w-4 h-4" />
-                  </button>
-                  <button
-                    class="text-xs text-gray-500 hover:text-blue-400 p-1"
-                    title="Edit"
-                    :aria-label="'Edit ' + playlist.name"
-                    @click.stop="editPlaylist(playlist)"
-                  >
-                    <EditIcon class="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    class="text-xs text-gray-500 hover:text-red-400 p-1"
-                    title="Delete"
-                    :aria-label="'Delete ' + playlist.name"
-                    @click.stop="deletePlaylist(playlist.id)"
-                  >
-                    <DeleteIcon class="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            </li>
-            <li
-              v-if="smartPlaylists.length === 0"
-              class="px-3 text-sm text-gray-600 italic"
-            >
-              No playlists created.
-            </li>
-          </ul>
-        </div>
-      </div>
-      <!-- End of content panel list part -->
-    </div>
-    <!-- End of second glass pane -->
-
-    <!-- 3. TIMER PANEL: Matched to Top Bar style -->
-    <div
-      class="shrink-0 p-3 glass-panel rounded-lg flex items-end gap-3 z-20 relative overflow-hidden"
-    >
-      <div class="flex flex-col gap-1 grow">
-        <label
-          for="timer-input"
-          class="text-[10px] font-bold text-gray-500 uppercase tracking-widest"
-          >Timer (s)</label
-        >
-        <input
-          id="timer-input"
-          v-model.number="timerDuration"
-          type="number"
-          min="1"
-          class="w-full glass-input text-sm px-3 py-2 rounded-lg"
-        />
-      </div>
-
-      <!-- Primary Play Action -->
-      <button
-        class="timer-button h-10 w-14 shrink-0 flex items-center justify-center rounded-lg glass-button-primary"
-        data-testid="timer-button"
-        :title="isTimerRunning ? 'Pause Slideshow' : 'Start/Resume Slideshow'"
-        :aria-label="
-          isTimerRunning ? 'Pause Slideshow' : 'Start/Resume Slideshow'
-        "
-        @click="handleToggleTimer"
-      >
-        <PauseIcon v-if="isTimerRunning" class="w-6 h-6 fill-current" />
-        <PlayIcon v-else class="w-6 h-6 fill-current ml-1" />
-      </button>
-
-      <!-- Global Progress Bar (if running, inside timer pane bottom) -->
-      <div
-        v-if="isTimerRunning"
-        class="absolute bottom-0 left-0 w-full h-1 bg-gray-800"
-        data-testid="slideshow-progress"
-      >
+        <!-- C. TIMER PANEL CARD -->
         <div
-          class="h-full bg-indigo-500 transition-all duration-100 ease-linear"
-          :style="{ width: `${timerProgress}%` }"
-        ></div>
+          class="shrink-0 p-3 flex items-end gap-3 relative overflow-hidden glass-panel rounded-xl"
+        >
+          <div class="flex flex-col gap-1 grow">
+            <label
+              for="timer-input"
+              class="text-[10px] font-bold text-gray-500 uppercase tracking-widest"
+              >Timer (s)</label
+            >
+            <input
+              id="timer-input"
+              v-model.number="timerDuration"
+              type="number"
+              min="1"
+              class="w-full glass-input text-sm px-3 py-2 rounded-lg"
+            />
+          </div>
+
+          <!-- Primary Play Action -->
+          <button
+            class="timer-button h-10 w-14 shrink-0 flex items-center justify-center rounded-lg glass-button-primary"
+            data-testid="timer-button"
+            :title="
+              isTimerRunning ? 'Pause Slideshow' : 'Start/Resume Slideshow'
+            "
+            :aria-label="
+              isTimerRunning ? 'Pause Slideshow' : 'Start/Resume Slideshow'
+            "
+            @click="handleToggleTimer"
+          >
+            <PauseIcon v-if="isTimerRunning" class="w-6 h-6 fill-current" />
+            <PlayIcon v-else class="w-6 h-6 fill-current ml-1" />
+          </button>
+
+          <!-- Global Progress Bar (if running, inside timer pane bottom) -->
+          <div
+            v-if="isTimerRunning"
+            class="absolute bottom-0 left-0 w-full h-1 bg-gray-800"
+            data-testid="slideshow-progress"
+          >
+            <div
+              class="h-full bg-indigo-500 transition-all duration-100 ease-linear"
+              :style="{ width: `${timerProgress}%` }"
+            ></div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -256,6 +341,7 @@ import type {
   MediaFile,
   MediaLibraryItem,
 } from '../../core/types';
+import { MEDIA_FILTERS, type MediaFilter } from '../../core/constants';
 import { RECENTLY_PLAYED_FETCH_LIMIT } from '../../core/constants';
 
 const libraryStore = useLibraryStore();
@@ -264,8 +350,14 @@ const uiStore = useUIStore();
 
 const { allAlbums, albumsSelectedForSlideshow, smartPlaylists } = libraryStore;
 
-const { timerDuration, isTimerRunning, timerProgress, isSlideshowActive } =
-  playerStore;
+const {
+  timerDuration,
+  isTimerRunning,
+  timerProgress,
+  isSlideshowActive,
+  playFullVideo,
+  pauseTimerOnPlay,
+} = playerStore;
 
 const {
   isSourcesModalVisible,
@@ -273,6 +365,7 @@ const {
   gridMediaFiles,
   viewMode,
   playlistToEdit,
+  mediaFilter,
 } = uiStore;
 
 defineEmits(['close']);
@@ -477,6 +570,13 @@ const handleHistoryGrid = async () => {
     console.error('Error opening history grid', e);
     // Optional: show user feedback
   }
+};
+
+const { reapplyFilter } = slideshow;
+
+const setFilter = async (filter: MediaFilter) => {
+  mediaFilter.value = filter;
+  await reapplyFilter();
 };
 
 const handleHistorySlideshow = async () => {

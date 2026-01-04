@@ -45,7 +45,7 @@
       aria-valuemin="0"
       aria-valuemax="100"
       :aria-valuenow="videoProgress"
-      :aria-valuetext="`${formattedCurrentTime} of ${formattedDuration}`"
+      :aria-valuetext="`${formatTime(currentVideoTime)} of ${formatTime(currentVideoDuration)}`"
       @click="handleProgressBarClick"
       @keydown="handleProgressBarKeydown"
     >
@@ -64,19 +64,11 @@
         :style="{ width: `${videoProgress}%` }"
       ></div>
     </div>
-
-    <!-- Time Display -->
-    <div
-      v-if="isControlsVisible"
-      class="absolute right-2 bottom-3 text-xs text-white font-mono bg-black/60 px-2 py-1 rounded pointer-events-none z-20 transition-transform-opacity duration-500 ease-in-out will-change-transform"
-    >
-      {{ formattedCurrentTime }} / {{ formattedDuration }}
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, watch } from 'vue';
 import PlayIcon from './icons/PlayIcon.vue';
 
 const props = defineProps<{
@@ -277,11 +269,6 @@ const formatTime = (seconds: number) => {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 };
 
-const formattedCurrentTime = computed(() => formatTime(currentVideoTime.value));
-const formattedDuration = computed(() =>
-  formatTime(currentVideoDuration.value),
-);
-
 defineExpose({
   togglePlay,
   reset,
@@ -295,6 +282,7 @@ defineExpose({
   handleProgressBarKeydown,
   handleTimeUpdate,
   handleLoadedMetadata,
+  formatTime,
 });
 </script>
 

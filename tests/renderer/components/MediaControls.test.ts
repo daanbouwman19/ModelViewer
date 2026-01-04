@@ -21,6 +21,9 @@ vi.mock('@/components/icons/PlayIcon.vue', () => ({
 vi.mock('@/components/icons/PauseIcon.vue', () => ({
   default: { template: '<svg class="pause-icon-mock"></svg>' },
 }));
+vi.mock('@/components/icons/ExpandIcon.vue', () => ({
+  default: { template: '<svg class="expand-icon-mock"></svg>' },
+}));
 
 describe('MediaControls.vue', () => {
   const defaultProps = {
@@ -31,12 +34,6 @@ describe('MediaControls.vue', () => {
     isImage: true,
     countInfo: '1 / 10',
   };
-
-  it('should render media info', () => {
-    const wrapper = mount(MediaControls, { props: defaultProps });
-    expect(wrapper.text()).toContain('test.jpg');
-    expect(wrapper.text()).toContain('1 / 10');
-  });
 
   it('should emit previous when back button clicked', async () => {
     const wrapper = mount(MediaControls, { props: defaultProps });
@@ -98,5 +95,15 @@ describe('MediaControls.vue', () => {
     );
     expect(prev?.attributes('disabled')).toBeDefined();
     expect(next?.attributes('disabled')).toBeDefined();
+  });
+
+  it('should emit toggle-fullscreen when fullscreen button clicked', async () => {
+    const wrapper = mount(MediaControls, {
+      props: { ...defaultProps, isImage: false },
+    });
+    await wrapper
+      .find('button[aria-label="Toggle Fullscreen"]')
+      .trigger('click');
+    expect(wrapper.emitted('toggle-fullscreen')).toBeTruthy();
   });
 });

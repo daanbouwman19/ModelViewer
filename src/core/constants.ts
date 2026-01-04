@@ -143,6 +143,11 @@ const DEFAULT_SERVER_HOST = '127.0.0.1';
  */
 const RECENTLY_PLAYED_FETCH_LIMIT = 100;
 
+/**
+ * Timeout for hiding UI controls in milliseconds.
+ */
+const CONTROLS_HIDE_TIMEOUT_MS = 3000;
+
 export {
   MAX_DATA_URL_SIZE_MB,
   DATA_URL_THRESHOLD_MB,
@@ -162,4 +167,5 @@ export {
   DEFAULT_SERVER_PORT,
   DEFAULT_SERVER_HOST,
   RECENTLY_PLAYED_FETCH_LIMIT,
+  CONTROLS_HIDE_TIMEOUT_MS,
 };

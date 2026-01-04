@@ -104,26 +104,4 @@ describe('MediaDisplay.vue Layout', () => {
     // Should NOT contain the old auto class
     expect(classes).not.toContain('md:w-auto');
   });
-
-  it('should have flex layout for title centering and truncation', async () => {
-    // Override currentMediaItem for this specific test case to simulate a long title
-    mockPlayerState.currentMediaItem = {
-      name: 'Very Long Title That Should Truncate In The Middle Of The Screen Because It Is Too Long.jpg',
-      path: '/test.jpg',
-    };
-
-    // Re-mount with overridden state
-    const wrapper = mount(MediaDisplay);
-    await wrapper.vm.$nextTick();
-
-    const mediaInfo = wrapper.find('.media-info');
-    expect(mediaInfo.classes()).toContain('flex-1');
-    expect(mediaInfo.classes()).toContain('min-w-0'); // Crucial for flex child truncation
-    expect(mediaInfo.classes()).toContain('px-4');
-
-    const title = mediaInfo.find('p');
-    expect(title.classes()).toContain('truncate');
-    // Should NOT have the old max-w-75
-    expect(title.classes()).not.toContain('max-w-75');
-  });
 });

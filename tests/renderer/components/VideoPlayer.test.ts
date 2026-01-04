@@ -87,7 +87,8 @@ describe('VideoPlayer.vue', () => {
     };
     vm.handleTimeUpdate(event);
     return wrapper.vm.$nextTick().then(() => {
-      expect(wrapper.text()).toContain('01:05');
+      const progressBar = wrapper.find('[data-testid="video-progress-bar"]');
+      expect(progressBar.attributes('aria-valuetext')).toContain('01:05');
     });
   });
 
@@ -292,7 +293,9 @@ describe('VideoPlayer.vue', () => {
 
     vm.handleTimeUpdate({ target: { currentTime: 3665, duration: 4000 } });
     await wrapper.vm.$nextTick();
-    expect(wrapper.text()).toContain('1:01:05');
+    await wrapper.vm.$nextTick();
+    const progressBar = wrapper.find('[data-testid="video-progress-bar"]');
+    expect(progressBar.attributes('aria-valuetext')).toContain('1:01:05');
   });
 
   it('covers handleTimeUpdate branch in transcoding mode', async () => {
