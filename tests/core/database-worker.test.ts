@@ -433,6 +433,19 @@ describe('Database Worker', () => {
       expect(dir).toBeDefined();
       expect(dir!.isActive).toBe(false);
     });
+
+    it('should add a media directory with explicit ID and type', async () => {
+      const id = 'custom-id';
+      const type = 'google_drive';
+      const result = await sendMessage('addMediaDirectory', {
+        directoryObj: { path: '/drive/path', id, type },
+      });
+      expect(result.success).toBe(true);
+      const listRes = await sendMessage('getMediaDirectories', {});
+      const dir = (listRes.data as Directory[]).find((d) => d.id === id);
+      expect(dir).toBeDefined();
+      expect(dir!.type).toBe(type);
+    });
   });
 
   describe('Smart Playlists & Metadata', () => {
