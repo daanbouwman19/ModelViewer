@@ -17,26 +17,46 @@
       </transition>
 
       <!-- Main Media Area -->
-      <div class="grow flex flex-col h-full relative w-full min-w-0">
+      <div
+        class="grow flex flex-col h-full relative w-full min-w-0"
+        data-testid="main-content-area"
+        @mousemove="handleMouseMove"
+        @mouseleave="handleMouseLeave"
+      >
         <!-- Top Bar (Toggle Sidebar & Title) -->
         <div
-          class="flex justify-between items-center mb-4 glass-panel rounded-lg p-3 shrink-0"
+          class="flex justify-between items-center mb-4 p-3 shrink-0 transition-all duration-500 ease-in-out z-30"
+          :class="[
+            viewMode === 'player'
+              ? 'absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent'
+              : 'glass-panel rounded-lg',
+            {
+              'opacity-0 pointer-events-none':
+                !isControlsVisible && viewMode === 'player',
+            },
+          ]"
         >
           <button
             class="icon-button p-2 rounded-full hover:bg-white/10 transition-colors"
             :aria-label="showSidebar ? 'Hide Albums' : 'Show Albums'"
             @click="showSidebar = !showSidebar"
           >
-            <CloseIcon v-if="showSidebar" />
-            <MenuIcon v-else />
+            <MenuIcon class="w-6 h-6 text-white" />
           </button>
+
+          <!-- Title / Filename -->
           <h1
-            class="text-xl font-bold tracking-wider text-accent drop-shadow-md font-header truncate ml-2"
+            class="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-500 truncate mx-4"
           >
-            MediaPlayer
+            {{
+              viewMode === 'player' && currentMediaItem
+                ? currentMediaItem.name
+                : 'MediaPlayer'
+            }}
           </h1>
-          <div class="w-10 md:w-20"></div>
-          <!-- Spacer for balance -->
+
+          <div class="w-10"></div>
+          <!-- Spacer to balance Menu button -->
         </div>
 
         <!-- Media Display -->
@@ -63,7 +83,7 @@
  * It sets up the overall layout, initializes the application state,
  * and handles global keyboard shortcuts for media navigation.
  */
-import { onMounted, onBeforeUnmount, ref } from 'vue';
+import { onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import AmbientBackground from './components/AmbientBackground.vue';
 import AlbumsList from './components/AlbumsList.vue';
 import MediaDisplay from './components/MediaDisplay.vue';
@@ -72,19 +92,54 @@ import SourcesModal from './components/SourcesModal.vue';
 import SmartPlaylistModal from './components/SmartPlaylistModal.vue';
 import LoadingMask from './components/LoadingMask.vue';
 import MenuIcon from './components/icons/MenuIcon.vue';
-import CloseIcon from './components/icons/CloseIcon.vue';
 import { useLibraryStore } from './composables/useLibraryStore';
+import { usePlayerStore } from './composables/usePlayerStore';
 import { useUIStore } from './composables/useUIStore';
 import { useSlideshow } from './composables/useSlideshow';
 
 const libraryStore = useLibraryStore();
 const uiStore = useUIStore();
+const playerStore = usePlayerStore(); // Call the store to get the instance
 const { isScanning } = libraryStore;
-const { viewMode, playlistToEdit } = uiStore;
+const { viewMode, playlistToEdit, isControlsVisible } = uiStore;
+const { currentMediaItem, isSlideshowActive, mainVideoElement } = playerStore; // Destructure from the instance
 const initializeApp = libraryStore.loadInitialData;
 const { navigateMedia, toggleSlideshowTimer } = useSlideshow();
 
 const showSidebar = ref(true);
+let controlsTimeout: NodeJS.Timeout | null = null;
+
+const handleMouseMove = () => {
+  // Always show controls on move
+  isControlsVisible.value = true;
+
+  if (controlsTimeout) clearTimeout(controlsTimeout);
+
+  // Only auto-hide if in player mode
+  if (viewMode.value === 'player') {
+    controlsTimeout = setTimeout(() => {
+      // Only hide if video is playing (not paused) or if it's an image/other media
+      // If mainVideoElement exists and is paused, KEEP controls visible.
+      // If it exists and playing, hide.
+      // If it doesn't exist (image), hide.
+      const isVideoPaused =
+        mainVideoElement.value && mainVideoElement.value.paused;
+
+      if (!isVideoPaused) {
+        isControlsVisible.value = false;
+      }
+    }, 3000);
+  }
+};
+
+const handleMouseLeave = () => {
+  // If we leave the app window or main area, hide immediately unless paused
+  const isVideoPaused = mainVideoElement.value && mainVideoElement.value.paused;
+  // console.error debugging removed
+  if (!isVideoPaused && viewMode.value === 'player') {
+    isControlsVisible.value = false;
+  }
+};
 
 /**
  * Handles global keydown events for slideshow control.
@@ -125,6 +180,17 @@ onMounted(async () => {
   await initializeApp();
   document.addEventListener('keydown', handleKeydown);
 });
+
+// Watch for slideshow active state to auto-close sidebar
+// This improves the experience on mobile and desktop by clearing clutter
+watch(
+  isSlideshowActive, // Watch the ref directly
+  (isActive) => {
+    if (isActive) {
+      showSidebar.value = false;
+    }
+  },
+);
 
 // Before unmounting, clean up by removing the event listener
 onBeforeUnmount(() => {

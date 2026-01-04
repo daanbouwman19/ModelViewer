@@ -99,9 +99,11 @@ describe('MediaDisplay.vue', () => {
       mainVideoElement: null,
     });
 
-    mockUIState = reactive({
-      mediaFilter: 'All',
-    });
+    mockUIState = {
+      mediaFilter: ref('All'),
+      viewMode: ref('player'),
+      isControlsVisible: ref(true),
+    };
 
     (useLibraryStore as Mock).mockReturnValue({
       state: mockLibraryState,
@@ -329,22 +331,6 @@ describe('MediaDisplay.vue', () => {
       expect(slideshowMock.resumeSlideshowTimer).toHaveBeenCalled();
     });
 
-    it('covers handleMouseMove and handleMouseLeave', async () => {
-      vi.useFakeTimers();
-      const wrapper = mount(MediaDisplay);
-
-      await wrapper.trigger('mousemove');
-      expect((wrapper.vm as any).isControlsVisible).toBe(true);
-
-      vi.advanceTimersByTime(3500);
-      expect((wrapper.vm as any).isControlsVisible).toBe(false);
-
-      await wrapper.trigger('mouseleave');
-      expect((wrapper.vm as any).isControlsVisible).toBe(false);
-
-      vi.useRealTimers();
-    });
-
     it('covers tryTranscoding URL with query params', async () => {
       mockPlayerState.currentMediaItem = { name: 't.mp4', path: '/t.mp4' };
       const generator = (p: string) =>
@@ -466,23 +452,6 @@ describe('MediaDisplay.vue', () => {
       expect((wrapper.vm as any).error).toBe('VLC Error');
     });
 
-    it('covers handleMouseMove when video is paused', async () => {
-      vi.useFakeTimers();
-      const wrapper = mount(MediaDisplay);
-      const mockVideo = {
-        paused: true,
-        pause: vi.fn(),
-        load: vi.fn(),
-        removeAttribute: vi.fn(),
-      };
-      (wrapper.vm as any).videoElement = mockVideo;
-
-      await wrapper.trigger('mousemove');
-      vi.advanceTimersByTime(3500);
-      expect((wrapper.vm as any).isControlsVisible).toBe(true);
-      vi.useRealTimers();
-    });
-
     it('covers handleVideoElementUpdate', async () => {
       const wrapper = mount(MediaDisplay);
       const mockVideo = document.createElement('video');
@@ -562,17 +531,6 @@ describe('MediaDisplay.vue', () => {
         .find((b) => b.text().includes('Try Transcoding'));
       await btn?.trigger('click');
       expect((wrapper.vm as any).isTranscodingMode).toBe(true);
-    });
-
-    it('covers smart timer checkboxes', async () => {
-      const wrapper = mount(MediaDisplay);
-      const inputs = wrapper.findAll('input[type="checkbox"]');
-
-      await inputs[0].setValue(true);
-      expect(mockPlayerState.playFullVideo).toBe(true);
-
-      await inputs[1].setValue(true);
-      expect(mockPlayerState.pauseTimerOnPlay).toBe(true);
     });
 
     it('does NOT resume timer when video is paused due to navigation (loading)', async () => {

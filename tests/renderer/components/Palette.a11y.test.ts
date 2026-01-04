@@ -70,6 +70,7 @@ describe('Palette Accessibility Improvements', () => {
     mockUIState = reactive({
       mediaFilter: 'All',
       isSourcesModalVisible: true,
+      isControlsVisible: true,
     });
 
     (useLibraryStore as Mock).mockReturnValue({
@@ -403,12 +404,8 @@ describe('Palette Accessibility Improvements', () => {
       await wrapper.vm.$nextTick();
 
       // The star buttons are inside a div in .media-info
-      const starsContainer = wrapper.find(
-        '.media-info .flex.justify-center.gap-1',
-      );
-      expect(starsContainer.exists()).toBe(true);
-
-      const stars = starsContainer.findAll('button');
+      // usage of aria-label is better/more robust than classes
+      const stars = wrapper.findAll('button[aria-label^="Rate"]');
       expect(stars.length).toBe(5);
 
       // Check labels

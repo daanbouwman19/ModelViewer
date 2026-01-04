@@ -69,6 +69,7 @@ describe('Progress Bars', () => {
       gridMediaFiles: [],
       viewMode: 'player',
       mediaFilter: 'All',
+      isControlsVisible: true,
     });
 
     (useLibraryStore as Mock).mockReturnValue({

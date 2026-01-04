@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
-import { mount } from '@vue/test-utils';
+import { mount, flushPromises } from '@vue/test-utils';
 import { reactive, toRefs } from 'vue';
 import AlbumsList from '../../../src/renderer/components/AlbumsList.vue';
 import { collectTexturesRecursive } from '../../../src/renderer/utils/albumUtils';
@@ -10,18 +10,22 @@ import { useUIStore } from '../../../src/renderer/composables/useUIStore';
 // --- New Mocking Strategy ---
 import { api } from '../../../src/renderer/api';
 
-const mockToggleAlbumSelection = vi.fn();
-const mockStartSlideshow = vi.fn();
-const mockStartIndividualAlbumSlideshow = vi.fn();
-const mockToggleSlideshowTimer = vi.fn();
+const mocks = vi.hoisted(() => ({
+  mockToggleAlbumSelection: vi.fn(),
+  mockStartSlideshow: vi.fn(),
+  mockStartIndividualAlbumSlideshow: vi.fn(),
+  mockToggleSlideshowTimer: vi.fn(),
+  mockReapplyFilter: vi.fn(),
+}));
 
 vi.mock('../../../src/renderer/composables/useSlideshow', () => ({
   useSlideshow: () => ({
-    toggleAlbumSelection: mockToggleAlbumSelection,
-    startSlideshow: mockStartSlideshow,
-    startIndividualAlbumSlideshow: mockStartIndividualAlbumSlideshow,
-    toggleSlideshowTimer: mockToggleSlideshowTimer,
+    toggleAlbumSelection: mocks.mockToggleAlbumSelection,
+    startSlideshow: mocks.mockStartSlideshow,
+    startIndividualAlbumSlideshow: mocks.mockStartIndividualAlbumSlideshow,
+    toggleSlideshowTimer: mocks.mockToggleSlideshowTimer,
     openAlbumInGrid: vi.fn(),
+    reapplyFilter: mocks.mockReapplyFilter,
   }),
 }));
 
@@ -80,6 +84,8 @@ describe('AlbumsList.vue', () => {
       isTimerRunning: false,
       timerProgress: 0,
       isSlideshowActive: false,
+      playFullVideo: false,
+      pauseTimerOnPlay: false,
     });
 
     mockUIState = reactive({
@@ -88,6 +94,7 @@ describe('AlbumsList.vue', () => {
       gridMediaFiles: [],
       viewMode: 'player',
       playlistToEdit: null,
+      mediaFilter: 'All',
     });
 
     (useLibraryStore as Mock).mockReturnValue({
@@ -122,8 +129,8 @@ describe('AlbumsList.vue', () => {
     await wrapper.vm.$nextTick();
     const startButton = wrapper.find('[data-testid="timer-button"]');
     await startButton.trigger('click');
-    expect(mockStartSlideshow).toHaveBeenCalled();
-    expect(mockToggleSlideshowTimer).toHaveBeenCalled();
+    expect(mocks.mockStartSlideshow).toHaveBeenCalled();
+    expect(mocks.mockToggleSlideshowTimer).toHaveBeenCalled();
   });
 
   it('calls only toggleSlideshowTimer when the global start button is clicked and a slideshow is already active', async () => {
@@ -132,8 +139,8 @@ describe('AlbumsList.vue', () => {
     await wrapper.vm.$nextTick();
     const startButton = wrapper.find('[data-testid="timer-button"]');
     await startButton.trigger('click');
-    expect(mockStartSlideshow).not.toHaveBeenCalled();
-    expect(mockToggleSlideshowTimer).toHaveBeenCalled();
+    expect(mocks.mockStartSlideshow).not.toHaveBeenCalled();
+    expect(mocks.mockToggleSlideshowTimer).toHaveBeenCalled();
   });
 
   it('opens the sources modal when "Manage Sources" is clicked', async () => {
@@ -150,9 +157,9 @@ describe('AlbumsList.vue', () => {
     albumTree.vm.$emit('albumClick', mockAlbums[0]);
     await wrapper.vm.$nextTick();
 
-    expect(mockStartIndividualAlbumSlideshow).toHaveBeenCalled();
+    expect(mocks.mockStartIndividualAlbumSlideshow).toHaveBeenCalled();
     const expectedTextures = collectTexturesRecursive(mockAlbums[0]);
-    expect(mockStartIndividualAlbumSlideshow).toHaveBeenCalledWith(
+    expect(mocks.mockStartIndividualAlbumSlideshow).toHaveBeenCalledWith(
       expect.objectContaining({
         name: 'Album1',
         textures: expectedTextures,
@@ -172,8 +179,11 @@ describe('AlbumsList.vue', () => {
     });
     await wrapper.vm.$nextTick();
 
-    expect(mockToggleAlbumSelection).toHaveBeenCalledWith('Album1', true);
-    expect(mockToggleAlbumSelection).toHaveBeenCalledWith('SubAlbum1', true);
+    expect(mocks.mockToggleAlbumSelection).toHaveBeenCalledWith('Album1', true);
+    expect(mocks.mockToggleAlbumSelection).toHaveBeenCalledWith(
+      'SubAlbum1',
+      true,
+    );
   });
 
   it('deselects all children when a fully selected parent is toggled', async () => {
@@ -191,15 +201,21 @@ describe('AlbumsList.vue', () => {
     });
     await wrapper.vm.$nextTick();
 
-    expect(mockToggleAlbumSelection).toHaveBeenCalledWith('Album1', false);
-    expect(mockToggleAlbumSelection).toHaveBeenCalledWith('SubAlbum1', false);
+    expect(mocks.mockToggleAlbumSelection).toHaveBeenCalledWith(
+      'Album1',
+      false,
+    );
+    expect(mocks.mockToggleAlbumSelection).toHaveBeenCalledWith(
+      'SubAlbum1',
+      false,
+    );
   });
 
   it('toggles slideshow timer when timer button is clicked', async () => {
     const wrapper = mount(AlbumsList);
     const timerButton = wrapper.find('.timer-button');
     await timerButton.trigger('click');
-    expect(mockToggleSlideshowTimer).toHaveBeenCalled();
+    expect(mocks.mockToggleSlideshowTimer).toHaveBeenCalled();
   });
 
   it('Timer button has accessible name (aria-label)', async () => {
@@ -347,7 +363,7 @@ describe('AlbumsList.vue', () => {
 
       const libraryStoreMock = useLibraryStore();
       expect(libraryStoreMock.fetchHistory).toHaveBeenCalledWith(100);
-      expect(mockStartIndividualAlbumSlideshow).toHaveBeenCalledWith(
+      expect(mocks.mockStartIndividualAlbumSlideshow).toHaveBeenCalledWith(
         expect.objectContaining({
           id: 'history-playlist',
           textures: [{ path: '/history.jpg' }],
@@ -372,6 +388,92 @@ describe('AlbumsList.vue', () => {
         'Error starting history slideshow',
         expect.any(Error),
       );
+    });
+  });
+
+  describe('Additional Coverage', () => {
+    it('emits close event when mobile close button is clicked', async () => {
+      const wrapper = mount(AlbumsList);
+      // Helper to find button by icon or aria-label
+      const closeBtn = wrapper.find('button[aria-label="Close Sidebar"]');
+      await closeBtn.trigger('click');
+      expect(wrapper.emitted('close')).toBeTruthy();
+    });
+
+    it('updates settings via toggles', async () => {
+      const wrapper = mount(AlbumsList);
+
+      const checkboxes = wrapper.findAll('input[type="checkbox"]');
+      const playFullVideoCheckbox = checkboxes[0];
+      const pauseTimerCheckbox = checkboxes[1];
+
+      await playFullVideoCheckbox.setValue(true);
+      expect(mockPlayerState.playFullVideo).toBe(true);
+
+      await pauseTimerCheckbox.setValue(true);
+      expect(mockPlayerState.pauseTimerOnPlay).toBe(true);
+    });
+
+    it('sets media filter', async () => {
+      const wrapper = mount(AlbumsList);
+      const imgBtn = wrapper
+        .findAll('button')
+        .find((b) => b.text().includes('Images'));
+      expect(imgBtn).toBeDefined();
+      await imgBtn!.trigger('click');
+      await flushPromises();
+
+      expect(mocks.mockReapplyFilter).toHaveBeenCalled();
+      expect(mockUIState.mediaFilter).toBe('Images');
+    });
+
+    it('handles delete playlist error', async () => {
+      mockLibraryState.smartPlaylists = [
+        { id: 1, name: 'Fail', criteria: '{}' },
+      ];
+      global.confirm = vi.fn(() => true);
+      (api.deleteSmartPlaylist as Mock).mockRejectedValue(
+        new Error('Delete failed'),
+      );
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+
+      const wrapper = mount(AlbumsList);
+      await wrapper.vm.$nextTick();
+      const trashBtn = wrapper.findAll('button[title="Delete"]')[0];
+      await trashBtn.trigger('click');
+
+      // Just ensure it doesn't crash and logs error
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to delete playlist',
+        expect.any(Error),
+      );
+      consoleSpy.mockRestore();
+    });
+
+    it('handles history grid error', async () => {
+      mockLibraryState.historyMedia = [{ path: '/history.jpg' }];
+      // Mock fetchHistory to throw? Or useLibraryStore mock?
+      // The component calls `await loadHistory()`, which calls `libraryStore.fetchHistory`.
+      const libraryStoreMock = useLibraryStore();
+      (libraryStoreMock.fetchHistory as Mock).mockRejectedValue(
+        new Error('Fetch failed'),
+      );
+
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      const wrapper = mount(AlbumsList);
+
+      const gridBtn = wrapper.find('button[aria-label="Open History in Grid"]');
+      await gridBtn.trigger('click');
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Error opening history grid',
+        expect.any(Error),
+      );
+      consoleSpy.mockRestore();
     });
   });
 });

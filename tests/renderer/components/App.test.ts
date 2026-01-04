@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { mount } from '@vue/test-utils';
-import { reactive, toRefs, nextTick } from 'vue';
+import { reactive, toRefs, nextTick, computed } from 'vue';
 import App from '@/App.vue';
 import { useSlideshow } from '@/composables/useSlideshow';
 import { useLibraryStore } from '@/composables/useLibraryStore';
@@ -73,6 +73,7 @@ describe('App.vue', () => {
       timerDuration: 30,
       slideshowTimerId: null,
       stopSlideshow: vi.fn(),
+      mainVideoElement: null,
     });
 
     mockUIState = reactive({
@@ -80,6 +81,7 @@ describe('App.vue', () => {
       viewMode: 'player',
       isSmartPlaylistModalVisible: false,
       mediaFilter: 'All',
+      isControlsVisible: true,
     });
 
     (useLibraryStore as Mock).mockReturnValue({
@@ -91,6 +93,7 @@ describe('App.vue', () => {
     (usePlayerStore as Mock).mockReturnValue({
       state: mockPlayerState,
       ...toRefs(mockPlayerState),
+      isSlideshowActive: computed(() => mockPlayerState.isSlideshowActive),
       stopSlideshow: vi.fn(),
     });
 
@@ -232,5 +235,84 @@ describe('App.vue', () => {
       expect.any(Function),
     );
     removeEventListenerSpy.mockRestore();
+  });
+
+  it('should auto-close sidebar when slideshow becomes active', async () => {
+    const wrapper = mount(App);
+    // Initially sidebar is open
+    expect((wrapper.vm as any).showSidebar).toBe(true);
+
+    // Simulate slideshow starting
+    mockPlayerState.isSlideshowActive = true;
+    await nextTick();
+
+    expect((wrapper.vm as any).showSidebar).toBe(false);
+  });
+
+  describe('Controls Visibility interactions', () => {
+    it('shows controls on mousemove and hides after timeout if video playing', async () => {
+      vi.useFakeTimers();
+      mockUIState.viewMode = 'player';
+      mockUIState.isControlsVisible = false;
+      // Mock video playing
+      mockPlayerState.mainVideoElement = { paused: false };
+      await nextTick();
+
+      const wrapper = mount(App);
+      const mainDiv = wrapper.find('[data-testid="main-content-area"]');
+
+      await mainDiv.trigger('mousemove');
+      expect(mockUIState.isControlsVisible).toBe(true);
+
+      vi.advanceTimersByTime(3500);
+      expect(mockUIState.isControlsVisible).toBe(false);
+      vi.useRealTimers();
+    });
+
+    it('keeps controls visible on mousemove timeout if video is PAUSED', async () => {
+      vi.useFakeTimers();
+      mockUIState.viewMode = 'player';
+      mockUIState.isControlsVisible = false;
+      // Mock video paused
+      mockPlayerState.mainVideoElement = { paused: true };
+
+      const wrapper = mount(App);
+      const mainDiv = wrapper.find('[data-testid="main-content-area"]');
+
+      await mainDiv.trigger('mousemove');
+      expect(mockUIState.isControlsVisible).toBe(true);
+
+      vi.advanceTimersByTime(3500);
+      // Should still be visible because video is paused
+      expect(mockUIState.isControlsVisible).toBe(true);
+      vi.useRealTimers();
+    });
+
+    it('hides controls on mouseleave if video playing', async () => {
+      mockUIState.viewMode = 'player';
+      mockUIState.isControlsVisible = true;
+      mockPlayerState.mainVideoElement = { paused: false };
+      await nextTick();
+
+      const wrapper = mount(App);
+      const mainDiv = wrapper.find('[data-testid="main-content-area"]');
+
+      expect(mainDiv.exists()).toBe(true);
+      await mainDiv.trigger('mouseleave');
+      expect(mockUIState.isControlsVisible).toBe(false);
+    });
+
+    it('keeps controls visible on mouseleave if video PAUSED', async () => {
+      mockUIState.viewMode = 'player';
+      mockUIState.isControlsVisible = true;
+      mockPlayerState.mainVideoElement = { paused: true };
+      await nextTick();
+
+      const wrapper = mount(App);
+      const mainDiv = wrapper.find('[data-testid="main-content-area"]');
+
+      await mainDiv.trigger('mouseleave');
+      expect(mockUIState.isControlsVisible).toBe(true);
+    });
   });
 });

@@ -8,20 +8,66 @@
       <!-- Optional: Play icon or similar overlay -->
     </div>
 
-    <!-- VR Controls Overlay -->
-    <div class="absolute top-4 left-4 z-20 flex gap-2">
-      <button
-        class="bg-black/50 text-white px-3 py-1 rounded-full text-xs hover:bg-black/70 border border-white/20 backdrop-blur-sm"
-        @click="toggleStereo"
-      >
-        {{ isStereo ? 'Mode: 3D (SBS)' : 'Mode: 2D (Mono)' }}
-      </button>
-      <button
-        class="bg-black/50 text-white px-3 py-1 rounded-full text-xs hover:bg-black/70 border border-white/20 backdrop-blur-sm"
-        @click="toggleFullscreen"
-      >
-        Fullscreen
-      </button>
+    <!-- VR Controls Overlay (Moved down to avoid Header overlap) -->
+    <div
+      class="absolute left-4 right-4 z-20 flex justify-between items-start pointer-events-none transition-opacity duration-300"
+      :class="[
+        isFullscreen ? 'top-6' : 'top-24',
+        { 'opacity-0': !isControlsVisible },
+      ]"
+    >
+      <div class="flex gap-2 pointer-events-auto">
+        <!-- Play/Pause Button -->
+        <button
+          class="bg-black/50 text-white p-3 rounded-full hover:bg-white/20 border border-white/20 backdrop-blur-sm transition-colors flex items-center justify-center pointer-events-auto"
+          @click="togglePlayback"
+        >
+          <component :is="isPlaying ? PauseIcon : PlayIcon" class="w-5 h-5" />
+        </button>
+
+        <!-- Mode Toggle -->
+        <button
+          class="bg-black/50 text-white px-8 py-3 rounded-full text-sm font-medium hover:bg-black/70 border border-white/20 backdrop-blur-sm whitespace-nowrap transition-colors pointer-events-auto"
+          @click="toggleStereo"
+        >
+          {{ isStereo ? 'Mode: 3D (SBS)' : 'Mode: 2D (Mono)' }}
+        </button>
+      </div>
+
+      <div class="flex gap-2 pointer-events-auto">
+        <!-- Recenter Button (VR Motion Mode) -->
+        <button
+          class="bg-black/50 text-white p-3 rounded-full hover:bg-indigo-500/80 border border-white/20 backdrop-blur-sm transition-colors pointer-events-auto"
+          :class="{ 'text-indigo-400': isMotionControlActive }"
+          title="Recenter VR View"
+          @click="recenterVR"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="w-5 h-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+            />
+          </svg>
+        </button>
+
+        <!-- Close / Exit Fullscreen Button (Only in Fullscreen) -->
+        <button
+          v-if="isFullscreen"
+          class="bg-black/50 text-white p-3 rounded-full hover:bg-red-500/80 border border-white/20 backdrop-blur-sm transition-colors pointer-events-auto"
+          aria-label="Exit Fullscreen"
+          @click="toggleFullscreen"
+        >
+          <CloseIcon class="w-5 h-5" />
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -30,6 +76,9 @@
 import { ref, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import PlayIcon from './icons/PlayIcon.vue';
+import PauseIcon from './icons/PauseIcon.vue';
+import CloseIcon from './icons/CloseIcon.vue';
 
 const STEREO_ASPECT_RATIO_THRESHOLD = 1.9;
 const SPHERE_RADIUS = 500;
@@ -40,15 +89,20 @@ const props = defineProps<{
   src: string;
   isPlaying: boolean;
   initialTime?: number;
+  isControlsVisible: boolean;
 }>();
 
 const emit = defineEmits<{
   (e: 'timeupdate', time: number): void;
   (e: 'update:video-element', el: HTMLVideoElement | null): void;
+  (e: 'play'): void;
+  (e: 'pause'): void;
 }>();
 
 const container = ref<HTMLElement | null>(null);
 const isStereo = ref(false);
+const isFullscreen = ref(false);
+const isMotionControlActive = ref(false);
 
 // Three.js instances
 let scene: THREE.Scene | null = null;
@@ -58,6 +112,68 @@ let controls: OrbitControls | null = null;
 let video: HTMLVideoElement | null = null;
 let videoTexture: THREE.VideoTexture | null = null;
 let animationId: number | null = null;
+
+// Motion Control State
+let deviceOrientation: DeviceOrientationEvent | null = null;
+let screenOrientation = 0;
+let initialOffsetAlpha = 0; // For recentering
+
+const onDeviceOrientation = (event: DeviceOrientationEvent) => {
+  deviceOrientation = event;
+};
+
+const onScreenOrientationChange = () => {
+  screenOrientation = window.orientation || 0;
+};
+
+const recenterVR = () => {
+  if (!isMotionControlActive.value) {
+    // Request permission on iOS 13+
+    if (
+      typeof DeviceOrientationEvent !== 'undefined' &&
+      // @ts-expect-error: requestPermission is not in the standard type definition but exists on iOS
+      typeof DeviceOrientationEvent.requestPermission === 'function'
+    ) {
+      // @ts-expect-error: requestPermission is not in the standard type definition but exists on iOS
+      DeviceOrientationEvent.requestPermission()
+        .then((response: string) => {
+          if (response === 'granted') {
+            activateMotion();
+          } else {
+            alert('Permission denied');
+          }
+        })
+        .catch(console.error);
+    } else {
+      activateMotion();
+    }
+  } else {
+    // Already active, just recenter (reset offset)
+    if (deviceOrientation && deviceOrientation.alpha) {
+      initialOffsetAlpha = deviceOrientation.alpha;
+    }
+  }
+};
+
+const activateMotion = () => {
+  isMotionControlActive.value = true;
+  window.addEventListener('deviceorientation', onDeviceOrientation);
+  window.addEventListener('orientationchange', onScreenOrientationChange);
+  onScreenOrientationChange();
+
+  if (controls) {
+    controls.enabled = false; // Disable orbit controls
+  }
+};
+
+const togglePlayback = () => {
+  if (!video) return;
+  if (video.paused) {
+    video.play().catch(() => {});
+  } else {
+    video.pause();
+  }
+};
 
 const toggleStereo = () => {
   isStereo.value = !isStereo.value;
@@ -159,6 +275,8 @@ const initThree = () => {
 
   // Listen for time updates
   video.addEventListener('timeupdate', handleTimeUpdate);
+  video.addEventListener('play', () => emit('play'));
+  video.addEventListener('pause', () => emit('pause'));
 
   // Detect metadata for AR
   video.addEventListener('loadedmetadata', handleLoadedMetadata);
@@ -207,6 +325,7 @@ const initThree = () => {
 
   // Resize listener
   window.addEventListener('resize', handleResize);
+  document.addEventListener('fullscreenchange', handleResize);
 
   // Start loop
   animate();
@@ -214,6 +333,10 @@ const initThree = () => {
 
 const handleResize = () => {
   if (!container.value || !camera || !renderer) return;
+
+  // Update fullscreen state
+  isFullscreen.value = !!document.fullscreenElement;
+
   const width = container.value.clientWidth;
   const height = container.value.clientHeight;
   camera.aspect = width / height;
@@ -223,7 +346,40 @@ const handleResize = () => {
 
 const animate = () => {
   animationId = requestAnimationFrame(animate);
-  if (controls) controls.update();
+
+  if (isMotionControlActive.value && camera && deviceOrientation) {
+    // Custom Device Orientation Logic (Simplified from Three.js examples)
+    const alpha = deviceOrientation.alpha
+      ? THREE.MathUtils.degToRad(deviceOrientation.alpha - initialOffsetAlpha)
+      : 0; // Z
+    const beta = deviceOrientation.beta
+      ? THREE.MathUtils.degToRad(deviceOrientation.beta)
+      : 0; // X'
+    const gamma = deviceOrientation.gamma
+      ? THREE.MathUtils.degToRad(deviceOrientation.gamma)
+      : 0; // Y''
+    const orient = screenOrientation
+      ? THREE.MathUtils.degToRad(screenOrientation)
+      : 0; // O
+
+    const euler = new THREE.Euler();
+    const q0 = new THREE.Quaternion();
+    const q1 = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5)); // - PI/2 around the x-axis
+
+    euler.set(beta, alpha, -gamma, 'YXZ'); // 'ZXY' for the device, but 'YXZ' for us
+
+    const quaternion = new THREE.Quaternion();
+    quaternion.setFromEuler(euler);
+    quaternion.multiply(q1); // camera looks out the back of the device, not the top
+    quaternion.multiply(
+      q0.setFromAxisAngle(new THREE.Vector3(0, 0, 1), -orient),
+    ); // adjust for screen orientation
+
+    camera.quaternion.copy(quaternion);
+  } else if (controls) {
+    controls.update();
+  }
+
   if (renderer && scene && camera) {
     renderer.render(scene, camera);
   }
@@ -239,6 +395,9 @@ onMounted(() => {
 onBeforeUnmount(() => {
   if (animationId) cancelAnimationFrame(animationId);
   window.removeEventListener('resize', handleResize);
+  document.removeEventListener('fullscreenchange', handleResize);
+  window.removeEventListener('deviceorientation', onDeviceOrientation);
+  window.removeEventListener('orientationchange', onScreenOrientationChange);
 
   if (renderer) {
     renderer.dispose();
@@ -282,6 +441,8 @@ defineExpose({
   handleTimeUpdate,
   handleLoadedMetadata,
   initThree,
+  toggleFullscreen,
+  isFullscreen,
 });
 </script>
 
