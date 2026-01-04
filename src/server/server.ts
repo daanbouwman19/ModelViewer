@@ -90,10 +90,18 @@ const CERT_PATH = path.join(CERT_DIR, 'server.cert');
 
 async function ensureCertificates() {
   try {
-    await fs.access(KEY_PATH);
-    await fs.access(CERT_PATH);
+    await Promise.all([fs.access(KEY_PATH), fs.access(CERT_PATH)]);
     console.log('SSL Certificates found.');
-  } catch {
+  } catch (e: unknown) {
+    const error = e as { code?: string };
+    if (error.code !== 'ENOENT') {
+      console.error(
+        'An unexpected error occurred while checking for SSL certificates:',
+        error,
+      );
+      throw error;
+    }
+
     console.log('Generating SSL Certificates...');
     await fs.mkdir(CERT_DIR, { recursive: true });
 
