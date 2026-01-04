@@ -20,7 +20,7 @@
       >
         <!-- Decorative top gradient -->
         <div
-          class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 z-10"
+          class="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-indigo-500 via-purple-500 to-indigo-500 z-10"
         ></div>
 
         <!-- Header -->
@@ -221,7 +221,7 @@
   >
     <div
       v-if="showDriveAuth"
-      class="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+      class="fixed inset-0 z-60 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
       role="dialog"
       aria-modal="true"
     >
@@ -292,7 +292,7 @@
               Cancel
             </button>
             <button
-              class="flex-[2] py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-colors disabled:opacity-50"
+              class="flex-2 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-colors disabled:opacity-50"
               :disabled="!authCode || isAuthenticating"
               @click="submitAuthCode"
             >
@@ -356,7 +356,7 @@
               Close
             </button>
             <button
-              class="flex-[2] py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-colors disabled:opacity-50"
+              class="flex-2 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition-colors disabled:opacity-50"
               :disabled="isAddingDrive"
               @click="addDriveSource"
             >
@@ -371,7 +371,7 @@
   <!-- File Explorer Modal -->
   <div
     v-if="isFileExplorerOpen"
-    class="fixed inset-0 z-[70] bg-black bg-opacity-75 flex items-center justify-center p-4 modal-overlay"
+    class="fixed inset-0 z-70 bg-black bg-opacity-75 flex items-center justify-center p-4 modal-overlay"
     role="dialog"
     aria-modal="true"
     @click.self="closeFileExplorer"

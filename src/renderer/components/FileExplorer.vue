@@ -16,7 +16,7 @@
         <ArrowUpIcon class="w-5 h-5" />
       </button>
       <div
-        class="current-path flex-grow font-mono text-sm truncate bg-black/30 p-2 rounded"
+        class="current-path grow font-mono text-sm truncate bg-black/30 p-2 rounded"
       >
         {{ displayPath }}
       </div>
@@ -44,7 +44,7 @@
     </div>
 
     <!-- File List -->
-    <div class="file-list flex-grow overflow-y-auto p-2 relative">
+    <div class="file-list grow overflow-y-auto p-2 relative">
       <!-- Loading Overlay -->
       <div
         v-if="isLoading"
@@ -109,7 +109,7 @@
             <span class="icon">{{
               entry.isDirectory ? (isDriveRoot(entry.path) ? '💾' : '📁') : '📄'
             }}</span>
-            <span class="name flex-grow truncate">{{ entry.name }}</span>
+            <span class="name grow truncate">{{ entry.name }}</span>
             <span v-if="entry.isDirectory" class="text-xs text-gray-500">{{
               isDriveRoot(entry.path) ? 'DRIVE' : 'DIR'
             }}</span>

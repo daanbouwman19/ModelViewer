@@ -7,7 +7,7 @@
       v-if="!isImage && currentMediaItem"
       class="text-[10px] font-mono text-white/90 px-3 py-1 bg-black/40 backdrop-blur-md rounded-full border border-white/10 pointer-events-auto transition-opacity duration-500 ease-in-out"
       :class="{
-        'sm:hidden': !isNarrowView,
+        'md:hidden': !isNarrowView,
         'opacity-0 pointer-events-none': !isControlsVisible,
       }"
     >
@@ -21,7 +21,7 @@
       <!-- Previous Button -->
       <button
         :disabled="!canNavigate"
-        class="nav-button group p-1.5 md:p-2 rounded-full text-white transition-all duration-200 hover:bg-[var(--accent-color)] disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0"
+        class="nav-button group p-1.5 md:p-2 rounded-full text-white transition-all duration-200 hover:bg-(--accent-color) disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0"
         aria-label="Previous media"
         @click="$emit('previous')"
       >
@@ -31,7 +31,7 @@
       <!-- Next Button -->
       <button
         :disabled="!canNavigate"
-        class="nav-button group p-1.5 md:p-2 rounded-full text-white transition-all duration-200 hover:bg-[var(--accent-color)] disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0"
+        class="nav-button group p-1.5 md:p-2 rounded-full text-white transition-all duration-200 hover:bg-(--accent-color) disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0"
         aria-label="Next media"
         @click="$emit('next')"
       >
@@ -52,7 +52,7 @@
           class="focus-visible:outline-none transition-colors duration-200"
           :class="
             (currentMediaItem?.rating || 0) >= star
-              ? 'text-[var(--accent-color)]'
+              ? 'text-(--accent-color)'
               : 'text-white/30 hover:text-white/70'
           "
           :aria-label="`Rate ${star} ${star === 1 ? 'star' : 'stars'}`"
@@ -71,7 +71,7 @@
       <!-- Play/Pause -->
       <button
         v-if="!isImage && currentMediaItem"
-        class="play-pause-button p-1.5 md:p-2 rounded-full text-white transition-all duration-200 hover:bg-[var(--accent-color)] focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0"
+        class="play-pause-button p-1.5 md:p-2 rounded-full text-white transition-all duration-200 hover:bg-(--accent-color) focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0"
         :aria-label="isPlaying ? 'Pause video' : 'Play video'"
         @click="$emit('toggle-play')"
       >
@@ -88,10 +88,9 @@
       <!-- VR Mode -->
       <button
         v-if="!isImage && currentMediaItem"
-        class="p-1.5 md:p-2 rounded-full text-white transition-all duration-200 hover:bg-[var(--accent-color)] focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0"
+        class="p-1.5 md:p-2 rounded-full text-white transition-all duration-200 hover:bg-(--accent-color) focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0 hidden sm:block"
         :class="{
-          'bg-[var(--accent-color)]': isVrMode,
-          'hidden sm:block': true,
+          'bg-(--accent-color)': isVrMode,
         }"
         title="Toggle VR Mode (180°)"
         aria-label="Toggle VR Mode"
@@ -109,7 +108,7 @@
       <!-- VLC -->
       <button
         v-if="!isImage && currentMediaItem"
-        class="vlc-button p-1.5 md:p-2 rounded-full text-white transition-all duration-200 hover:bg-[var(--accent-color)] focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0 hidden sm:block"
+        class="vlc-button p-1.5 md:p-2 rounded-full text-white transition-all duration-200 hover:bg-(--accent-color) focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0 hidden sm:block"
         title="Open in VLC"
         aria-label="Open in VLC"
         @click="$emit('open-in-vlc')"
@@ -135,13 +134,13 @@
       <div
         v-if="!isImage && currentMediaItem"
         class="w-px h-6 md:h-8 bg-white/10 mx-0.5 md:mx-2 shrink-0 hidden sm:block"
-        :class="{ '!hidden': isNarrowView }"
+        :class="{ 'hidden!': isNarrowView }"
       ></div>
 
       <!-- Fullscreen -->
       <button
         v-if="!isImage && currentMediaItem"
-        class="p-1.5 md:p-2 rounded-full text-white transition-all duration-200 hover:bg-[var(--accent-color)] focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0"
+        class="p-1.5 md:p-2 rounded-full text-white transition-all duration-200 hover:bg-(--accent-color) focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0"
         title="Toggle Fullscreen"
         aria-label="Toggle Fullscreen"
         @click="$emit('toggle-fullscreen')"
@@ -178,18 +177,17 @@ const props = defineProps<{
 
 const { isSidebarVisible } = useUIStore();
 
+const MD_BREAKPOINT = 768;
+
 // Detect "Desktop" (medium screen) vs "Mobile" (small screen)
-const isDesktop = ref(
-  typeof window !== 'undefined' ? window.innerWidth >= 768 : true,
-);
+const isDesktop = ref(window.innerWidth >= MD_BREAKPOINT);
 
 const handleResize = () => {
-  isDesktop.value = window.innerWidth >= 768;
+  isDesktop.value = window.innerWidth >= MD_BREAKPOINT;
 };
 
 onMounted(() => {
   window.addEventListener('resize', handleResize);
-  handleResize(); // Initial check
 });
 
 onUnmounted(() => {

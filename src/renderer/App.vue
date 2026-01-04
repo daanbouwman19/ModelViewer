@@ -28,7 +28,7 @@
           class="flex justify-between items-center mb-4 p-3 shrink-0 transition-all duration-500 ease-in-out z-40"
           :class="[
             viewMode === 'player'
-              ? 'absolute top-0 left-0 right-0 bg-gradient-to-b from-black/80 to-transparent'
+              ? 'absolute top-0 left-0 right-0 bg-linear-to-b from-black/80 to-transparent'
               : 'glass-panel rounded-lg',
             {
               'opacity-0 pointer-events-none':
@@ -46,7 +46,7 @@
 
           <!-- Title / Filename -->
           <h1
-            class="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-500 truncate mx-4"
+            class="text-lg font-bold bg-clip-text text-transparent bg-linear-to-r from-blue-400 to-indigo-500 truncate mx-4"
           >
             {{
               viewMode === 'player' && currentMediaItem
