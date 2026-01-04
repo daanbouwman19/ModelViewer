@@ -1,7 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../src/server/server';
-import { validateFileAccess, serveRawStream } from '../../src/core/media-handler';
+import {
+  validateFileAccess,
+  serveRawStream,
+} from '../../src/core/media-handler';
 import { createMediaSource } from '../../src/core/media-source';
 
 // Mock dependencies
@@ -19,7 +22,8 @@ vi.mock('../../src/core/database', () => ({
 }));
 vi.mock('../../src/core/media-service', () => ({}));
 vi.mock('../../src/core/media-handler', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../src/core/media-handler')>();
+  const actual =
+    await importOriginal<typeof import('../../src/core/media-handler')>();
   return {
     ...actual,
     validateFileAccess: vi.fn(),
@@ -27,7 +31,8 @@ vi.mock('../../src/core/media-handler', async (importOriginal) => {
   };
 });
 vi.mock('../../src/core/media-source', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../src/core/media-source')>();
+  const actual =
+    await importOriginal<typeof import('../../src/core/media-source')>();
   return {
     ...actual,
     createMediaSource: vi.fn(),
@@ -87,7 +92,10 @@ describe('Server Endpoint Security', () => {
 
       expect(response.status).toBe(403);
       // Should verify that validateFileAccess was called
-      expect(validateFileAccess).toHaveBeenCalledWith(expect.anything(), filePath);
+      expect(validateFileAccess).toHaveBeenCalledWith(
+        expect.anything(),
+        filePath,
+      );
 
       // Should verify that createMediaSource was NOT called (short-circuit)
       expect(createMediaSource).not.toHaveBeenCalled();
@@ -100,11 +108,12 @@ describe('Server Endpoint Security', () => {
       // Mock validation to pass
       vi.mocked(validateFileAccess).mockResolvedValue(true);
 
-      await request(app)
-        .get('/api/serve')
-        .query({ path: filePath });
+      await request(app).get('/api/serve').query({ path: filePath });
 
-      expect(validateFileAccess).toHaveBeenCalledWith(expect.anything(), filePath);
+      expect(validateFileAccess).toHaveBeenCalledWith(
+        expect.anything(),
+        filePath,
+      );
       expect(createMediaSource).toHaveBeenCalledWith(filePath);
       expect(serveRawStream).toHaveBeenCalled();
     });
