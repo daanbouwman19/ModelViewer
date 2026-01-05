@@ -607,16 +607,35 @@ describe('media-handler unit tests', () => {
       const cachePath = '/cache/thumb.jpg';
       mockGetThumbnailCachePath.mockReturnValue(cachePath);
       mockCheckThumbnailCache.mockResolvedValue(true);
-      const mockStream = { pipe: vi.fn() };
+
+      const mockStream = new EventEmitter();
+      (mockStream as any).pipe = vi.fn();
 
       mockFsCreateReadStream.mockReturnValue(mockStream as any);
 
-      await serveThumbnail(req, res, '/video.mp4', 'ffmpeg', '/cache');
+      const promise = serveThumbnail(
+        req,
+        res,
+        '/video.mp4',
+        'ffmpeg',
+        '/cache',
+      );
+
+      // Wait for async loop to attach listeners
+      await new Promise((r) => setTimeout(r, 0));
+
+      // Simulate stream open
+      mockStream.emit('open');
+      // Simulate stream end to resolve promise
+      mockStream.emit('end');
+
+      await promise;
 
       expect(res.set).toHaveBeenCalledWith(
         expect.objectContaining({ 'Content-Type': 'image/jpeg' }),
       );
-      expect(res.sendFile).toHaveBeenCalledWith(cachePath);
+      expect(mockFsCreateReadStream).toHaveBeenCalledWith(cachePath);
+      expect((mockStream as any).pipe).toHaveBeenCalledWith(res);
     });
 
     it('generates thumbnail for gdrive file', async () => {
@@ -651,9 +670,6 @@ describe('media-handler unit tests', () => {
       mockCheckThumbnailCache.mockResolvedValue(false);
       mockAuthorizeFilePath.mockResolvedValue({ isAllowed: false });
 
-      const mockWriteStream = {};
-      mockFsCreateWriteStream.mockReturnValue(mockWriteStream as any); // Add this as it might be required for provider flow even if auth fails later? No.
-
       await serveThumbnail(req, res, '/local/vid.mp4', 'ffmpeg', '/cache');
 
       expect(res.status).toHaveBeenCalledWith(403);
@@ -682,7 +698,8 @@ describe('media-handler unit tests', () => {
       mockSpawn.mockReturnValue(mockProcess);
 
       mockFsStat.mockResolvedValue({} as any);
-      const mockStream = { pipe: vi.fn() };
+
+      const mockStream = { pipe: vi.fn(), on: vi.fn() };
       mockFsCreateReadStream.mockReturnValue(mockStream as any);
 
       await serveThumbnail(req, res, '/video.mp4', 'ffmpeg', '/cache');
@@ -691,7 +708,8 @@ describe('media-handler unit tests', () => {
       expect(res.set).toHaveBeenCalledWith(
         expect.objectContaining({ 'Content-Type': 'image/jpeg' }),
       );
-      expect(res.sendFile).toHaveBeenCalledWith('/cache/local.jpg');
+      expect(mockFsCreateReadStream).toHaveBeenCalledWith('/cache/local.jpg');
+      expect(mockStream.pipe).toHaveBeenCalledWith(res);
     });
 
     it('handles ffmpeg failure (non-zero exit)', async () => {
@@ -1191,8 +1209,8 @@ describe('media-handler unit tests', () => {
       const res2 = await request(app).get(
         '/video/thumbnail?file=/test.jpg&file=/ignore.jpg',
       );
-      // expect 404 because file doesn't exist on disk during res.sendFile
-      expect(res2.status).toBe(404);
+      // Expect 500 because stream file open/read error is mapped to 500
+      expect(res2.status).toBe(500);
     });
 
     it('Static File Middleware normalizes Windows paths with leading slash', async () => {

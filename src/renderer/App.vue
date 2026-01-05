@@ -19,17 +19,20 @@
       <!-- Main Media Area -->
       <div
         class="grow flex flex-col h-full relative w-full min-w-0"
+        :class="{
+          'glass-panel rounded-xl overflow-hidden': viewMode === 'player',
+        }"
         data-testid="main-content-area"
         @mousemove="handleMouseMove"
         @mouseleave="handleMouseLeave"
       >
+        <!-- Gradient Overlay (Player Mode Only) -->
+
         <!-- Top Bar (Toggle Sidebar & Title) -->
         <div
-          class="flex justify-between items-center mb-4 p-3 shrink-0 transition-all duration-500 ease-in-out z-40"
+          class="flex justify-between items-center mb-4 p-3 shrink-0 transition-opacity duration-500 ease-in-out z-40"
           :class="[
-            viewMode === 'player'
-              ? 'absolute top-0 left-0 right-0 bg-linear-to-b from-black/80 to-transparent'
-              : 'glass-panel rounded-lg',
+            viewMode === 'player' ? 'w-full' : 'glass-panel rounded-lg',
             {
               'opacity-0 pointer-events-none':
                 !isControlsVisible && viewMode === 'player',

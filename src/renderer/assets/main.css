@@ -8,13 +8,18 @@
    * This allows for easy theming and consistent styling.
  */
 :root {
-  --primary-bg: #050505; /* Deepest Midnight Black */
-  --secondary-bg: #0f0f0f; /* Rich Black */
-  --tertiary-bg: #1f1f1f; /* Soft Charcoal */
-  --tertiary-bg: #1f1f1f; /* Soft Charcoal */
+  --primary-bg: #050505;
+  /* Deepest Midnight Black */
+  --secondary-bg: #0f0f0f;
+  /* Rich Black */
+  --tertiary-bg: #1f1f1f;
+  /* Soft Charcoal */
+  /* Soft Charcoal */
   /* User asked to redo colors, so I'll try a sophisticated Electric Blue/Violet gradient feel via accent */
-  --accent-color: #6366f1; /* Indigo-500 */
-  --accent-hover: #4f46e5; /* Indigo-600 */
+  --accent-color: #6366f1;
+  /* Indigo-500 */
+  --accent-hover: #4f46e5;
+  /* Indigo-600 */
   --text-color: #ffffff;
   --text-muted: #9ca3af;
   --border-color: #27272a;
@@ -26,10 +31,12 @@
   --body-font: 'Inter', sans-serif;
 
   /* Glassmorphism Variables */
-  --glass-bg: rgba(10, 10, 10, 0.6); /* Darker, more neutral glass */
+  --glass-bg: rgba(10, 10, 10, 0.6);
+  /* Darker, more neutral glass */
   --glass-border: rgba(255, 255, 255, 0.08);
   --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6);
-  --glass-blur: blur(24px); /* Premium smooth blur */
+  --glass-blur: blur(24px);
+  /* Premium smooth blur */
 }
 
 /* Glassmorphism Utilities */
@@ -89,13 +96,16 @@
 ::-webkit-scrollbar {
   width: 10px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: transparent;
   border-radius: 10px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: var(--accent-color);
 }
@@ -118,11 +128,13 @@ body {
   color: var(--text-color);
   overscroll-behavior: none;
   font-weight: 500;
-  overflow: hidden; /* Prevent body scrollbar */
+  overflow: hidden;
+  /* Prevent body scrollbar */
 }
 
 html {
-  overflow: hidden; /* Prevent html scrollbar */
+  overflow: hidden;
+  /* Prevent html scrollbar */
 }
 
 /* Typography for Headings */

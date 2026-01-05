@@ -1,6 +1,6 @@
 <template>
   <div
-    class="absolute bottom-4 md:bottom-8 left-1/2 transform -translate-x-1/2 flex flex-col items-center gap-2 pointer-events-none w-full"
+    class="absolute bottom-0 left-0 w-full flex flex-col items-center pointer-events-none z-50"
   >
     <!-- Time Display Above Pill (Mobile Only or Sidebar Open) -->
     <div
@@ -15,8 +15,8 @@
     </div>
 
     <div
-      class="controls-pill flex flex-nowrap justify-center items-center gap-1 md:gap-4 z-20 transition-transform-opacity duration-500 ease-in-out will-change-transform w-auto max-w-[98%] bg-black/40 backdrop-blur-md rounded-2xl px-3 py-1.5 md:px-10 md:py-3 border border-white/10 pointer-events-auto"
-      :class="{ 'translate-y-48 opacity-0': !isControlsVisible }"
+      class="controls-bar w-full flex flex-nowrap justify-center items-center gap-1 md:gap-4 transition-transform-opacity duration-500 ease-in-out will-change-transform bg-linear-to-t from-black/80 to-transparent pt-12 pb-6 px-4 pointer-events-auto"
+      :class="{ 'translate-y-full opacity-0': !isControlsVisible }"
     >
       <!-- Previous Button -->
       <button
