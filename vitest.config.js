@@ -5,9 +5,15 @@ import vue from '@vitejs/plugin-vue';
 export default defineConfig({
   plugins: [vue()],
   test: {
-    globals: true,
     environment: 'happy-dom',
+    environmentMatchGlobs: [
+      ['tests/main/**', 'node'],
+      ['tests/server/**', 'node'],
+      ['tests/core/**', 'node'],
+      ['**/*.node.test.ts', 'node'],
+    ],
     setupFiles: ['tests/renderer/setup.ts'],
+    globals: true,
     testTimeout: 10000,
     include: ['tests/**/*.{test,spec}.{js,ts}'],
     exclude: [
@@ -21,7 +27,7 @@ export default defineConfig({
     coverage: {
       provider: 'istanbul',
       reporter: ['text', 'json', 'html', 'lcov'],
-      all: true,
+      all: false,
       include: [
         'src/main/**/*.{js,ts}',
         'src/renderer/**/*.{js,ts}',
