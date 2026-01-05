@@ -135,7 +135,7 @@ describe('MediaControls.vue Responsiveness', () => {
     expect(timeDisplay.exists()).toBe(false);
   });
 
-  it('should hide everything relevant on Mobile even if width is large (e.g. rotated)', async () => {
+  it('should hide stars but show time on mobile with a wide container', async () => {
     // Mock window width to be mobile size
     window.innerWidth = 500;
     window.dispatchEvent(new Event('resize')); // Trigger component resize listener
@@ -152,20 +152,7 @@ describe('MediaControls.vue Responsiveness', () => {
     const stars = wrapper.findAll('button[aria-label*="Rate"]');
     expect(stars.length).toBe(0); // Should remain hidden on mobile
 
-    // Time might be hidden by CSS classes or logic, let's check.
-    // In our implementation, we only forced stars to be hidden on mobile via `!isDesktop`.
-    // Time shows if width > threshold (300).
-    // Let's verify existing logic: "Time Display In-Pill (Desktop/Tablet)" comment suggests it might be hidden on mobile by CSS
-    // The previous implementation had hidden class, our new implementation might strictly rely on width?
-    // Current code: `v-if="!isImage && currentMediaItem && showTime"`
-    // Wait, we removed `hidden md:block` classes?
-    // Checking previous implementation: `class="... hidden sm:block"` was on separators/buttons.
-    // Time display: class="text-[10px] md:text-xs ..." - it was always visible?
-    // Actually, looking at previous code, time display was:
-    // `v-if="!isImage && currentMediaItem"`
-    // So it was visible on mobile.
-
-    // Our new logic shows time if width > 300.
+    // Time shows if width > threshold (450).
     const timeDisplay = wrapper.find('.font-mono');
     expect(timeDisplay.exists()).toBe(true);
   });
