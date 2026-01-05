@@ -1,138 +1,99 @@
 # MediaPlayer
 
-A desktop application built with Electron and Vue 3 for browsing and viewing local media files, with a focus on creating dynamic, weighted slideshows.
+![overview](./images/overview.png)
+
+A versatile media application that runs as both a **Desktop Application** (Electron) for local playback and a **Web Server** for accessing your library from any browser. It focuses on creating dynamic, weighted slideshows and organizing your local media.
 
 ## Features
 
-- **Album-Based Organization**: Automatically groups media files based on their parent directory, referring to each as an "album".
-- **Media Viewer**: Supports a wide range of image and video formats. For performance, large videos are streamed via a local server.
-- **Weighted Random Slideshows**: Start a slideshow for a single album or a global slideshow from multiple selected albums. The selection algorithm prioritizes less-viewed items, ensuring you see fresh content more often.
-- **View Count Tracking**: Keeps track of how many times each media file has been viewed, which feeds into the slideshow weighting system.
-- **Persistent Cache**: Your media library index is cached in a local SQLite database for fast startups.
-- **Configurable Media Sources**: Easily add and manage multiple root directories for your media library.
-
-## How it Works
-
-The application uses a standard Electron architecture:
-
-- **Main Process**: Handles all backend logic, including file system scanning, database operations (via a worker thread to keep the UI responsive), and running a local server for streaming large media files.
-- **Renderer Process**: A Vue 3 single-page application that provides the user interface.
-- **Preload Script**: Securely exposes a controlled API from the main process to the renderer process via `contextBridge`.
+- **Dual Mode**:
+  - **Desktop App**: A standalone Electron application for your local machine.
+  - **Web Server**: Host your library and access it from any device in your network.
+- **Responsive Design**: The entire application is fully responsive and optimized for both desktop and mobile devices.
+- **FFmpeg Transcoding**: Automatically transcodes non-native video formats (like .mov or .mkv) on the fly for seamless playback in any browser.
+- **Google Drive Support**: Connect your Google Drive to stream media directly from the cloud without using local storage.
+- **Album-Based Organization**: Automatically groups media files based on their parent directory.
+- **Unified Media Viewer**: Supports images and videos. Large videos are streamed efficiently.
+- **Video Rating Mode**: A specialized interface for quickly rating media.
+- **Weighted Random Slideshows**: Smart slideshows that prioritize less-viewed content to keep your viewing experience fresh.
+- **Smart Playlists**: Create dynamic playlists based on custom rules (e.g., "Favorites", "Unwatched", "Specific Folders").
+- **View Count Tracking**: Tracks usage to inform the weighting algorithms.
+- **Persistent Cache**: Uses SQLite to cache the library index for instant startups.
 
 ## Tech Stack
 
-- **Framework**: [Electron](https://www.electronjs.org/)
-- **UI Framework**: [Vue 3](https://vuejs.org/)
+- **Core**: [TypeScript](https://www.typescriptlang.org/)
+- **Desktop Framework**: [Electron](https://www.electronjs.org/)
+- **Web Framework**: [Vue 3](https://vuejs.org/)
 - **Build Tool**: [electron-vite](https://electron-vite.org/)
-- **Packaging**: [electron-builder](https://www.electron.build/)
 - **Database**: [sqlite3](https://github.com/TryGhost/node-sqlite3)
+- **Media Processing**: [FFmpeg](https://ffmpeg.org/)
 - **Styling**: [Tailwind CSS](https://tailwindcss.com/)
 - **Testing**: [Vitest](https://vitest.dev/)
-- **Formatting**: [Prettier](https://prettier.io/)
+
+## Project Structure
+
+The project is organized into a modular structure to support both the Electron and Server environments sharing core logic:
+
+- `src/core/`: **Shared Business Logic**. Contains the database layer, media scanning, media handling, and file system abstractions used by both the Electron main process and the Web Server.
+- `src/main/`: **Electron Main Process**. Handles window management, native menus, and IPC for the desktop version.
+- `src/server/`: **Web Server**. The entry point for the standalone web server mode.
+- `src/renderer/`: **Frontend**. The Vue 3 application that serves as the UI for both modes.
+- `src/preload/`: **Electron Preload**. Bridges the gap between the Electron main process and the renderer.
+- `src/shared/`: **Shared Contracts**. TypeScript interfaces and IPC channel definitions shared between main, scanner, and renderer processes.
 
 ## Development
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) (LTS version recommended)
-- A C++ compiler and Python for rebuilding native modules. This is required for `sqlite3`. See the [node-gyp installation guide](https://github.com/nodejs/node-gyp#installation) for platform-specific instructions.
+- [Node.js](https://nodejs.org/) (Version 25)
+- C++/Python build tools for native modules (`sqlite3`).
 
 ### Setup
 
-1.  **Clone the repository:**
+```bash
+# Clone
+git clone <repository-url>
+cd <repository-directory>
 
-    ```bash
-    git clone <repository-url>
-    cd <repository-directory>
-    ```
+# Install
+npm install
+```
 
-2.  **Install dependencies:**
-    This command will install all necessary dependencies and automatically rebuild native modules like `sqlite3` for the Electron environment.
+### Running
 
-    ```bash
-    npm install
-    ```
-
-3.  **Configure Media Directory:**
-    After launching the application for the first time, the library will be empty. Click "Manage Sources" to add one or more directories that contain your media files. The application will then scan them and build the library.
-
-### Running the Application
-
-To start the application in development mode with hot-reloading:
+**Desktop Dev Mode**:
 
 ```bash
 npm run dev
 ```
 
-### Running Tests
-
-To run the full test suite once:
+**Web Server Dev Mode**:
 
 ```bash
+npm run dev:all
+```
+
+### Testing
+
+```bash
+# Run all tests
 npm test
 ```
 
-To run tests in watch mode for interactive development:
+## Building
 
-```bash
-npm run test:watch
-```
-
-To view the test UI:
-
-```bash
-npm run test:ui
-```
-
-### Formatting
-
-To automatically format all source code files according to the project's Prettier configuration:
-
-```bash
-npm run format
-```
-
-## Building for Production
-
-To create distributable packages for your current operating system:
+To package the application for your OS:
 
 ```bash
 npm run package
 ```
 
-The packaged application will be located in the `out/` directory.
-
-## Project Structure
-
-- `src/main/`: Source code for the Electron **main process**.
-  - `main.ts`: Application entry point and lifecycle management.
-  - `database.ts` & `database-worker.ts`: SQLite database operations via a worker thread.
-  - `local-server.ts`: HTTP server for streaming large video files.
-  - `media-scanner.ts`: Logic for scanning the file system for media.
-- `src/preload/`: The Electron **preload script** (`preload.ts`) that exposes the safe API to the renderer.
-- `src/renderer/`: Source code for the **renderer process** (the Vue 3 application).
-  - `components/`: Vue components (e.g., `MediaDisplay`, `AlbumTree`).
-  - `composables/`: Reusable state logic (`useAppState`, `useSlideshow`).
-- `tests/`: Vitest test files, mirroring the `src` directory structure.
-- `electron.vite.config.mjs`: Configuration for the electron-vite build process.
-- `vitest.config.js`: Configuration for the Vitest testing framework.
-- `package.json`: Project metadata, dependencies, and scripts.
-
-## Database Schema
-
-The application uses a local SQLite database (`media_slideshow_stats.sqlite` in the user data directory) to store:
-
-- **media_directories**: Configured root paths for media scanning.
-- **media_views**: View counts and timestamps for each media file (keyed by file hash).
-- **media_attributes**: Dominant color information for files to enable color-based search.
-- **app_cache**: Caches the album structure to speed up startup times.
+The output will be in the `out/` directory.
 
 ## Contributing
 
-1.  Fork the repository.
-2.  Create a feature branch (`git checkout -b feature/amazing-feature`).
-3.  Commit your changes (`git commit -m 'Add some amazing feature'`).
-4.  Push to the branch (`git push origin feature/amazing-feature`).
-5.  Open a Pull Request.
-
-Please ensure all tests pass and that you have formatted your code using `npm run format`.
+1. Fork the repo.
+2. Create a feature branch.
+3. Commit your changes.
+4. Push and open a Pull Request.
