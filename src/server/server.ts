@@ -159,6 +159,16 @@ export async function createApp() {
   const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
   const RATE_LIMIT_MAX = 20;
 
+  // Cleanup interval to prevent memory leaks from the rate limiter map
+  setInterval(() => {
+    const now = Date.now();
+    for (const [ip, record] of rateLimitMap.entries()) {
+      if (now - record.lastReset > RATE_LIMIT_WINDOW) {
+        rateLimitMap.delete(ip);
+      }
+    }
+  }, RATE_LIMIT_WINDOW).unref(); // unref to allow process to exit if this is the only thing running
+
   const authRateLimiter: express.RequestHandler = (req, res, next) => {
     const ip = req.ip || 'unknown';
     const now = Date.now();
@@ -740,7 +750,12 @@ export async function bootstrap() {
     cert: await fs.readFile(CERT_PATH),
   };
 
-  https.createServer(credentials, app).listen(DEFAULT_SERVER_PORT, host, () => {
+  const server = https.createServer(credentials, app);
+
+  // [SECURITY] Set a timeout to prevent Slowloris attacks (30 seconds)
+  server.setTimeout(30000);
+
+  server.listen(DEFAULT_SERVER_PORT, host, () => {
     console.log(`Server running at https://${host}:${DEFAULT_SERVER_PORT}`);
     console.log(`Environment: ${isDev ? 'Development' : 'Production'}`);
   });
