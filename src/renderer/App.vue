@@ -30,17 +30,16 @@
 
         <!-- Top Bar (Toggle Sidebar & Title) -->
         <div
-          class="flex justify-between items-center mb-4 p-3 shrink-0 transition-opacity duration-500 ease-in-out z-40"
+          class="absolute top-0 left-0 w-full flex justify-between items-center p-3 transition-opacity duration-500 ease-in-out z-40 pointer-events-none"
           :class="[
-            viewMode === 'player' ? 'w-full' : 'glass-panel rounded-lg',
+            viewMode === 'player' ? '' : 'glass-panel rounded-lg',
             {
-              'opacity-0 pointer-events-none':
-                !isControlsVisible && viewMode === 'player',
+              'opacity-0': !isControlsVisible && viewMode === 'player',
             },
           ]"
         >
           <button
-            class="icon-button p-2 rounded-full hover:bg-white/10 transition-colors"
+            class="icon-button p-2 rounded-full hover:bg-white/10 transition-colors pointer-events-auto"
             :aria-label="isSidebarVisible ? 'Hide Albums' : 'Show Albums'"
             @click="isSidebarVisible = !isSidebarVisible"
           >

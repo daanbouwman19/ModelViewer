@@ -38,7 +38,7 @@
     <div
       v-if="isControlsVisible"
       data-testid="video-progress-bar"
-      class="video-progress-bar-container cursor-pointer transition-transform-opacity duration-300 ease-in-out will-change-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500"
+      class="video-progress-bar-container z-60 cursor-pointer transition-transform-opacity duration-300 ease-in-out will-change-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-500"
       role="slider"
       tabindex="0"
       aria-label="Seek video"

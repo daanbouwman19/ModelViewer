@@ -2,18 +2,6 @@
   <div
     class="absolute bottom-0 left-0 w-full flex flex-col items-center pointer-events-none z-50"
   >
-    <!-- Time Display Above Pill (Mobile Only or Sidebar Open) -->
-    <div
-      v-if="!isImage && currentMediaItem"
-      class="text-[10px] font-mono text-white/90 px-3 py-1 bg-black/40 backdrop-blur-md rounded-full border border-white/10 pointer-events-auto transition-opacity duration-500 ease-in-out"
-      :class="{
-        'md:hidden': !isNarrowView,
-        'opacity-0 pointer-events-none': !isControlsVisible,
-      }"
-    >
-      {{ formattedTime }}
-    </div>
-
     <div
       class="controls-bar w-full flex flex-nowrap justify-center items-center gap-1 md:gap-4 transition-transform-opacity duration-500 ease-in-out will-change-transform bg-linear-to-t from-black/80 to-transparent pt-12 pb-6 px-4 pointer-events-auto"
       :class="{ 'translate-y-full opacity-0': !isControlsVisible }"
@@ -124,8 +112,8 @@
 
       <!-- Time Display In-Pill (Desktop/Tablet) -->
       <div
-        v-if="!isImage && currentMediaItem && !isNarrowView"
-        class="text-[10px] md:text-xs font-mono text-white/80 min-w-[60px] md:min-w-[80px] text-center hidden sm:block"
+        v-if="!isImage && currentMediaItem"
+        class="text-[10px] md:text-xs font-mono text-white/80 min-w-[60px] md:min-w-[80px] text-center"
       >
         {{ formattedTime }}
       </div>
