@@ -122,47 +122,45 @@ describe('selectionUtils', () => {
     });
 
     it('should handle cases where total weight is extremely small', () => {
-        // Create items with extremely high view counts so weights (1/(count+1)) are tiny
-        const items = [
-            { path: 'a', name: 'a', viewCount: Number.MAX_SAFE_INTEGER },
-            { path: 'b', name: 'b', viewCount: Number.MAX_SAFE_INTEGER }
-        ];
+      // Create items with extremely high view counts so weights (1/(count+1)) are tiny
+      const items = [
+        { path: 'a', name: 'a', viewCount: Number.MAX_SAFE_INTEGER },
+        { path: 'b', name: 'b', viewCount: Number.MAX_SAFE_INTEGER },
+      ];
 
-        // Mock random to force a specific selection in the fallback path
-        const randomSpy = vi.spyOn(global.Math, 'random').mockReturnValue(0.9); // Will select last item
-        const selected = selectWeightedRandom(items);
+      // Mock random to force a specific selection in the fallback path
+      const randomSpy = vi.spyOn(global.Math, 'random').mockReturnValue(0.9); // Will select last item
+      const selected = selectWeightedRandom(items);
 
-        expect(selected).toBeDefined();
-        // Should use uniform selection fallback
-        expect(['a', 'b']).toContain(selected!.path);
+      expect(selected).toBeDefined();
+      // Should use uniform selection fallback
+      expect(['a', 'b']).toContain(selected!.path);
 
-        randomSpy.mockRestore();
+      randomSpy.mockRestore();
     });
 
     it('should handle floating point rounding errors by returning last eligible item', () => {
-        const items = [
-            { path: 'a', name: 'a', viewCount: 0 }
-        ];
+      const items = [{ path: 'a', name: 'a', viewCount: 0 }];
 
-        // Force random to be greater than total weight (simulate rounding error)
-        // Weight is 1.0, random is 1.1
-        const randomSpy = vi.spyOn(global.Math, 'random').mockReturnValue(1.1);
+      // Force random to be greater than total weight (simulate rounding error)
+      // Weight is 1.0, random is 1.1
+      const randomSpy = vi.spyOn(global.Math, 'random').mockReturnValue(1.1);
 
-        // We need to mock the internal Math.random calculation inside the function
-        // The function does `let random = Math.random() * totalWeight;`
-        // If totalWeight is 1, random becomes 1.1
-        // Then `random -= weight` (1.1 - 1.0 = 0.1)
-        // Loop finishes. It enters the fallback loop.
+      // We need to mock the internal Math.random calculation inside the function
+      // The function does `let random = Math.random() * totalWeight;`
+      // If totalWeight is 1, random becomes 1.1
+      // Then `random -= weight` (1.1 - 1.0 = 0.1)
+      // Loop finishes. It enters the fallback loop.
 
-        // However, to truly test the `random > totalWeight` scenario properly, we need to control the `random` variable
-        // inside the function, which we can't directly.
-        // But we can trick it. If we set random() to return > 1.0, it multiplies by totalWeight.
+      // However, to truly test the `random > totalWeight` scenario properly, we need to control the `random` variable
+      // inside the function, which we can't directly.
+      // But we can trick it. If we set random() to return > 1.0, it multiplies by totalWeight.
 
-        const selected = selectWeightedRandom(items);
-        expect(selected).toBeDefined();
-        expect(selected!.path).toBe('a');
+      const selected = selectWeightedRandom(items);
+      expect(selected).toBeDefined();
+      expect(selected!.path).toBe('a');
 
-        randomSpy.mockRestore();
+      randomSpy.mockRestore();
     });
   });
 });
