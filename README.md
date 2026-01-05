@@ -42,6 +42,28 @@ The project is organized into a modular structure to support both the Electron a
 - `src/preload/`: **Electron Preload**. Bridges the gap between the Electron main process and the renderer.
 - `src/shared/`: **Shared Contracts**. TypeScript interfaces and IPC channel definitions shared between main, scanner, and renderer processes.
 
+## Database Schema
+
+<details>
+<summary>Click to view database schema</summary>
+
+The application uses SQLite to store metadata and cache.
+
+- **`media_views`**: Tracks view history.
+  - `file_path_hash` (PK), `file_path` (Unique), `view_count`, `last_viewed`
+- **`media_metadata`**: Caches file attributes.
+  - `file_path_hash` (PK), `file_path`, `duration`, `size`, `created_at`, `rating`, `extraction_status`
+- **`media_directories`**: Managed source folders.
+  - `id` (PK), `path` (Unique), `type`, `name`, `is_active`
+- **`smart_playlists`**: Dynamic playlist definitions.
+  - `id` (PK), `name`, `criteria`, `createdAt`
+- **`settings`**: Key-value data store.
+  - `key` (PK), `value`, `updated_at`
+- **`app_cache`**: General purpose cache.
+  - `cache_key` (PK), `cache_value`, `last_updated`
+
+</details>
+
 ## Development
 
 ### Prerequisites
@@ -51,12 +73,16 @@ The project is organized into a modular structure to support both the Electron a
 
 ### Setup
 
+Clone the repository:
+
 ```bash
-# Clone
 git clone <repository-url>
 cd <repository-directory>
+```
 
-# Install
+Install dependencies:
+
+```bash
 npm install
 ```
 
@@ -76,8 +102,9 @@ npm run dev:all
 
 ### Testing
 
+Run all tests:
+
 ```bash
-# Run all tests
 npm test
 ```
 
@@ -95,5 +122,12 @@ The output will be in the `out/` directory.
 
 1. Fork the repo.
 2. Create a feature branch.
-3. Commit your changes.
-4. Push and open a Pull Request.
+3. Make your changes.
+4. Run formatting:
+
+   ```bash
+   npm run format
+   ```
+
+5. Commit your changes.
+6. Push and open a Pull Request.

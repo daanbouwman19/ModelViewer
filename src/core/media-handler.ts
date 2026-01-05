@@ -168,6 +168,10 @@ async function runFFmpegThumbnail(
   }
 }
 
+/**
+ * Helper: Tries to serve a thumbnail from the local cache.
+ * Returns true if served, false otherwise.
+ */
 async function tryServeFromCache(
   res: Response,
   cacheFile: string,
