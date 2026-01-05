@@ -112,7 +112,7 @@
 
       <!-- Time Display In-Pill (Desktop/Tablet) -->
       <div
-        v-if="!isImage && currentMediaItem && !isNarrowView"
+        v-if="!isImage && currentMediaItem"
         class="text-[10px] md:text-xs font-mono text-white/80 min-w-[60px] md:min-w-[80px] text-center"
       >
         {{ formattedTime }}
