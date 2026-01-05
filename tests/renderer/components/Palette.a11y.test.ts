@@ -1,4 +1,13 @@
-import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  beforeEach,
+  beforeAll,
+  afterAll,
+  vi,
+  type Mock,
+} from 'vitest';
 import { mount } from '@vue/test-utils';
 import { reactive, toRefs } from 'vue';
 import MediaDisplay from '@/components/MediaDisplay.vue';
@@ -41,8 +50,52 @@ describe('Palette Accessibility Improvements', () => {
   let mockLibraryState: any;
   let mockPlayerState: any;
   let mockUIState: any;
+  let resizeCallback: any;
+
+  beforeAll(() => {
+    // Mock ResizeObserver
+    const MockResizeObserver = class ResizeObserver {
+      constructor(callback: any) {
+        resizeCallback = callback;
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      observe(_target: any) {
+        // Trigger initial resize
+        if (resizeCallback) {
+          resizeCallback([{ contentRect: { width: 1024 } }]);
+        }
+      }
+      disconnect() {}
+      unobserve() {}
+    };
+
+    global.ResizeObserver = MockResizeObserver;
+    window.ResizeObserver = MockResizeObserver;
+
+    // Mock getBoundingClientRect
+    Element.prototype.getBoundingClientRect = vi.fn(() => ({
+      width: 1024,
+      height: 768,
+      top: 0,
+      left: 0,
+      bottom: 0,
+      right: 0,
+      x: 0,
+      y: 0,
+      toJSON: () => {},
+    }));
+  });
+
+  afterAll(() => {
+    delete (global as any).ResizeObserver;
+    delete (window as any).ResizeObserver;
+  });
 
   beforeEach(() => {
+    // Ensure Desktop size
+    window.innerWidth = 1024;
+    window.dispatchEvent(new Event('resize'));
+
     // Setup minimal state for MediaDisplay
     mockLibraryState = reactive({
       totalMediaInPool: 1,
@@ -131,9 +184,11 @@ describe('Palette Accessibility Improvements', () => {
     it('navigation buttons should have accessible labels', () => {
       const wrapper = mount(MediaDisplay);
 
-      const prevBtn = wrapper.findAll('.nav-button')[0];
-      const nextBtn = wrapper.findAll('.nav-button')[1];
+      const prevBtn = wrapper.find('button[aria-label="Previous media"]');
+      const nextBtn = wrapper.find('button[aria-label="Next media"]');
 
+      expect(prevBtn.exists()).toBe(true);
+      expect(nextBtn.exists()).toBe(true);
       expect(prevBtn.attributes('aria-label')).toBe('Previous media');
       expect(nextBtn.attributes('aria-label')).toBe('Next media');
     });
