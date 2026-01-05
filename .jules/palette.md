@@ -45,7 +45,7 @@
 **Learning:** Using HTML entities like `&times;` for icons leads to inconsistency in sizing and styling compared to SVG components. It also risks screen readers announcing "times" or "multiplication sign".
 **Action:** Use dedicated SVG icon components (e.g., `<CloseIcon />`) instead of text characters for UI controls to ensure consistent visual language and better accessibility control.
 
-## 2025-10-31 - [Accessible Names for Icon Buttons]
+## 2026-01-05 - [Accessible Names for Icon Buttons]
 
 **Learning:** Icon-only buttons (like the VR recenter button) often rely solely on the `title` attribute, which is not a reliable accessible name for screen readers, especially on touch devices where hover tooltips are unavailable.
 **Action:** Always add an explicit `aria-label` to icon-only buttons that mirrors the `title`, and add `aria-hidden="true"` to the internal SVG to prevent redundant or confusing announcements.
