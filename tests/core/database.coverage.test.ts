@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import path from 'path';
 
 const { workerInstances } = vi.hoisted(() => ({
   workerInstances: [] as any[],
@@ -45,7 +46,9 @@ describe('Database Core Coverage', () => {
   });
 
   it('initDatabase handles worker error event', async () => {
-    const promise = database.initDatabase(':memory:', 'worker.js');
+    // Provide absolute path to satisfy Node.js Worker/checks even if mocked
+    const workerPath = path.resolve(__dirname, 'worker.js');
+    const promise = database.initDatabase(':memory:', workerPath);
 
     // Simulate init success to resolve the promise
     const worker = workerInstances[0];
