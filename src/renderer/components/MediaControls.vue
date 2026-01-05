@@ -182,6 +182,23 @@ const handleResize = () => {
 
 onMounted(() => {
   window.addEventListener('resize', handleResize);
+
+  if (controlsBarRef.value) {
+    const observer = new ResizeObserver((entries) => {
+      if (entries[0]) {
+        containerWidth.value = entries[0].contentRect.width;
+      }
+    });
+    observer.observe(controlsBarRef.value);
+
+    // Initial set
+    containerWidth.value = controlsBarRef.value.getBoundingClientRect().width;
+
+    // Cleanup observer on unmount
+    onUnmounted(() => {
+      observer.disconnect();
+    });
+  }
 });
 
 onUnmounted(() => {
@@ -191,22 +208,15 @@ onUnmounted(() => {
 // Move time to bubble if we are on mobile OR the sidebar is open
 const isNarrowView = computed(() => !isDesktop.value || isSidebarVisible.value);
 
-// Computed class for navigation buttons to handle 3 states:
-// 1. Desktop: Large Pill (Matches original nav-button feel)
-// 2. Mobile Portrait: Medium Pill (Smaller than desktop to avoid edge touching, but easy to tap)
-// 3. Mobile Landscape: Compact Circle (To save space)
 const navButtonClass = computed(() => {
-  // Desktop - Large Pill
-  // Only use if we have enough space (container > 640px)
-  // This handles case where "Desktop-like" screen (e.g. 915px) has sidebar open (500px available)
+  // Desktop - Large Pill (if space permits)
   if (isDesktop.value && containerWidth.value > 640) {
     // Note: 'nav-button' usually adds padding, but we define specifics here for safety
     return 'px-5 py-2 rounded-lg text-white font-bold uppercase tracking-wider text-sm shadow-md';
   }
 
+  // Mobile Portrait - Medium Pill
   if (!isLandscape.value) {
-    // Mobile Portrait - Medium Pill
-    // Slightly more compact than desktop, but still pill-shaped
     return 'px-4 py-1.5 rounded-lg text-white font-bold uppercase tracking-wide text-xs shadow-sm';
   }
 
@@ -217,18 +227,17 @@ const navButtonClass = computed(() => {
 // Dynamic Gap for controls container
 const gapClass = computed(() => {
   if (isDesktop.value && containerWidth.value > 640) {
-    return 'gap-4'; // Standard desktop gap
+    return 'gap-4'; // Standard desktop
   }
   if (!isLandscape.value) {
-    return 'gap-6'; // Portrait Mobile: Wide gap to fill space
+    return 'gap-6'; // Portrait Mobile
   }
-  return 'gap-3'; // Landscape Mobile: Compact but slightly spaced for touch
+  return 'gap-3'; // Landscape Mobile
 });
 
 // Container Padding Style based on Orientation + Safe Area
 const containerPaddingStyle = computed(() => {
-  // Landscape -> 3rem (48px) base padding for ample room
-  // Portrait -> 1.5rem (24px) base padding for space efficiency
+  // Landscape -> 48px, Portrait -> 24px
   const basePadding = isLandscape.value ? '3rem' : '1.5rem';
   return {
     paddingLeft: `max(${basePadding}, env(safe-area-inset-left))`,
@@ -244,30 +253,9 @@ const containerWidth = ref(0);
 const SHOW_STARS_THRESHOLD = 650; // Stars disappear below this
 const SHOW_TIME_THRESHOLD = 450; // Time disappears below this
 
-onMounted(() => {
-  if (controlsBarRef.value) {
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        containerWidth.value = entry.contentRect.width;
-      }
-    });
-    observer.observe(controlsBarRef.value);
-
-    // Initial set
-    containerWidth.value = controlsBarRef.value.getBoundingClientRect().width;
-
-    // Cleanup
-    onUnmounted(() => {
-      observer.disconnect();
-    });
-  }
-});
-
 const showStars = computed(() => {
-  // Always show on "desktop" unless very constrained
-  // If user is on mobile (< 768), stars are typically hidden by CSS or design choice,
-  // but here we strictly follow available width.
-  // The user asked for "shorter controls should stay for mobile", implying hidden stars on mobile.
+  // Always show on "desktop" unless very constrained.
+  // On mobile (< 768), stars are typically hidden by design choice.
   if (!isDesktop.value) return false;
 
   return containerWidth.value > SHOW_STARS_THRESHOLD;
