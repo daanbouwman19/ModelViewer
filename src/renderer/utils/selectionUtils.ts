@@ -61,7 +61,11 @@ export const selectWeightedRandom = (
   // (Should be rare with 1/(count+1) unless count is infinite)
   if (totalWeight <= 1e-9) {
     const effectiveItemsCount = usingFallback ? items.length : eligibleCount;
-    if (effectiveItemsCount === 0) return null;
+    // Only reachable if eligibleCount was 0 and items.length was 0, but that is covered by first check
+    // However, TypeScript might not know that.
+    // Actually, effectiveItemsCount would be items.length (since usingFallback=true) if eligibleCount=0.
+    // And items.length > 0 because of first check.
+    // So effectiveItemsCount > 0.
 
     // Pick a random eligible item uniformly
     let targetIndex = Math.floor(Math.random() * effectiveItemsCount);
@@ -71,7 +75,7 @@ export const selectWeightedRandom = (
         targetIndex--;
       }
     }
-    // Should effectively not be reached
+    // Should effectively not be reached if effectiveItemsCount > 0
     return items[items.length - 1];
   }
 
