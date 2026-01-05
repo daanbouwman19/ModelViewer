@@ -40,6 +40,7 @@
           class="bg-black/50 text-white p-3 rounded-full hover:bg-indigo-500/80 border border-white/20 backdrop-blur-sm transition-colors pointer-events-auto"
           :class="{ 'text-indigo-400': isMotionControlActive }"
           title="Recenter VR View"
+          aria-label="Recenter VR View"
           @click="recenterVR"
         >
           <svg
@@ -48,6 +49,7 @@
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
+            aria-hidden="true"
           >
             <path
               stroke-linecap="round"
