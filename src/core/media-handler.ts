@@ -168,23 +168,37 @@ async function runFFmpegThumbnail(
   }
 }
 
-/**
- * Helper: Tries to serve a thumbnail from the local cache.
- * Returns true if served, false otherwise.
- */
 async function tryServeFromCache(
   res: Response,
   cacheFile: string,
 ): Promise<boolean> {
   const hit = await checkThumbnailCache(cacheFile);
   if (hit) {
-    res.set({
-      'Content-Type': 'image/jpeg',
-      'Cache-Control': 'public, max-age=31536000',
+    return new Promise((resolve) => {
+      res.set({
+        'Content-Type': 'image/jpeg',
+        'Cache-Control': 'public, max-age=31536000',
+      });
+
+      const stream = fs.createReadStream(cacheFile);
+
+      stream.on('open', () => {
+        stream.pipe(res);
+      });
+
+      stream.on('error', (err) => {
+        console.warn(
+          `[Thumbnail] Cache Stream Error for ${cacheFile} (falling back to generate):`,
+          err,
+        );
+        // Fallback to generation
+        resolve(false);
+      });
+
+      stream.on('end', () => {
+        resolve(true);
+      });
     });
-    // Use res.sendFile for cache file too
-    res.sendFile(cacheFile);
-    return true;
   }
   return false;
 }
@@ -236,12 +250,19 @@ async function generateLocalThumbnail(
 
     // Verify file exists
     await fsPromises.stat(cacheFile);
-
     res.set({
       'Content-Type': 'image/jpeg',
       'Cache-Control': 'public, max-age=31536000',
     });
-    res.sendFile(cacheFile);
+
+    // Use stream instead of sendFile
+    const stream = fs.createReadStream(cacheFile);
+    stream.pipe(res);
+
+    stream.on('error', (err) => {
+      console.error('[Thumbnail] Stream error sending generated file:', err);
+      if (!res.headersSent) res.status(500).end();
+    });
   } catch (err) {
     console.error('[Thumbnail] Generation failed:', err);
     if (!res.headersSent) {

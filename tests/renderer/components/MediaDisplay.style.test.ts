@@ -97,12 +97,11 @@ describe('MediaDisplay.vue Layout', () => {
   it('should have correct layout classes on desktop', () => {
     const wrapper = mount(MediaDisplay);
 
-    const controls = wrapper.find('.controls-pill');
+    const controls = wrapper.find('.controls-bar');
     const classes = controls.classes();
 
-    // The fixed md:w-[600px] was removed for better responsiveness
-    expect(classes).toContain('w-auto');
-    expect(classes).toContain('max-w-[98%]');
-    expect(classes).toContain('bg-black/40');
+    expect(classes).toContain('w-full');
+    expect(classes).toContain('bg-linear-to-t');
+    expect(classes).toContain('from-black/80');
   });
 });

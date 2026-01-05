@@ -3,7 +3,7 @@
     <!-- Video Element -->
     <video
       ref="videoElement"
-      class="w-full h-full object-contain rounded-xl shadow-2xl"
+      class="w-full h-full object-contain rounded-xl"
       :src="src || undefined"
       autoplay
       @error="handleError"

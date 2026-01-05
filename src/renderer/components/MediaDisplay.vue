@@ -757,7 +757,7 @@ defineExpose({
   max-height: 100%;
   object-fit: contain;
   border-radius: 12px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+  border-radius: 12px;
 }
 
 .glass-button {
