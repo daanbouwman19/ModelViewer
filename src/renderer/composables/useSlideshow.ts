@@ -11,6 +11,7 @@ import {
   collectTexturesRecursive,
   collectSelectedTextures,
 } from '../utils/albumUtils';
+import { selectWeightedRandom, shuffleArray } from '../utils/selectionUtils';
 import { getCachedExtension } from '../utils/mediaUtils';
 import type { Album, MediaFile } from '../../core/types';
 import { api } from '../api';
@@ -25,20 +26,6 @@ export function useSlideshow() {
 
   const { imageExtensionsSet, videoExtensionsSet } = libraryStore;
   const { stopSlideshow } = playerStore;
-
-  /**
-   * Shuffles an array in place.
-   * @param array The array to shuffle.
-   * @returns The shuffled array.
-   */
-  const shuffleArray = <T>(array: T[]): T[] => {
-    const shuffled = [...array];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    return shuffled;
-  };
 
   /**
    * Filters a list of media files based on the current filter setting in the global state.
@@ -78,84 +65,6 @@ export function useSlideshow() {
   const filteredGlobalMediaPool = computed(() => {
     return filterMedia(libraryStore.state.globalMediaPoolForSelection);
   });
-
-  /**
-   * Selects a random item from a list, weighted by view count (less viewed items are more likely).
-   * Optimized to avoid creating intermediate arrays (filter/map) for better performance and less GC.
-   * @param items - Array of media items, each with a 'path' and optional 'viewCount'.
-   * @param excludePaths - An array of paths to exclude from selection.
-   * @returns The selected media item, or null if no item could be selected.
-   */
-  const selectWeightedRandom = (
-    items: MediaFile[],
-    excludePaths: string[] = [],
-  ): MediaFile | null => {
-    if (!items || items.length === 0) return null;
-
-    let totalWeight = 0;
-    let eligibleCount = 0;
-
-    // First pass: Calculate total weight for eligible items
-    // Using simple loop to avoid array allocation
-    for (const item of items) {
-      if (!excludePaths.includes(item.path)) {
-        totalWeight += 1 / ((item.viewCount || 0) + 1);
-        eligibleCount++;
-      }
-    }
-
-    // Fallback: If no items are eligible (all excluded), consider ALL items eligible
-    let usingFallback = false;
-    if (eligibleCount === 0) {
-      usingFallback = true;
-      totalWeight = 0;
-      for (const item of items) {
-        totalWeight += 1 / ((item.viewCount || 0) + 1);
-      }
-    }
-
-    // Handle edge case where totalWeight is effectively zero
-    // (Should be rare with 1/(count+1) unless count is infinite)
-    if (totalWeight <= 1e-9) {
-      const effectiveItemsCount = usingFallback ? items.length : eligibleCount;
-      if (effectiveItemsCount === 0) return null;
-
-      // Pick a random eligible item uniformly
-      let targetIndex = Math.floor(Math.random() * effectiveItemsCount);
-      for (const item of items) {
-        if (usingFallback || !excludePaths.includes(item.path)) {
-          if (targetIndex === 0) return item;
-          targetIndex--;
-        }
-      }
-      // Should effectively not be reached
-      return items[items.length - 1];
-    }
-
-    let random = Math.random() * totalWeight;
-
-    // Second pass: Find the selected item
-    for (const item of items) {
-      if (!usingFallback && excludePaths.includes(item.path)) {
-        continue;
-      }
-
-      const weight = 1 / ((item.viewCount || 0) + 1);
-      random -= weight;
-      if (random <= 0) return item;
-    }
-
-    // Fallback for floating point rounding errors
-    // Search backwards to find the last eligible item
-    for (let i = items.length - 1; i >= 0; i--) {
-      const item = items[i];
-      if (usingFallback || !excludePaths.includes(item.path)) {
-        return item;
-      }
-    }
-
-    return null;
-  };
 
   /**
    * Records a view for the given media item.
@@ -407,6 +316,7 @@ export function useSlideshow() {
     pickAndDisplayNextMediaItem,
     reapplyFilter,
     filterMedia,
+    // Exported for testing/mocking if needed, but primarily used internally via imports
     selectWeightedRandom,
     shuffleArray,
   };
