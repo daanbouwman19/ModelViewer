@@ -3,13 +3,16 @@
     class="absolute bottom-0 left-0 w-full flex flex-col items-center pointer-events-none z-50"
   >
     <div
-      class="controls-bar w-full flex flex-nowrap justify-center items-center gap-1 md:gap-4 transition-transform-opacity duration-500 ease-in-out will-change-transform bg-linear-to-t from-black/80 to-transparent pt-12 pb-6 px-4 pointer-events-auto"
-      :class="{ 'translate-y-full opacity-0': !isControlsVisible }"
+      ref="controlsBarRef"
+      class="controls-bar w-full flex flex-nowrap justify-center items-center transition-transform-opacity duration-500 ease-in-out will-change-transform bg-linear-to-t from-black/80 to-transparent pt-12 pb-6 pointer-events-auto"
+      :class="[gapClass, { 'translate-y-full opacity-0': !isControlsVisible }]"
+      :style="containerPaddingStyle"
     >
       <!-- Previous Button -->
       <button
         :disabled="!canNavigate"
-        class="nav-button group p-1.5 md:p-2 rounded-full text-white transition-all duration-200 hover:bg-(--accent-color) disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0"
+        class="group transition-all duration-200 hover:bg-(--accent-color) disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0"
+        :class="navButtonClass"
         aria-label="Previous media"
         @click="$emit('previous')"
       >
@@ -19,21 +22,22 @@
       <!-- Next Button -->
       <button
         :disabled="!canNavigate"
-        class="nav-button group p-1.5 md:p-2 rounded-full text-white transition-all duration-200 hover:bg-(--accent-color) disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0"
+        class="group transition-all duration-200 hover:bg-(--accent-color) disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0"
+        :class="navButtonClass"
         aria-label="Next media"
         @click="$emit('next')"
       >
         <ChevronRightIcon class="w-5 h-5 md:w-6 md:h-6" />
       </button>
 
-      <!-- Separator -->
+      <!-- Separator for Rating -->
       <div
-        v-if="!isImage && currentMediaItem && !isNarrowView"
+        v-if="!isImage && currentMediaItem && showStars"
         class="w-px h-6 md:h-8 bg-white/10 mx-0.5 md:mx-2 shrink-0"
       ></div>
 
       <!-- Rating -->
-      <div v-if="currentMediaItem && !isSquishedView" class="flex gap-0.5">
+      <div v-if="currentMediaItem && showStars" class="flex gap-0.5">
         <button
           v-for="star in 5"
           :key="star"
@@ -50,9 +54,9 @@
         </button>
       </div>
 
-      <!-- Separator -->
+      <!-- Separator for Controls -->
       <div
-        v-if="currentMediaItem && !isSquishedView"
+        v-if="currentMediaItem && showStars"
         class="w-px h-6 md:h-8 bg-white/10 mx-0.5 md:mx-2 shrink-0 hidden sm:block"
       ></div>
 
@@ -112,7 +116,7 @@
 
       <!-- Time Display In-Pill (Desktop/Tablet) -->
       <div
-        v-if="!isImage && currentMediaItem"
+        v-if="!isImage && currentMediaItem && showTime"
         class="text-[10px] md:text-xs font-mono text-white/80 min-w-[60px] md:min-w-[80px] text-center"
       >
         {{ formattedTime }}
@@ -169,13 +173,32 @@ const MD_BREAKPOINT = 768;
 
 // Detect "Desktop" (medium screen) vs "Mobile" (small screen)
 const isDesktop = ref(window.innerWidth >= MD_BREAKPOINT);
+const isLandscape = ref(window.innerWidth > window.innerHeight);
 
 const handleResize = () => {
   isDesktop.value = window.innerWidth >= MD_BREAKPOINT;
+  isLandscape.value = window.innerWidth > window.innerHeight;
 };
 
 onMounted(() => {
   window.addEventListener('resize', handleResize);
+
+  if (controlsBarRef.value) {
+    const observer = new ResizeObserver((entries) => {
+      if (entries[0]) {
+        containerWidth.value = entries[0].contentRect.width;
+      }
+    });
+    observer.observe(controlsBarRef.value);
+
+    // Initial set
+    containerWidth.value = controlsBarRef.value.getBoundingClientRect().width;
+
+    // Cleanup observer on unmount
+    onUnmounted(() => {
+      observer.disconnect();
+    });
+  }
 });
 
 onUnmounted(() => {
@@ -185,21 +208,62 @@ onUnmounted(() => {
 // Move time to bubble if we are on mobile OR the sidebar is open
 const isNarrowView = computed(() => !isDesktop.value || isSidebarVisible.value);
 
-// Hide stars if we are on desktop AND the sidebar is open (squished landscape)
-// User specifically said "this doesn't need to happen with the portrait layout"
-const isSquishedView = computed(
-  () => isDesktop.value && isSidebarVisible.value,
-);
+const navButtonClass = computed(() => {
+  // Desktop - Large Pill (if space permits)
+  if (isDesktop.value && containerWidth.value > 640) {
+    // Note: 'nav-button' usually adds padding, but we define specifics here for safety
+    return 'px-5 py-2 rounded-lg text-white font-bold uppercase tracking-wider text-sm shadow-md';
+  }
 
-defineEmits<{
-  (e: 'previous'): void;
-  (e: 'next'): void;
-  (e: 'toggle-play'): void;
-  (e: 'open-in-vlc'): void;
-  (e: 'set-rating', star: number): void;
-  (e: 'toggle-vr'): void;
-  (e: 'toggle-fullscreen'): void;
-}>();
+  // Mobile Portrait - Medium Pill
+  if (!isLandscape.value) {
+    return 'px-4 py-1.5 rounded-lg text-white font-bold uppercase tracking-wide text-xs shadow-sm';
+  }
+
+  // Mobile Landscape - Compact Circle
+  return 'p-1.5 rounded-full text-white';
+});
+
+// Dynamic Gap for controls container
+const gapClass = computed(() => {
+  if (isDesktop.value && containerWidth.value > 640) {
+    return 'gap-4'; // Standard desktop
+  }
+  if (!isLandscape.value) {
+    return 'gap-6'; // Portrait Mobile
+  }
+  return 'gap-3'; // Landscape Mobile
+});
+
+// Container Padding Style based on Orientation + Safe Area
+const containerPaddingStyle = computed(() => {
+  // Landscape -> 48px, Portrait -> 24px
+  const basePadding = isLandscape.value ? '3rem' : '1.5rem';
+  return {
+    paddingLeft: `max(${basePadding}, env(safe-area-inset-left))`,
+    paddingRight: `max(${basePadding}, env(safe-area-inset-right))`,
+  };
+});
+
+// Dynamic Responsiveness
+const controlsBarRef = ref<HTMLElement | null>(null);
+const containerWidth = ref(0);
+
+// Thresholds
+const SHOW_STARS_THRESHOLD = 650; // Stars disappear below this
+const SHOW_TIME_THRESHOLD = 450; // Time disappears below this
+
+const showStars = computed(() => {
+  // Always show on "desktop" unless very constrained.
+  // On mobile (< 768), stars are typically hidden by design choice.
+  if (!isDesktop.value) return false;
+
+  return containerWidth.value > SHOW_STARS_THRESHOLD;
+});
+
+const showTime = computed(() => {
+  return containerWidth.value > SHOW_TIME_THRESHOLD;
+});
 
 const formatTime = (seconds: number) => {
   if (typeof seconds !== 'number' || !isFinite(seconds) || seconds <= 0)
@@ -219,6 +283,16 @@ const formattedTime = computed(() => {
   const total = formatTime(props.duration || 0);
   return `${current} / ${total}`;
 });
+
+defineEmits<{
+  (e: 'previous'): void;
+  (e: 'next'): void;
+  (e: 'toggle-play'): void;
+  (e: 'open-in-vlc'): void;
+  (e: 'set-rating', star: number): void;
+  (e: 'toggle-vr'): void;
+  (e: 'toggle-fullscreen'): void;
+}>();
 </script>
 
 <style scoped></style>

@@ -1,6 +1,25 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { mount } from '@vue/test-utils';
 import MediaControls from '@/components/MediaControls.vue';
+
+// Mock ResizeObserver
+const disconnectMock = vi.fn();
+const observeMock = vi.fn();
+
+beforeAll(() => {
+  global.ResizeObserver = class ResizeObserver {
+    constructor(callback: any) {
+      callback([{ contentRect: { width: 1000 } }]); // Default to wide
+    }
+    observe = observeMock;
+    disconnect = disconnectMock;
+    unobserve = vi.fn();
+  };
+});
+
+afterAll(() => {
+  delete (global as any).ResizeObserver;
+});
 
 // Mock Icons
 vi.mock('@/components/icons/VlcIcon.vue', () => ({
@@ -14,6 +33,9 @@ vi.mock('@/components/icons/ChevronLeftIcon.vue', () => ({
 }));
 vi.mock('@/components/icons/ChevronRightIcon.vue', () => ({
   default: { template: '<svg class="chevron-right-icon-mock"></svg>' },
+}));
+vi.mock('@/components/icons/VRIcon.vue', () => ({
+  default: { template: '<svg class="vr-icon-mock"></svg>' },
 }));
 vi.mock('@/components/icons/PlayIcon.vue', () => ({
   default: { template: '<svg class="play-icon-mock"></svg>' },
@@ -32,6 +54,14 @@ vi.mock('@/composables/useUIStore', () => ({
 }));
 
 describe('MediaControls.vue', () => {
+  // Mock getBoundingClientRect
+  beforeAll(() => {
+    Object.defineProperty(HTMLElement.prototype, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ width: 1000 }),
+    });
+  });
+
   const defaultProps = {
     currentMediaItem: { name: 'test.jpg', path: '/test.jpg', rating: 3 },
     isPlaying: false,
@@ -76,15 +106,26 @@ describe('MediaControls.vue', () => {
       .findAll('button')
       .filter((b) => b.attributes('aria-label')?.includes('Rate'));
     if (stars.length > 0) {
+      // Ensure specific stars are clicked, but first verify we have stars
+      // because ResizeObserver mock should have enabled them (width=1000)
       await stars[1].trigger('click'); // Rate 2 stars
       expect(wrapper.emitted('set-rating')).toBeTruthy();
       expect(wrapper.emitted('set-rating')?.[0]).toEqual([2]);
     } else {
-      // Fallback if filter didn't work as expected in test env
-      const starBtns = wrapper.findAll('button');
-      // Stars are likely at specific indices or we can try to find by icon
-      await starBtns[1].trigger('click');
-      expect(wrapper.emitted('set-rating')).toBeTruthy();
+      // With global mock, mount should trigger it.
+      // We wait for tick to ensure ResizeObserver callback or initial set works
+      await wrapper.vm.$nextTick();
+      const retryStars = wrapper
+        .findAll('button')
+        .filter((b) => b.attributes('aria-label')?.includes('Rate'));
+      if (retryStars.length > 0) {
+        await retryStars[1].trigger('click');
+        expect(wrapper.emitted('set-rating')).toBeTruthy();
+      } else {
+        throw new Error(
+          'Stars not rendered - ResizeObserver mock failed to trigger?',
+        );
+      }
     }
   });
 
