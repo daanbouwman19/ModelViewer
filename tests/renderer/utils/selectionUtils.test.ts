@@ -63,7 +63,7 @@ describe('selectionUtils', () => {
       expect(selections['c']).toBeGreaterThan(selections['a']);
     });
 
-    it('should exclude items from the excludePaths', () => {
+    it('should exclude items from the excludePaths (array)', () => {
       const items = [
         {
           path: 'a',
@@ -79,6 +79,17 @@ describe('selectionUtils', () => {
         },
       ];
       const excludePaths = ['a', 'c'];
+      const selected = selectWeightedRandom(items, excludePaths);
+      expect(selected!.path).toBe('b');
+    });
+
+    it('should exclude items from the excludePaths (Set)', () => {
+      const items = [
+        { path: 'a', name: 'a' },
+        { path: 'b', name: 'b' },
+        { path: 'c', name: 'c' },
+      ];
+      const excludePaths = new Set(['a', 'c']);
       const selected = selectWeightedRandom(items, excludePaths);
       expect(selected!.path).toBe('b');
     });
