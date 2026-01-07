@@ -5,7 +5,7 @@ import { authenticateWithCode } from '../../src/main/google-auth';
 
 vi.mock('../../src/core/database', () => ({
   initDatabase: vi.fn(),
-  addMediaDirectory: vi.fn(),
+  addMediaDirectory: vi.fn().mockResolvedValue(undefined),
   getMediaDirectories: vi.fn().mockResolvedValue([]),
   removeMediaDirectory: vi.fn(),
   setDirectoryActiveState: vi.fn(),
@@ -35,9 +35,19 @@ vi.mock('../../src/main/drive-cache-manager', () => ({
 vi.mock('fs/promises', () => ({
   default: {
     mkdir: vi.fn().mockResolvedValue(undefined),
+    stat: vi.fn().mockResolvedValue({}),
     realpath: vi.fn((p) => Promise.resolve(p)),
   },
 }));
+vi.mock('../../src/core/security', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../src/core/security')>();
+  return {
+    ...actual,
+    authorizeFilePath: vi.fn().mockResolvedValue({ isAllowed: true }),
+    isSensitiveDirectory: vi.fn().mockReturnValue(false),
+  };
+});
 
 describe('Server DoS Protection', () => {
   let app: any;
@@ -73,11 +83,6 @@ describe('Server DoS Protection', () => {
       const res = await request(app)
         .post('/api/auth/google-drive/code')
         .send({ code });
-      if (res.status !== 200) {
-        console.log(
-          `Failed at ${i}: ${res.status} ${JSON.stringify(res.body)}`,
-        );
-      }
       expect(res.status).toBe(200);
     }
 
@@ -87,13 +92,62 @@ describe('Server DoS Protection', () => {
       .send({ code });
 
     expect(blockedRes.status).toBe(429);
+    expect(blockedRes.body.error).toMatch(/too many auth attempts/i);
+  });
+
+  it('should rate limit directory additions', async () => {
+    const LIMIT = 10;
+    const path = '/tmp/test';
+
+    // Send requests up to the limit
+    for (let i = 0; i < LIMIT; i++) {
+      const res = await request(app).post('/api/directories').send({ path });
+      if (res.status !== 200) {
+        console.log(`Directories Failed at ${i}: ${res.status}`);
+      }
+      expect(res.status).toBe(200);
+    }
+
+    // Next one should fail
+    const blockedRes = await request(app)
+      .post('/api/directories')
+      .send({ path });
+
+    expect(blockedRes.status).toBe(429);
     expect(blockedRes.body.error).toMatch(/too many requests/i);
   });
 
-  it('should NOT rate limit other endpoints', async () => {
-    // Send 25 requests to a different endpoint
-    for (let i = 0; i < 25; i++) {
-      // Just verify it doesn't 429. It might 400 or 404 but not 429.
+  it('should rate limit smart playlist creation', async () => {
+    const LIMIT = 10;
+    const body = { name: 'test', criteria: '{}' };
+
+    for (let i = 0; i < LIMIT; i++) {
+      const res = await request(app).post('/api/smart-playlists').send(body);
+      expect(res.status).toBe(200);
+    }
+
+    const blockedRes = await request(app)
+      .post('/api/smart-playlists')
+      .send(body);
+    expect(blockedRes.status).toBe(429);
+  });
+
+  it('should rate limit media rating', async () => {
+    const LIMIT = 10;
+    const body = { filePath: '/tmp/test.mp4', rating: 5 };
+
+    for (let i = 0; i < LIMIT; i++) {
+      const res = await request(app).post('/api/media/rate').send(body);
+      expect(res.status).toBe(200);
+    }
+
+    const blockedRes = await request(app).post('/api/media/rate').send(body);
+    expect(blockedRes.status).toBe(429);
+  });
+
+  it('should NOT rate limit read-only endpoints', async () => {
+    // Send 15 requests to a read endpoint (more than the write limit of 10)
+    for (let i = 0; i < 15; i++) {
       const res = await request(app).get('/api/albums');
       expect(res.status).not.toBe(429);
     }

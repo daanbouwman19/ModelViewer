@@ -148,6 +148,18 @@ const RECENTLY_PLAYED_FETCH_LIMIT = 100;
  */
 const CONTROLS_HIDE_TIMEOUT_MS = 3000;
 
+/**
+ * Rate Limiting Constants
+ */
+
+// Auth: Strict limit (20 req / 15 min) to prevent brute force
+const RATE_LIMIT_AUTH_WINDOW_MS = 15 * 60 * 1000;
+const RATE_LIMIT_AUTH_MAX_REQUESTS = 20;
+
+// Write: Moderate limit (10 req / 1 min) for sensitive write operations (scan, create, rate)
+const RATE_LIMIT_WRITE_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_WRITE_MAX_REQUESTS = 10;
+
 export {
   MAX_DATA_URL_SIZE_MB,
   DATA_URL_THRESHOLD_MB,
@@ -168,4 +180,8 @@ export {
   DEFAULT_SERVER_HOST,
   RECENTLY_PLAYED_FETCH_LIMIT,
   CONTROLS_HIDE_TIMEOUT_MS,
+  RATE_LIMIT_AUTH_WINDOW_MS,
+  RATE_LIMIT_AUTH_MAX_REQUESTS,
+  RATE_LIMIT_WRITE_WINDOW_MS,
+  RATE_LIMIT_WRITE_MAX_REQUESTS,
 };

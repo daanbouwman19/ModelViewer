@@ -81,7 +81,7 @@ describe('Server Security Enhancements', () => {
       .send({ code: 'valid-code' });
 
     expect(res.status).toBe(429);
-    expect(res.body.error).toContain('Too many requests');
+    expect(res.body.error).toMatch(/too many auth attempts/i);
   });
 
   it('should clean up rate limit map entries (test logic via implementation check)', () => {

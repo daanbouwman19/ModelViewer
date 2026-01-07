@@ -387,15 +387,16 @@ describe('Palette Accessibility Improvements', () => {
       // Initial state (collapsed)
       expect(toggleBtn.attributes('aria-label')).toBe('Expand Root Album');
       expect(toggleBtn.attributes('aria-expanded')).toBe('false');
-      expect(toggleBtn.text()).toBe('▼');
-      expect(toggleBtn.find('span').classes()).toContain('-rotate-90');
+      // Updated to verify SVG icon presence instead of text char
+      expect(toggleBtn.find('svg').exists()).toBe(true);
+      // Updated rotation logic: rotate-0 (pointing right) -> rotate-90 (pointing down)
+      expect(toggleBtn.find('svg').classes()).toContain('rotate-0');
 
       // Click to expand
       await toggleBtn.trigger('click');
       expect(toggleBtn.attributes('aria-label')).toBe('Collapse Root Album');
       expect(toggleBtn.attributes('aria-expanded')).toBe('true');
-      expect(toggleBtn.text()).toBe('▼');
-      expect(toggleBtn.find('span').classes()).toContain('rotate-0');
+      expect(toggleBtn.find('svg').classes()).toContain('rotate-90');
     });
 
     it('checkbox should have accessible role, label and state', () => {
