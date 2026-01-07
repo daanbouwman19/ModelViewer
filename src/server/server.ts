@@ -41,6 +41,10 @@ import {
   ALL_SUPPORTED_EXTENSIONS,
   DEFAULT_SERVER_PORT,
   DEFAULT_SERVER_HOST,
+  RATE_LIMIT_AUTH_WINDOW_MS,
+  RATE_LIMIT_AUTH_MAX_REQUESTS,
+  RATE_LIMIT_WRITE_WINDOW_MS,
+  RATE_LIMIT_WRITE_MAX_REQUESTS,
 } from '../core/constants.ts';
 import { listDirectory } from '../core/file-system.ts';
 import {
@@ -201,16 +205,16 @@ export async function createApp() {
   // [SECURITY] Configure Rate Limiters
   // Auth: Strict limit (20 req / 15 min) to prevent brute force
   const authLimiter = createRateLimiter(
-    15 * 60 * 1000,
-    20,
+    RATE_LIMIT_AUTH_WINDOW_MS,
+    RATE_LIMIT_AUTH_MAX_REQUESTS,
     'Too many auth attempts. Please try again later.',
   );
 
   // Write: Moderate limit (10 req / 1 min) for sensitive write operations (scan, create, rate)
   // This prevents DoS via resource exhaustion (e.g. disk scanning, DB spam)
   const writeLimiter = createRateLimiter(
-    60 * 1000,
-    10,
+    RATE_LIMIT_WRITE_WINDOW_MS,
+    RATE_LIMIT_WRITE_MAX_REQUESTS,
     'Too many requests. Please slow down.',
   );
 
