@@ -24,6 +24,7 @@ import {
   METADATA_EXTRACTION_CONCURRENCY,
   METADATA_BATCH_SIZE,
 } from './constants.ts';
+import { isDrivePath } from './media-utils.ts';
 
 /**
  * Scans active media directories for albums, caches the result in the database,
@@ -251,7 +252,7 @@ export async function extractAndSaveMetadata(
 
     queue.add(async () => {
       try {
-        if (filePath.startsWith('gdrive://')) {
+        if (isDrivePath(filePath)) {
           return;
         }
 

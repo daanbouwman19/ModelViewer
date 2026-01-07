@@ -3,6 +3,11 @@ import { FileSystemProvider, FileMetadata } from '../fs-provider';
 import { FileSystemEntry } from '../file-system';
 import { getDriveStreamWithCache } from '../drive-stream';
 import {
+  isDrivePath,
+  getDriveId,
+  createDrivePath,
+} from '../media-utils';
+import {
   listDriveDirectory,
   getDriveFileMetadata,
   getDriveParent,
@@ -11,16 +16,16 @@ import {
 
 export class GoogleDriveProvider implements FileSystemProvider {
   canHandle(filePath: string): boolean {
-    return filePath.startsWith('gdrive://');
+    return isDrivePath(filePath);
   }
 
   async listDirectory(directoryPath: string): Promise<FileSystemEntry[]> {
-    const folderId = directoryPath.replace('gdrive://', '') || 'root';
+    const folderId = getDriveId(directoryPath) || 'root';
     return listDriveDirectory(folderId);
   }
 
   async getMetadata(filePath: string): Promise<FileMetadata> {
-    const fileId = filePath.replace('gdrive://', '');
+    const fileId = getDriveId(filePath);
     const meta = await getDriveFileMetadata(fileId);
 
     let duration: number | undefined;
@@ -40,15 +45,15 @@ export class GoogleDriveProvider implements FileSystemProvider {
     filePath: string,
     options?: { start?: number; end?: number },
   ): Promise<{ stream: Readable; length?: number }> {
-    const fileId = filePath.replace('gdrive://', '');
+    const fileId = getDriveId(filePath);
     return getDriveStreamWithCache(fileId, options);
   }
 
   async getParent(filePath: string): Promise<string | null> {
-    const fileId = filePath.replace('gdrive://', '');
+    const fileId = getDriveId(filePath);
     const parentId = await getDriveParent(fileId);
     if (parentId) {
-      return `gdrive://${parentId}`;
+      return createDrivePath(parentId);
     }
     return null;
   }
@@ -58,7 +63,7 @@ export class GoogleDriveProvider implements FileSystemProvider {
   }
 
   async getThumbnailStream(filePath: string): Promise<Readable | null> {
-    const fileId = filePath.replace('gdrive://', '');
+    const fileId = getDriveId(filePath);
     try {
       return await getDriveFileThumbnail(fileId);
     } catch {

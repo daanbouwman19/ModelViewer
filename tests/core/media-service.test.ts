@@ -10,15 +10,21 @@ import * as database from '../../src/core/database';
 import * as mediaHandler from '../../src/core/media-handler';
 import fs from 'fs/promises';
 import { Worker } from 'worker_threads';
+import { isDrivePath } from '../../src/core/media-utils';
 
 // Mock dependencies
 vi.mock('../../src/core/database');
 vi.mock('../../src/core/media-scanner');
 vi.mock('../../src/core/media-handler');
-vi.mock('fs/promises', () => ({
-  stat: vi.fn(),
-  default: { stat: vi.fn() },
-}));
+vi.mock('../../src/core/media-utils'); // Auto-mock
+
+vi.mock('fs/promises', () => {
+  const stat = vi.fn();
+  return {
+    stat,
+    default: { stat },
+  };
+});
 
 // Shared state for all mocks and tests
 const sharedState = vi.hoisted(() => ({
@@ -65,6 +71,12 @@ describe('media-service', () => {
     vi.resetAllMocks();
     sharedState.lastWorker = null;
     sharedState.isPackaged = false;
+    // Default mock behavior for isDrivePath
+    if (vi.isMockFunction(isDrivePath)) {
+        vi.mocked(isDrivePath).mockImplementation((path) =>
+        path.startsWith('gdrive://'),
+        );
+    }
   });
 
   describe('scanDiskForAlbumsAndCache', () => {
@@ -407,6 +419,7 @@ describe('media-service', () => {
     });
 
     it('processes items successfully including duration', async () => {
+      vi.spyOn(console, 'warn').mockImplementation(() => {});
       vi.mocked(fs.stat).mockResolvedValue({
         size: 100,
         birthtime: new Date(),

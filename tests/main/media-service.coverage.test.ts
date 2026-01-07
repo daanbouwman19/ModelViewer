@@ -3,14 +3,19 @@ import { extractAndSaveMetadata } from '../../src/core/media-service';
 import * as db from '../../src/core/database';
 import * as mediaHandler from '../../src/core/media-handler';
 import fs from 'fs/promises';
+import { isDrivePath } from '../../src/core/media-utils';
 
 vi.mock('../../src/core/database');
 vi.mock('../../src/core/media-handler');
-vi.mock('fs/promises', () => ({
-  default: {
-    stat: vi.fn(),
-  },
-}));
+vi.mock('../../src/core/media-utils'); // Auto-mock
+
+vi.mock('fs/promises', () => {
+  const stat = vi.fn();
+  return {
+    stat,
+    default: { stat },
+  };
+});
 
 describe('media-service coverage', () => {
   const mockFfmpegPath = '/path/to/ffmpeg';
@@ -18,10 +23,16 @@ describe('media-service coverage', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default mock behavior for isDrivePath
+    if (vi.isMockFunction(isDrivePath)) {
+        vi.mocked(isDrivePath).mockImplementation((path) =>
+            path.startsWith('gdrive://'),
+        );
+    }
   });
 
   it('extractAndSaveMetadata handles fs.stat errors gracefully', async () => {
-    (fs.stat as any).mockImplementation(() => {
+    vi.mocked(fs.stat).mockImplementation(() => {
       throw new Error('File not found');
     });
     const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -41,10 +52,10 @@ describe('media-service coverage', () => {
   });
 
   it('extractAndSaveMetadata handles upsertMetadata errors', async () => {
-    (fs.stat as any).mockResolvedValue({
+    vi.mocked(fs.stat).mockResolvedValue({
       size: 1000,
       birthtime: new Date(),
-    });
+    } as any);
     (mediaHandler.getVideoDuration as any).mockResolvedValue({ duration: 60 });
     (db.bulkUpsertMetadata as any).mockRejectedValue(new Error('DB Error'));
 
@@ -59,10 +70,10 @@ describe('media-service coverage', () => {
   });
 
   it('extractAndSaveMetadata saves duration if available', async () => {
-    (fs.stat as any).mockResolvedValue({
+    vi.mocked(fs.stat).mockResolvedValue({
       size: 1000,
       birthtime: new Date('2023-01-01'),
-    });
+    } as any);
     (mediaHandler.getVideoDuration as any).mockResolvedValue({ duration: 120 });
 
     await extractAndSaveMetadata([testFile], mockFfmpegPath);
@@ -77,10 +88,10 @@ describe('media-service coverage', () => {
   });
 
   it('extractAndSaveMetadata skips duration if unavailable', async () => {
-    (fs.stat as any).mockResolvedValue({
+    vi.mocked(fs.stat).mockResolvedValue({
       size: 500,
       birthtime: new Date('2023-01-01'),
-    });
+    } as any);
     (mediaHandler.getVideoDuration as any).mockResolvedValue({
       error: 'Not video',
     });

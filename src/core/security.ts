@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { getMediaDirectories } from './database.ts';
+import { isDrivePath } from './media-utils.ts';
 import {
   SENSITIVE_SUBDIRECTORIES,
   WINDOWS_RESTRICTED_ROOT_PATHS,
@@ -78,7 +79,7 @@ export async function authorizeFilePath(
   const mediaDirectories = await getMediaDirectories();
 
   let realPath: string;
-  if (filePath.startsWith('gdrive://')) {
+  if (isDrivePath(filePath)) {
     realPath = filePath;
   } else {
     try {

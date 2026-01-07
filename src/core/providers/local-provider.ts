@@ -4,11 +4,11 @@ import path from 'path';
 import { Readable } from 'stream';
 import { FileSystemProvider, FileMetadata } from '../fs-provider';
 import { FileSystemEntry, listDirectory } from '../file-system';
-import { getMimeType } from '../media-utils';
+import { getMimeType, isDrivePath } from '../media-utils';
 
 export class LocalFileSystemProvider implements FileSystemProvider {
   canHandle(filePath: string): boolean {
-    return !filePath.startsWith('gdrive://');
+    return !isDrivePath(filePath);
   }
 
   async listDirectory(directoryPath: string): Promise<FileSystemEntry[]> {

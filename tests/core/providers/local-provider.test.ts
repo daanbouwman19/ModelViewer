@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { LocalFileSystemProvider } from '../../../src/core/providers/local-provider';
 import { listDirectory } from '../../../src/core/file-system';
-import { getMimeType } from '../../../src/core/media-utils';
+import { getMimeType, isDrivePath } from '../../../src/core/media-utils';
 import fs from 'fs';
 import fsPromises from 'fs/promises';
 import path from 'path';
@@ -10,8 +10,10 @@ vi.mock('../../../src/core/file-system', () => ({
   listDirectory: vi.fn(),
 }));
 
+// Mock isDrivePath and getMimeType
 vi.mock('../../../src/core/media-utils', () => ({
   getMimeType: vi.fn(),
+  isDrivePath: vi.fn(),
 }));
 
 vi.mock('fs', async (importOriginal) => {
@@ -39,15 +41,21 @@ describe('LocalFileSystemProvider', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     provider = new LocalFileSystemProvider();
+    // Default implementation for isDrivePath in tests
+    (isDrivePath as Mock).mockImplementation((path: string) =>
+      path.startsWith('gdrive://'),
+    );
   });
 
   describe('canHandle', () => {
     it('returns true for local paths', () => {
       expect(provider.canHandle('/path/to/file')).toBe(true);
+      expect(isDrivePath).toHaveBeenCalledWith('/path/to/file');
     });
 
     it('returns false for gdrive paths', () => {
       expect(provider.canHandle('gdrive://file')).toBe(false);
+      expect(isDrivePath).toHaveBeenCalledWith('gdrive://file');
     });
   });
 
