@@ -26,14 +26,19 @@ export const shuffleArray = <T>(array: T[]): T[] => {
  * This gives items with 0 views a weight of 1, 1 view a weight of 0.5, etc.
  *
  * @param items - Array of media items, each with a 'path' and optional 'viewCount'.
- * @param excludePaths - An array of paths to exclude from selection.
+ * @param excludePaths - A Set or array of paths to exclude from selection.
  * @returns The selected media item, or null if no item could be selected.
  */
 export const selectWeightedRandom = (
   items: MediaFile[],
-  excludePaths: string[] = [],
+  excludePaths: Set<string> | string[] = [],
 ): MediaFile | null => {
   if (!items || items.length === 0) return null;
+
+  // Convert array to Set if needed (O(N)), but caller should prefer passing Set (O(1) lookup)
+  const excludeSet = Array.isArray(excludePaths)
+    ? new Set(excludePaths)
+    : excludePaths;
 
   let totalWeight = 0;
   let eligibleCount = 0;
@@ -41,7 +46,7 @@ export const selectWeightedRandom = (
   // First pass: Calculate total weight for eligible items
   // Using simple loop to avoid array allocation
   for (const item of items) {
-    if (!excludePaths.includes(item.path)) {
+    if (!excludeSet.has(item.path)) {
       totalWeight += 1 / ((item.viewCount || 0) + 1);
       eligibleCount++;
     }
@@ -61,16 +66,11 @@ export const selectWeightedRandom = (
   // (Should be rare with 1/(count+1) unless count is infinite)
   if (totalWeight <= 1e-9) {
     const effectiveItemsCount = usingFallback ? items.length : eligibleCount;
-    // Only reachable if eligibleCount was 0 and items.length was 0, but that is covered by first check
-    // However, TypeScript might not know that.
-    // Actually, effectiveItemsCount would be items.length (since usingFallback=true) if eligibleCount=0.
-    // And items.length > 0 because of first check.
-    // So effectiveItemsCount > 0.
 
     // Pick a random eligible item uniformly
     let targetIndex = Math.floor(Math.random() * effectiveItemsCount);
     for (const item of items) {
-      if (usingFallback || !excludePaths.includes(item.path)) {
+      if (usingFallback || !excludeSet.has(item.path)) {
         if (targetIndex === 0) return item;
         targetIndex--;
       }
@@ -83,7 +83,7 @@ export const selectWeightedRandom = (
 
   // Second pass: Find the selected item
   for (const item of items) {
-    if (!usingFallback && excludePaths.includes(item.path)) {
+    if (!usingFallback && excludeSet.has(item.path)) {
       continue;
     }
 
@@ -96,7 +96,7 @@ export const selectWeightedRandom = (
   // Search backwards to find the last eligible item
   for (let i = items.length - 1; i >= 0; i--) {
     const item = items[i];
-    if (usingFallback || !excludePaths.includes(item.path)) {
+    if (usingFallback || !excludeSet.has(item.path)) {
       return item;
     }
   }

@@ -114,9 +114,20 @@ export function useSlideshow() {
         5,
         playerStore.state.displayedMediaFiles.length,
       );
-      const historyPaths = playerStore.state.displayedMediaFiles
-        .slice(-historySize)
-        .map((item) => item.path);
+      // Optimization: Use a Set for O(1) lookups in selectWeightedRandom
+      // Avoids .map() allocation on every tick
+      const historyPaths = new Set<string>();
+      const startIdx = Math.max(
+        0,
+        playerStore.state.displayedMediaFiles.length - historySize,
+      );
+      for (
+        let i = startIdx;
+        i < playerStore.state.displayedMediaFiles.length;
+        i++
+      ) {
+        historyPaths.add(playerStore.state.displayedMediaFiles[i].path);
+      }
 
       selectedMedia =
         selectWeightedRandom(filteredPool, historyPaths) ||
