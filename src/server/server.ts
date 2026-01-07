@@ -116,6 +116,50 @@ async function ensureCertificates() {
   }
 }
 
+// [SECURITY] Rate Limiter Factory to prevent abuse
+// Replaces the previous single-purpose limiter with a reusable one
+function createRateLimiter(
+  windowMs: number,
+  max: number,
+  message: string,
+): express.RequestHandler {
+  const hits = new Map<string, { count: number; resetTime: number }>();
+
+  // Cleanup interval to prevent memory leaks
+  setInterval(() => {
+    const now = Date.now();
+    for (const [ip, data] of hits.entries()) {
+      if (now > data.resetTime) hits.delete(ip);
+    }
+  }, windowMs).unref();
+
+  return (
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction,
+  ) => {
+    const ip = req.ip || 'unknown';
+    const now = Date.now();
+    let data = hits.get(ip);
+
+    if (!data || now > data.resetTime) {
+      data = { count: 0, resetTime: now + windowMs };
+      hits.set(ip, data);
+    }
+
+    if (data.count >= max) {
+      console.warn(
+        `[Security] Rate limit exceeded for ${req.method} ${req.path} from ${ip}`,
+      );
+      res.status(429).json({ error: message });
+      return;
+    }
+
+    data.count++;
+    next();
+  };
+}
+
 export async function createApp() {
   const app = express();
 
@@ -154,41 +198,21 @@ export async function createApp() {
   // [SECURITY] Limit JSON body size to 10MB to prevent DoS attacks while allowing batch metadata operations
   app.use(express.json({ limit: '10mb' }));
 
-  // [SECURITY] Simple in-memory rate limiter for sensitive endpoints
-  const rateLimitMap = new Map<string, { count: number; lastReset: number }>();
-  const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
-  const RATE_LIMIT_MAX = 20;
+  // [SECURITY] Configure Rate Limiters
+  // Auth: Strict limit (20 req / 15 min) to prevent brute force
+  const authLimiter = createRateLimiter(
+    15 * 60 * 1000,
+    20,
+    'Too many auth attempts. Please try again later.',
+  );
 
-  // Cleanup interval to prevent memory leaks from the rate limiter map
-  setInterval(() => {
-    const now = Date.now();
-    for (const [ip, record] of rateLimitMap.entries()) {
-      if (now - record.lastReset > RATE_LIMIT_WINDOW) {
-        rateLimitMap.delete(ip);
-      }
-    }
-  }, RATE_LIMIT_WINDOW).unref(); // unref to allow process to exit if this is the only thing running
-
-  const authRateLimiter: express.RequestHandler = (req, res, next) => {
-    const ip = req.ip || 'unknown';
-    const now = Date.now();
-
-    let record = rateLimitMap.get(ip);
-    if (!record || now - record.lastReset > RATE_LIMIT_WINDOW) {
-      record = { count: 0, lastReset: now };
-      rateLimitMap.set(ip, record);
-    }
-
-    if (record.count >= RATE_LIMIT_MAX) {
-      res
-        .status(429)
-        .json({ error: 'Too many requests, please try again later.' });
-      return;
-    }
-
-    record.count++;
-    next();
-  };
+  // Write: Moderate limit (10 req / 1 min) for sensitive write operations (scan, create, rate)
+  // This prevents DoS via resource exhaustion (e.g. disk scanning, DB spam)
+  const writeLimiter = createRateLimiter(
+    60 * 1000,
+    10,
+    'Too many requests. Please slow down.',
+  );
 
   // Initialize Database
   console.log(
@@ -230,7 +254,7 @@ export async function createApp() {
     }
   });
 
-  app.post('/api/albums/reindex', async (_req, res) => {
+  app.post('/api/albums/reindex', writeLimiter, async (_req, res) => {
     try {
       const albums = await getAlbumsWithViewCountsAfterScan();
       res.json(albums);
@@ -282,7 +306,7 @@ export async function createApp() {
     }
   });
 
-  app.post('/api/smart-playlists', async (req, res) => {
+  app.post('/api/smart-playlists', writeLimiter, async (req, res) => {
     const { name, criteria } = req.body;
     if (!name || !criteria)
       return res.status(400).send('Missing name or criteria');
@@ -295,7 +319,7 @@ export async function createApp() {
     }
   });
 
-  app.put('/api/smart-playlists/:id', async (req, res) => {
+  app.put('/api/smart-playlists/:id', writeLimiter, async (req, res) => {
     const id = parseInt(req.params.id);
     const { name, criteria } = req.body;
     if (isNaN(id) || !name || !criteria)
@@ -309,7 +333,7 @@ export async function createApp() {
     }
   });
 
-  app.delete('/api/smart-playlists/:id', async (req, res) => {
+  app.delete('/api/smart-playlists/:id', writeLimiter, async (req, res) => {
     const id = parseInt(req.params.id);
     if (isNaN(id)) return res.status(400).send('Invalid id');
     try {
@@ -322,7 +346,7 @@ export async function createApp() {
   });
 
   // Media Operations
-  app.post('/api/media/rate', async (req, res) => {
+  app.post('/api/media/rate', writeLimiter, async (req, res) => {
     const { filePath, rating } = req.body;
     if (!filePath || typeof rating !== 'number')
       return res.status(400).send('Missing filePath or rating');
@@ -410,7 +434,7 @@ export async function createApp() {
     res.json(dirs);
   });
 
-  app.post('/api/directories', async (req, res) => {
+  app.post('/api/directories', writeLimiter, async (req, res) => {
     const { path: dirPath } = req.body;
     if (!dirPath) return res.status(400).send('Missing path');
 
@@ -442,7 +466,7 @@ export async function createApp() {
     }
   });
 
-  app.delete('/api/directories', async (req, res) => {
+  app.delete('/api/directories', writeLimiter, async (req, res) => {
     const { path: dirPath } = req.body;
     if (!dirPath) return res.status(400).send('Missing path');
     try {
@@ -453,7 +477,7 @@ export async function createApp() {
     }
   });
 
-  app.put('/api/directories/active', async (req, res) => {
+  app.put('/api/directories/active', writeLimiter, async (req, res) => {
     const { path: dirPath, isActive } = req.body;
     if (!dirPath) return res.status(400).send('Missing path');
     try {
@@ -529,7 +553,7 @@ export async function createApp() {
     }
   });
 
-  app.post('/api/auth/google-drive/code', authRateLimiter, async (req, res) => {
+  app.post('/api/auth/google-drive/code', authLimiter, async (req, res) => {
     const { code } = req.body;
     if (!code) return res.status(400).send('Missing code');
     try {
@@ -608,7 +632,7 @@ export async function createApp() {
     res.send(html);
   });
 
-  app.post('/api/sources/google-drive', async (req, res) => {
+  app.post('/api/sources/google-drive', writeLimiter, async (req, res) => {
     const { folderId } = req.body;
     if (!folderId) return res.status(400).send('Missing folderId');
     try {
