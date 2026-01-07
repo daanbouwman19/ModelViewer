@@ -19,11 +19,10 @@
         :aria-label="isOpen ? `Collapse ${album.name}` : `Expand ${album.name}`"
         @click.stop="toggle"
       >
-        <span
-          class="text-[10px] transform transition-transform duration-200"
-          :class="{ 'rotate-0': isOpen, '-rotate-90': !isOpen }"
-          >▼</span
-        >
+        <ChevronRightIcon
+          class="w-4 h-4 transform transition-transform duration-200"
+          :class="{ 'rotate-90': isOpen, 'rotate-0': !isOpen }"
+        />
       </button>
       <div v-else class="w-6 h-6 shrink-0"></div>
 
@@ -145,6 +144,7 @@ import { countTextures, getAlbumAndChildrenIds } from '../utils/albumUtils';
 import { useSlideshow } from '../composables/useSlideshow';
 import PlayIcon from './icons/PlayIcon.vue';
 import GridIcon from './icons/GridIcon.vue';
+import ChevronRightIcon from './icons/ChevronRightIcon.vue';
 import type { Album } from '../../core/types';
 
 const props = withDefaults(
