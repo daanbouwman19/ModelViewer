@@ -25,9 +25,9 @@ describe('media-service coverage', () => {
     vi.clearAllMocks();
     // Default mock behavior for isDrivePath
     if (vi.isMockFunction(isDrivePath)) {
-        vi.mocked(isDrivePath).mockImplementation((path) =>
-            path.startsWith('gdrive://'),
-        );
+      vi.mocked(isDrivePath).mockImplementation((path) =>
+        path.startsWith('gdrive://'),
+      );
     }
   });
 

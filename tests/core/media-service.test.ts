@@ -73,9 +73,9 @@ describe('media-service', () => {
     sharedState.isPackaged = false;
     // Default mock behavior for isDrivePath
     if (vi.isMockFunction(isDrivePath)) {
-        vi.mocked(isDrivePath).mockImplementation((path) =>
+      vi.mocked(isDrivePath).mockImplementation((path) =>
         path.startsWith('gdrive://'),
-        );
+      );
     }
   });
 

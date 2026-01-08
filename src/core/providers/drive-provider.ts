@@ -2,11 +2,7 @@ import { Readable } from 'stream';
 import { FileSystemProvider, FileMetadata } from '../fs-provider';
 import { FileSystemEntry } from '../file-system';
 import { getDriveStreamWithCache } from '../drive-stream';
-import {
-  isDrivePath,
-  getDriveId,
-  createDrivePath,
-} from '../media-utils';
+import { isDrivePath, getDriveId, createDrivePath } from '../media-utils';
 import {
   listDriveDirectory,
   getDriveFileMetadata,
