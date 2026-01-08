@@ -6,7 +6,7 @@ import { getDriveStreamWithCache } from './drive-stream';
 import { authorizeFilePath, AuthorizationResult } from './security';
 import { InternalMediaProxy } from './media-proxy';
 import { IMediaSource } from './media-source-types';
-import { getMimeType } from './media-utils';
+import { getMimeType, isDrivePath, getDriveId } from './media-utils';
 
 export class LocalMediaSource implements IMediaSource {
   private authResult: Promise<AuthorizationResult> | undefined;
@@ -79,7 +79,7 @@ export class DriveMediaSource implements IMediaSource {
   private fileId: string;
 
   constructor(filePath: string) {
-    this.fileId = filePath.replace('gdrive://', '');
+    this.fileId = getDriveId(filePath);
   }
 
   async getFFmpegInput(): Promise<string> {
@@ -124,7 +124,7 @@ export class DriveMediaSource implements IMediaSource {
 }
 
 export function createMediaSource(filePath: string): IMediaSource {
-  if (filePath.startsWith('gdrive://')) {
+  if (isDrivePath(filePath)) {
     return new DriveMediaSource(filePath);
   }
   return new LocalMediaSource(filePath);

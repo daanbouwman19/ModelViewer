@@ -12,6 +12,7 @@ import {
   ALL_SUPPORTED_EXTENSIONS,
   DISK_SCAN_CONCURRENCY,
 } from './constants.ts';
+import { isDrivePath, getDriveId } from './media-utils.ts';
 import type { Album, MediaFile } from './types';
 import { listDriveFiles } from '../main/google-drive-service.ts';
 import { ConcurrencyLimiter } from './utils/concurrency-limiter.ts';
@@ -121,8 +122,8 @@ async function performFullMediaScan(
   try {
     const scanPromises = baseMediaDirectories.map(async (baseDir) => {
       try {
-        if (baseDir.startsWith('gdrive://')) {
-          const folderId = baseDir.replace('gdrive://', '');
+        if (isDrivePath(baseDir)) {
+          const folderId = getDriveId(baseDir);
           return scanGoogleDrive(folderId);
         } else {
           await fs.access(baseDir);

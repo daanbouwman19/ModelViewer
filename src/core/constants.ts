@@ -3,6 +3,11 @@
  */
 
 /**
+ * Protocol prefix for Google Drive files.
+ */
+const GDRIVE_PROTOCOL: string = 'gdrive://';
+
+/**
  * Maximum size for a file to be loaded as a Data URL, in megabytes.
  * Larger files, especially videos, will be served via a local HTTP server
  * to avoid performance issues with large Data URLs.
@@ -161,6 +166,7 @@ const RATE_LIMIT_WRITE_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_WRITE_MAX_REQUESTS = 10;
 
 export {
+  GDRIVE_PROTOCOL,
   MAX_DATA_URL_SIZE_MB,
   DATA_URL_THRESHOLD_MB,
   FILE_INDEX_CACHE_KEY,

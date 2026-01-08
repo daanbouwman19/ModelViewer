@@ -5,6 +5,7 @@ import { spawn } from 'child_process';
 import rangeParser from 'range-parser';
 
 import {
+  GDRIVE_PROTOCOL,
   SUPPORTED_IMAGE_EXTENSIONS,
   SUPPORTED_VIDEO_EXTENSIONS,
 } from './constants';
@@ -23,8 +24,33 @@ const KNOWN_MIME_TYPES: Record<string, string> = {
   jpeg: 'image/jpeg',
 };
 
+/**
+ * Checks if the given path is a Google Drive path.
+ * @param filePath The file path to check.
+ */
+export function isDrivePath(filePath: string): boolean {
+  return filePath.startsWith(GDRIVE_PROTOCOL);
+}
+
+/**
+ * Extracts the Google Drive file ID from a gdrive:// path.
+ * @param filePath The gdrive:// path.
+ */
+export function getDriveId(filePath: string): string {
+  if (!isDrivePath(filePath)) return filePath;
+  return filePath.slice(GDRIVE_PROTOCOL.length);
+}
+
+/**
+ * Creates a gdrive:// path from a file ID.
+ * @param fileId The Google Drive file ID.
+ */
+export function createDrivePath(fileId: string): string {
+  return `${GDRIVE_PROTOCOL}${fileId}`;
+}
+
 export function getMimeType(filePath: string): string {
-  if (filePath.startsWith('gdrive://')) {
+  if (isDrivePath(filePath)) {
     return 'application/octet-stream';
   }
 

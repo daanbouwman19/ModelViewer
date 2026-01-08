@@ -23,6 +23,7 @@ import {
   parseHttpRange,
   getQueryParam,
   getFFmpegDuration,
+  isDrivePath,
 } from './media-utils.ts';
 import { getProvider } from './fs-provider-factory.ts';
 import { authorizeFilePath } from './security.ts';
@@ -50,7 +51,7 @@ export async function validateFileAccess(
   filePath: string,
 ): Promise<boolean> {
   // GDrive files are handled by their specific providers/logic
-  if (filePath.startsWith('gdrive://')) return true;
+  if (isDrivePath(filePath)) return true;
 
   try {
     const auth = await authorizeFilePath(filePath);
@@ -72,7 +73,7 @@ export async function validateFileAccess(
  * false if we should fall back to manual streaming.
  */
 function tryServeDirectFile(res: Response, filePath: string): boolean {
-  if (filePath.startsWith('gdrive://')) return false;
+  if (isDrivePath(filePath)) return false;
 
   try {
     res.sendFile(filePath);
@@ -294,7 +295,7 @@ export async function getVideoDuration(
 
   // If it's a Drive file and we didn't get duration from metadata,
   // we can't easily use local FFmpeg on the ID string.
-  if (filePath.startsWith('gdrive://')) {
+  if (isDrivePath(filePath)) {
     return { error: 'Duration not available' };
   }
 
@@ -317,7 +318,7 @@ export async function serveMetadata(
 ) {
   if (!(await validateFileAccess(res, filePath))) return;
 
-  if (!ffmpegPath && !filePath.startsWith('gdrive://')) {
+  if (!ffmpegPath && !isDrivePath(filePath)) {
     res.status(500).send('FFmpeg binary not found');
     return;
   }
@@ -430,7 +431,7 @@ export async function serveThumbnail(
   }
 
   // Ensure GDrive files don't fall through to local FS if provider fetch failed
-  if (filePath.startsWith('gdrive://')) {
+  if (isDrivePath(filePath)) {
     if (!res.headersSent) {
       res.status(404).end();
     }
@@ -452,7 +453,7 @@ export async function serveStaticFile(
   try {
     if (await validateFileAccess(res, filePath)) {
       // If local file, use res.sendFile for optimizing range/seeking
-      if (!filePath.startsWith('gdrive://')) {
+      if (!isDrivePath(filePath)) {
         return res.sendFile(filePath);
       }
     } else {
@@ -541,7 +542,7 @@ export async function generateFileUrl(
     const provider = getProvider(filePath);
 
     // [SECURITY] Check access for local files
-    if (!filePath.startsWith('gdrive://')) {
+    if (!isDrivePath(filePath)) {
       const auth = await authorizeFilePath(filePath);
       if (!auth.isAllowed)
         return { type: 'error', message: auth.message || 'Access denied' };
@@ -596,7 +597,7 @@ export async function openMediaInVlc(
 ): Promise<{ success: boolean; message?: string }> {
   let fileArg = filePath;
 
-  if (filePath.startsWith('gdrive://')) {
+  if (isDrivePath(filePath)) {
     if (serverPort > 0) {
       fileArg = `http://localhost:${serverPort}${MediaRoutes.STREAM}?file=${encodeURIComponent(filePath)}`;
     } else {

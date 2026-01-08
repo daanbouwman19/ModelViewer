@@ -10,6 +10,7 @@ import Database from 'better-sqlite3';
 import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
+import { isDrivePath, getDriveId } from './media-utils.ts';
 import {
   initializeSchema,
   migrateMediaDirectories,
@@ -45,8 +46,8 @@ async function generateFileId(filePath: string): Promise<string> {
     if (!filePath) {
       throw new Error('File path cannot be null or empty');
     }
-    if (filePath.startsWith('gdrive://')) {
-      return filePath.replace('gdrive://', '');
+    if (isDrivePath(filePath)) {
+      return getDriveId(filePath);
     }
     const stats = await fs.stat(filePath);
     const uniqueString = `${stats.size}-${stats.mtime.getTime()}`;
