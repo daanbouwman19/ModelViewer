@@ -57,15 +57,24 @@ export const countTextures = (album: Album): number => {
 
 /**
  * Recursively collects all textures from an album and its children.
+ * Optimized to pre-allocate the results array to avoid resizing overhead.
  * @param album - The album to start from.
  * @returns A flattened list of all media files in the album tree.
  */
 export const collectTexturesRecursive = (album: Album): MediaFile[] => {
-  const results: MediaFile[] = [];
+  // Optimization: Pre-calculate total size to allocate array once
+  const total = countTextures(album);
+  if (total === 0) return [];
+
+  const results = new Array(total);
+  let index = 0;
+
   for (const node of traverseAlbumTree(album)) {
     if (node.textures) {
-      for (const texture of node.textures) {
-        results.push(texture);
+      // Manual loop is faster than for...of for arrays in hot paths
+      const len = node.textures.length;
+      for (let i = 0; i < len; i++) {
+        results[index++] = node.textures[i];
       }
     }
   }
@@ -128,7 +137,12 @@ export const collectSelectedTextures = (
   const textures: MediaFile[] = [];
   for (const node of traverseAlbumTree(albums)) {
     if (selection[node.id] && node.textures) {
-      textures.push(...node.textures);
+      // Optimization: Use a loop instead of push(...spread) to avoid stack overflow
+      // on large arrays (>65k items) and reduce stack overhead.
+      const len = node.textures.length;
+      for (let i = 0; i < len; i++) {
+        textures.push(node.textures[i]);
+      }
     }
   }
   return textures;
