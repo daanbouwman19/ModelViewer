@@ -136,6 +136,7 @@ describe('Path Restriction Security', () => {
     expect(isSensitiveDirectory('/')).toBe(true);
     expect(isSensitiveDirectory('/etc')).toBe(true);
     expect(isSensitiveDirectory('/usr/bin')).toBe(true);
+    expect(isSensitiveDirectory('/var/log')).toBe(true);
     expect(isSensitiveDirectory('/home/user')).toBe(false);
   });
 
@@ -161,6 +162,15 @@ describe('Path Restriction Security', () => {
     Object.defineProperty(process, 'platform', { value: 'linux' });
     expect(isRestrictedPath('/etc')).toBe(true);
     expect(isRestrictedPath('/root')).toBe(true);
+
+    // Additional restricted paths
+    expect(isRestrictedPath('/bin')).toBe(true);
+    expect(isRestrictedPath('/sbin')).toBe(true);
+    expect(isRestrictedPath('/usr')).toBe(true);
+    expect(isRestrictedPath('/lib')).toBe(true);
+    expect(isRestrictedPath('/opt')).toBe(true);
+    expect(isRestrictedPath('/var')).toBe(true);
+
     expect(isRestrictedPath('/')).toBe(false); // Allowed for navigation
     expect(isRestrictedPath('/home')).toBe(false);
   });

@@ -179,6 +179,26 @@ function getWindowsRestrictedPaths(): string[] {
   });
 }
 
+// Common Linux/Unix sensitive directories
+const LINUX_RESTRICTED_PATHS = [
+  '/etc',
+  '/proc',
+  '/sys',
+  '/root',
+  '/boot',
+  '/dev',
+  '/bin',
+  '/sbin',
+  '/usr',
+  '/lib',
+  '/lib64',
+  '/opt',
+  '/srv',
+  '/tmp',
+  '/run',
+  '/var',
+];
+
 /**
  * Checks if a path is restricted for listing contents.
  * Allows root listing for navigation, but blocks internal system folders.
@@ -208,9 +228,8 @@ export function isRestrictedPath(dirPath: string): boolean {
         normalized.toLowerCase().startsWith(r.toLowerCase() + '\\'),
     );
   } else {
-    // Allow / (to navigate), but block /etc, /proc, /root
-    const restricted = ['/etc', '/proc', '/sys', '/root', '/boot', '/dev'];
-    return restricted.some(
+    // Allow / (to navigate), but block /etc, /proc, /root, etc.
+    return LINUX_RESTRICTED_PATHS.some(
       (r) => normalized === r || normalized.startsWith(r + '/'),
     );
   }
@@ -237,20 +256,8 @@ export function isSensitiveDirectory(dirPath: string): boolean {
         normalized.toLowerCase().startsWith(r.toLowerCase() + '\\'),
     );
   } else {
-    // Block /, /etc, /usr, /var, etc.
-    const restricted = [
-      '/',
-      '/etc',
-      '/usr',
-      '/var',
-      '/bin',
-      '/sbin',
-      '/root',
-      '/sys',
-      '/proc',
-      '/dev',
-      '/boot',
-    ];
+    // Block /, and all other restricted paths
+    const restricted = ['/', ...LINUX_RESTRICTED_PATHS];
     return restricted.some(
       (r) => normalized === r || normalized.startsWith(r + '/'),
     );
