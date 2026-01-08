@@ -69,7 +69,11 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { MediaFile } from '../../core/types';
-import { getCachedExtension, getDisplayName } from '../utils/mediaUtils';
+import {
+  getDisplayName,
+  isMediaFileImage,
+  isMediaFileVideo,
+} from '../utils/mediaUtils';
 
 const props = defineProps<{
   item: MediaFile;
@@ -85,33 +89,33 @@ defineEmits<{
   (e: 'image-error', item: MediaFile): void;
 }>();
 
-const ext = computed(() => getCachedExtension(props.item));
-
 // We need to handle the case where props.imageExtensionsSet might be wrapped in a Ref/Object if passed incorrectly,
 // OR simply ensure we access it correctly.
 const isImage = computed(() => {
   // Defensive coding to handle potential non-unwrapped refs in tests/edge cases
   const set = props.imageExtensionsSet as unknown as { value?: Set<string> };
+  let actualSet = props.imageExtensionsSet;
   if (
     set &&
     typeof (set as Set<string>).has !== 'function' &&
     set.value instanceof Set
   ) {
-    return set.value.has(ext.value);
+    actualSet = set.value;
   }
-  return props.imageExtensionsSet.has(ext.value);
+  return isMediaFileImage(props.item, actualSet);
 });
 
 const isVideo = computed(() => {
   const set = props.videoExtensionsSet as unknown as { value?: Set<string> };
+  let actualSet = props.videoExtensionsSet;
   if (
     set &&
     typeof (set as Set<string>).has !== 'function' &&
     set.value instanceof Set
   ) {
-    return set.value.has(ext.value);
+    actualSet = set.value;
   }
-  return props.videoExtensionsSet.has(ext.value);
+  return isMediaFileVideo(props.item, actualSet);
 });
 
 const mediaUrl = computed(() => {
