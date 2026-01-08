@@ -1,4 +1,4 @@
-## 2024-05-24 - Extracting FFmpeg Utils
+## 2026-01-07 - Extracting FFmpeg Utils
 
 **Smell:** `media-handler.ts` was becoming a "God Object", mixing HTTP request handling with low-level FFmpeg process spawning and output parsing (`getFFmpegDuration`).
 **Insight:** Logic that parses command-line tool output is purely functional and doesn't belong in an Express route handler or Controller. It belongs in a utility module.
