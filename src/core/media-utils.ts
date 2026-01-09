@@ -8,7 +8,7 @@ import {
   GDRIVE_PROTOCOL,
   SUPPORTED_IMAGE_EXTENSIONS,
   SUPPORTED_VIDEO_EXTENSIONS,
-} from './constants';
+} from './constants.ts';
 
 const FFMPEG_TRANSCODE_PRESET = 'ultrafast';
 const FFMPEG_TRANSCODE_CRF = '23';
