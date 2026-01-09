@@ -53,6 +53,25 @@ describe('file-system', () => {
       expect(result[0].path).toContain('dir1');
     });
 
+    it('filters out hidden files and directories (starting with dot)', async () => {
+      const mockDirents = [
+        { name: 'visible.txt', isDirectory: () => false },
+        { name: '.hidden-file', isDirectory: () => false },
+        { name: '.git', isDirectory: () => true },
+        { name: 'visible-dir', isDirectory: () => true },
+      ];
+      vi.mocked(fs.readdir).mockResolvedValue(mockDirents as any);
+
+      const result = await listDirectory('/test');
+
+      expect(result).toHaveLength(2);
+      expect(result.map((e) => e.name)).toEqual(
+        expect.arrayContaining(['visible.txt', 'visible-dir']),
+      );
+      expect(result.map((e) => e.name)).not.toContain('.hidden-file');
+      expect(result.map((e) => e.name)).not.toContain('.git');
+    });
+
     it('throws error and logs if readdir fails', async () => {
       const error = new Error('Access denied');
       vi.mocked(fs.readdir).mockRejectedValue(error);
