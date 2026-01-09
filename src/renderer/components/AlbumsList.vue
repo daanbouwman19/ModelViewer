@@ -87,10 +87,32 @@
                   <button
                     class="grow flex items-center gap-2 truncate text-sm text-gray-300 group-hover:text-white text-left focus:outline-none focus:text-white cursor-pointer min-w-0"
                     aria-label="Recently Played Slideshow"
+                    :disabled="!!loadingAction"
                     @click="handleHistorySlideshow"
                   >
                     <span class="text-orange-400 shrink-0">
-                      <HistoryIcon class="w-4 h-4" />
+                      <svg
+                        v-if="loadingAction === 'history-slideshow'"
+                        class="animate-spin w-4 h-4"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          class="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          stroke-width="4"
+                        ></circle>
+                        <path
+                          class="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                      <HistoryIcon v-else class="w-4 h-4" />
                     </span>
                     <span class="truncate">Recently Played</span>
                   </button>
@@ -104,9 +126,31 @@
                       class="text-xs text-gray-500 hover:text-white p-1"
                       title="Open in Grid"
                       aria-label="Open History in Grid"
+                      :disabled="!!loadingAction"
                       @click.stop="handleHistoryGrid"
                     >
-                      <GridIcon class="w-4 h-4" />
+                      <svg
+                        v-if="loadingAction === 'history-grid'"
+                        class="animate-spin w-4 h-4"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          class="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          stroke-width="4"
+                        ></circle>
+                        <path
+                          class="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                      <GridIcon v-else class="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -120,11 +164,33 @@
                   <button
                     class="grow flex items-center gap-2 truncate text-sm text-gray-300 group-hover:text-white text-left focus:outline-none focus:text-white cursor-pointer min-w-0"
                     :aria-label="'Play ' + playlist.name"
+                    :disabled="!!loadingAction"
                     @click="handleSmartPlaylistSlideshow(playlist)"
                   >
                     <span class="text-indigo-500 shrink-0">
+                      <svg
+                        v-if="loadingAction === `playlist-${playlist.id}`"
+                        class="animate-spin w-4 h-4"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          class="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          stroke-width="4"
+                        ></circle>
+                        <path
+                          class="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
                       <!-- Small Playlist Icon -->
-                      <PlaylistIcon class="w-4 h-4" />
+                      <PlaylistIcon v-else class="w-4 h-4" />
                     </span>
                     <span class="truncate">{{ playlist.name }}</span>
                   </button>
@@ -138,9 +204,31 @@
                       class="text-xs text-gray-500 hover:text-white p-1"
                       title="Open in Grid"
                       :aria-label="'Open ' + playlist.name + ' in Grid'"
+                      :disabled="!!loadingAction"
                       @click.stop="handleSmartPlaylistGrid(playlist)"
                     >
-                      <GridIcon class="w-4 h-4" />
+                      <svg
+                        v-if="loadingAction === `playlist-grid-${playlist.id}`"
+                        class="animate-spin w-4 h-4"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                      >
+                        <circle
+                          class="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          stroke-width="4"
+                        ></circle>
+                        <path
+                          class="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        ></path>
+                      </svg>
+                      <GridIcon v-else class="w-4 h-4" />
                     </button>
                     <button
                       class="text-xs text-gray-500 hover:text-blue-400 p-1"
@@ -314,7 +402,7 @@
  * opening the sources modal, and selecting/deselecting albums for the slideshow.
  * Clicking on an album's name starts a slideshow for that specific album and its sub-albums.
  */
-import { nextTick } from 'vue';
+import { nextTick, ref } from 'vue';
 import { useLibraryStore } from '../composables/useLibraryStore';
 import { usePlayerStore } from '../composables/usePlayerStore';
 import { useUIStore } from '../composables/useUIStore';
@@ -367,6 +455,8 @@ const {
   playlistToEdit,
   mediaFilter,
 } = uiStore;
+
+const loadingAction = ref<string | null>(null);
 
 defineEmits(['close']);
 
@@ -505,6 +595,8 @@ const getMediaForPlaylist = async (
 };
 
 const handleSmartPlaylistSlideshow = async (playlist: SmartPlaylist) => {
+  if (loadingAction.value) return;
+  loadingAction.value = `playlist-${playlist.id}`;
   try {
     const mediaFiles = await getMediaForPlaylist(playlist);
     if (mediaFiles.length === 0) {
@@ -521,10 +613,14 @@ const handleSmartPlaylistSlideshow = async (playlist: SmartPlaylist) => {
     slideshow.startIndividualAlbumSlideshow(fakeAlbum);
   } catch (error) {
     console.error('Error starting playlist slideshow', error);
+  } finally {
+    loadingAction.value = null;
   }
 };
 
 const handleSmartPlaylistGrid = async (playlist: SmartPlaylist) => {
+  if (loadingAction.value) return;
+  loadingAction.value = `playlist-grid-${playlist.id}`;
   try {
     const mediaFiles = await getMediaForPlaylist(playlist);
     gridMediaFiles.value = mediaFiles;
@@ -533,6 +629,8 @@ const handleSmartPlaylistGrid = async (playlist: SmartPlaylist) => {
     viewMode.value = 'grid';
   } catch (error) {
     console.error('Error opening playlist grid', error);
+  } finally {
+    loadingAction.value = null;
   }
 };
 
@@ -561,6 +659,8 @@ const loadHistory = async () => {
 };
 
 const handleHistoryGrid = async () => {
+  if (loadingAction.value) return;
+  loadingAction.value = 'history-grid';
   try {
     await loadHistory();
     gridMediaFiles.value = libraryStore.state.historyMedia;
@@ -569,6 +669,8 @@ const handleHistoryGrid = async () => {
   } catch (e) {
     console.error('Error opening history grid', e);
     // Optional: show user feedback
+  } finally {
+    loadingAction.value = null;
   }
 };
 
@@ -580,6 +682,8 @@ const setFilter = async (filter: MediaFilter) => {
 };
 
 const handleHistorySlideshow = async () => {
+  if (loadingAction.value) return;
+  loadingAction.value = 'history-slideshow';
   try {
     await loadHistory();
     const fakeAlbum: Album = {
@@ -592,6 +696,8 @@ const handleHistorySlideshow = async () => {
   } catch (e) {
     console.error('Error starting history slideshow', e);
     // Optional: show user feedback
+  } finally {
+    loadingAction.value = null;
   }
 };
 </script>
