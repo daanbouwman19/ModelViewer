@@ -25,11 +25,14 @@ export async function listDirectory(
 
   try {
     const items = await fs.readdir(directoryPath, { withFileTypes: true });
-    const entries: FileSystemEntry[] = items.map((item) => ({
-      name: item.name,
-      path: path.join(directoryPath, item.name),
-      isDirectory: item.isDirectory(),
-    }));
+    const entries: FileSystemEntry[] = items
+      // [SECURITY] Filter out hidden files/dirs to prevent exposing sensitive data (e.g. .env, .git)
+      .filter((item) => !item.name.startsWith('.'))
+      .map((item) => ({
+        name: item.name,
+        path: path.join(directoryPath, item.name),
+        isDirectory: item.isDirectory(),
+      }));
 
     // Sort: Directories first, then files. Both alphabetically.
     entries.sort((a, b) => {
