@@ -52,12 +52,31 @@ export const DB_SCHEMA = {
   )`,
 };
 
+export const DB_INDEXES = {
+  MEDIA_METADATA_IDX_STATUS: `CREATE INDEX IF NOT EXISTS idx_media_metadata_status ON media_metadata(extraction_status)`,
+  MEDIA_VIEWS_IDX_LAST_VIEWED: `CREATE INDEX IF NOT EXISTS idx_media_views_last_viewed ON media_views(last_viewed DESC)`,
+};
+
 /**
  * Initializes the database schema.
  */
 export function initializeSchema(db: Database.Database): void {
   for (const schema of Object.values(DB_SCHEMA)) {
     db.prepare(schema).run();
+  }
+}
+
+/**
+ * Creates database indexes.
+ * Should be called after schema initialization and migrations.
+ */
+export function createIndexes(db: Database.Database): void {
+  for (const index of Object.values(DB_INDEXES)) {
+    try {
+      db.prepare(index).run();
+    } catch (error) {
+      console.warn('[worker] Failed to create index (ignoring):', error);
+    }
   }
 }
 

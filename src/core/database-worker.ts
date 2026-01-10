@@ -15,6 +15,7 @@ import {
   initializeSchema,
   migrateMediaDirectories,
   migrateMediaMetadata,
+  createIndexes,
 } from './database-schema.ts';
 
 /**
@@ -127,6 +128,7 @@ function initDatabase(dbPath: string): WorkerResult {
     initializeSchema(db);
     migrateMediaDirectories(db);
     migrateMediaMetadata(db);
+    createIndexes(db);
 
     // Prepare statements for reuse
     statements.insertMediaView = db.prepare(
