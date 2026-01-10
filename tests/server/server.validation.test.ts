@@ -25,7 +25,8 @@ vi.mock('fs/promises', () => ({
 }));
 
 vi.mock('../../src/core/security', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../src/core/security')>();
+  const actual =
+    await importOriginal<typeof import('../../src/core/security')>();
   return {
     ...actual,
     authorizeFilePath: vi.fn(),
@@ -37,12 +38,14 @@ describe('Server Input Validation', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    vi.mocked(security.authorizeFilePath).mockImplementation(async (p: string) => {
-      if (typeof p !== 'string') {
-        throw new TypeError('Path must be a string');
-      }
-      return { isAllowed: true, realPath: p };
-    });
+    vi.mocked(security.authorizeFilePath).mockImplementation(
+      async (p: string) => {
+        if (typeof p !== 'string') {
+          throw new TypeError('Path must be a string');
+        }
+        return { isAllowed: true, realPath: p };
+      },
+    );
     app = await createApp();
   });
 
