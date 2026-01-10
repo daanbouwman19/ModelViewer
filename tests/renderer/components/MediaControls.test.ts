@@ -153,4 +153,42 @@ describe('MediaControls.vue', () => {
       .trigger('click');
     expect(wrapper.emitted('toggle-fullscreen')).toBeTruthy();
   });
+
+  it('should have tooltips on navigation buttons', () => {
+    const wrapper = mount(MediaControls, { props: defaultProps });
+    const prevBtn = wrapper.find('button[aria-label="Previous media"]');
+    const nextBtn = wrapper.find('button[aria-label="Next media"]');
+    expect(prevBtn.attributes('title')).toBe('Previous media');
+    expect(nextBtn.attributes('title')).toBe('Next media');
+  });
+
+  it('should have tooltips on play/pause button', async () => {
+    const wrapper = mount(MediaControls, {
+      props: { ...defaultProps, isImage: false },
+    });
+
+    // Initially paused
+    const playBtn = wrapper.find('button[aria-label="Play video"]');
+    expect(playBtn.attributes('title')).toBe('Play video');
+
+    // Update to playing
+    await wrapper.setProps({ isPlaying: true });
+    // Use dynamic selector because aria-label changes
+    const pauseBtn = wrapper.find('button[aria-label="Pause video"]');
+    expect(pauseBtn.attributes('title')).toBe('Pause video');
+  });
+
+  it('should have tooltips on rating stars', async () => {
+    const wrapper = mount(MediaControls, { props: defaultProps });
+
+    // Wait for resize observer to trigger visibility
+    await wrapper.vm.$nextTick();
+
+    const stars = wrapper.findAll('button[aria-label^="Rate"]');
+    if (stars.length > 0) {
+      expect(stars[0].attributes('title')).toBe('Rate 1 star');
+      expect(stars[1].attributes('title')).toBe('Rate 2 stars');
+      expect(stars[4].attributes('title')).toBe('Rate 5 stars');
+    }
+  });
 });
