@@ -271,7 +271,8 @@ export async function createApp() {
   // Media Views
   app.post('/api/media/view', async (req, res) => {
     const { filePath } = req.body;
-    if (!filePath) return res.status(400).send('Missing filePath');
+    if (!filePath || typeof filePath !== 'string')
+      return res.status(400).send('Missing or invalid filePath');
 
     const auth = await authorizeFilePath(filePath);
     if (!auth.isAllowed)
@@ -283,7 +284,10 @@ export async function createApp() {
 
   app.post('/api/media/views', async (req, res) => {
     const { filePaths } = req.body;
-    if (!Array.isArray(filePaths))
+    if (
+      !Array.isArray(filePaths) ||
+      !filePaths.every((p) => typeof p === 'string')
+    )
       return res.status(400).send('Invalid filePaths');
 
     // Filter out unauthorized paths to prevent probing
@@ -352,7 +356,7 @@ export async function createApp() {
   // Media Operations
   app.post('/api/media/rate', writeLimiter, async (req, res) => {
     const { filePath, rating } = req.body;
-    if (!filePath || typeof rating !== 'number')
+    if (!filePath || typeof filePath !== 'string' || typeof rating !== 'number')
       return res.status(400).send('Missing filePath or rating');
 
     const auth = await authorizeFilePath(filePath);
@@ -393,8 +397,8 @@ export async function createApp() {
 
   app.post('/api/media/metadata', async (req, res) => {
     const { filePath, metadata } = req.body;
-    if (!filePath || !metadata)
-      return res.status(400).send('Missing arguments');
+    if (!filePath || typeof filePath !== 'string' || !metadata)
+      return res.status(400).send('Missing or invalid arguments');
 
     const auth = await authorizeFilePath(filePath);
     if (!auth.isAllowed)
@@ -411,7 +415,10 @@ export async function createApp() {
 
   app.post('/api/media/metadata/batch', async (req, res) => {
     const { filePaths } = req.body;
-    if (!Array.isArray(filePaths))
+    if (
+      !Array.isArray(filePaths) ||
+      !filePaths.every((p) => typeof p === 'string')
+    )
       return res.status(400).send('Invalid filePaths');
 
     // Filter out unauthorized paths to prevent probing
