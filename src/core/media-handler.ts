@@ -14,11 +14,8 @@ import { createMediaSource } from './media-source.ts';
 
 import { IMediaSource } from './media-source-types.ts';
 import {
-  getThumbnailCachePath,
-  checkThumbnailCache,
   getVlcPath,
   getTranscodeArgs,
-  getThumbnailArgs,
   runFFmpeg,
   parseHttpRange,
   getQueryParam,
@@ -27,6 +24,8 @@ import {
 } from './media-utils.ts';
 import { getProvider } from './fs-provider-factory.ts';
 import { authorizeFilePath } from './security.ts';
+import { serveThumbnail } from './thumbnail-handler.ts';
+import { validateFileAccess } from './access-validator.ts';
 import { DATA_URL_THRESHOLD_MB } from './constants.ts';
 import { MediaRoutes } from './routes.ts';
 import {
@@ -39,33 +38,8 @@ export interface MediaHandlerOptions {
   cacheDir: string;
 }
 
-/**
- * Helper: Validates access to the file path.
- * If validation fails, it sends the appropriate error response and returns false.
- * If validation succeeds, it returns true.
- *
- * This encapsulates the logic of checking "gdrive://" bypass vs local file authorization.
- */
-export async function validateFileAccess(
-  res: Response,
-  filePath: string,
-): Promise<boolean> {
-  // GDrive files are handled by their specific providers/logic
-  if (isDrivePath(filePath)) return true;
-
-  try {
-    const auth = await authorizeFilePath(filePath);
-    if (!auth.isAllowed) {
-      if (!res.headersSent) res.status(403).send('Access denied.');
-      return false;
-    }
-    return true;
-  } catch (error) {
-    console.error('[Access] Validation error:', error);
-    if (!res.headersSent) res.status(500).send('Internal server error.');
-    return false;
-  }
-}
+// validateFileAccess moved to access-validator.ts
+export { validateFileAccess };
 
 /**
  * Helper: Attempts to serve a local file directly using Express's sendFile.
@@ -147,134 +121,6 @@ export async function handleStreamRequest(
   }
 }
 
-let thumbnailQueue: InstanceType<typeof import('p-queue').default> | null =
-  null;
-
-async function getThumbnailQueue() {
-  if (thumbnailQueue) return thumbnailQueue;
-  const { default: PQueue } = await import('p-queue');
-  thumbnailQueue = new PQueue({ concurrency: 2 });
-  return thumbnailQueue;
-}
-
-async function runFFmpegThumbnail(
-  filePath: string,
-  cacheFile: string,
-  ffmpegPath: string,
-): Promise<void> {
-  const generateArgs = getThumbnailArgs(filePath, cacheFile);
-  const { code, stderr } = await runFFmpeg(ffmpegPath, generateArgs);
-  if (code !== 0) {
-    throw new Error(`FFmpeg failed with code ${code}: ${stderr}`);
-  }
-}
-
-/**
- * Helper: Tries to serve a thumbnail from the local cache.
- * Returns true if served, false otherwise.
- */
-async function tryServeFromCache(
-  res: Response,
-  cacheFile: string,
-): Promise<boolean> {
-  const hit = await checkThumbnailCache(cacheFile);
-  if (hit) {
-    return new Promise((resolve) => {
-      res.set({
-        'Content-Type': 'image/jpeg',
-        'Cache-Control': 'public, max-age=31536000',
-      });
-
-      const stream = fs.createReadStream(cacheFile);
-
-      stream.on('open', () => {
-        stream.pipe(res);
-      });
-
-      stream.on('error', (err) => {
-        console.warn(
-          `[Thumbnail] Cache Stream Error for ${cacheFile} (falling back to generate):`,
-          err,
-        );
-        // Fallback to generation
-        resolve(false);
-      });
-
-      stream.on('end', () => {
-        resolve(true);
-      });
-    });
-  }
-  return false;
-}
-
-/**
- * Helper: Tries to fetch and serve a thumbnail from the provider (e.g. Google Drive).
- * Returns true if served, false otherwise.
- */
-async function tryServeFromProvider(
-  res: Response,
-  filePath: string,
-  cacheFile: string,
-): Promise<boolean> {
-  try {
-    const provider = getProvider(filePath);
-    const stream = await provider.getThumbnailStream(filePath);
-    if (stream) {
-      const writeStream = fs.createWriteStream(cacheFile);
-      stream.pipe(writeStream);
-      stream.pipe(res);
-      return true;
-    }
-  } catch (e) {
-    console.warn('[Thumbnail] Provider fetch failed:', e);
-  }
-  return false;
-}
-
-/**
- * Helper: Generates a thumbnail using local FFmpeg and serves it.
- */
-async function generateLocalThumbnail(
-  res: Response,
-  filePath: string,
-  cacheFile: string,
-  ffmpegPath: string | null,
-): Promise<void> {
-  // Use validateFileAccess to enforce security
-  if (!(await validateFileAccess(res, filePath))) return;
-
-  if (!ffmpegPath) {
-    res.status(500).send('FFmpeg binary not found');
-    return;
-  }
-
-  try {
-    const queue = await getThumbnailQueue();
-    await queue.add(() => runFFmpegThumbnail(filePath, cacheFile, ffmpegPath));
-
-    // Verify file exists
-    await fsPromises.stat(cacheFile);
-    res.set({
-      'Content-Type': 'image/jpeg',
-      'Cache-Control': 'public, max-age=31536000',
-    });
-
-    // Use stream instead of sendFile
-    const stream = fs.createReadStream(cacheFile);
-    stream.pipe(res);
-
-    stream.on('error', (err) => {
-      console.error('[Thumbnail] Stream error sending generated file:', err);
-      if (!res.headersSent) res.status(500).end();
-    });
-  } catch (err) {
-    console.error('[Thumbnail] Generation failed:', err);
-    if (!res.headersSent) {
-      res.status(500).send('Generation failed');
-    }
-  }
-}
 
 /**
  * Retrieves video duration using ffmpeg or provider metadata.
@@ -409,38 +255,8 @@ export async function serveTranscodedStream(
   });
 }
 
-/**
- * Handles thumbnail generation.
- */
-export async function serveThumbnail(
-  _req: Request,
-  res: Response,
-  filePath: string,
-  ffmpegPath: string | null,
-  cacheDir: string,
-) {
-  // 1. Check Cache
-  const cacheFile = getThumbnailCachePath(filePath, cacheDir);
-  if (await tryServeFromCache(res, cacheFile)) {
-    return;
-  }
-
-  // 2. Try Provider (Drive)
-  if (await tryServeFromProvider(res, filePath, cacheFile)) {
-    return;
-  }
-
-  // Ensure GDrive files don't fall through to local FS if provider fetch failed
-  if (isDrivePath(filePath)) {
-    if (!res.headersSent) {
-      res.status(404).end();
-    }
-    return;
-  }
-
-  // 3. Fallback to FFmpeg (Local)
-  await generateLocalThumbnail(res, filePath, cacheFile, ffmpegPath);
-}
+// Re-export serveThumbnail from the new handler for compatibility/convenience
+export { serveThumbnail } from './thumbnail-handler.ts';
 
 /**
  * Handles static file serving.
