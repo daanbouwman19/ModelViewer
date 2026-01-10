@@ -2,7 +2,11 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import path from 'path';
 import fs from 'fs';
 import Database from 'better-sqlite3';
-import { initializeSchema, createIndexes, migrateMediaMetadata } from '../../src/core/database-schema';
+import {
+  initializeSchema,
+  createIndexes,
+  migrateMediaMetadata,
+} from '../../src/core/database-schema';
 
 describe('Database Schema Optimization', () => {
   let dbPath: string;
@@ -43,12 +47,16 @@ describe('Database Schema Optimization', () => {
     createIndexes(db);
 
     // 4. Inspect DB
-    const indexes = db.prepare(`
+    const indexes = db
+      .prepare(
+        `
       SELECT name FROM sqlite_master
       WHERE type='index' AND name LIKE 'idx_%'
-    `).all() as { name: string }[];
+    `,
+      )
+      .all() as { name: string }[];
 
-    const indexNames = indexes.map(i => i.name);
+    const indexNames = indexes.map((i) => i.name);
 
     // Verify specific indexes
     expect(indexNames).toContain('idx_media_metadata_status');
@@ -62,13 +70,17 @@ describe('Database Schema Optimization', () => {
     // Run again
     expect(() => createIndexes(db)).not.toThrow();
 
-    const indexes = db.prepare(`
+    const indexes = db
+      .prepare(
+        `
       SELECT name FROM sqlite_master
       WHERE type='index' AND name LIKE 'idx_%'
-    `).all() as { name: string }[];
+    `,
+      )
+      .all() as { name: string }[];
 
     // Should still have unique indexes (not duplicated or errored)
-    const indexNames = indexes.map(i => i.name);
+    const indexNames = indexes.map((i) => i.name);
     expect(indexNames).toContain('idx_media_metadata_status');
     expect(indexNames).toContain('idx_media_views_last_viewed');
   });
