@@ -331,5 +331,82 @@ describe('thumbnail-handler unit tests', () => {
       expect(res.send).toHaveBeenCalledWith('Generation failed');
       await p;
     });
+
+    it('returns 500 if ffmpeg binary is not found', async () => {
+      mockCheckThumbnailCache.mockResolvedValue(false);
+      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+
+      await serveThumbnail(req, res, '/video.mp4', null, '/cache');
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.send).toHaveBeenCalledWith('FFmpeg binary not found');
+    });
+
+    it('handles cache stream error', async () => {
+      const cachePath = '/cache/thumb.jpg';
+      mockGetThumbnailCachePath.mockReturnValue(cachePath);
+      mockCheckThumbnailCache.mockResolvedValue(true);
+
+      const mockStream = new EventEmitter();
+      (mockStream as any).pipe = vi.fn();
+      mockFsCreateReadStream.mockReturnValue(mockStream as any);
+
+      // Since we want to test fallback to generation, we need to setup generation mocks
+      const mockProcess = {
+        on: vi.fn().mockImplementation((event, cb) => {
+          if (event === 'close') cb(0);
+        }),
+        stderr: { on: vi.fn() },
+      };
+      mockSpawn.mockReturnValue(mockProcess);
+      mockFsStat.mockResolvedValue({} as any);
+
+      const mockGenStream = { pipe: vi.fn(), on: vi.fn() };
+      // First call for cache read, second for gen read
+      mockFsCreateReadStream
+        .mockReturnValueOnce(mockStream as any)
+        .mockReturnValueOnce(mockGenStream as any);
+
+
+      const promise = serveThumbnail(req, res, '/video.mp4', 'ffmpeg', '/cache');
+
+      await new Promise((r) => setTimeout(r, 0));
+      mockStream.emit('error', new Error('Cache read failed'));
+
+      // Should fall back to generation
+      await promise;
+
+      expect(mockSpawn).toHaveBeenCalled();
+    });
+
+    it('handles stream error during sending generated file', async () => {
+      mockCheckThumbnailCache.mockResolvedValue(false);
+      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+      mockGetThumbnailCachePath.mockReturnValue('/cache/local.jpg');
+
+      const mockProcess = {
+        on: vi.fn().mockImplementation((event, cb) => {
+          if (event === 'close') cb(0);
+        }),
+        stderr: { on: vi.fn() },
+      };
+      mockSpawn.mockReturnValue(mockProcess);
+      mockFsStat.mockResolvedValue({} as any);
+
+      const mockStream = new EventEmitter();
+      (mockStream as any).pipe = vi.fn();
+      mockFsCreateReadStream.mockReturnValue(mockStream as any);
+
+      const promise = serveThumbnail(req, res, '/video.mp4', 'ffmpeg', '/cache');
+
+      await new Promise((r) => setTimeout(r, 0)); // wait for spawn
+
+      mockStream.emit('error', new Error('Stream error'));
+
+      await promise;
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.end).toHaveBeenCalled();
+    });
   });
 });

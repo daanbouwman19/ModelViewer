@@ -6,8 +6,6 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import fs from 'fs';
-import fsPromises from 'fs/promises';
 import { spawn } from 'child_process';
 import { createInterface } from 'readline';
 import { createMediaSource } from './media-source.ts';
@@ -16,7 +14,6 @@ import { IMediaSource } from './media-source-types.ts';
 import {
   getVlcPath,
   getTranscodeArgs,
-  runFFmpeg,
   parseHttpRange,
   getQueryParam,
   getFFmpegDuration,
@@ -24,7 +21,6 @@ import {
 } from './media-utils.ts';
 import { getProvider } from './fs-provider-factory.ts';
 import { authorizeFilePath } from './security.ts';
-import { serveThumbnail } from './thumbnail-handler.ts';
 import { validateFileAccess } from './access-validator.ts';
 import { DATA_URL_THRESHOLD_MB } from './constants.ts';
 import { MediaRoutes } from './routes.ts';

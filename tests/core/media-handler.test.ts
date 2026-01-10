@@ -89,7 +89,6 @@ import {
   serveRawStream,
   getVideoDuration,
   serveMetadata,
-  serveThumbnail,
   serveStaticFile,
   handleStreamRequest,
   generateFileUrl,
