@@ -602,7 +602,6 @@ describe('media-handler unit tests', () => {
     });
   });
 
-
   describe('serveStaticFile', () => {
     it('serves file as raw stream', async () => {
       mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });

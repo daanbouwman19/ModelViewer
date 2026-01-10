@@ -121,7 +121,6 @@ export async function handleStreamRequest(
   }
 }
 
-
 /**
  * Retrieves video duration using ffmpeg or provider metadata.
  */
