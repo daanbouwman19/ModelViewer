@@ -367,8 +367,13 @@ describe('thumbnail-handler unit tests', () => {
         .mockReturnValueOnce(mockStream as any)
         .mockReturnValueOnce(mockGenStream as any);
 
-
-      const promise = serveThumbnail(req, res, '/video.mp4', 'ffmpeg', '/cache');
+      const promise = serveThumbnail(
+        req,
+        res,
+        '/video.mp4',
+        'ffmpeg',
+        '/cache',
+      );
 
       await new Promise((r) => setTimeout(r, 0));
       mockStream.emit('error', new Error('Cache read failed'));
@@ -397,7 +402,13 @@ describe('thumbnail-handler unit tests', () => {
       (mockStream as any).pipe = vi.fn();
       mockFsCreateReadStream.mockReturnValue(mockStream as any);
 
-      const promise = serveThumbnail(req, res, '/video.mp4', 'ffmpeg', '/cache');
+      const promise = serveThumbnail(
+        req,
+        res,
+        '/video.mp4',
+        'ffmpeg',
+        '/cache',
+      );
 
       await new Promise((r) => setTimeout(r, 0)); // wait for spawn
 
