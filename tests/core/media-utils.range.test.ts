@@ -7,7 +7,7 @@ describe('parseHttpRange', () => {
   type TestCase = {
     name: string;
     header: string | undefined;
-    expected: { start: number; end: number; error?: boolean };
+    expected: ReturnType<typeof parseHttpRange>;
     totalSize?: number;
   };
 
@@ -57,6 +57,12 @@ describe('parseHttpRange', () => {
       name: 'parses single byte range',
       header: 'bytes=0-0',
       expected: { start: 0, end: 0 },
+    },
+    {
+      name: 'handles zero size file with no range header',
+      header: undefined,
+      totalSize: 0,
+      expected: { start: 0, end: -1 },
     },
   ];
 
