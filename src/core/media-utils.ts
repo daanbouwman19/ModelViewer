@@ -109,7 +109,9 @@ export async function getVlcPath(): Promise<string | null> {
 
 export function isValidTimeFormat(time: string): boolean {
   // Allow simple seconds (e.g., "10", "10.5") or timestamps (e.g., "00:00:10", "00:10.5")
-  return /^\d+(\.\d+)?$/.test(time) || /^(\d+:)+\d+(\.\d+)?$/.test(time);
+  // [SECURITY] Strictly validate format to prevent ReDoS and invalid FFmpeg arguments.
+  // Limit to at most 2 colons (HH:MM:SS format).
+  return /^(?:\d+:){0,2}\d+(?:\.\d+)?$/.test(time);
 }
 
 export function getTranscodeArgs(
