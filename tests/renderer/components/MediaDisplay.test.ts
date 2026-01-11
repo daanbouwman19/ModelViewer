@@ -35,6 +35,28 @@ vi.mock('@/components/VideoPlayer.vue', () => ({
   },
 }));
 
+vi.mock('@/components/VRVideoPlayer.vue', () => ({
+  default: {
+    name: 'VRVideoPlayer',
+    template: '<div class="vr-player-mock"></div>',
+    props: ['src', 'isPlaying', 'initialTime', 'isControlsVisible'],
+    expose: ['toggleFullscreen'],
+    setup() {
+      return { toggleFullscreen: vi.fn() };
+    },
+  },
+}));
+
+// Also verify that MediaDisplay imports use the same module resolution
+// Since MediaDisplay.vue uses "./VRVideoPlayer.vue", and the test uses "@/"
+// we need to make sure they match or add a specific mock for relative import.
+// However, in Vitest with Vite config, aliases are respected.
+// But sometimes nested relative imports bypass mocks if not carefully set.
+// Let's add a robust mock for the relative path if needed, but standard Vitest should handle it.
+// To be safe, let's mock the component by name if possible or rely on the fact that
+// we are using happy-dom which doesn't have WebGL, so real VRVideoPlayer fails.
+// We MUST ensure the mock is used.
+
 vi.mock('@/components/MediaControls.vue', () => ({
   default: {
     name: 'MediaControls',
@@ -540,6 +562,158 @@ describe('MediaDisplay.vue', () => {
 
       // Should NOT have resumed
       expect(slideshowMock.resumeSlideshowTimer).not.toHaveBeenCalled();
+    });
+
+    it('does resume timer when video is paused manually (not navigating)', async () => {
+      mockPlayerState.currentMediaItem = { name: 't.mp4', path: '/t.mp4' };
+      mockPlayerState.isTimerRunning = false;
+      mockPlayerState.pauseTimerOnPlay = true;
+      mockPlayerState.playFullVideo = false;
+
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      const videoPlayer = wrapper.findComponent(VideoPlayer);
+      expect(videoPlayer.exists()).toBe(true);
+
+      // Simulate manual pause (not loading)
+      (wrapper.vm as any).isLoading = false;
+
+      // Simulate pause event from VideoPlayer
+      await videoPlayer.vm.$emit('pause');
+
+      // Should have resumed
+      expect(slideshowMock.resumeSlideshowTimer).toHaveBeenCalled();
+    });
+
+    it('covers currentLoadRequestId mismatch in tryTranscoding', async () => {
+      mockPlayerState.currentMediaItem = { name: 't.mp4', path: '/t.mp4' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      const vm = wrapper.vm as any;
+      // Trigger a new load to increment ID
+      mockPlayerState.currentMediaItem = { name: 't2.mp4', path: '/t2.mp4' };
+      await flushPromises();
+
+      // Now call tryTranscoding with an OLD ID (e.g. 0)
+      // The current request ID should be >= 1
+      await vm.tryTranscoding(0, -999);
+
+      // Should have returned early
+      expect(vm.isTranscodingMode).toBe(false);
+    });
+
+    it('covers currentLoadRequestId mismatch AFTER async gap in tryTranscoding', async () => {
+      mockPlayerState.currentMediaItem = { name: 't.mp4', path: '/t.mp4' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      const vm = wrapper.vm as any;
+
+      // Mock generator to be slow
+      let resolveGenerator: any;
+      (api.getVideoStreamUrlGenerator as Mock).mockReturnValue(
+        new Promise((resolve) => {
+          resolveGenerator = resolve;
+        }),
+      );
+
+      // Start transcoding
+      const promise = vm.tryTranscoding(0);
+
+      // Trigger a NEW load which increments ID
+      mockPlayerState.currentMediaItem = { name: 't2.mp4', path: '/t2.mp4' };
+      await flushPromises();
+
+      // Now resolve the old generator
+      resolveGenerator(() => 'old-url');
+      await promise;
+
+      // The old transcoding attempt should verify ID mismatch and NOT update state
+      // But we can't easily check internal state if it just returns.
+      // We can check that mediaUrl is NOT the old-url
+      expect(vm.mediaUrl).not.toBe('old-url');
+    });
+
+    it('covers fullscreen toggle for VR mode', async () => {
+      mockPlayerState.currentMediaItem = { name: 'vr.mp4', path: '/vr.mp4' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      // Enable VR
+      (wrapper.vm as any).isVrMode = true;
+      await wrapper.vm.$nextTick();
+
+      // Mock VR player component instance
+      const vrPlayer = { toggleFullscreen: vi.fn() };
+      (wrapper.vm as any).vrPlayerRef = vrPlayer;
+
+      (wrapper.vm as any).toggleFullscreen();
+      expect(vrPlayer.toggleFullscreen).toHaveBeenCalled();
+    });
+
+    it('covers fullscreen toggle for normal video', async () => {
+      mockPlayerState.currentMediaItem = { name: 't.mp4', path: '/t.mp4' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      const videoEl = {
+        requestFullscreen: vi.fn().mockResolvedValue(undefined),
+      };
+      (wrapper.vm as any).videoElement = videoEl;
+
+      // Mock document.fullscreenElement to be null
+      Object.defineProperty(document, 'fullscreenElement', {
+        value: null,
+        writable: true,
+      });
+
+      (wrapper.vm as any).toggleFullscreen();
+      expect(videoEl.requestFullscreen).toHaveBeenCalled();
+    });
+
+    it('covers fullscreen exit for normal video', async () => {
+      mockPlayerState.currentMediaItem = { name: 't.mp4', path: '/t.mp4' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      const videoEl = {
+        requestFullscreen: vi.fn(),
+      };
+      (wrapper.vm as any).videoElement = videoEl;
+
+      // Mock document.fullscreenElement to be present
+      Object.defineProperty(document, 'fullscreenElement', {
+        value: {},
+        writable: true,
+      });
+      document.exitFullscreen = vi.fn();
+
+      (wrapper.vm as any).toggleFullscreen();
+      expect(document.exitFullscreen).toHaveBeenCalled();
+    });
+
+    it('covers fullscreen error handling', async () => {
+      mockPlayerState.currentMediaItem = { name: 't.mp4', path: '/t.mp4' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      const videoEl = {
+        requestFullscreen: vi.fn().mockRejectedValue(new Error('FS Fail')),
+      };
+      (wrapper.vm as any).videoElement = videoEl;
+
+      Object.defineProperty(document, 'fullscreenElement', {
+        value: null,
+        writable: true,
+      });
+
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      await (wrapper.vm as any).toggleFullscreen();
+      // It catches internally
+      expect(spy).toHaveBeenCalled();
+      spy.mockRestore();
     });
   });
 });

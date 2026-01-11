@@ -46,6 +46,7 @@ vi.mock('electron', () => {
   return {
     app,
     default: { app },
+    __esModule: true,
   };
 });
 
