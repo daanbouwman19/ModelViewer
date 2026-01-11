@@ -2,23 +2,53 @@ import { describe, it, expect } from 'vitest';
 import { getQueryParam } from '../../src/core/media-utils';
 
 describe('getQueryParam', () => {
-  it('returns undefined if key is missing', () => {
-    const query = {};
-    expect(getQueryParam(query, 'missing')).toBeUndefined();
-  });
+  type TestCase = {
+    name: string;
+    query: Record<string, unknown>;
+    key: string;
+    expected: string | undefined;
+  };
 
-  it('returns value if it is a string', () => {
-    const query = { key: 'value' };
-    expect(getQueryParam(query, 'key')).toBe('value');
-  });
+  const testCases: TestCase[] = [
+    {
+      name: 'returns value if it is a string',
+      query: { key: 'value' },
+      key: 'key',
+      expected: 'value',
+    },
+    {
+      name: 'returns first element if value is an array',
+      query: { key: ['first', 'second'] },
+      key: 'key',
+      expected: 'first',
+    },
+    {
+      name: 'returns undefined if key is missing',
+      query: {},
+      key: 'missing',
+      expected: undefined,
+    },
+    {
+      name: 'returns undefined if value is undefined',
+      query: { key: undefined },
+      key: 'key',
+      expected: undefined,
+    },
+    {
+      name: 'returns undefined if value is null (treated as unknown)',
+      query: { key: null },
+      key: 'key',
+      expected: null as unknown as string, // Cast to match return type behavior
+    },
+    {
+      name: 'returns raw value if value is a number',
+      query: { key: 123 },
+      key: 'key',
+      expected: 123 as unknown as string, // Cast to match return type behavior
+    },
+  ];
 
-  it('returns first element if value is an array', () => {
-    const query = { key: ['first', 'second'] };
-    expect(getQueryParam(query, 'key')).toBe('first');
-  });
-
-  it('returns undefined if value is undefined', () => {
-    const query = { key: undefined };
-    expect(getQueryParam(query, 'key')).toBeUndefined();
+  it.each(testCases)('$name', ({ query, key, expected }) => {
+    expect(getQueryParam(query, key)).toBe(expected);
   });
 });
