@@ -46,6 +46,7 @@ describe('MediaDisplay.vue', () => {
     mockToggleTimer = vi.fn();
 
     mockLibraryState = reactive({
+      mediaDirectories: [{ path: '/test' }], // Not empty to avoid Welcome screen
       totalMediaInPool: 0,
       supportedExtensions: {
         images: ['.jpg', '.png', '.gif'],
@@ -70,6 +71,8 @@ describe('MediaDisplay.vue', () => {
     mockUIState = reactive({
       mediaFilter: 'All',
       isSidebarVisible: true,
+      isControlsVisible: true,
+      isSourcesModalVisible: false,
     });
 
     (useLibraryStore as Mock).mockReturnValue({
@@ -121,7 +124,7 @@ describe('MediaDisplay.vue', () => {
 
   it('should render placeholder when no media', () => {
     const wrapper = mount(MediaDisplay);
-    expect(wrapper.text()).toContain('Media will appear here');
+    expect(wrapper.text()).toContain('Select an album to start playback');
   });
 
   describe('VLC Integration', () => {
