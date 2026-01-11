@@ -46,6 +46,7 @@ describe('MediaDisplay Race Condition', () => {
     loadMediaReject = null;
 
     mockLibraryState = reactive({
+      mediaDirectories: [{ path: '/test' }], // Not empty to avoid Welcome screen
       totalMediaInPool: 10,
       supportedExtensions: {
         images: ['.jpg', '.png'],
@@ -70,6 +71,8 @@ describe('MediaDisplay Race Condition', () => {
     mockUIState = reactive({
       mediaFilter: 'All',
       isSidebarVisible: true,
+      isControlsVisible: true,
+      isSourcesModalVisible: false,
     });
 
     (useLibraryStore as Mock).mockReturnValue({
@@ -167,6 +170,20 @@ describe('MediaDisplay Race Condition', () => {
 
     expect(vm.isLoading).toBe(true);
     expect(vm.error).toBeNull();
+
+    // Check for "Loading..." indicator (TranscodingStatus handles this)
+    // Since we mocked TranscodingStatus in previous tests, but here we don't seem to mock it explicitly in `vi.mock` factory, it should use the real one or a default stub.
+    // Wait, TranscodingStatus IS NOT mocked here. So it renders.
+    // TranscodingStatus props: isLoading
+    // If isLoading is true, it should show Loading...
+    // Let's check wrapper text.
+    // Note: TranscodingStatus might use `is-loading` prop.
+
+    // Actually TranscodingStatus is imported in MediaDisplay.vue.
+    // If not mocked, it is rendered.
+    // Let's check what TranscodingStatus renders when isLoading is true.
+    // It usually renders "Loading media...".
+
     expect(wrapper.text()).toContain('Loading media...');
     expect(wrapper.text()).not.toContain('Failed to load media file.');
   });

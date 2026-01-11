@@ -84,6 +84,7 @@ describe('MediaDisplay.vue', () => {
     vi.clearAllMocks();
 
     mockLibraryState = reactive({
+      mediaDirectories: [{ path: '/test' }], // Not empty to avoid Welcome screen
       totalMediaInPool: 0,
       imageExtensionsSet: new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp']),
     });
@@ -103,6 +104,8 @@ describe('MediaDisplay.vue', () => {
       mediaFilter: ref('All'),
       viewMode: ref('player'),
       isControlsVisible: ref(true),
+      isSourcesModalVisible: ref(false),
+      isSidebarVisible: ref(true),
     };
 
     (useLibraryStore as Mock).mockReturnValue({

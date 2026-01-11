@@ -15,12 +15,59 @@
       />
 
       <!-- 2. Placeholder (No Item & Not Loading) -->
-      <p
+      <div
         v-if="!currentMediaItem && !isLoading"
-        class="text-gray-500 placeholder text-lg font-medium"
+        class="flex flex-col items-center justify-center p-6 text-center z-10"
       >
-        Media will appear here
-      </p>
+        <template v-if="mediaDirectories.length === 0">
+          <div class="mb-4 p-4 rounded-full bg-indigo-500/10 text-indigo-400">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="w-12 h-12"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="1.5"
+                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+              />
+            </svg>
+          </div>
+          <h2 class="text-2xl font-bold text-white mb-2">
+            Welcome to Media Player
+          </h2>
+          <p class="text-gray-400 mb-6 max-w-md">
+            Your library is currently empty. Add a folder to start enjoying your
+            media collection.
+          </p>
+          <button
+            class="glass-button px-6 py-3 flex items-center gap-2 font-semibold text-white bg-indigo-600/80 hover:bg-indigo-600 border-indigo-500/50"
+            @click="openSourcesModal"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="w-5 h-5"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
+                clip-rule="evenodd"
+              />
+            </svg>
+            Add Media Source
+          </button>
+        </template>
+        <template v-else>
+          <p class="text-gray-500 placeholder text-lg font-medium">
+            Select an album to start playback
+          </p>
+        </template>
+      </div>
 
       <!-- 3. Error Message (Only if not loading) -->
       <p
@@ -152,7 +199,7 @@ const libraryStore = useLibraryStore();
 const playerStore = usePlayerStore();
 const uiStore = useUIStore();
 
-const { imageExtensionsSet } = libraryStore;
+const { imageExtensionsSet, mediaDirectories } = libraryStore;
 
 const {
   currentMediaItem,
@@ -215,7 +262,11 @@ const isVrMode = ref(false); // [NEW]
 const savedCurrentTime = ref(0); // [NEW] Sync time between players
 
 // Use global controls visibility state
-const { isControlsVisible } = uiStore;
+const { isControlsVisible, isSourcesModalVisible } = uiStore;
+
+const openSourcesModal = () => {
+  isSourcesModalVisible.value = true;
+};
 
 const isPlaying = ref(false);
 // Removed computed currentVideoTime relying on ref, using state instead

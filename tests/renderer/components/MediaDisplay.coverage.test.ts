@@ -47,6 +47,7 @@ vi.mock('@/composables/useSlideshow', () => ({
     reapplyFilter: vi.fn(),
     pauseSlideshowTimer: vi.fn(),
     resumeSlideshowTimer: vi.fn(),
+    toggleSlideshowTimer: vi.fn(),
   })),
 }));
 
@@ -109,6 +110,7 @@ describe('MediaDisplay.vue Additional Coverage', () => {
 
   beforeEach(() => {
     mockLibraryState = reactive({
+      mediaDirectories: [{ path: '/test' }], // Not empty to avoid Welcome screen
       totalMediaInPool: 0,
       supportedExtensions: { images: [], videos: ['.mp4'] },
       imageExtensionsSet: new Set([]),
@@ -129,6 +131,8 @@ describe('MediaDisplay.vue Additional Coverage', () => {
     mockUIState = reactive({
       mediaFilter: 'All',
       isSidebarVisible: true,
+      isControlsVisible: true,
+      isSourcesModalVisible: false,
     });
 
     (useLibraryStore as Mock).mockReturnValue({
