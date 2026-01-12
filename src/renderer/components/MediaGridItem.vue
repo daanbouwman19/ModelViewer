@@ -3,6 +3,7 @@
     type="button"
     class="relative group grid-item cursor-pointer w-full h-full text-left bg-transparent border-0 p-0 block focus:outline-none focus:ring-2 focus:ring-pink-500 rounded overflow-hidden"
     :aria-label="`View ${displayName}`"
+    :title="displayName"
     @click="$emit('click', item)"
   >
     <template v-if="isImage">
