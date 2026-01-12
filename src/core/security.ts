@@ -107,8 +107,10 @@ export async function authorizeFilePath(
     if (!relative.startsWith('..') && !path.isAbsolute(relative)) {
       // It is inside. Now check for sensitive subdirectories.
       const segments = relative.split(path.sep);
-      const hasSensitiveSegment = segments.some((segment) =>
-        sensitiveSubdirectoriesSet.has(segment),
+      const hasSensitiveSegment = segments.some(
+        (segment) =>
+          sensitiveSubdirectoriesSet.has(segment) ||
+          segment.toLowerCase().startsWith('.env'),
       );
 
       if (hasSensitiveSegment) {
