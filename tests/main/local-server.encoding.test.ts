@@ -5,11 +5,12 @@ import {
   stopLocalServer,
   getServerPort,
 } from '../../src/main/local-server';
-import { getMediaDirectories } from '../../src/main/database';
+// Mock core database instead of main database, as security.ts uses core
+import { getMediaDirectories } from '../../src/core/database';
 import EventEmitter from 'events';
 
 // Mock dependencies
-vi.mock('../../src/main/database', () => ({
+vi.mock('../../src/core/database', () => ({
   getMediaDirectories: vi.fn(),
 }));
 
