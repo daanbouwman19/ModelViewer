@@ -9,6 +9,7 @@
       <button
         class="md:hidden text-gray-400 hover:text-white mr-2"
         aria-label="Close Sidebar"
+        title="Close Sidebar"
         @click="$emit('close')"
       >
         <CloseIcon class="w-5 h-5" />
@@ -273,6 +274,7 @@
                   ? 'bg-indigo-500 text-white shadow-sm'
                   : 'text-gray-400 hover:text-white hover:bg-white/5'
               "
+              :aria-pressed="mediaFilter === filter"
               @click="setFilter(filter)"
             >
               {{ filter }}
