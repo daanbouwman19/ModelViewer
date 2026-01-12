@@ -227,6 +227,9 @@ function initDatabase(dbPath: string): WorkerResult {
     statements.getMediaViewCountsBatch = db.prepare(
       `SELECT file_path, view_count FROM media_views WHERE file_path IN (${placeholders})`,
     );
+    statements.getMetadataBatch = db.prepare(
+      `SELECT * FROM media_metadata WHERE file_path_hash IN (${placeholders})`,
+    );
 
     console.log('[worker] SQLite database initialized at:', dbPath);
     return { success: true };
@@ -580,13 +583,16 @@ async function getMediaViewCounts(filePaths: string[]): Promise<WorkerResult> {
           view_count: number;
         }[];
       } else {
-        // Use dynamic prepare for the partial last batch
-        const placeholders = batchPaths.map(() => '?').join(',');
-        rows = db
-          .prepare(
-            `SELECT file_path, view_count FROM media_views WHERE file_path IN (${placeholders})`,
-          )
-          .all(...batchPaths) as { file_path: string; view_count: number }[];
+        // Pad the batch with nulls to use the cached statement
+        // This avoids recompiling the statement for variable batch sizes
+        const args = new Array(SQL_BATCH_SIZE).fill(null);
+        for (let k = 0; k < batchPaths.length; k++) {
+          args[k] = batchPaths[k];
+        }
+        rows = statements.getMediaViewCountsBatch.all(...args) as {
+          file_path: string;
+          view_count: number;
+        }[];
       }
 
       for (const row of rows) {
