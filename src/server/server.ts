@@ -759,8 +759,19 @@ export async function createApp() {
 
   // Frontend Serving (Production)
   if (!isDev) {
-    // Serve any static files
     const clientDistPath = path.join(__dirname, '../client');
+
+    // [PERFORMANCE] Serve immutable assets (JS/CSS with hash) aggressively
+    // Vite puts hashed assets in /assets/, so we can cache them for 1 year.
+    app.use(
+      '/assets',
+      express.static(path.join(clientDistPath, 'assets'), {
+        maxAge: '1y',
+        immutable: true,
+      }),
+    );
+
+    // Serve other static files (index.html, favicon.ico, etc.) with standard ETag behavior
     app.use(express.static(clientDistPath));
 
     // SPA Fallback
