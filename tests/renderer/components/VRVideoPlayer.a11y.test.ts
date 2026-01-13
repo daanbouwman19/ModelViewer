@@ -5,19 +5,19 @@ import { vi } from 'vitest';
 
 // Fix the mocks to be constructable classes (functions)
 vi.mock('three', () => {
-  const Scene = vi.fn(function() {
+  const Scene = vi.fn(function () {
     return {
       add: vi.fn(), // Mock the add method
     };
   });
-  const PerspectiveCamera = vi.fn(function() {
+  const PerspectiveCamera = vi.fn(function () {
     return {
       position: { set: vi.fn() },
       aspect: 1,
       updateProjectionMatrix: vi.fn(),
     };
   });
-  const WebGLRenderer = vi.fn(function() {
+  const WebGLRenderer = vi.fn(function () {
     return {
       setSize: vi.fn(),
       render: vi.fn(),
@@ -25,7 +25,7 @@ vi.mock('three', () => {
       domElement: document.createElement('canvas'),
     };
   });
-  const VideoTexture = vi.fn(function() {
+  const VideoTexture = vi.fn(function () {
     return {
       colorSpace: '',
       repeat: { set: vi.fn() },
@@ -34,13 +34,13 @@ vi.mock('three', () => {
       wrapT: 0,
     };
   });
-  const SphereGeometry = vi.fn(function() {
+  const SphereGeometry = vi.fn(function () {
     return {
       scale: vi.fn(),
     };
   });
   const MeshBasicMaterial = vi.fn();
-  const Mesh = vi.fn(function() {
+  const Mesh = vi.fn(function () {
     return {
       rotation: { y: 0 },
     };
@@ -64,7 +64,7 @@ vi.mock('three', () => {
 });
 
 vi.mock('three/examples/jsm/controls/OrbitControls.js', () => ({
-  OrbitControls: vi.fn(function() {
+  OrbitControls: vi.fn(function () {
     return {
       target: { set: vi.fn() },
       update: vi.fn(),
