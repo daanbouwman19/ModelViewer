@@ -45,6 +45,7 @@ import {
   RATE_LIMIT_AUTH_MAX_REQUESTS,
   RATE_LIMIT_WRITE_WINDOW_MS,
   RATE_LIMIT_WRITE_MAX_REQUESTS,
+  MAX_CONCURRENT_TRANSCODES,
 } from '../core/constants.ts';
 import { listDirectory } from '../core/file-system.ts';
 import {
@@ -217,6 +218,10 @@ export async function createApp() {
     RATE_LIMIT_WRITE_MAX_REQUESTS,
     'Too many requests. Please slow down.',
   );
+
+  // [SECURITY] Concurrency Limiter for Transcoding
+  // Prevent CPU exhaustion by limiting concurrent ffmpeg processes
+  let currentTranscodes = 0;
 
   // Initialize Database
   console.log(
@@ -709,14 +714,41 @@ export async function createApp() {
 
       const source = createMediaSource(filePath);
       if (isTranscode) {
+        // [SECURITY] Check concurrency limit
+        if (currentTranscodes >= MAX_CONCURRENT_TRANSCODES) {
+          console.warn(
+            `[Security] Transcode blocked due to concurrency limit (${currentTranscodes}/${MAX_CONCURRENT_TRANSCODES})`,
+          );
+          return res
+            .status(503)
+            .send('Server too busy. Please try again later.');
+        }
+
         if (!ffmpegStatic) return res.status(500).send('FFmpeg not found');
-        await serveTranscodedStream(
-          req,
-          res,
-          source,
-          ffmpegStatic,
-          startTime || undefined,
-        );
+
+        try {
+          currentTranscodes++;
+          const cleanup = () => {
+            currentTranscodes--;
+            res.removeListener('finish', cleanup);
+            res.removeListener('close', cleanup);
+          };
+          res.on('finish', cleanup);
+          res.on('close', cleanup);
+
+          await serveTranscodedStream(
+            req,
+            res,
+            source,
+            ffmpegStatic,
+            startTime || undefined,
+          );
+        } catch (e) {
+          // If any sync error occurs, ensure we don't leak the counter
+          // Ideally listeners handle it, but if we haven't set them up yet...
+          // We set them up before calling serveTranscodedStream, so we are good.
+          throw e;
+        }
       } else {
         await serveRawStream(req, res, source);
       }
