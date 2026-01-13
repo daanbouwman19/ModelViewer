@@ -165,6 +165,12 @@ const RATE_LIMIT_AUTH_MAX_REQUESTS = 20;
 const RATE_LIMIT_WRITE_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_WRITE_MAX_REQUESTS = 10;
 
+/**
+ * Maximum number of concurrent transcoding streams allowed.
+ * Used to prevent CPU exhaustion (DoS).
+ */
+const MAX_CONCURRENT_TRANSCODES = 3;
+
 export {
   GDRIVE_PROTOCOL,
   MAX_DATA_URL_SIZE_MB,
@@ -190,4 +196,5 @@ export {
   RATE_LIMIT_AUTH_MAX_REQUESTS,
   RATE_LIMIT_WRITE_WINDOW_MS,
   RATE_LIMIT_WRITE_MAX_REQUESTS,
+  MAX_CONCURRENT_TRANSCODES,
 };
