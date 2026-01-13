@@ -45,9 +45,14 @@ describe('getTranscodeArgs', () => {
     ['10&', 'special char'],
   ];
 
-  it.each(invalidTimes)('throws error for invalid time format: %s (%s)', (time) => {
-    expect(() => getTranscodeArgs(INPUT_PATH, time)).toThrow('Invalid start time format');
-  });
+  it.each(invalidTimes)(
+    'throws error for invalid time format: %s (%s)',
+    (time) => {
+      expect(() => getTranscodeArgs(INPUT_PATH, time)).toThrow(
+        'Invalid start time format',
+      );
+    },
+  );
 
   it('handles null start time as undefined', () => {
     const args = getTranscodeArgs(INPUT_PATH, null);
