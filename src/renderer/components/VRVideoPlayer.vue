@@ -20,6 +20,8 @@
         <!-- Play/Pause Button -->
         <button
           class="bg-black/50 text-white p-3 rounded-full hover:bg-white/20 border border-white/20 backdrop-blur-sm transition-colors flex items-center justify-center pointer-events-auto"
+          :aria-label="isPlaying ? 'Pause video' : 'Play video'"
+          :title="isPlaying ? 'Pause video' : 'Play video'"
           @click="togglePlayback"
         >
           <component :is="isPlaying ? PauseIcon : PlayIcon" class="w-5 h-5" />
@@ -65,6 +67,7 @@
           v-if="isFullscreen"
           class="bg-black/50 text-white p-3 rounded-full hover:bg-red-500/80 border border-white/20 backdrop-blur-sm transition-colors pointer-events-auto"
           aria-label="Exit Fullscreen"
+          title="Exit Fullscreen"
           @click="toggleFullscreen"
         >
           <CloseIcon class="w-5 h-5" />
