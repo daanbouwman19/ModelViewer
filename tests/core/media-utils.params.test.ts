@@ -1,11 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { getTranscodeArgs } from '../../src/core/media-utils';
+import { getTranscodeArgs, getThumbnailArgs } from '../../src/core/media-utils';
 
 describe('getTranscodeArgs', () => {
   const INPUT_PATH = '/path/to/video.mp4';
 
   it('returns basic arguments without start time', () => {
     const args = getTranscodeArgs(INPUT_PATH, undefined);
+
+    // Performance flags
+    expect(args).toContain('-hide_banner');
+    expect(args).toContain('-loglevel');
+    expect(args).toContain('error');
 
     // Core inputs
     expect(args).toContain(INPUT_PATH);
@@ -57,5 +62,23 @@ describe('getTranscodeArgs', () => {
   it('handles null start time as undefined', () => {
     const args = getTranscodeArgs(INPUT_PATH, null);
     expect(args).not.toContain('-ss');
+  });
+});
+
+describe('getThumbnailArgs', () => {
+  const INPUT_PATH = '/path/to/video.mp4';
+  const CACHE_FILE = '/path/to/cache.jpg';
+
+  it('includes performance flags', () => {
+    const args = getThumbnailArgs(INPUT_PATH, CACHE_FILE);
+
+    // Performance flags
+    expect(args).toContain('-hide_banner');
+    expect(args).toContain('-loglevel');
+    expect(args).toContain('error');
+
+    // Core inputs
+    expect(args).toContain(INPUT_PATH);
+    expect(args).toContain(CACHE_FILE);
   });
 });
