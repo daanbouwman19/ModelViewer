@@ -189,8 +189,7 @@ export async function createApp() {
           defaultSrc: ["'self'"],
           scriptSrc: [
             "'self'",
-            (_req, res) =>
-              `'nonce-${(res as express.Response).locals.nonce}'`,
+            (_req, res) => `'nonce-${(res as express.Response).locals.nonce}'`,
             // Keep unsafe-inline for dev if strictly needed, but let's try nonce-only for better security
             // If HMR needs it, we might need to add it back conditionally.
             // Vite HMR usually uses 'self' or specific host, but some overlays might be inline.
