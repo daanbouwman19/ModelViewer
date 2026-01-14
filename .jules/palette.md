@@ -55,3 +55,8 @@
 
 **Learning:** While the codebase consistently uses `aria-label` for accessibility (which is excellent), it often misses `title` attributes on icon-only buttons or truncated text elements. This leaves mouse users without standard tooltips, creating a usability gap where accessibility was actually better than general usability.
 **Action:** Always pair `aria-label` with `title` for icon-only buttons or truncated text to serve both screen reader and mouse users.
+
+## 2026-01-14 - [Form Inputs Disconnected from Labels]
+
+**Learning:** In Vue components, simply placing a label near an input is not enough for accessibility. Inputs must have `id` attributes that match the `for` attribute of their corresponding `<label>`. This is especially easy to miss in "row" or "grid" layouts where they visually align but have no programmatic connection.
+**Action:** Always check form layouts for `id` + `for` pairs. Use screen reader testing or automated a11y checks to catch these disconnects.
