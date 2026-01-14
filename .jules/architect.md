@@ -10,7 +10,7 @@
 **Insight:** Domain logic like "is this file an image?" should be centralized. This ensures consistency (e.g., handling Google Drive paths vs local paths) and performance (leveraging caches).
 **Prevention:** When adding "check" functions in components (like `isImage` or `isValid`), check if a utility function already exists or create one if the logic is generic.
 
-## 2026-01-24 - Extracting Rate Limiter
+## 2026-01-14 - Extracting Rate Limiter
 
 **Smell:** `server.ts` contained a reusable `createRateLimiter` factory function, adding noise to a "God Object".
 **Insight:** Utility factories like rate limiters are generic and should be isolated from route handling logic to improve testability and readability.
