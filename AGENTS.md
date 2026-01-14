@@ -1,29 +1,39 @@
-# Agent Guidelines
+# IMPERATIVE: STOP AND READ THIS
 
-This document provides guidelines for agents working on this repository.
+To ensure a smooth development workflow and maintain a high-quality codebase, all contributors must adhere to the following guidelines.
 
-## Pre-push Checks
+> [!CRITICAL]
+> **THE GOLDEN RULE:**
+> You **MUST** run `npm run verify` and ensure it passes with **100% success** and **Coverage >= 80%** before creating a PR.
+> **NO EXCEPTIONS.**
 
-To ensure the Continuous Integration (CI) pipeline remains green, please follow these steps before submitting any changes:
+## 1. The Verification Process
 
-1.  **Verify:** Run `npm run verify`. This command runs format, lint, typecheck, and test:coverage in sequence. **YOU MUST RUN THIS AND ENSURE IT PASSES BEFORE COMMITTING.** If this step fails, **DO NOT SUBMIT**. Manually fixing these issues after submission wastes time and resources. Ensure success locally first.
-2.  **Format:** Run `npm run format` to ensure code style compliance. **You MUST run this after every code modification.** Agents: Do not forget this step. Even if you only changed one line, format the entire project to ensure consistency.
-3.  **Linting:** Run `npm run lint` to catch potential errors.
-4.  **Type Checking:** Run `npm run typecheck` to verify TypeScript types.
-5.  **Testing:** Run `npm run test` to execute the full test suite. **Verify ALL tests pass.** Do not rely on running only a subset of tests.
-6.  **Coverage:** Run `npm run test:coverage` to check code coverage. **Ensure your changes do not decrease the overall coverage and new code is adequately covered.**
+Before you even _think_ about committing code, run this command:
 
-**Do not push changes if any of these steps fail. Failure to perform these checks will result in CI failure and rejection.**
+```bash
+npm run verify
+```
 
-## Project Structure and Conventions
+This command runs:
 
-### .jules Directory
+1.  **Format** (`npm run format`)
+2.  **Lint** (`npm run lint`)
+3.  **Typecheck** (`npm run typecheck`)
+4.  **Test & Coverage** (`npm run test:coverage`)
 
-- **Casing:** The directory named `.jules` must **ALWAYS** be lowercase. Never create a directory named `.Jules`.
-- **Formatting:** All markdown files within `.jules` must be properly formatted. The `npm run verify` command includes checks for this, but be mindful of it.
+### If it fails:
 
-## Definition of Done
+- **FIX IT.** Do not ignore it. Do not "fix it later".
+- If you cannot fix it, **revert your changes** and try a different approach.
+- **NEVER** push code that fails verification. A broken build is a wasted PR.
 
-A task is only complete after `npm run verify` passes with 100% success and coverage >= 80%.
+## 2. Journal Guidelines
 
-By adhering to these guidelines, we can prevent unnecessary CI failures and maintain a stable codebase.
+- **Date:** When adding a new entry to the journal (e.g., `.jules/bolt.md`, `.jules/architect.md`), **YOU MUST USE THE CURRENT DATE**.
+- **Check:** Do not infer the year from previous entries. Check the "current local time" provided in your context.
+
+## 3. Project Structure
+
+- **.jules Directory:** Must always be lowercase.
+- **Formatting:** Maintain perfect formatting in all files.
