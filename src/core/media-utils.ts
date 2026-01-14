@@ -118,7 +118,7 @@ export function getTranscodeArgs(
   inputPath: string,
   startTime: string | undefined | null,
 ): string[] {
-  const args: string[] = [];
+  const args: string[] = ['-hide_banner', '-loglevel', 'error'];
 
   if (startTime) {
     if (!isValidTimeFormat(startTime)) {
@@ -159,6 +159,9 @@ export function getThumbnailArgs(
   cacheFile: string,
 ): string[] {
   return [
+    '-hide_banner',
+    '-loglevel',
+    'error',
     '-y',
     '-ss',
     '1',
