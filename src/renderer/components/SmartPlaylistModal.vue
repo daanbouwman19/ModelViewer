@@ -46,11 +46,13 @@
             <!-- Name Input -->
             <div class="space-y-2">
               <label
+                for="playlist-name"
                 class="block text-xs font-semibold uppercase tracking-wider text-gray-500"
               >
                 Playlist Name
               </label>
               <input
+                id="playlist-name"
                 v-model="name"
                 type="text"
                 class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/20 transition-all"
@@ -64,7 +66,9 @@
               class="bg-white/5 rounded-xl p-4 border border-white/5 space-y-3"
             >
               <div class="flex justify-between items-center">
-                <label class="text-sm font-medium text-gray-300"
+                <label
+                  for="min-rating"
+                  class="text-sm font-medium text-gray-300"
                   >Minimum Rating</label
                 >
                 <div
@@ -76,6 +80,7 @@
                 </div>
               </div>
               <input
+                id="min-rating"
                 v-model.number="minRating"
                 type="range"
                 min="0"
@@ -93,11 +98,13 @@
             <div class="grid grid-cols-2 gap-4">
               <div class="space-y-2">
                 <label
+                  for="min-duration"
                   class="block text-xs font-semibold uppercase tracking-wider text-gray-500"
                 >
                   Min Duration (Min)
                 </label>
                 <input
+                  id="min-duration"
                   v-model.number="minDurationMinutes"
                   type="number"
                   min="0"
@@ -107,11 +114,13 @@
               </div>
               <div class="space-y-2">
                 <label
+                  for="min-days-untouched"
                   class="block text-xs font-semibold uppercase tracking-wider text-gray-500"
                 >
                   Days Untouched
                 </label>
                 <input
+                  id="min-days-untouched"
                   v-model.number="minDaysSinceView"
                   type="number"
                   min="0"
@@ -125,11 +134,13 @@
             <div class="grid grid-cols-2 gap-4">
               <div class="space-y-2">
                 <label
+                  for="min-views"
                   class="block text-xs font-semibold uppercase tracking-wider text-gray-500"
                 >
                   Min Views
                 </label>
                 <input
+                  id="min-views"
                   v-model.number="minViews"
                   type="number"
                   min="0"
@@ -139,11 +150,13 @@
               </div>
               <div class="space-y-2">
                 <label
+                  for="max-views"
                   class="block text-xs font-semibold uppercase tracking-wider text-gray-500"
                 >
                   Max Views
                 </label>
                 <input
+                  id="max-views"
                   v-model.number="maxViews"
                   type="number"
                   min="0"
