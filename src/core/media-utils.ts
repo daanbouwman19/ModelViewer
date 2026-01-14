@@ -251,18 +251,26 @@ export function getQueryParam(
   return value as string | undefined;
 }
 
+export function parseFFmpegDuration(stderr: string): number | null {
+  const match = stderr.match(/Duration:\s+(\d+):(\d+):(\d+(?:\.\d+)?)/);
+  if (match) {
+    const hours = parseFloat(match[1]);
+    const minutes = parseFloat(match[2]);
+    const seconds = parseFloat(match[3]);
+    return hours * 3600 + minutes * 60 + seconds;
+  }
+  return null;
+}
+
 export async function getFFmpegDuration(
   filePath: string,
   ffmpegPath: string,
 ): Promise<number> {
   try {
     const { stderr } = await runFFmpeg(ffmpegPath, ['-i', filePath]);
-    const match = stderr.match(/Duration:\s+(\d+):(\d+):(\d+(?:\.\d+)?)/);
-    if (match) {
-      const hours = parseFloat(match[1]);
-      const minutes = parseFloat(match[2]);
-      const seconds = parseFloat(match[3]);
-      return hours * 3600 + minutes * 60 + seconds;
+    const duration = parseFFmpegDuration(stderr);
+    if (duration !== null) {
+      return duration;
     } else {
       throw new Error('Could not determine duration');
     }
