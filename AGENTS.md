@@ -1,8 +1,10 @@
 # IMPERATIVE: STOP AND READ THIS
 
+To ensure a smooth development workflow and maintain a high-quality codebase, all contributors must adhere to the following guidelines.
+
 > [!CRITICAL]
 > **THE GOLDEN RULE:**
-> You **MUST** run `npm run verify` and ensure it passes **100%** before creating a PR.
+> You **MUST** run `npm run verify` and ensure it passes with **100% success** and **Coverage >= 80%** before creating a PR.
 > **NO EXCEPTIONS.**
 
 ## 1. The Verification Process
