@@ -13,6 +13,7 @@ import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
 import https from 'https';
 import selfsigned from 'selfsigned';
+import crypto from 'crypto';
 import {
   initDatabase,
   addMediaDirectory,
@@ -126,16 +127,31 @@ export async function createApp() {
   const app = express();
 
   // Middleware
+
+  // [SECURITY] CSP Nonce Generation
+  // Generates a unique nonce for each request to allow inline scripts safely.
+  app.use((_req, res, next) => {
+    res.locals.nonce = crypto.randomBytes(16).toString('base64');
+    next();
+  });
+
   // Set security headers
   // [SECURITY] Content-Security-Policy enabled to prevent XSS.
-  // We allow 'unsafe-inline' for scripts/styles because Vue/Vite requires it,
-  // and we allow Google Fonts and data/blob schemes for media.
+  // We use nonces for scripts to avoid 'unsafe-inline'.
+  // Styles still use 'unsafe-inline' due to Vue/library requirements.
   app.use(
     helmet({
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", "'unsafe-inline'"],
+          scriptSrc: [
+            "'self'",
+            (_req, res) => `'nonce-${(res as express.Response).locals.nonce}'`,
+            // Keep unsafe-inline for dev if strictly needed, but let's try nonce-only for better security
+            // If HMR needs it, we might need to add it back conditionally.
+            // Vite HMR usually uses 'self' or specific host, but some overlays might be inline.
+            ...(isDev ? ["'unsafe-inline'"] : []),
+          ],
           styleSrc: [
             "'self'",
             "'unsafe-inline'",
@@ -560,6 +576,7 @@ export async function createApp() {
       return res.status(400).send('Missing or invalid code parameter');
 
     const safeCode = escapeHtml(code);
+    const nonce = res.locals.nonce;
 
     const html = `
       <!DOCTYPE html>
@@ -580,22 +597,30 @@ export async function createApp() {
           <div class="container">
             <h1>Authentication Successful</h1>
             <p>Please copy the code below and paste it into the Media Player application.</p>
-            <div class="code-box" onclick="selectCode()">${safeCode}</div>
-            <button onclick="copyCode()">Copy Code</button>
+            <div id="code-box" class="code-box">${safeCode}</div>
+            <button id="copy-btn">Copy Code</button>
           </div>
-          <script>
-            function selectCode() {
-              const range = document.createRange();
-              range.selectNode(document.querySelector('.code-box'));
-              window.getSelection().removeAllRanges();
-              window.getSelection().addRange(range);
+          <script nonce="${nonce}">
+            const codeBox = document.getElementById('code-box');
+            const copyBtn = document.getElementById('copy-btn');
+
+            if (codeBox) {
+              codeBox.addEventListener('click', () => {
+                const range = document.createRange();
+                range.selectNode(codeBox);
+                window.getSelection().removeAllRanges();
+                window.getSelection().addRange(range);
+              });
             }
-            function copyCode() {
-              const code = document.querySelector('.code-box').innerText;
-              navigator.clipboard.writeText(code).then(() => {
-                const btn = document.querySelector('button');
-                btn.innerText = 'Copied!';
-                setTimeout(() => btn.innerText = 'Copy Code', 2000);
+
+            if (copyBtn) {
+              copyBtn.addEventListener('click', () => {
+                if (!codeBox) return;
+                const code = codeBox.innerText;
+                navigator.clipboard.writeText(code).then(() => {
+                  copyBtn.innerText = 'Copied!';
+                  setTimeout(() => copyBtn.innerText = 'Copy Code', 2000);
+                });
               });
             }
           </script>
