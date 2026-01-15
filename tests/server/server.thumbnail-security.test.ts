@@ -62,7 +62,9 @@ describe('Server Security: Thumbnail IDOR Protection', () => {
     (mediaUtils.isDrivePath as any).mockReturnValue(false);
     (mediaUtils.getMimeType as any).mockReturnValue('image/jpeg');
     // Ensure getQueryParam behaves correctly if used by server or handler
-    (mediaUtils as any).getQueryParam = vi.fn().mockImplementation((query, key) => query[key]);
+    (mediaUtils as any).getQueryParam = vi
+      .fn()
+      .mockImplementation((query, key) => query[key]);
   });
 
   afterEach(() => {
