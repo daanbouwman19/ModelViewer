@@ -61,7 +61,7 @@
 **Learning:** In Vue components, simply placing a label near an input is not enough for accessibility. Inputs must have `id` attributes that match the `for` attribute of their corresponding `<label>`. This is especially easy to miss in "row" or "grid" layouts where they visually align but have no programmatic connection.
 **Action:** Always check form layouts for `id` + `for` pairs. Use screen reader testing or automated a11y checks to catch these disconnects.
 
-## 2025-02-20 - Extending Media Model
+## 2026-01-15 - Extending Media Model
 
 **Learning:** To add new metadata (like duration) to `MediaFile`, updates are required in:
 
