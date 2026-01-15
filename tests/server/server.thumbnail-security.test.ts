@@ -61,6 +61,8 @@ describe('Server Security: Thumbnail IDOR Protection', () => {
     (mediaUtils.checkThumbnailCache as any).mockResolvedValue(false);
     (mediaUtils.isDrivePath as any).mockReturnValue(false);
     (mediaUtils.getMimeType as any).mockReturnValue('image/jpeg');
+    // Ensure getQueryParam behaves correctly if used by server or handler
+    (mediaUtils as any).getQueryParam = vi.fn().mockImplementation((query, key) => query[key]);
   });
 
   afterEach(() => {
@@ -79,6 +81,10 @@ describe('Server Security: Thumbnail IDOR Protection', () => {
     const response = await request(app)
       .get('/api/thumbnail')
       .query({ file: '/allowed/image.jpg' });
+
+    if (response.status === 400) {
+      console.error('Test Debug: 400 Bad Request:', response.text);
+    }
 
     expect(response.status).toBe(200);
     // expect content type to be image/jpeg
