@@ -716,7 +716,7 @@ describe('MediaDisplay.vue', () => {
       spy.mockRestore();
     });
 
-    it('sets NaN to currentTime when duration is NaN', async () => {
+    it('does not throw when seeking forward if video duration is NaN', async () => {
       mockPlayerState.currentMediaItem = { name: 't.mp4', path: '/t.mp4' };
       const wrapper = mount(MediaDisplay);
       await flushPromises();
