@@ -483,7 +483,7 @@ async function executeSmartPlaylist(/* criteriaJson: string */): Promise<WorkerR
         v.last_viewed
       FROM media_metadata m
       LEFT JOIN media_views v ON m.file_path_hash = v.file_path_hash
-      UNION
+      UNION ALL
       SELECT
         v.file_path_hash,
         COALESCE(m.file_path, v.file_path) as file_path,
@@ -494,6 +494,7 @@ async function executeSmartPlaylist(/* criteriaJson: string */): Promise<WorkerR
         v.last_viewed
       FROM media_views v
       LEFT JOIN media_metadata m ON v.file_path_hash = m.file_path_hash
+      WHERE m.file_path_hash IS NULL
     `;
     const rows = db.prepare(query).all();
     return { success: true, data: rows };
