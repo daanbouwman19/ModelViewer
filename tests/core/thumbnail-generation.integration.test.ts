@@ -17,13 +17,13 @@ describe('Thumbnail Generation Integration', () => {
       const videoFile = path.join(tempDir, 'test_video.mp4');
       const cacheFile = path.join(tempDir, 'thumbnail.jpg');
 
-      // 1. Generate a 5-second dummy video
+      // 1. Generate a 1-second dummy video (smaller and shorter for speed)
       const createArgs = [
         '-y',
         '-f',
         'lavfi',
         '-i',
-        'testsrc=duration=5:size=1280x720:rate=30',
+        'testsrc=duration=1:size=160x120:rate=10',
         videoFile,
       ];
 
@@ -41,7 +41,7 @@ describe('Thumbnail Generation Integration', () => {
       const generateArgs = [
         '-y',
         '-ss',
-        '1',
+        '0.5',
         '-i',
         videoFile,
         '-frames:v',
