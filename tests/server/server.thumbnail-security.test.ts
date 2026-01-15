@@ -1,4 +1,13 @@
-import { describe, it, expect, vi, beforeAll, beforeEach, afterEach, afterAll } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeAll,
+  beforeEach,
+  afterEach,
+  afterAll,
+} from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../src/server/server.ts';
 import * as security from '../../src/core/security.ts';
