@@ -150,6 +150,9 @@ export async function serveThumbnail(
   ffmpegPath: string | null,
   cacheDir: string,
 ) {
+  // [SECURITY] Validate access before checking cache to prevent IDOR on cached thumbnails
+  if (!(await validateFileAccess(res, filePath))) return;
+
   // 1. Check Cache
   const cacheFile = getThumbnailCachePath(filePath, cacheDir);
   if (await tryServeFromCache(res, cacheFile)) {
