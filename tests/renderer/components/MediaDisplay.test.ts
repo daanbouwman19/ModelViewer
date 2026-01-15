@@ -715,5 +715,62 @@ describe('MediaDisplay.vue', () => {
       expect(spy).toHaveBeenCalled();
       spy.mockRestore();
     });
+
+    it('does not throw when seeking forward if video duration is NaN', async () => {
+      mockPlayerState.currentMediaItem = { name: 't.mp4', path: '/t.mp4' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      // Mock video element behavior
+      const mockVideo = {
+        duration: NaN,
+        get currentTime() {
+          return 10;
+        },
+        set currentTime(val: number) {
+          // Basic simulation of browser behavior:
+          if (!Number.isFinite(val)) {
+            throw new Error(
+              "Failed to set the 'currentTime' property on 'HTMLMediaElement': The provided double value is non-finite.",
+            );
+          }
+        },
+      };
+      (wrapper.vm as any).videoElement = mockVideo;
+
+      // Trigger ArrowRight
+      const event = new KeyboardEvent('keydown', { code: 'ArrowRight' });
+      window.dispatchEvent(event);
+
+      // Should not throw
+    });
+
+    it('does not throw when seeking backward if video duration is NaN', async () => {
+      mockPlayerState.currentMediaItem = { name: 't.mp4', path: '/t.mp4' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      // Mock video element behavior
+      const mockVideo = {
+        duration: NaN,
+        get currentTime() {
+          return 10;
+        },
+        set currentTime(val: number) {
+          if (!Number.isFinite(val)) {
+            throw new Error(
+              "Failed to set the 'currentTime' property on 'HTMLMediaElement': The provided double value is non-finite.",
+            );
+          }
+        },
+      };
+      (wrapper.vm as any).videoElement = mockVideo;
+
+      // Trigger ArrowLeft
+      const event = new KeyboardEvent('keydown', { code: 'ArrowLeft' });
+      window.dispatchEvent(event);
+
+      // Should not throw
+    });
   });
 });

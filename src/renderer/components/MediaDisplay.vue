@@ -554,7 +554,10 @@ const handleGlobalKeydown = (event: KeyboardEvent) => {
         );
         tryTranscoding(newTime);
       }
-    } else if (videoElement.value) {
+    } else if (
+      videoElement.value &&
+      Number.isFinite(videoElement.value.duration)
+    ) {
       videoElement.value.currentTime = Math.min(
         videoElement.value.duration,
         videoElement.value.currentTime + 5,
@@ -567,7 +570,10 @@ const handleGlobalKeydown = (event: KeyboardEvent) => {
         const newTime = Math.max(0, savedCurrentTime.value - 5);
         tryTranscoding(newTime);
       }
-    } else if (videoElement.value) {
+    } else if (
+      videoElement.value &&
+      Number.isFinite(videoElement.value.duration)
+    ) {
       videoElement.value.currentTime = Math.max(
         0,
         videoElement.value.currentTime - 5,
