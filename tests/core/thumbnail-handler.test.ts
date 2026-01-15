@@ -129,6 +129,9 @@ describe('thumbnail-handler unit tests', () => {
 
   describe('serveThumbnail', () => {
     it('serves from cache if available', async () => {
+      // Must allow file access first
+      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+
       const cachePath = '/cache/thumb.jpg';
       mockGetThumbnailCachePath.mockReturnValue(cachePath);
       mockCheckThumbnailCache.mockResolvedValue(true);

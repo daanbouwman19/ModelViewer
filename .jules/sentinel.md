@@ -17,3 +17,9 @@
 **Vulnerability:** The `/api/stream` endpoint with `transcode=true` spawned unlimited FFmpeg processes.
 **Learning:** `supertest` requests are lazy Thenables. When testing concurrency, you must explicitly call `.then()` to start the request; otherwise, `Promise.all` starts them sequentially or too late relative to the assertion.
 **Prevention:** Implemented `MAX_CONCURRENT_TRANSCODES` semaphore in `src/server/server.ts` to limit active transcoding sessions to 3.
+
+## 2026-01-14 - Cached Thumbnail IDOR
+
+**Vulnerability:** Cached thumbnails were served based solely on the file path hash, checking for cache existence before validating if the user still had access to the original file. This allowed access to thumbnails of files that were subsequently restricted or removed from allowed directories.
+**Learning:** Caching layers must enforce the same access controls as the primary data source. "Cache hit" logic should not bypass authorization checks.
+**Prevention:** Moved `validateFileAccess` to the beginning of `serveThumbnail` in `src/core/thumbnail-handler.ts`, ensuring access is verified before checking the cache.
