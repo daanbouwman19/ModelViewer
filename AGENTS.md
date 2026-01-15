@@ -4,7 +4,9 @@ To ensure a smooth development workflow and maintain a high-quality codebase, al
 
 > [!CRITICAL]
 > **THE GOLDEN RULE:**
-> You **MUST** run `npm run verify` and ensure it passes with **100% success** and **Coverage >= 80%** before creating a PR.
+> You **MUST** run `npm run verify` locally before creating a PR.
+> This command auto-fixes formatting. **CI runs `npm run format:check` and WILL FAIL if you skip this step.**
+> Ensure `npm run verify` passes with **100% success** and **Coverage >= 80%**.
 > **NO EXCEPTIONS.**
 
 ## 1. The Verification Process
