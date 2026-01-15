@@ -592,6 +592,7 @@ const getMediaForPlaylist = async (
       ...file,
       viewCount: stats?.view_count || 0,
       rating: stats?.rating || 0,
+      duration: stats?.duration || 0,
     };
   });
 };

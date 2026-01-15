@@ -11,6 +11,7 @@ import {
   bulkUpsertMetadata, // Added for batching
   getPendingMetadata,
   getSetting,
+  getMetadata,
 } from './database.ts';
 import { type WorkerOptions } from 'worker_threads';
 import { WorkerClient } from './worker-client.ts';
@@ -186,14 +187,23 @@ export async function getAlbumsWithViewCountsAfterScan(
   const allFilePaths = albums.flatMap((album) =>
     album.textures.map((texture) => texture.path),
   );
-  const viewCountsMap = await getMediaViewCounts(allFilePaths);
+
+  const [viewCountsMap, metadataMap] = await Promise.all([
+    getMediaViewCounts(allFilePaths),
+    getMetadata(allFilePaths),
+  ]);
 
   return albums.map((album) => ({
     ...album,
-    textures: album.textures.map((texture) => ({
-      ...texture,
-      viewCount: viewCountsMap[texture.path] || 0,
-    })),
+    textures: album.textures.map((texture) => {
+      const metadata = metadataMap[texture.path];
+      return {
+        ...texture,
+        viewCount: viewCountsMap[texture.path] || 0,
+        duration: metadata?.duration,
+        rating: metadata?.rating || texture.rating,
+      };
+    }),
   }));
 }
 
@@ -212,14 +222,23 @@ export async function getAlbumsWithViewCounts(
   const allFilePaths = albums.flatMap((album) =>
     album.textures.map((texture) => texture.path),
   );
-  const viewCountsMap = await getMediaViewCounts(allFilePaths);
+
+  const [viewCountsMap, metadataMap] = await Promise.all([
+    getMediaViewCounts(allFilePaths),
+    getMetadata(allFilePaths),
+  ]);
 
   return albums.map((album) => ({
     ...album,
-    textures: album.textures.map((texture) => ({
-      ...texture,
-      viewCount: viewCountsMap[texture.path] || 0,
-    })),
+    textures: album.textures.map((texture) => {
+      const metadata = metadataMap[texture.path];
+      return {
+        ...texture,
+        viewCount: viewCountsMap[texture.path] || 0,
+        duration: metadata?.duration,
+        rating: metadata?.rating || texture.rating,
+      };
+    }),
   }));
 }
 /**

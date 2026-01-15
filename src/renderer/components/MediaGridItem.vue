@@ -46,7 +46,7 @@
       <div
         class="absolute top-2 right-2 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded flex items-center pointer-events-none"
       >
-        VIDEO
+        {{ item.duration ? formatTime(item.duration) : 'VIDEO' }}
       </div>
     </template>
     <!-- Rating Overlay -->
@@ -75,6 +75,7 @@ import {
   isMediaFileImage,
   isMediaFileVideo,
 } from '../utils/mediaUtils';
+import { formatTime } from '../utils/timeUtils';
 
 const props = defineProps<{
   item: MediaFile;

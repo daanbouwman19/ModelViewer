@@ -342,6 +342,7 @@ describe('media-service', () => {
       vi.mocked(database.getMediaViewCounts).mockResolvedValue({
         '/v1.mp4': 5,
       });
+      vi.mocked(database.getMetadata).mockResolvedValue({});
       const albums = [{ id: 1, textures: [{ path: '/v1.mp4' }] }];
       const promise = getAlbumsWithViewCountsAfterScan();
       await new Promise((resolve) => setTimeout(resolve, 50));
@@ -401,6 +402,7 @@ describe('media-service', () => {
       vi.mocked(database.getMediaViewCounts).mockResolvedValue({
         '/v1.mp4': 10,
       });
+      vi.mocked(database.getMetadata).mockResolvedValue({});
       const result = await getAlbumsWithViewCounts();
       expect(result[0].textures[0].viewCount).toBe(10);
     });

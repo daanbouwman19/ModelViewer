@@ -8,6 +8,7 @@ export interface MediaFile {
   viewCount?: number;
   rating?: number;
   lastViewed?: number;
+  duration?: number;
 }
 
 export interface Album {
