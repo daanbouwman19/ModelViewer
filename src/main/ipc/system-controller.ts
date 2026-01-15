@@ -14,7 +14,7 @@ import {
   ALL_SUPPORTED_EXTENSIONS,
 } from '../../core/constants';
 import { getServerPort } from '../local-server';
-import { openMediaInVlc } from '../../core/media-handler';
+import { openMediaInVlc } from '../../core/vlc-handler';
 import { listDirectory } from '../../core/file-system';
 import { handleIpc } from '../utils/ipc-helper';
 import { isSensitiveDirectory, isRestrictedPath } from '../../core/security';
