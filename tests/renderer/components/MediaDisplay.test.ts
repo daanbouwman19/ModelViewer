@@ -715,5 +715,34 @@ describe('MediaDisplay.vue', () => {
       expect(spy).toHaveBeenCalled();
       spy.mockRestore();
     });
+
+    it('sets NaN to currentTime when duration is NaN', async () => {
+      mockPlayerState.currentMediaItem = { name: 't.mp4', path: '/t.mp4' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      // Mock video element behavior
+      const mockVideo = {
+        duration: NaN,
+        get currentTime() {
+          return 10;
+        },
+        set currentTime(val: number) {
+          // Basic simulation of browser behavior:
+          if (!Number.isFinite(val)) {
+            throw new Error(
+              "Failed to set the 'currentTime' property on 'HTMLMediaElement': The provided double value is non-finite.",
+            );
+          }
+        },
+      };
+      (wrapper.vm as any).videoElement = mockVideo;
+
+      // Trigger ArrowRight
+      const event = new KeyboardEvent('keydown', { code: 'ArrowRight' });
+      window.dispatchEvent(event);
+
+      // Should not throw
+    });
   });
 });
