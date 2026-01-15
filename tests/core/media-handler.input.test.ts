@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { IMediaSource } from '../../src/core/media-source-types';
-import { EventEmitter } from 'events';
 import { PassThrough } from 'stream';
+import { createMockProcess } from './test-utils';
 
 // Mock child_process using vi.hoisted
 const { mockSpawn } = vi.hoisted(() => ({
@@ -75,12 +75,7 @@ describe('media-handler input validation', () => {
   });
 
   it('accepts valid startTime', async () => {
-    const mockProcess = new EventEmitter() as any;
-    mockProcess.stdout = new PassThrough();
-    mockProcess.stderr = new PassThrough();
-    mockProcess.stderr.pipe = vi.fn();
-    mockProcess.kill = vi.fn();
-    mockSpawn.mockReturnValue(mockProcess);
+    createMockProcess(mockSpawn);
 
     const validInput = '10.5';
 
@@ -93,12 +88,7 @@ describe('media-handler input validation', () => {
   });
 
   it('accepts valid timestamp', async () => {
-    const mockProcess = new EventEmitter() as any;
-    mockProcess.stdout = new PassThrough();
-    mockProcess.stderr = new PassThrough();
-    mockProcess.stderr.pipe = vi.fn();
-    mockProcess.kill = vi.fn();
-    mockSpawn.mockReturnValue(mockProcess);
+    createMockProcess(mockSpawn);
 
     const validInput = '00:01:30';
 
@@ -127,13 +117,7 @@ describe('media-handler input validation', () => {
     });
 
     it('handles "startTime" parameter as an array by taking the first element', async () => {
-      const mockProcess = new EventEmitter() as any;
-      mockProcess.stdout = new PassThrough();
-      mockProcess.stderr = new PassThrough();
-      mockProcess.stderr.pipe = vi.fn();
-      mockProcess.stderr.resume = vi.fn();
-      mockProcess.kill = vi.fn();
-      mockSpawn.mockReturnValue(mockProcess);
+      createMockProcess(mockSpawn);
 
       req.query = {
         file: '/valid/path/1.mp4',

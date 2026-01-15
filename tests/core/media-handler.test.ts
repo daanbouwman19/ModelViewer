@@ -3,6 +3,7 @@ import { IMediaSource } from '../../src/core/media-source-types';
 import { PassThrough, EventEmitter } from 'stream';
 import request from 'supertest';
 import { createMediaSource } from '../../src/core/media-source';
+import { createMockProcess } from './test-utils';
 
 const {
   mockSpawn,
@@ -242,10 +243,7 @@ describe('media-handler unit tests', () => {
     });
 
     it('fetches duration from local file using ffmpeg', async () => {
-      const mockProc = new EventEmitter() as any;
-      mockProc.stdout = new PassThrough();
-      mockProc.stderr = new EventEmitter();
-      mockSpawn.mockReturnValue(mockProc);
+      const mockProc = createMockProcess(mockSpawn);
 
       const promise = getVideoDuration('/local/file.mp4', 'ffmpeg');
       await vi.waitFor(() => expect(mockSpawn).toHaveBeenCalled());
@@ -259,10 +257,7 @@ describe('media-handler unit tests', () => {
     });
 
     it('handles ffmpeg failure for duration', async () => {
-      const mockProc = new EventEmitter() as any;
-      mockProc.stdout = new PassThrough();
-      mockProc.stderr = new EventEmitter();
-      mockSpawn.mockReturnValue(mockProc);
+      const mockProc = createMockProcess(mockSpawn);
 
       const promise = getVideoDuration('/local/file.mp4', 'ffmpeg');
       await vi.waitFor(() => expect(mockSpawn).toHaveBeenCalled());
@@ -274,10 +269,7 @@ describe('media-handler unit tests', () => {
     });
 
     it('handles ffmpeg spawn error for duration', async () => {
-      const mockProc = new EventEmitter() as any;
-      mockProc.stdout = new PassThrough();
-      mockProc.stderr = new EventEmitter();
-      mockSpawn.mockReturnValue(mockProc);
+      const mockProc = createMockProcess(mockSpawn);
 
       const promise = getVideoDuration('/local/file.mp4', 'ffmpeg');
       await vi.waitFor(() => expect(mockSpawn).toHaveBeenCalled());
@@ -424,11 +416,7 @@ describe('media-handler unit tests', () => {
     it('logs spawn error', async () => {
       const sourceInput = '/path/to/video.mp4';
       vi.mocked(mockMediaSource.getFFmpegInput).mockResolvedValue(sourceInput);
-      const mockProcess = new EventEmitter() as any;
-      mockProcess.stdout = new PassThrough();
-      mockProcess.stderr = new PassThrough();
-      mockProcess.kill = vi.fn();
-      mockSpawn.mockReturnValue(mockProcess);
+      const mockProcess = createMockProcess(mockSpawn);
 
       const consoleSpy = vi
         .spyOn(console, 'error')
@@ -760,11 +748,7 @@ describe('media-handler unit tests', () => {
     expect(mockProc.kill).toHaveBeenCalledWith('SIGKILL');
   });
   it('handles process error', async () => {
-    const mockProc = new EventEmitter() as any;
-    mockProc.stdout = new PassThrough();
-    mockProc.stderr = new PassThrough();
-    mockProc.kill = vi.fn();
-    mockSpawn.mockReturnValue(mockProc as any);
+    const mockProc = createMockProcess(mockSpawn);
 
     const mockSource = {
       getStream: vi.fn(),
@@ -780,11 +764,7 @@ describe('media-handler unit tests', () => {
   });
 
   it('collects stderr data', async () => {
-    const mockProc = new EventEmitter() as any;
-    mockProc.stdout = new PassThrough();
-    mockProc.stderr = new PassThrough();
-    mockProc.kill = vi.fn();
-    mockSpawn.mockReturnValue(mockProc as any);
+    const mockProc = createMockProcess(mockSpawn);
 
     const mockSource = {
       getStream: vi.fn(),
