@@ -149,7 +149,18 @@ describe('thumbnail-handler unit tests', () => {
         '/cache',
       );
 
-      await new Promise((r) => setTimeout(r, 0));
+      // Wait for stream to be created (which happens after async auth check)
+      await new Promise<void>((resolve) => {
+        const check = () => {
+          if (mockFsCreateReadStream.mock.calls.length > 0) {
+            resolve();
+          } else {
+            setTimeout(check, 10);
+          }
+        };
+        check();
+      });
+
       mockStream.emit('open');
       mockStream.emit('end');
 
