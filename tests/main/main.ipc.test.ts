@@ -62,8 +62,12 @@ describe('Media Controller IPC Handlers', () => {
     const dbCore = await import('../../src/core/database');
 
     const mockDirectories = [{ path: '/path/to', isActive: true }];
-    (dbMain.getMediaDirectories as unknown as Mock).mockResolvedValue(mockDirectories);
-    (dbCore.getMediaDirectories as unknown as Mock).mockResolvedValue(mockDirectories);
+    (dbMain.getMediaDirectories as unknown as Mock).mockResolvedValue(
+      mockDirectories,
+    );
+    (dbCore.getMediaDirectories as unknown as Mock).mockResolvedValue(
+      mockDirectories,
+    );
 
     // Register handlers
     registerMediaHandlers();
