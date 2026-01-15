@@ -437,12 +437,13 @@ describe('Server', () => {
       expect(response.text).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
     });
 
-    it('GET /auth/google/callback should return 400 for invalid code type', async () => {
+    it('GET /auth/google/callback should handle array code by taking first', async () => {
       const response = await request(app)
         .get('/auth/google/callback')
         .query('code=a&code=b'); // Array input
 
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(200);
+      expect(response.text).toContain('a'); // Should use the first code
     });
 
     it('POST /api/auth/google-drive/code should return 200 on success', async () => {

@@ -69,6 +69,7 @@ import {
   serveThumbnail,
   validateFileAccess,
 } from '../core/media-handler.ts';
+import { getQueryParam } from '../core/media-utils.ts';
 import { createMediaSource } from '../core/media-source.ts';
 import ffmpegStatic from 'ffmpeg-static';
 import { createRateLimiter } from './rate-limiter.ts';
@@ -362,7 +363,7 @@ export async function createApp() {
   });
 
   app.get('/api/media/history', async (req, res) => {
-    const rawLimit = parseInt(req.query.limit as string, 10);
+    const rawLimit = parseInt(getQueryParam(req.query, 'limit') as string, 10);
     const limit =
       !isNaN(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 1000) : 50;
     try {
@@ -480,7 +481,7 @@ export async function createApp() {
 
   // File System
   app.get('/api/fs/ls', async (req, res) => {
-    const dirPath = req.query.path;
+    const dirPath = getQueryParam(req.query, 'path');
     if (!dirPath || typeof dirPath !== 'string')
       return res.status(400).send('Missing path');
 
@@ -500,7 +501,7 @@ export async function createApp() {
   });
 
   app.get('/api/fs/parent', (req, res) => {
-    const dirPath = req.query.path;
+    const dirPath = getQueryParam(req.query, 'path');
     if (!dirPath || typeof dirPath !== 'string')
       return res.status(400).send('Missing path');
     const parent = path.dirname(dirPath);
@@ -572,7 +573,7 @@ export async function createApp() {
 
   // Auth Callback Handler for browser flow
   app.get('/auth/google/callback', (req, res) => {
-    const code = req.query.code;
+    const code = getQueryParam(req.query, 'code');
     if (!code || typeof code !== 'string')
       return res.status(400).send('Missing or invalid code parameter');
 
@@ -606,7 +607,7 @@ export async function createApp() {
   });
 
   app.get('/api/drive/files', async (req, res) => {
-    const folderId = req.query.folderId as string;
+    const folderId = getQueryParam(req.query, 'folderId');
     // folderId is optional, defaults to root but usually we pass it
     try {
       const files = await listDriveDirectory(folderId || 'root');
@@ -618,7 +619,7 @@ export async function createApp() {
   });
 
   app.get('/api/drive/parent', async (req, res) => {
-    const folderId = req.query.folderId as string;
+    const folderId = getQueryParam(req.query, 'folderId');
     if (!folderId) return res.status(400).send('Missing folderId');
     try {
       const parent = await getDriveParent(folderId);
@@ -630,15 +631,15 @@ export async function createApp() {
   });
 
   app.get('/api/metadata', (req, res) => {
-    const filePath = req.query.file as string;
+    const filePath = getQueryParam(req.query, 'file');
     if (!filePath) return res.status(400).send('Missing file');
     serveMetadata(req, res, filePath, ffmpegStatic);
   });
 
   app.get('/api/stream', async (req, res) => {
-    const filePath = req.query.file as string;
-    const startTime = req.query.startTime as string;
-    const isTranscode = req.query.transcode === 'true';
+    const filePath = getQueryParam(req.query, 'file');
+    const startTime = getQueryParam(req.query, 'startTime');
+    const isTranscode = getQueryParam(req.query, 'transcode') === 'true';
 
     if (!filePath) return res.status(400).send('Missing file');
 
@@ -699,13 +700,13 @@ export async function createApp() {
   });
 
   app.get('/api/thumbnail', (req, res) => {
-    const filePath = req.query.file as string;
+    const filePath = getQueryParam(req.query, 'file');
     if (!filePath) return res.status(400).send('Missing file');
     serveThumbnail(req, res, filePath, ffmpegStatic, CACHE_DIR);
   });
 
   app.get('/api/serve', async (req, res) => {
-    const filePath = req.query.path as string;
+    const filePath = getQueryParam(req.query, 'path');
     if (!filePath) return res.status(400).send('Missing path');
     try {
       // [SECURITY] Explicitly validate access before creating source or streaming.
