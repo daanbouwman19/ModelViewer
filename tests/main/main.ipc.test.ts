@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
-import { ipcMain } from 'electron';
+import { registerMediaHandlers } from '../../src/main/ipc/media-controller';
+import { IPC_CHANNELS } from '../../src/shared/ipc-channels';
 
 // Mock dependencies
 vi.mock('fs/promises', () => ({
@@ -11,66 +12,69 @@ vi.mock('fs/promises', () => ({
   },
 }));
 
-vi.mock('electron', () => ({
-  ipcMain: {
-    handle: vi.fn(),
-    on: vi.fn(),
-  },
-  app: {
-    getPath: vi.fn().mockReturnValue('/tmp'),
-    isPackaged: false,
-    on: vi.fn(),
-    quit: vi.fn(),
-    commandLine: {
-      appendSwitch: vi.fn(),
-    },
-  },
-  BrowserWindow: vi.fn(),
-  dialog: {
-    showOpenDialog: vi.fn(),
-  },
+// Mock ipc-helper to capture handlers
+const handlers = new Map();
+vi.mock('../../src/main/utils/ipc-helper', () => ({
+  handleIpc: vi.fn((channel, handler) => {
+    handlers.set(channel, handler);
+  }),
 }));
 
-vi.mock('../../src/main/local-server.js', () => ({
-  getServerPort: vi.fn(),
-  getMimeType: vi.fn(),
+vi.mock('../../src/main/local-server', () => ({
+  getServerPort: vi.fn().mockReturnValue(0),
 }));
 
+// Mock both database locations to be safe
+// Note: We cannot use top-level variables inside vi.mock factory
 vi.mock('../../src/main/database', () => ({
   getMediaDirectories: vi.fn(),
-  initDatabase: vi.fn(),
   recordMediaView: vi.fn(),
   getMediaViewCounts: vi.fn(),
-  closeDatabase: vi.fn(),
-  addMediaDirectory: vi.fn(),
-  removeMediaDirectory: vi.fn(),
-  setDirectoryActiveState: vi.fn(),
+  getRecentlyPlayed: vi.fn(),
 }));
 
-describe('main.js IPC Handlers', () => {
+// Also mock core/database because src/core/security.ts imports directly from it
+vi.mock('../../src/core/database', () => ({
+  getMediaDirectories: vi.fn(),
+}));
+
+// We need to mock other dependencies of media-controller that we aren't testing to avoid errors
+vi.mock('../../src/main/google-drive-service', () => ({
+  getDriveFileMetadata: vi.fn(),
+  listDriveDirectory: vi.fn(),
+  getDriveParent: vi.fn(),
+}));
+vi.mock('../../src/core/media-service', () => ({
+  getAlbumsWithViewCounts: vi.fn(),
+  getAlbumsWithViewCountsAfterScan: vi.fn(),
+  extractAndSaveMetadata: vi.fn(),
+}));
+
+describe('Media Controller IPC Handlers', () => {
   let handler: (event: any, ...args: any[]) => any;
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    // Setup default mock response for getMediaDirectories
-    const db = await import('../../src/main/database');
-    (db.getMediaDirectories as unknown as Mock).mockResolvedValue([
-      { path: '/path/to', isActive: true },
-    ]);
+    handlers.clear();
 
-    // Import main.js to register the handlers
-    await import('../../src/main/main.js');
-    // Find the handler for 'load-file-as-data-url'
-    const handleMock = ipcMain.handle as unknown as Mock;
-    const call = handleMock.mock.calls.find(
-      (c: any[]) => c[0] === 'load-file-as-data-url',
-    );
-    if (call) {
-      handler = call[1];
-    }
+    // Setup default mock response for getMediaDirectories
+    const dbMain = await import('../../src/main/database');
+    const dbCore = await import('../../src/core/database');
+
+    const mockDirectories = [{ path: '/path/to', isActive: true }];
+    (dbMain.getMediaDirectories as unknown as Mock).mockResolvedValue(mockDirectories);
+    (dbCore.getMediaDirectories as unknown as Mock).mockResolvedValue(mockDirectories);
+
+    // Register handlers
+    registerMediaHandlers();
+
+    // Get the handler
+    handler = handlers.get(IPC_CHANNELS.LOAD_FILE_AS_DATA_URL);
   });
 
   it('should return a generic error for a non-existent file (security)', async () => {
+    expect(handler).toBeDefined();
+
     const nonExistentPath = '/path/to/nothing.txt';
     const fsPromises = await import('fs/promises');
     (fsPromises.default.realpath as unknown as Mock).mockRejectedValue(
@@ -79,13 +83,12 @@ describe('main.js IPC Handlers', () => {
 
     const result = await handler(null, nonExistentPath);
 
+    // media-controller returns the result of generateFileUrl directly
     expect(result).toEqual({
-      success: true,
-      data: {
-        type: 'error',
-        message: 'Access denied',
-      },
+      type: 'error',
+      message: 'Access denied',
     });
+
     expect(fsPromises.default.realpath).toHaveBeenCalledWith(nonExistentPath);
   });
 });
