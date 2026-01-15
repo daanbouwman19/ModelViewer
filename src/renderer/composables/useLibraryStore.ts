@@ -115,6 +115,7 @@ export function useLibraryStore() {
           lastViewed: item.last_viewed
             ? new Date(item.last_viewed).getTime()
             : undefined,
+          duration: item.duration || 0,
         };
       });
     } catch (e) {
