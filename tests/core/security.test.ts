@@ -114,70 +114,112 @@ describe('Path Restriction Security', () => {
     Object.defineProperty(process, 'platform', {
       value: originalPlatform,
     });
-  });
-
-  it('correctly identifies sensitive system directories (Windows)', () => {
-    Object.defineProperty(process, 'platform', { value: 'win32' });
-    vi.stubEnv('SystemDrive', 'C:');
-    vi.stubEnv('SystemRoot', 'C:\\Windows');
-    vi.stubEnv('ProgramFiles', 'C:\\Program Files');
-    vi.stubEnv('ProgramFiles(x86)', 'C:\\Program Files (x86)');
-    vi.stubEnv('ProgramData', 'C:\\ProgramData');
-
-    expect(isSensitiveDirectory('C:\\')).toBe(true);
-    expect(isSensitiveDirectory('c:\\windows')).toBe(true);
-    expect(isSensitiveDirectory('C:\\Program Files')).toBe(true);
-    expect(isSensitiveDirectory('C:\\Users\\User\\Videos')).toBe(false);
     vi.unstubAllEnvs();
   });
 
-  it('correctly identifies sensitive system directories (Linux)', () => {
-    Object.defineProperty(process, 'platform', { value: 'linux' });
-    expect(isSensitiveDirectory('/')).toBe(true);
-    expect(isSensitiveDirectory('/etc')).toBe(true);
-    expect(isSensitiveDirectory('/usr/bin')).toBe(true);
-    expect(isSensitiveDirectory('/var/log')).toBe(true);
-    expect(isSensitiveDirectory('/home/user')).toBe(false);
+  describe('Windows', () => {
+    beforeEach(() => {
+      Object.defineProperty(process, 'platform', { value: 'win32' });
+      vi.stubEnv('SystemDrive', 'C:');
+      vi.stubEnv('SystemRoot', 'C:\\Windows');
+      vi.stubEnv('ProgramFiles', 'C:\\Program Files');
+      vi.stubEnv('ProgramFiles(x86)', 'C:\\Program Files (x86)');
+      vi.stubEnv('ProgramData', 'C:\\ProgramData');
+    });
+
+    const sensitiveDirCases: [string, boolean][] = [
+      ['C:\\', true],
+      ['c:\\windows', true],
+      ['C:\\Program Files', true],
+      ['C:\\ProgramData', true],
+      ['C:\\Users\\User\\Videos', false],
+      ['D:\\Videos', false],
+      ['C:\\SomeOtherFolder', false],
+      // Case insensitivity
+      ['c:\\WINDOWS', true],
+      ['C:\\program files', true],
+      // Edge cases
+      ['', true], // Fail safe
+    ];
+
+    it.each(sensitiveDirCases)(
+      'isSensitiveDirectory("%s") should be %s',
+      (path, expected) => {
+        expect(isSensitiveDirectory(path)).toBe(expected);
+      },
+    );
+
+    const restrictedPathCases: [string, boolean][] = [
+      ['C:\\Windows', true],
+      ['c:\\program files', true],
+      ['C:\\', false], // Allowed for navigation
+      ['C:\\Users', false],
+      // Sensitive component
+      ['C:\\Users\\name\\.ssh', true],
+      ['C:\\Users\\name\\.env', true],
+      // Case insensitivity
+      ['c:\\windows\\system32', true],
+      // Unrestricted
+      ['C:\\MyMedia', false],
+      ['', true], // Fail safe
+    ];
+
+    it.each(restrictedPathCases)(
+      'isRestrictedPath("%s") should be %s',
+      (path, expected) => {
+        expect(isRestrictedPath(path)).toBe(expected);
+      },
+    );
   });
 
-  it('correctly identifies restricted listing paths (Windows)', () => {
-    Object.defineProperty(process, 'platform', { value: 'win32' });
-    vi.stubEnv('SystemDrive', 'C:');
-    vi.stubEnv('SystemRoot', 'C:\\Windows');
-    vi.stubEnv('ProgramFiles', 'C:\\Program Files');
-    vi.stubEnv('ProgramFiles(x86)', 'C:\\Program Files (x86)');
-    vi.stubEnv('ProgramData', 'C:\\ProgramData');
+  describe('Linux', () => {
+    beforeEach(() => {
+      Object.defineProperty(process, 'platform', { value: 'linux' });
+    });
 
-    expect(isRestrictedPath('C:\\Windows')).toBe(true);
-    expect(isRestrictedPath('c:\\program files')).toBe(true);
-    expect(isRestrictedPath('C:\\')).toBe(false); // Allowed for navigation
-    expect(isRestrictedPath('C:\\Users')).toBe(false);
+    const sensitiveDirCases: [string, boolean][] = [
+      ['/', true],
+      ['/etc', true],
+      ['/usr/bin', true],
+      ['/var/log', true],
+      ['/home/user', false],
+      ['/mnt/media', false],
+      ['', true], // Fail safe
+    ];
 
-    // Check sensitive component
-    expect(isRestrictedPath('C:\\Users\\name\\.ssh')).toBe(true);
-    vi.unstubAllEnvs();
-  });
+    it.each(sensitiveDirCases)(
+      'isSensitiveDirectory("%s") should be %s',
+      (path, expected) => {
+        expect(isSensitiveDirectory(path)).toBe(expected);
+      },
+    );
 
-  it('correctly identifies restricted listing paths (Linux)', () => {
-    Object.defineProperty(process, 'platform', { value: 'linux' });
-    expect(isRestrictedPath('/etc')).toBe(true);
-    expect(isRestrictedPath('/root')).toBe(true);
+    const restrictedPathCases: [string, boolean][] = [
+      ['/etc', true],
+      ['/root', true],
+      ['/bin', true],
+      ['/sbin', true],
+      ['/usr', true],
+      ['/lib', true],
+      ['/opt', true],
+      ['/var', true],
+      // Allowed for navigation
+      ['/', false],
+      ['/home', false],
+      ['/media', false],
+      // Sensitive component
+      ['/home/user/.ssh', true],
+      ['/home/user/.env', true],
+      ['/home/user/project/.git', true],
+      ['', true], // Fail safe
+    ];
 
-    // Additional restricted paths
-    expect(isRestrictedPath('/bin')).toBe(true);
-    expect(isRestrictedPath('/sbin')).toBe(true);
-    expect(isRestrictedPath('/usr')).toBe(true);
-    expect(isRestrictedPath('/lib')).toBe(true);
-    expect(isRestrictedPath('/opt')).toBe(true);
-    expect(isRestrictedPath('/var')).toBe(true);
-
-    expect(isRestrictedPath('/')).toBe(false); // Allowed for navigation
-    expect(isRestrictedPath('/home')).toBe(false);
-  });
-
-  it('handles edge cases', () => {
-    expect(isSensitiveDirectory('')).toBe(true); // Fail safe
-    expect(isRestrictedPath('')).toBe(true);
+    it.each(restrictedPathCases)(
+      'isRestrictedPath("%s") should be %s',
+      (path, expected) => {
+        expect(isRestrictedPath(path)).toBe(expected);
+      },
+    );
   });
 });
 
