@@ -72,4 +72,52 @@ describe('KeyboardShortcutsModal', () => {
       expect(wrapper.emitted('close')).toBeTruthy();
     }
   });
+
+  it('emits close event when Escape key is pressed', async () => {
+    const wrapper = mount(KeyboardShortcutsModal, {
+      props: {
+        isOpen: true,
+      },
+      global: {
+        stubs: {
+          CloseIcon: true,
+        },
+      },
+    });
+
+    await window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(wrapper.emitted('close')).toBeTruthy();
+  });
+
+  it('does not emit close event when other key is pressed', async () => {
+    const wrapper = mount(KeyboardShortcutsModal, {
+      props: {
+        isOpen: true,
+      },
+      global: {
+        stubs: {
+          CloseIcon: true,
+        },
+      },
+    });
+
+    await window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    expect(wrapper.emitted('close')).toBeFalsy();
+  });
+
+  it('does not emit close event when Escape key is pressed but modal is closed', async () => {
+    const wrapper = mount(KeyboardShortcutsModal, {
+      props: {
+        isOpen: false,
+      },
+      global: {
+        stubs: {
+          CloseIcon: true,
+        },
+      },
+    });
+
+    await window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(wrapper.emitted('close')).toBeFalsy();
+  });
 });
