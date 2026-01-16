@@ -58,7 +58,7 @@ async function scanDirectoryRecursive(
           if (process.env.NODE_ENV !== 'test') {
             // Only log if it's a new file (not in knownPaths)
             if (!knownPaths || !knownPaths.has(fullPath)) {
-              console.log(`[MediaScanner] Found file: ${item.name}`);
+              console.log(`[MediaScanner] Found file: ${fullPath}`);
             }
           }
         }
@@ -71,9 +71,8 @@ async function scanDirectoryRecursive(
 
     if (textures.length > 0 || children.length > 0) {
       if (process.env.NODE_ENV !== 'test') {
-        const folderTotal = textures.length;
         console.log(
-          `[MediaScanner] Folder: ${path.basename(directoryPath)} - Files: ${folderTotal}`,
+          `[MediaScanner] Folder: ${path.basename(directoryPath)} - Files: ${textures.length}`,
         );
       }
       return {
@@ -158,14 +157,12 @@ async function performFullMediaScan(
     );
 
     if (process.env.NODE_ENV !== 'test') {
-      // Helper to count files recursively
-      const countFiles = (albums: Album[]): number => {
-        let count = 0;
-        for (const album of albums) {
-          count += album.textures.length + countFiles(album.children);
-        }
-        return count;
-      };
+      const countFiles = (albums: Album[]): number =>
+        albums.reduce(
+          (count, album) =>
+            count + album.textures.length + countFiles(album.children),
+          0,
+        );
 
       const totalFiles = countFiles(result);
       console.log(

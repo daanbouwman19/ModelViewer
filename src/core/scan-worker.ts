@@ -20,9 +20,7 @@ port.on('message', async (message) => {
           initializeManualCredentials(tokens);
         }
 
-        const knownPaths = previousPaths
-          ? new Set<string>(previousPaths)
-          : new Set<string>();
+        const knownPaths = new Set((previousPaths as string[]) || []);
 
         const albums = await performFullMediaScan(directories, knownPaths);
         port.postMessage({
