@@ -7,12 +7,10 @@ import {
   getMediaDirectories,
   cacheAlbums,
   getCachedAlbums,
-  getMediaViewCounts,
   getAllMediaViewCounts,
   bulkUpsertMetadata, // Added for batching
   getPendingMetadata,
   getSetting,
-  getMetadata,
   getAllMetadata,
 } from './database.ts';
 import { type WorkerOptions } from 'worker_threads';

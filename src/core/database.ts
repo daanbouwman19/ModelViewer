@@ -100,7 +100,9 @@ async function getMediaViewCounts(
  * Retrieves view counts for all media files.
  * @returns A promise that resolves to a map of file paths to their view counts. Returns an empty object on error.
  */
-async function getAllMediaViewCounts(): Promise<{ [filePath: string]: number }> {
+async function getAllMediaViewCounts(): Promise<{
+  [filePath: string]: number;
+}> {
   try {
     return await getClient().sendMessage<{ [filePath: string]: number }>(
       'getAllMediaViewCounts',

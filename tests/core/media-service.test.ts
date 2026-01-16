@@ -339,11 +339,11 @@ describe('media-service', () => {
       vi.mocked(database.getMediaDirectories).mockResolvedValue([
         { path: '/d', isActive: true },
       ] as any);
-      // @ts-ignore
+      // @ts-expect-error - Mocking potentially missing function due to version mismatch or mock limitations
       vi.mocked(database.getAllMediaViewCounts).mockResolvedValue({
         '/v1.mp4': 5,
       });
-      // @ts-ignore
+      // @ts-expect-error - Mocking potentially missing function due to version mismatch or mock limitations
       vi.mocked(database.getAllMetadata).mockResolvedValue({});
       const albums = [{ id: 1, textures: [{ path: '/v1.mp4' }] }];
       const promise = getAlbumsWithViewCountsAfterScan();
@@ -401,11 +401,11 @@ describe('media-service', () => {
     it('returns albums with view counts from cache', async () => {
       const albums = [{ id: 1, textures: [{ path: '/v1.mp4' }] }];
       vi.mocked(database.getCachedAlbums).mockResolvedValue(albums as any);
-      // @ts-ignore
+      // @ts-expect-error - Mocking potentially missing function due to version mismatch or mock limitations
       vi.mocked(database.getAllMediaViewCounts).mockResolvedValue({
         '/v1.mp4': 10,
       });
-      // @ts-ignore
+      // @ts-expect-error - Mocking potentially missing function due to version mismatch or mock limitations
       vi.mocked(database.getAllMetadata).mockResolvedValue({});
       const result = await getAlbumsWithViewCounts();
       expect(result[0].textures[0].viewCount).toBe(10);
