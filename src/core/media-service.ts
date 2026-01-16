@@ -8,10 +8,12 @@ import {
   cacheAlbums,
   getCachedAlbums,
   getMediaViewCounts,
+  getAllMediaViewCounts,
   bulkUpsertMetadata, // Added for batching
   getPendingMetadata,
   getSetting,
   getMetadata,
+  getAllMetadata,
 } from './database.ts';
 import { type WorkerOptions } from 'worker_threads';
 import { WorkerClient } from './worker-client.ts';
@@ -208,13 +210,10 @@ export async function getAlbumsWithViewCountsAfterScan(
     return [];
   }
 
-  const allFilePaths = albums.flatMap((album) =>
-    album.textures.map((texture) => texture.path),
-  );
-
+  // Bolt Optimization: Use getAll... to avoid sending massive array of file paths to worker
   const [viewCountsMap, metadataMap] = await Promise.all([
-    getMediaViewCounts(allFilePaths),
-    getMetadata(allFilePaths),
+    getAllMediaViewCounts(),
+    getAllMetadata(),
   ]);
 
   return albums.map((album) => ({
@@ -243,13 +242,10 @@ export async function getAlbumsWithViewCounts(
     return [];
   }
 
-  const allFilePaths = albums.flatMap((album) =>
-    album.textures.map((texture) => texture.path),
-  );
-
+  // Bolt Optimization: Use getAll... to avoid sending massive array of file paths to worker
   const [viewCountsMap, metadataMap] = await Promise.all([
-    getMediaViewCounts(allFilePaths),
-    getMetadata(allFilePaths),
+    getAllMediaViewCounts(),
+    getAllMetadata(),
   ]);
 
   return albums.map((album) => ({

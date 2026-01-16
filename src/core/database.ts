@@ -97,6 +97,21 @@ async function getMediaViewCounts(
 }
 
 /**
+ * Retrieves view counts for all media files.
+ * @returns A promise that resolves to a map of file paths to their view counts. Returns an empty object on error.
+ */
+async function getAllMediaViewCounts(): Promise<{ [filePath: string]: number }> {
+  try {
+    return await getClient().sendMessage<{ [filePath: string]: number }>(
+      'getAllMediaViewCounts',
+    );
+  } catch (error) {
+    console.error('[database.js] Error fetching all view counts:', error);
+    return {};
+  }
+}
+
+/**
  * Caches the list of albums (file index) into the database.
  * @param albums - The array of album objects to cache.
  * @returns A promise that resolves when the albums are cached. Errors are logged but not re-thrown.
@@ -319,6 +334,20 @@ async function getMetadata(
 }
 
 /**
+ * Retrieves metadata for all files.
+ */
+async function getAllMetadata(): Promise<{ [path: string]: MediaMetadata }> {
+  try {
+    return await getClient().sendMessage<{ [path: string]: MediaMetadata }>(
+      'getAllMetadata',
+    );
+  } catch (error) {
+    console.error('[database.js] Error getting all metadata:', error);
+    return {};
+  }
+}
+
+/**
  * Creates a new smart playlist.
  */
 async function createSmartPlaylist(
@@ -456,6 +485,7 @@ export {
   closeDatabase,
   recordMediaView,
   getMediaViewCounts,
+  getAllMediaViewCounts,
   cacheAlbums,
   getCachedAlbums,
   addMediaDirectory,
@@ -467,6 +497,7 @@ export {
   bulkUpsertMetadata,
   setRating,
   getMetadata,
+  getAllMetadata,
   createSmartPlaylist,
   getSmartPlaylists,
   deleteSmartPlaylist,
