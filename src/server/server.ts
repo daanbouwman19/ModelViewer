@@ -308,7 +308,7 @@ export async function createApp() {
   });
 
   app.put('/api/smart-playlists/:id', writeLimiter, async (req, res) => {
-    const id = parseInt(req.params.id as string);
+    const id = parseInt(req.params.id || '', 10);
     const { name, criteria } = req.body;
     if (isNaN(id) || !name || !criteria)
       return res.status(400).send('Invalid arguments');
