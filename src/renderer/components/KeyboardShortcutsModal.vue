@@ -88,7 +88,9 @@
               >
             </div>
             <div class="flex justify-between items-center">
-              <span class="text-sm text-gray-300">Toggle Slideshow (Image)</span>
+              <span class="text-sm text-gray-300"
+                >Toggle Slideshow (Image)</span
+              >
               <kbd
                 class="px-2 py-1 bg-white/10 rounded border border-white/20 font-mono text-xs text-white"
                 >Space</kbd
