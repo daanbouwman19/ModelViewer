@@ -700,7 +700,7 @@ export async function createApp() {
   });
 
   app.get('/api/thumbnail', (req, res) => {
-    const filePath = getQueryParam(req.query, 'file') as string;
+    const filePath = getQueryParam(req.query, 'file');
     if (!filePath) return res.status(400).send('Missing file');
     serveThumbnail(req, res, filePath, ffmpegStatic, CACHE_DIR);
   });
