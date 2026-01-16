@@ -54,6 +54,9 @@ async function scanDirectoryRecursive(
         // Bolt Optimization: Set.has is O(1) vs Array.includes O(N)
         if (SUPPORTED_EXTENSIONS_SET.has(fileExtension)) {
           textures.push({ name: item.name, path: fullPath });
+          if (process.env.NODE_ENV !== 'test') {
+            console.log(`[MediaScanner] Found file: ${item.name}`);
+          }
         }
       }
     }
@@ -63,6 +66,12 @@ async function scanDirectoryRecursive(
     );
 
     if (textures.length > 0 || children.length > 0) {
+      if (process.env.NODE_ENV !== 'test') {
+        const folderTotal = textures.length;
+        console.log(
+          `[MediaScanner] Folder: ${path.basename(directoryPath)} - Files: ${folderTotal}`,
+        );
+      }
       return {
         id: directoryPath,
         name: path.basename(directoryPath),
@@ -144,8 +153,18 @@ async function performFullMediaScan(
     );
 
     if (process.env.NODE_ENV !== 'test') {
+      // Helper to count files recursively
+      const countFiles = (albums: Album[]): number => {
+        let count = 0;
+        for (const album of albums) {
+          count += album.textures.length + countFiles(album.children);
+        }
+        return count;
+      };
+
+      const totalFiles = countFiles(result);
       console.log(
-        `[media-scanner.js] Found ${result.length} root albums during scan.`,
+        `[media-scanner.js] Found ${result.length} root albums with ${totalFiles} total files.`,
       );
     }
     return result;
