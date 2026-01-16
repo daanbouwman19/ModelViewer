@@ -248,6 +248,13 @@ export function isSensitiveDirectory(dirPath: string): boolean {
   if (!dirPath) return true;
   const p = process.platform === 'win32' ? path.win32 : path.posix;
   const normalized = p.resolve(dirPath);
+  const segments = normalized.split(p.sep);
+
+  // Check against sensitive subdirectories (e.g. .ssh, .env)
+  // This prevents adding a sensitive directory (like ~/.ssh) as a media root
+  if (segments.some((s) => sensitiveSubdirectoriesSet.has(s))) {
+    return true;
+  }
 
   if (process.platform === 'win32') {
     // Block C:\, C:\Windows, C:\Program Files, etc.
