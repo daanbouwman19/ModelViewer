@@ -8,10 +8,6 @@ vi.mock('fs/promises', () => ({
     readdir: vi.fn(),
   },
 }));
-vi.mock('../../src/core/constants', () => ({
-  ALL_SUPPORTED_EXTENSIONS: ['.jpg', '.mp4'],
-  DISK_SCAN_CONCURRENCY: 10,
-}));
 
 describe('media-scanner coverage', () => {
   beforeEach(() => {
@@ -79,5 +75,37 @@ describe('media-scanner coverage', () => {
 
     const results = await performFullMediaScan(['/base']);
     expect(results).toEqual([]);
+  });
+
+  it('logs found files and stats in non-test env', async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'development';
+    const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    vi.mocked(fs.access).mockResolvedValue(undefined);
+    vi.mocked(fs.readdir).mockResolvedValue([
+      {
+        name: 'image.jpg',
+        isFile: () => true,
+        isDirectory: () => false,
+      } as any,
+    ]);
+
+    await performFullMediaScan(['/base']);
+
+    expect(consoleLogSpy).toHaveBeenCalled();
+    // Verify specific logs if needed, but just calling is enough for coverage
+    expect(consoleLogSpy).toHaveBeenCalledWith(
+      expect.stringMatching(/\[MediaScanner\] Found file: .*image\.jpg/),
+    );
+    expect(consoleLogSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[MediaScanner] Folder: base - Files: 1'),
+    );
+    expect(consoleLogSpy).toHaveBeenCalledWith(
+      expect.stringContaining('root albums with 1 total files'),
+    );
+
+    consoleLogSpy.mockRestore();
+    process.env.NODE_ENV = originalNodeEnv;
   });
 });

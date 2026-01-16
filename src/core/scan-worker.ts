@@ -14,13 +14,15 @@ port.on('message', async (message) => {
 
     if (type === 'START_SCAN') {
       try {
-        const { directories, tokens } = payload || {};
+        const { directories, tokens, previousPaths } = payload || {};
 
         if (tokens) {
           initializeManualCredentials(tokens);
         }
 
-        const albums = await performFullMediaScan(directories);
+        const knownPaths = new Set((previousPaths as string[]) || []);
+
+        const albums = await performFullMediaScan(directories, knownPaths);
         port.postMessage({
           id,
           result: { success: true, data: albums },

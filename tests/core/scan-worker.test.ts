@@ -82,7 +82,10 @@ describe('scan-worker', () => {
       payload: { directories: ['/dir'] },
     });
 
-    expect(mediaScanner.performFullMediaScan).toHaveBeenCalledWith(['/dir']);
+    expect(mediaScanner.performFullMediaScan).toHaveBeenCalledWith(
+      ['/dir'],
+      expect.any(Set),
+    );
     expect(mockPostMessage).toHaveBeenCalledWith({
       id: 1,
       result: { success: true, data: albums },

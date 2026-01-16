@@ -33,6 +33,7 @@ const SUPPORTED_EXTENSIONS_SET = new Set(ALL_SUPPORTED_EXTENSIONS);
  */
 async function scanDirectoryRecursive(
   directoryPath: string,
+  knownPaths?: Set<string>,
 ): Promise<Album | null> {
   try {
     // Only wrap the readdir call to limit concurrent open file descriptors.
@@ -48,14 +49,17 @@ async function scanDirectoryRecursive(
     for (const item of items) {
       const fullPath = path.join(directoryPath, item.name);
       if (item.isDirectory()) {
-        childrenPromises.push(scanDirectoryRecursive(fullPath));
+        childrenPromises.push(scanDirectoryRecursive(fullPath, knownPaths));
       } else if (item.isFile()) {
         const fileExtension = path.extname(item.name).toLowerCase();
         // Bolt Optimization: Set.has is O(1) vs Array.includes O(N)
         if (SUPPORTED_EXTENSIONS_SET.has(fileExtension)) {
           textures.push({ name: item.name, path: fullPath });
           if (process.env.NODE_ENV !== 'test') {
-            console.log(`[MediaScanner] Found file: ${item.name}`);
+            // Only log if it's a new file (not in knownPaths)
+            if (!knownPaths || !knownPaths.has(fullPath)) {
+              console.log(`[MediaScanner] Found file: ${fullPath}`);
+            }
           }
         }
       }
@@ -67,9 +71,8 @@ async function scanDirectoryRecursive(
 
     if (textures.length > 0 || children.length > 0) {
       if (process.env.NODE_ENV !== 'test') {
-        const folderTotal = textures.length;
         console.log(
-          `[MediaScanner] Folder: ${path.basename(directoryPath)} - Files: ${folderTotal}`,
+          `[MediaScanner] Folder: ${path.basename(directoryPath)} - Files: ${textures.length}`,
         );
       }
       return {
@@ -120,6 +123,7 @@ async function scanGoogleDrive(folderId: string): Promise<Album | null> {
  */
 async function performFullMediaScan(
   baseMediaDirectories: string[],
+  knownPaths?: Set<string>,
 ): Promise<Album[]> {
   if (process.env.NODE_ENV !== 'test') {
     console.log(
@@ -136,7 +140,7 @@ async function performFullMediaScan(
           return scanGoogleDrive(folderId);
         } else {
           await fs.access(baseDir);
-          return scanDirectoryRecursive(baseDir);
+          return scanDirectoryRecursive(baseDir, knownPaths);
         }
       } catch (dirError: unknown) {
         if (process.env.NODE_ENV !== 'test') {
@@ -153,14 +157,12 @@ async function performFullMediaScan(
     );
 
     if (process.env.NODE_ENV !== 'test') {
-      // Helper to count files recursively
-      const countFiles = (albums: Album[]): number => {
-        let count = 0;
-        for (const album of albums) {
-          count += album.textures.length + countFiles(album.children);
-        }
-        return count;
-      };
+      const countFiles = (albums: Album[]): number =>
+        albums.reduce(
+          (count, album) =>
+            count + album.textures.length + countFiles(album.children),
+          0,
+        );
 
       const totalFiles = countFiles(result);
       console.log(

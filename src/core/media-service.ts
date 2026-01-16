@@ -102,11 +102,35 @@ export async function scanDiskForAlbumsAndCache(
         );
       }
 
+      // Fetch currently cached albums to determine what is already known
+      const previousPaths: string[] = [];
+      try {
+        const cachedAlbums = await getCachedAlbums();
+        if (cachedAlbums) {
+          // Helper to flatten albums to paths
+          const collectPaths = (albums: Album[], target: string[]) => {
+            for (const album of albums) {
+              for (const texture of album.textures) {
+                target.push(texture.path);
+              }
+              collectPaths(album.children, target);
+            }
+          };
+          collectPaths(cachedAlbums, previousPaths);
+        }
+      } catch (e) {
+        console.warn(
+          '[media-service] Failed to fetch cached albums for diffing:',
+          e,
+        );
+      }
+
       await client.init();
 
       const result = await client.sendMessage<Album[]>('START_SCAN', {
         directories: activeDirectories,
         tokens,
+        previousPaths, // Pass existing paths to worker
       });
 
       resolve(result);
