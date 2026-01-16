@@ -57,8 +57,14 @@
             }}
           </h1>
 
-          <div class="w-10"></div>
-          <!-- Spacer to balance Menu button -->
+          <button
+            class="icon-button p-2 rounded-full hover:bg-white/10 transition-colors pointer-events-auto"
+            aria-label="Keyboard Shortcuts"
+            title="Keyboard Shortcuts"
+            @click="isShortcutsModalOpen = true"
+          >
+            <HelpIcon class="w-6 h-6 text-white" />
+          </button>
         </div>
 
         <!-- Media Display -->
@@ -75,6 +81,10 @@
       :playlist-to-edit="playlistToEdit"
       @close="playlistToEdit = null"
     />
+    <KeyboardShortcutsModal
+      :is-open="isShortcutsModalOpen"
+      @close="isShortcutsModalOpen = false"
+    />
     <LoadingMask v-if="isScanning" />
   </div>
 </template>
@@ -85,15 +95,17 @@
  * It sets up the overall layout, initializes the application state,
  * and handles global keyboard shortcuts for media navigation.
  */
-import { onMounted, onBeforeUnmount, watch } from 'vue';
+import { onMounted, onBeforeUnmount, watch, ref } from 'vue';
 import AmbientBackground from './components/AmbientBackground.vue';
 import AlbumsList from './components/AlbumsList.vue';
 import MediaDisplay from './components/MediaDisplay.vue';
 import MediaGrid from './components/MediaGrid.vue';
 import SourcesModal from './components/SourcesModal.vue';
 import SmartPlaylistModal from './components/SmartPlaylistModal.vue';
+import KeyboardShortcutsModal from './components/KeyboardShortcutsModal.vue';
 import LoadingMask from './components/LoadingMask.vue';
 import MenuIcon from './components/icons/MenuIcon.vue';
+import HelpIcon from './components/icons/HelpIcon.vue';
 import { useLibraryStore } from './composables/useLibraryStore';
 import { usePlayerStore } from './composables/usePlayerStore';
 import { useUIStore } from './composables/useUIStore';
@@ -109,6 +121,8 @@ const { viewMode, playlistToEdit, isControlsVisible, isSidebarVisible } =
 const { currentMediaItem, isSlideshowActive, mainVideoElement } = playerStore; // Destructure from the instance
 const initializeApp = libraryStore.loadInitialData;
 const { navigateMedia, toggleSlideshowTimer } = useSlideshow();
+
+const isShortcutsModalOpen = ref(false);
 
 let controlsTimeout: NodeJS.Timeout | null = null;
 
@@ -150,8 +164,9 @@ const handleMouseLeave = () => {
  */
 const handleKeydown = (event: KeyboardEvent) => {
   if (
-    (event.target as HTMLElement).tagName === 'INPUT' ||
-    (event.target as HTMLElement).tagName === 'TEXTAREA'
+    event.target instanceof HTMLInputElement ||
+    event.target instanceof HTMLTextAreaElement ||
+    (event.target as HTMLElement).isContentEditable
   ) {
     return;
   }
@@ -174,6 +189,11 @@ const handleKeydown = (event: KeyboardEvent) => {
         event.preventDefault();
         toggleSlideshowTimer();
       }
+      break;
+    case '?':
+      // Shift + / usually
+      event.preventDefault();
+      isShortcutsModalOpen.value = !isShortcutsModalOpen.value;
       break;
   }
 };
