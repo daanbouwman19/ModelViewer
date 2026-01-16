@@ -11,6 +11,8 @@ vi.mock('fs/promises', () => ({
   default: {
     stat: vi.fn(),
     mkdir: vi.fn(),
+    access: vi.fn(),
+    readFile: vi.fn().mockResolvedValue('mock-content'),
   },
 }));
 
@@ -52,7 +54,7 @@ describe('Server CORS', () => {
     it('should block evil.com origin (by returning mismatched allowed origin)', async () => {
       app = await createApp();
       const response = await request(app)
-        .get('/api/extensions')
+        .get('/api/config/extensions')
         .set('Origin', 'http://evil.com');
 
       // Should NOT be *
@@ -66,7 +68,7 @@ describe('Server CORS', () => {
     it('should allow localhost:5173', async () => {
       app = await createApp();
       const response = await request(app)
-        .get('/api/extensions')
+        .get('/api/config/extensions')
         .set('Origin', 'http://localhost:5173');
 
       expect(response.headers['access-control-allow-origin']).toBe(
@@ -93,7 +95,7 @@ describe('Server CORS', () => {
     it('should disable CORS (Same-Origin enforced) by not sending headers', async () => {
       app = await createApp();
       const response = await request(app)
-        .get('/api/extensions')
+        .get('/api/config/extensions')
         .set('Origin', 'http://evil.com');
 
       // In production, we pass origin: false to cors().
