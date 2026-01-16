@@ -57,8 +57,10 @@ describe('MediaScanner', () => {
 
     // Check root files
     expect(rootAlbum.textures).toHaveLength(2);
-    expect(rootAlbum.textures.map(t => t.name)).toEqual(expect.arrayContaining(['image.jpg', 'video.mp4']));
-    expect(rootAlbum.textures.map(t => t.name)).not.toContain('ignored.txt');
+    expect(rootAlbum.textures.map((t) => t.name)).toEqual(
+      expect.arrayContaining(['image.jpg', 'video.mp4']),
+    );
+    expect(rootAlbum.textures.map((t) => t.name)).not.toContain('ignored.txt');
 
     // Check children
     expect(rootAlbum.children).toHaveLength(1);
