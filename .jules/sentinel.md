@@ -23,3 +23,9 @@
 **Vulnerability:** Cached thumbnails were served based solely on the file path hash, checking for cache existence before validating if the user still had access to the original file. This allowed access to thumbnails of files that were subsequently restricted or removed from allowed directories.
 **Learning:** Caching layers must enforce the same access controls as the primary data source. "Cache hit" logic should not bypass authorization checks.
 **Prevention:** Moved `validateFileAccess` to the beginning of `serveThumbnail` in `src/core/thumbnail-handler.ts`, ensuring access is verified before checking the cache.
+
+## 2025-01-20 - Sensitive Directory Root Protection
+
+**Vulnerability:** An attacker could bypass sensitive file protections by adding the sensitive directory itself (e.g., `~/.ssh`) as a media source. The existing check only validated files _relative_ to the media source root, missing the root directory itself.
+**Learning:** Validation logic must check the _entire_ path chain, including the root anchor, not just the segments below it.
+**Prevention:** Updated `isSensitiveDirectory` to explicitly check if the target directory or any of its segments match the `SENSITIVE_SUBDIRECTORIES` blocklist.
