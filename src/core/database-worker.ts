@@ -100,7 +100,7 @@ async function generateFileIdsBatched(
 /**
  * Represents the result of a worker operation.
  */
-interface WorkerResult {
+export interface WorkerResult {
   /** Indicates whether the operation was successful. */
   success: boolean;
   /** The data returned by the operation, if any. */
@@ -114,7 +114,7 @@ interface WorkerResult {
  * @param dbPath - The path to the SQLite database file.
  * @returns The result of the initialization.
  */
-function initDatabase(dbPath: string): WorkerResult {
+export function initDatabase(dbPath: string): WorkerResult {
   try {
     if (db) {
       db.close();
@@ -258,7 +258,9 @@ interface MetadataPayload {
 /**
  * Upserts metadata for a file.
  */
-async function upsertMetadata(payload: MetadataPayload): Promise<WorkerResult> {
+export async function upsertMetadata(
+  payload: MetadataPayload,
+): Promise<WorkerResult> {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
     const fileId = await generateFileId(payload.filePath);
@@ -280,7 +282,7 @@ async function upsertMetadata(payload: MetadataPayload): Promise<WorkerResult> {
 /**
  * Updates the rating for a file.
  */
-async function setRating(
+export async function setRating(
   filePath: string,
   rating: number,
 ): Promise<WorkerResult> {
@@ -297,7 +299,7 @@ async function setRating(
 /**
  * Bulk upserts metadata for multiple files.
  */
-async function bulkUpsertMetadata(
+export async function bulkUpsertMetadata(
   payloads: MetadataPayload[],
 ): Promise<WorkerResult> {
   if (!db) return { success: false, error: 'Database not initialized' };
@@ -337,7 +339,7 @@ async function bulkUpsertMetadata(
 /**
  * Retrieves metadata for all files.
  */
-function getAllMetadata(): WorkerResult {
+export function getAllMetadata(): WorkerResult {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
     const rows = statements.getAllMetadata.all() as {
@@ -361,7 +363,7 @@ function getAllMetadata(): WorkerResult {
 /**
  * Retrieves metadata for a list of files.
  */
-async function getMetadata(filePaths: string[]): Promise<WorkerResult> {
+export async function getMetadata(filePaths: string[]): Promise<WorkerResult> {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
     if (filePaths.length === 0) {
@@ -403,7 +405,10 @@ async function getMetadata(filePaths: string[]): Promise<WorkerResult> {
 /**
  * Creates a new smart playlist.
  */
-function createSmartPlaylist(name: string, criteria: string): WorkerResult {
+export function createSmartPlaylist(
+  name: string,
+  criteria: string,
+): WorkerResult {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
     const result = statements.createSmartPlaylist.run(name, criteria);
@@ -416,7 +421,7 @@ function createSmartPlaylist(name: string, criteria: string): WorkerResult {
 /**
  * Retrieves all smart playlists.
  */
-function getSmartPlaylists(): WorkerResult {
+export function getSmartPlaylists(): WorkerResult {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
     const playlists = statements.getSmartPlaylists.all();
@@ -429,7 +434,7 @@ function getSmartPlaylists(): WorkerResult {
 /**
  * Deletes a smart playlist.
  */
-function deleteSmartPlaylist(id: number): WorkerResult {
+export function deleteSmartPlaylist(id: number): WorkerResult {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
     statements.deleteSmartPlaylist.run(id);
@@ -442,7 +447,7 @@ function deleteSmartPlaylist(id: number): WorkerResult {
 /**
  * Updates a smart playlist.
  */
-function updateSmartPlaylist(
+export function updateSmartPlaylist(
   id: number,
   name: string,
   criteria: string,
@@ -460,7 +465,7 @@ function updateSmartPlaylist(
  * Retrieves recently played media items.
  * @param limit - The maximum number of items to return.
  */
-function getRecentlyPlayed(limit: number): WorkerResult {
+export function getRecentlyPlayed(limit: number): WorkerResult {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
     const rows = statements.getRecentlyPlayed.all(limit);
@@ -473,7 +478,7 @@ function getRecentlyPlayed(limit: number): WorkerResult {
 /**
  * Saves a setting (key-value pair) to the database.
  */
-function saveSetting(key: string, value: string): WorkerResult {
+export function saveSetting(key: string, value: string): WorkerResult {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
     statements.saveSetting.run(key, value, new Date().toISOString());
@@ -486,7 +491,7 @@ function saveSetting(key: string, value: string): WorkerResult {
 /**
  * Retrieves a setting value from the database.
  */
-function getSetting(key: string): WorkerResult {
+export function getSetting(key: string): WorkerResult {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
     const row = statements.getSetting.get(key) as { value: string } | undefined;
@@ -499,7 +504,7 @@ function getSetting(key: string): WorkerResult {
 /**
  * Executes a smart playlist criteria to find matching files.
  */
-async function executeSmartPlaylist(/* criteriaJson: string */): Promise<WorkerResult> {
+export async function executeSmartPlaylist(/* criteriaJson: string */): Promise<WorkerResult> {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
     const query = `
@@ -538,7 +543,7 @@ async function executeSmartPlaylist(/* criteriaJson: string */): Promise<WorkerR
  * @param filePath - The path of the file that was viewed.
  * @returns The result of the operation.
  */
-async function recordMediaView(filePath: string): Promise<WorkerResult> {
+export async function recordMediaView(filePath: string): Promise<WorkerResult> {
   if (!db) return { success: false, error: 'Database not initialized' };
 
   try {
@@ -590,7 +595,7 @@ async function recordMediaView(filePath: string): Promise<WorkerResult> {
  * Gets view counts for all files.
  * @returns The result including the view count map.
  */
-function getAllMediaViewCounts(): WorkerResult {
+export function getAllMediaViewCounts(): WorkerResult {
   if (!db) return { success: false, error: 'Database not initialized' };
 
   try {
@@ -616,7 +621,9 @@ function getAllMediaViewCounts(): WorkerResult {
  * @param filePaths - An array of file paths.
  * @returns The result including the view count map.
  */
-async function getMediaViewCounts(filePaths: string[]): Promise<WorkerResult> {
+export async function getMediaViewCounts(
+  filePaths: string[],
+): Promise<WorkerResult> {
   if (!db) return { success: false, error: 'Database not initialized' };
   if (!filePaths || filePaths.length === 0) {
     return { success: true, data: {} };
@@ -676,7 +683,7 @@ async function getMediaViewCounts(filePaths: string[]): Promise<WorkerResult> {
  * @param albums - The album data to cache.
  * @returns The result of the operation.
  */
-function cacheAlbums(cacheKey: string, albums: unknown): WorkerResult {
+export function cacheAlbums(cacheKey: string, albums: unknown): WorkerResult {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
     statements.cacheAlbum.run(
@@ -696,7 +703,7 @@ function cacheAlbums(cacheKey: string, albums: unknown): WorkerResult {
  * @param cacheKey - The key of the cache to retrieve.
  * @returns The result including the cached data.
  */
-function getCachedAlbums(cacheKey: string): WorkerResult {
+export function getCachedAlbums(cacheKey: string): WorkerResult {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
     const row = statements.getCachedAlbum.get(cacheKey) as
@@ -714,7 +721,7 @@ function getCachedAlbums(cacheKey: string): WorkerResult {
  * Closes the database connection.
  * @returns The result of the operation.
  */
-function closeDatabase(): WorkerResult {
+export function closeDatabase(): WorkerResult {
   if (!db) return { success: true };
   try {
     db.close();
@@ -736,7 +743,7 @@ function closeDatabase(): WorkerResult {
  * @param payload - The directory object to add.
  * @returns The result of the operation.
  */
-function addMediaDirectory(payload: {
+export function addMediaDirectory(payload: {
   id?: string;
   path: string;
   type?: string;
@@ -763,7 +770,7 @@ function addMediaDirectory(payload: {
  * Retrieves all media directory paths from the database.
  * @returns The result including the list of directories.
  */
-function getMediaDirectories(): WorkerResult {
+export function getMediaDirectories(): WorkerResult {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
     const rows = statements.getMediaDirectories.all() as {
@@ -792,7 +799,7 @@ function getMediaDirectories(): WorkerResult {
  * @param directoryPath - The path of the directory to remove.
  * @returns The result of the operation.
  */
-function removeMediaDirectory(directoryPath: string): WorkerResult {
+export function removeMediaDirectory(directoryPath: string): WorkerResult {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
     statements.removeMediaDirectory.run(directoryPath);
@@ -812,7 +819,7 @@ function removeMediaDirectory(directoryPath: string): WorkerResult {
  * @param isActive - The new active state.
  * @returns The result of the operation.
  */
-function setDirectoryActiveState(
+export function setDirectoryActiveState(
   directoryPath: string,
   isActive: boolean,
 ): WorkerResult {

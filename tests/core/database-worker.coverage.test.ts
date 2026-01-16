@@ -1,135 +1,106 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { Worker } from 'worker_threads';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import path from 'path';
 import fs from 'fs/promises';
-import { fileURLToPath } from 'url';
+import {
+  initDatabase,
+  closeDatabase,
+  getAllMediaViewCounts,
+  getAllMetadata,
+  recordMediaView,
+  upsertMetadata,
+} from '../../src/core/database-worker';
 
-// Helper to get absolute path to worker
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const workerPath = path.resolve(__dirname, '../../src/core/database-worker.ts');
+// Mock worker_threads since we are importing the worker file which has side effects (parentPort usage)
+vi.mock('worker_threads', () => ({
+  parentPort: {
+    on: vi.fn(),
+    postMessage: vi.fn(),
+  },
+  default: {},
+}));
 
-describe('database-worker integration coverage', () => {
-  let worker: Worker;
+describe('database-worker coverage (exported functions)', () => {
   let dbPath: string;
 
-  beforeEach(async () => {
-    dbPath = path.join(process.cwd(), `test-db-${Date.now()}-${Math.random().toString(36).substring(7)}.sqlite`);
-
-    // We need to run the TS worker. Since we are in a test env that supports TS (via vitest/tsx),
-    // we might need to use execArgv to handle imports if we were running plain node.
-    // But specific to this project configuration, let's try running it.
-    // If it fails due to TS, we might need a loader.
-    // Assuming the project uses tsx or similar loader for tests.
-
-    worker = new Worker(workerPath, {
-        execArgv: ['--import', 'tsx/esm']
-    });
-
-    await new Promise<void>((resolve, reject) => {
-      worker.on('message', (msg) => {
-        if (msg.type === 'ready') resolve();
-      });
-      worker.on('error', reject);
-      worker.on('exit', (code) => {
-        if (code !== 0) reject(new Error(`Worker stopped with exit code ${code}`));
-      });
-    });
-
-    // Init DB
-    await sendMessage(worker, 'init', { dbPath });
+  beforeEach(() => {
+    dbPath = path.join(process.cwd(), `test-db-unit-${Date.now()}.sqlite`);
+    initDatabase(dbPath);
   });
 
   afterEach(async () => {
-    if (worker) {
-      await worker.terminate();
-    }
+    closeDatabase();
     try {
       await fs.unlink(dbPath);
     } catch {
       // ignore
     }
     try {
-        await fs.unlink(`${dbPath}-wal`);
-        await fs.unlink(`${dbPath}-shm`);
+      await fs.unlink(`${dbPath}-wal`);
+      await fs.unlink(`${dbPath}-shm`);
     } catch {
-        // ignore
+      // ignore
     }
   });
 
-  function sendMessage(worker: Worker, type: string, payload: any = {}): Promise<any> {
-    return new Promise((resolve, reject) => {
-      const id = Math.random().toString(36).substring(7);
-      const handler = (msg: any) => {
-        if (msg.id === id) {
-          worker.off('message', handler);
-          worker.off('error', errorHandler);
-          if (msg.result.success) {
-            resolve(msg.result.data);
-          } else {
-            reject(new Error(msg.result.error));
-          }
-        }
-      };
-      const errorHandler = (err: Error) => {
-        worker.off('message', handler);
-        worker.off('error', errorHandler);
-        reject(err);
-      };
-
-      worker.on('message', handler);
-      worker.on('error', errorHandler);
-      worker.postMessage({ id, type, payload });
-    });
-  }
-
-  it('getAllMediaViewCounts returns empty object when no views exist', async () => {
-    const result = await sendMessage(worker, 'getAllMediaViewCounts');
-    expect(result).toEqual({});
+  it('getAllMediaViewCounts returns empty object when no views exist', () => {
+    const result = getAllMediaViewCounts();
+    expect(result).toEqual({ success: true, data: {} });
   });
 
   it('getAllMediaViewCounts returns correct counts', async () => {
-    await sendMessage(worker, 'recordMediaView', { filePath: '/vid1.mp4' });
-    await sendMessage(worker, 'recordMediaView', { filePath: '/vid1.mp4' }); // count 2
-    await sendMessage(worker, 'recordMediaView', { filePath: '/vid2.mp4' }); // count 1
+    await recordMediaView('/vid1.mp4');
+    await recordMediaView('/vid1.mp4');
+    await recordMediaView('/vid2.mp4');
 
-    const result = await sendMessage(worker, 'getAllMediaViewCounts');
+    const result = getAllMediaViewCounts();
     expect(result).toEqual({
-      '/vid1.mp4': 2,
-      '/vid2.mp4': 1,
+      success: true,
+      data: {
+        '/vid1.mp4': 2,
+        '/vid2.mp4': 1,
+      },
     });
   });
 
-  it('getAllMetadata returns empty object when no metadata exists', async () => {
-    const result = await sendMessage(worker, 'getAllMetadata');
-    expect(result).toEqual({});
+  it('getAllMetadata returns empty object when no metadata exists', () => {
+    const result = getAllMetadata();
+    expect(result).toEqual({ success: true, data: {} });
   });
 
   it('getAllMetadata returns correct metadata map', async () => {
-    await sendMessage(worker, 'upsertMetadata', {
-        filePath: '/vid1.mp4',
-        duration: 100,
-        size: 5000
+    await upsertMetadata({
+      filePath: '/vid1.mp4',
+      duration: 100,
+      size: 5000,
     });
 
-    await sendMessage(worker, 'upsertMetadata', {
-        filePath: '/vid2.mp4',
-        rating: 5
+    await upsertMetadata({
+      filePath: '/vid2.mp4',
+      rating: 5,
     });
 
-    const result = await sendMessage(worker, 'getAllMetadata');
+    const result = getAllMetadata();
+    const data = result.data as any;
 
-    expect(result['/vid1.mp4']).toMatchObject({
-        file_path: '/vid1.mp4',
-        duration: 100,
-        size: 5000
+    expect(data['/vid1.mp4']).toMatchObject({
+      file_path: '/vid1.mp4',
+      duration: 100,
+      size: 5000,
     });
-    expect(result['/vid2.mp4']).toMatchObject({
-        file_path: '/vid2.mp4',
-        rating: 5
+    expect(data['/vid2.mp4']).toMatchObject({
+      file_path: '/vid2.mp4',
+      rating: 5,
     });
   });
 
-  // Note: We can't easily test "Database not initialized" here because we init in beforeEach.
-  // But this covers the happy paths which are the new code.
+  it('handles database initialization errors for getAll functions', () => {
+    // Close DB first to simulate uninitialized state
+    closeDatabase();
+
+    const res1 = getAllMediaViewCounts();
+    expect(res1).toEqual({ success: false, error: 'Database not initialized' });
+
+    const res2 = getAllMetadata();
+    expect(res2).toEqual({ success: false, error: 'Database not initialized' });
+  });
 });
