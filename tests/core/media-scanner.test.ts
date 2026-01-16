@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as mediaScanner from '../../src/core/media-scanner';
 import fs from 'fs/promises';
+import path from 'path';
 
 // Mock fs/promises
 vi.mock('fs/promises', () => ({
@@ -22,8 +23,8 @@ describe('MediaScanner', () => {
 
   it('scans a directory structure correctly', async () => {
     // Setup mock file system
-    const rootDir = '/media';
-    const subDir = '/media/subdir';
+    const rootDir = path.join(path.sep, 'media');
+    const subDir = path.join(rootDir, 'subdir');
 
     // rootDir contains: subdir (dir), image.jpg (file), video.mp4 (file), ignored.txt (file)
     // subDir contains: deep.png (file)
@@ -40,8 +41,7 @@ describe('MediaScanner', () => {
     ];
 
     vi.mocked(fs.readdir).mockImplementation(async (dirPath) => {
-      // Normalize path separator if needed, but strict string match is usually fine for mocks unless cross-platform test running is complex
-      // For now assume unix style in mocks or matches what is passed
+      // Normalize path separator for comparison
       if (dirPath === rootDir) return rootDirents as any;
       if (dirPath === subDir) return subDirents as any;
       return [];
@@ -57,10 +57,8 @@ describe('MediaScanner', () => {
 
     // Check root files
     expect(rootAlbum.textures).toHaveLength(2);
-    expect(rootAlbum.textures.map((t) => t.name)).toEqual(
-      expect.arrayContaining(['image.jpg', 'video.mp4']),
-    );
-    expect(rootAlbum.textures.map((t) => t.name)).not.toContain('ignored.txt');
+    expect(rootAlbum.textures.map(t => t.name)).toEqual(expect.arrayContaining(['image.jpg', 'video.mp4']));
+    expect(rootAlbum.textures.map(t => t.name)).not.toContain('ignored.txt');
 
     // Check children
     expect(rootAlbum.children).toHaveLength(1);
@@ -71,7 +69,7 @@ describe('MediaScanner', () => {
   });
 
   it('handles empty directories (should return empty array if no media)', async () => {
-    const rootDir = '/empty';
+    const rootDir = path.join(path.sep, 'empty');
     vi.mocked(fs.readdir).mockResolvedValue([]);
     vi.mocked(fs.access).mockResolvedValue(undefined);
 
