@@ -631,7 +631,7 @@ export async function createApp() {
   });
 
   app.get('/api/metadata', (req, res) => {
-    const filePath = getQueryParam(req.query, 'file') as string;
+    const filePath = getQueryParam(req.query, 'file');
     if (!filePath) return res.status(400).send('Missing file');
     serveMetadata(req, res, filePath, ffmpegStatic);
   });
