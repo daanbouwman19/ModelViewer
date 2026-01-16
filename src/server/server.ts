@@ -308,7 +308,9 @@ export async function createApp() {
   });
 
   app.put('/api/smart-playlists/:id', writeLimiter, async (req, res) => {
-    const id = parseInt(req.params.id || '', 10);
+    const idParam = req.params.id;
+    const idStr = Array.isArray(idParam) ? idParam[0] : idParam || '';
+    const id = parseInt(idStr, 10);
     const { name, criteria } = req.body;
     if (isNaN(id) || !name || !criteria)
       return res.status(400).send('Invalid arguments');
@@ -322,7 +324,9 @@ export async function createApp() {
   });
 
   app.delete('/api/smart-playlists/:id', writeLimiter, async (req, res) => {
-    const id = parseInt(req.params.id || '', 10);
+    const idParam = req.params.id;
+    const idStr = Array.isArray(idParam) ? idParam[0] : idParam || '';
+    const id = parseInt(idStr, 10);
     if (isNaN(id)) return res.status(400).send('Invalid id');
     try {
       await deleteSmartPlaylist(id);
