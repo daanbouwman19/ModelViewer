@@ -322,7 +322,7 @@ export async function createApp() {
   });
 
   app.delete('/api/smart-playlists/:id', writeLimiter, async (req, res) => {
-    const id = parseInt(req.params.id as string);
+    const id = parseInt(req.params.id || '', 10);
     if (isNaN(id)) return res.status(400).send('Invalid id');
     try {
       await deleteSmartPlaylist(id);
