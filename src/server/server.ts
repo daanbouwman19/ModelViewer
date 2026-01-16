@@ -308,7 +308,7 @@ export async function createApp() {
   });
 
   app.put('/api/smart-playlists/:id', writeLimiter, async (req, res) => {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
     const { name, criteria } = req.body;
     if (isNaN(id) || !name || !criteria)
       return res.status(400).send('Invalid arguments');
@@ -322,7 +322,7 @@ export async function createApp() {
   });
 
   app.delete('/api/smart-playlists/:id', writeLimiter, async (req, res) => {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
     if (isNaN(id)) return res.status(400).send('Invalid id');
     try {
       await deleteSmartPlaylist(id);
@@ -631,7 +631,7 @@ export async function createApp() {
   });
 
   app.get('/api/metadata', (req, res) => {
-    const filePath = getQueryParam(req.query, 'file');
+    const filePath = getQueryParam(req.query, 'file') as string;
     if (!filePath) return res.status(400).send('Missing file');
     serveMetadata(req, res, filePath, ffmpegStatic);
   });
@@ -700,7 +700,7 @@ export async function createApp() {
   });
 
   app.get('/api/thumbnail', (req, res) => {
-    const filePath = getQueryParam(req.query, 'file');
+    const filePath = getQueryParam(req.query, 'file') as string;
     if (!filePath) return res.status(400).send('Missing file');
     serveThumbnail(req, res, filePath, ffmpegStatic, CACHE_DIR);
   });
