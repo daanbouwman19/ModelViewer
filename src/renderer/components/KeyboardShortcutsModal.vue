@@ -13,7 +13,7 @@
       @click.self="close"
     >
       <div
-        class="relative w-full max-w-lg bg-gray-900/95 border border-white/10 rounded-2xl shadow-2xl backdrop-blur-xl ring-1 ring-white/5 overflow-hidden flex flex-col"
+        class="relative w-full max-w-md bg-gray-900/95 border border-white/10 rounded-2xl shadow-2xl backdrop-blur-xl ring-1 ring-white/5 overflow-hidden flex flex-col"
         role="dialog"
         aria-modal="true"
         aria-labelledby="shortcuts-title"
@@ -25,95 +25,95 @@
 
         <!-- Header -->
         <div
-          class="flex shrink-0 justify-between items-center p-6 border-b border-white/5"
+          class="flex shrink-0 justify-between items-center p-4 border-b border-white/5"
         >
           <div>
-            <h2 id="shortcuts-title" class="text-xl font-bold text-white">
+            <h2 id="shortcuts-title" class="text-lg font-bold text-white">
               Keyboard Shortcuts
             </h2>
-            <p class="text-sm text-gray-400 mt-0.5">
-              Control playback and navigation
-            </p>
           </div>
           <button
             class="text-gray-500 hover:text-white transition-colors p-2 rounded-lg hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white/50"
             aria-label="Close"
             @click="close"
           >
-            <CloseIcon class="w-6 h-6" />
+            <CloseIcon class="w-5 h-5" />
           </button>
         </div>
 
         <!-- Body -->
-        <div class="p-6 space-y-6">
+        <div class="p-4 space-y-4">
           <!-- Navigation -->
-          <div class="space-y-3">
+          <div class="space-y-2">
             <h3
-              class="text-xs font-bold uppercase tracking-wider text-indigo-400"
+              class="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-2"
             >
               Navigation
             </h3>
-            <div class="grid grid-cols-[1fr,auto] gap-4 items-center">
-              <span class="text-gray-300">Previous Media</span>
+            <div class="flex justify-between items-center">
+              <span class="text-sm text-gray-300">Previous Media</span>
               <kbd
-                class="px-2 py-1 bg-white/10 rounded border border-white/20 font-mono text-sm text-white min-w-[32px] text-center"
+                class="px-2 py-1 bg-white/10 rounded border border-white/20 font-mono text-xs text-white min-w-[28px] text-center"
                 >Z</kbd
               >
             </div>
-            <div class="grid grid-cols-[1fr,auto] gap-4 items-center">
-              <span class="text-gray-300">Next Media</span>
+            <div class="flex justify-between items-center">
+              <span class="text-sm text-gray-300">Next Media</span>
               <kbd
-                class="px-2 py-1 bg-white/10 rounded border border-white/20 font-mono text-sm text-white min-w-[32px] text-center"
+                class="px-2 py-1 bg-white/10 rounded border border-white/20 font-mono text-xs text-white min-w-[28px] text-center"
                 >X</kbd
+              >
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-sm text-gray-300">Toggle Shortcuts</span>
+              <kbd
+                class="px-2 py-1 bg-white/10 rounded border border-white/20 font-mono text-xs text-white min-w-[28px] text-center"
+                >?</kbd
               >
             </div>
           </div>
 
           <!-- Playback -->
-          <div class="space-y-3">
+          <div class="space-y-2">
             <h3
-              class="text-xs font-bold uppercase tracking-wider text-indigo-400"
+              class="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-2"
             >
               Playback
             </h3>
-            <div class="grid grid-cols-[1fr,auto] gap-4 items-center">
-              <span class="text-gray-300">Play / Pause (Video)</span>
-              <div class="flex gap-1">
-                <kbd
-                  class="px-2 py-1 bg-white/10 rounded border border-white/20 font-mono text-sm text-white"
-                  >Space</kbd
-                >
-              </div>
+            <div class="flex justify-between items-center">
+              <span class="text-sm text-gray-300">Play / Pause (Video)</span>
+              <kbd
+                class="px-2 py-1 bg-white/10 rounded border border-white/20 font-mono text-xs text-white"
+                >Space</kbd
+              >
             </div>
-            <div class="grid grid-cols-[1fr,auto] gap-4 items-center">
-              <span class="text-gray-300">Toggle Slideshow (Image)</span>
-              <div class="flex gap-1">
-                <kbd
-                  class="px-2 py-1 bg-white/10 rounded border border-white/20 font-mono text-sm text-white"
-                  >Space</kbd
-                >
-              </div>
+            <div class="flex justify-between items-center">
+              <span class="text-sm text-gray-300">Toggle Slideshow (Image)</span>
+              <kbd
+                class="px-2 py-1 bg-white/10 rounded border border-white/20 font-mono text-xs text-white"
+                >Space</kbd
+              >
             </div>
           </div>
 
           <!-- Seeking -->
-          <div class="space-y-3">
+          <div class="space-y-2">
             <h3
-              class="text-xs font-bold uppercase tracking-wider text-indigo-400"
+              class="text-xs font-bold uppercase tracking-wider text-indigo-400 mb-2"
             >
               Seeking (Video)
             </h3>
-            <div class="grid grid-cols-[1fr,auto] gap-4 items-center">
-              <span class="text-gray-300">Seek Backward 5s</span>
+            <div class="flex justify-between items-center">
+              <span class="text-sm text-gray-300">Seek Backward 5s</span>
               <kbd
-                class="px-2 py-1 bg-white/10 rounded border border-white/20 font-mono text-sm text-white"
+                class="px-2 py-1 bg-white/10 rounded border border-white/20 font-mono text-xs text-white min-w-[28px] text-center"
                 >←</kbd
               >
             </div>
-            <div class="grid grid-cols-[1fr,auto] gap-4 items-center">
-              <span class="text-gray-300">Seek Forward 5s</span>
+            <div class="flex justify-between items-center">
+              <span class="text-sm text-gray-300">Seek Forward 5s</span>
               <kbd
-                class="px-2 py-1 bg-white/10 rounded border border-white/20 font-mono text-sm text-white"
+                class="px-2 py-1 bg-white/10 rounded border border-white/20 font-mono text-xs text-white min-w-[28px] text-center"
                 >→</kbd
               >
             </div>
@@ -123,7 +123,7 @@
         <!-- Footer -->
         <div class="p-4 bg-white/5 border-t border-white/5 text-center">
           <button
-            class="px-6 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            class="px-6 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm"
             @click="close"
           >
             Got it
