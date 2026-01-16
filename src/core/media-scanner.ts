@@ -7,6 +7,7 @@
  * @requires ./constants.js
  */
 import fs from 'fs/promises';
+import type { Dirent } from 'fs';
 import path from 'path';
 import {
   ALL_SUPPORTED_EXTENSIONS,
@@ -23,6 +24,34 @@ const scanLimiter = new ConcurrencyLimiter(DISK_SCAN_CONCURRENCY);
 
 // Optimization: Use a Set for O(1) extension lookups in the hot loop
 const SUPPORTED_EXTENSIONS_SET = new Set(ALL_SUPPORTED_EXTENSIONS);
+
+/**
+ * Processes a single file entry from a directory scan.
+ * Checks extension and returns a MediaFile if supported.
+ */
+function processFileItem(
+  item: Dirent,
+  directoryPath: string,
+  knownPaths?: Set<string>,
+): MediaFile | null {
+  if (!item.isFile()) return null;
+
+  const fileExtension = path.extname(item.name).toLowerCase();
+
+  // Bolt Optimization: Set.has is O(1) vs Array.includes O(N)
+  if (!SUPPORTED_EXTENSIONS_SET.has(fileExtension)) return null;
+
+  const fullPath = path.join(directoryPath, item.name);
+
+  if (process.env.NODE_ENV !== 'test') {
+    // Only log if it's a new file (not in knownPaths)
+    if (!knownPaths || !knownPaths.has(fullPath)) {
+      console.log(`[MediaScanner] Found file: ${fullPath}`);
+    }
+  }
+
+  return { name: item.name, path: fullPath };
+}
 
 /**
  * Asynchronously and recursively scans a directory to build a hierarchical album structure.
@@ -47,20 +76,13 @@ async function scanDirectoryRecursive(
     const childrenPromises: Promise<Album | null>[] = [];
 
     for (const item of items) {
-      const fullPath = path.join(directoryPath, item.name);
       if (item.isDirectory()) {
+        const fullPath = path.join(directoryPath, item.name);
         childrenPromises.push(scanDirectoryRecursive(fullPath, knownPaths));
-      } else if (item.isFile()) {
-        const fileExtension = path.extname(item.name).toLowerCase();
-        // Bolt Optimization: Set.has is O(1) vs Array.includes O(N)
-        if (SUPPORTED_EXTENSIONS_SET.has(fileExtension)) {
-          textures.push({ name: item.name, path: fullPath });
-          if (process.env.NODE_ENV !== 'test') {
-            // Only log if it's a new file (not in knownPaths)
-            if (!knownPaths || !knownPaths.has(fullPath)) {
-              console.log(`[MediaScanner] Found file: ${fullPath}`);
-            }
-          }
+      } else {
+        const mediaFile = processFileItem(item, directoryPath, knownPaths);
+        if (mediaFile) {
+          textures.push(mediaFile);
         }
       }
     }

@@ -15,3 +15,9 @@
 **Smell:** `server.ts` contained a reusable `createRateLimiter` factory function, adding noise to a "God Object".
 **Insight:** Utility factories like rate limiters are generic and should be isolated from route handling logic to improve testability and readability.
 **Prevention:** When creating factory functions or helpers that don't directly depend on the specific app context (other than types), move them to a dedicated utility file.
+
+## 2026-01-16 - Extracting File Processing from Scan Loop
+
+**Smell:** `scanDirectoryRecursive` had "Arrow Code" (deep nesting) inside its main loop, mixing iteration, type checking, filtering, and logging.
+**Insight:** Separating traversal logic (recursion) from item processing (file validation) makes the recursive function easier to read and allows independent testing of file validation rules.
+**Prevention:** When writing loops that iterate over items and perform complex checks, extract the check-and-process logic into a helper function (e.g., `processItem`).
