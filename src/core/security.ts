@@ -27,7 +27,19 @@ function isErrnoException(error: unknown): error is ErrnoException {
 }
 
 // Mutable set of sensitive directories, initialized with defaults.
-const sensitiveSubdirectoriesSet = new Set(SENSITIVE_SUBDIRECTORIES);
+// Ensure all initial values are lowercase for case-insensitive checks.
+const sensitiveSubdirectoriesSet = new Set(
+  Array.from(SENSITIVE_SUBDIRECTORIES).map((d) => d.toLowerCase()),
+);
+
+/**
+ * Registers a new sensitive file or directory name to block.
+ * @param filename - The name of the file or directory.
+ */
+export function registerSensitiveFile(filename: string): void {
+  if (!filename) return;
+  sensitiveSubdirectoriesSet.add(filename.toLowerCase());
+}
 
 /**
  * Loads security configuration from a JSON file to extend sensitive directories.
@@ -44,7 +56,7 @@ export async function loadSecurityConfig(configPath: string): Promise<void> {
       )
     ) {
       for (const dir of config.sensitiveSubdirectories) {
-        sensitiveSubdirectoriesSet.add(dir);
+        registerSensitiveFile(dir);
       }
       console.log(
         `[Security] Loaded ${config.sensitiveSubdirectories.length} custom sensitive directories.`,
@@ -109,7 +121,7 @@ export async function authorizeFilePath(
       const segments = relative.split(path.sep);
       const hasSensitiveSegment = segments.some(
         (segment) =>
-          sensitiveSubdirectoriesSet.has(segment) ||
+          sensitiveSubdirectoriesSet.has(segment.toLowerCase()) ||
           segment.toLowerCase().startsWith('.env'),
       );
 
@@ -218,7 +230,7 @@ export function isRestrictedPath(dirPath: string): boolean {
   // We use the same list, but check if the *target* directory itself is sensitive
   // or if we are trying to list inside it.
   // Note: listing /home/user is fine, listing /home/user/.ssh is not.
-  if (segments.some((s) => sensitiveSubdirectoriesSet.has(s))) {
+  if (segments.some((s) => sensitiveSubdirectoriesSet.has(s.toLowerCase()))) {
     return true;
   }
 
@@ -252,7 +264,7 @@ export function isSensitiveDirectory(dirPath: string): boolean {
 
   // Check against sensitive subdirectories (e.g. .ssh, .env)
   // This prevents adding a sensitive directory (like ~/.ssh) as a media root
-  if (segments.some((s) => sensitiveSubdirectoriesSet.has(s))) {
+  if (segments.some((s) => sensitiveSubdirectoriesSet.has(s.toLowerCase()))) {
     return true;
   }
 

@@ -1,20 +1,10 @@
 <template>
   <div class="app-container text-white min-h-screen flex flex-col relative">
-    <!-- Skip to Main Content Link for Accessibility -->
-    <a
-      href="#main-content"
-      class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:bg-white focus:text-black focus:p-3 focus:rounded-lg focus:font-bold focus:shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-500 transition-all"
-    >
-      Skip to main content
-    </a>
-
     <AmbientBackground />
 
     <!-- Main Content Layer -->
     <main
-      id="main-content"
-      class="relative z-10 grow flex flex-col md:flex-row p-4 md:p-6 gap-4 md:gap-6 overflow-hidden h-screen transition-all duration-300 ease-in-out focus:outline-none"
-      tabindex="-1"
+      class="relative z-10 grow flex flex-col md:flex-row p-4 md:p-6 gap-4 md:gap-6 overflow-hidden h-screen transition-all duration-300 ease-in-out"
     >
       <!-- Sidebar (Collapsible/Floating) -->
       <!-- Mobile: Fixed Overlay, Desktop: Static Sidebar with Width Transition -->
