@@ -138,6 +138,32 @@ async function scanGoogleDrive(folderId: string): Promise<Album | null> {
 }
 
 /**
+ * Scans a single root directory (either Google Drive or local filesystem).
+ * Handles access checks and delegates to the appropriate scanner.
+ */
+async function scanRootDirectory(
+  baseDir: string,
+  knownPaths?: Set<string>,
+): Promise<Album | null> {
+  try {
+    if (isDrivePath(baseDir)) {
+      const folderId = getDriveId(baseDir);
+      return await scanGoogleDrive(folderId);
+    } else {
+      await fs.access(baseDir);
+      return await scanDirectoryRecursive(baseDir, knownPaths);
+    }
+  } catch (dirError: unknown) {
+    if (process.env.NODE_ENV !== 'test') {
+      console.error(
+        `[media-scanner.js] Error accessing or scanning directory ${baseDir}: ${(dirError as Error).message}`,
+      );
+    }
+    return null;
+  }
+}
+
+/**
  * Performs a full scan for each base directory and returns a distinct album structure for each.
  * It no longer merges albums with the same root name from different sources.
  * @param baseMediaDirectories - An array of root directories to scan.
@@ -155,24 +181,9 @@ async function performFullMediaScan(
   }
 
   try {
-    const scanPromises = baseMediaDirectories.map(async (baseDir) => {
-      try {
-        if (isDrivePath(baseDir)) {
-          const folderId = getDriveId(baseDir);
-          return scanGoogleDrive(folderId);
-        } else {
-          await fs.access(baseDir);
-          return scanDirectoryRecursive(baseDir, knownPaths);
-        }
-      } catch (dirError: unknown) {
-        if (process.env.NODE_ENV !== 'test') {
-          console.error(
-            `[media-scanner.js] Error accessing or scanning directory ${baseDir}: ${(dirError as Error).message}`,
-          );
-        }
-        return null;
-      }
-    });
+    const scanPromises = baseMediaDirectories.map((baseDir) =>
+      scanRootDirectory(baseDir, knownPaths),
+    );
 
     const result = (await Promise.all(scanPromises)).filter(
       (album): album is Album => album !== null,
