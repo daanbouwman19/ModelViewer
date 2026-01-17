@@ -1,5 +1,7 @@
 # MediaPlayer
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/) [![Vue.js](https://img.shields.io/badge/Vue.js-35495E?style=flat-square&logo=vue.js&logoColor=4FC08D)](https://vuejs.org/) [![Electron](https://img.shields.io/badge/Electron-191970?style=flat-square&logo=Electron&logoColor=white)](https://www.electronjs.org/) [![Vitest](https://img.shields.io/badge/Vitest-729B1B?style=flat-square&logo=vitest&logoColor=white)](https://vitest.dev/) [![CI](https://github.com/daanbouwman19/Mediaplayer/actions/workflows/ci.yml/badge.svg)](https://github.com/daanbouwman19/Mediaplayer/actions/workflows/ci.yml)
+
 ![overview](./images/overview.png)
 
 A versatile media application that runs as both a **Desktop Application** (Electron) for local playback and a **Web Server** for accessing your library from any browser. It focuses on creating dynamic, weighted slideshows and organizing your local media.
