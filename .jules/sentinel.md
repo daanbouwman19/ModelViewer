@@ -29,3 +29,9 @@
 **Vulnerability:** An attacker could bypass sensitive file protections by adding the sensitive directory itself (e.g., `~/.ssh`) as a media source. The existing check only validated files _relative_ to the media source root, missing the root directory itself.
 **Learning:** Validation logic must check the _entire_ path chain, including the root anchor, not just the segments below it.
 **Prevention:** Updated `isSensitiveDirectory` to explicitly check if the target directory or any of its segments match the `SENSITIVE_SUBDIRECTORIES` blocklist.
+
+## 2025-05-23 - Database Exposure and Case-Insensitive Bypass
+
+**Vulnerability:** Access to the database file (`media-library.db`) and sensitive directories (like `node_modules`) was possible. The database file was not in the blocklist, allowing download if the app root was added as a source. Directory protection was bypassable on case-insensitive file systems (e.g., accessing `NODE_MODULES` on Windows).
+**Learning:** File system security checks must account for platform-specific case sensitivity. Explicitly identifying and blocking critical application artifacts (like databases) is essential when user-controlled paths can overlap with application paths.
+**Prevention:** Added database filenames and lockfiles to the blocklist. Updated `authorizeFilePath` to perform case-insensitive checks against the sensitive directory list.

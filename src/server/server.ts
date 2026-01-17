@@ -54,6 +54,7 @@ import {
   escapeHtml,
   isRestrictedPath,
   isSensitiveDirectory,
+  registerSensitiveFile,
 } from '../core/security.ts';
 import { initializeDriveCacheManager } from '../main/drive-cache-manager.ts';
 import { generateAuthUrl, authenticateWithCode } from '../main/google-auth.ts';
@@ -85,6 +86,11 @@ const __dirname = path.dirname(__filename);
 // Paths
 const DB_PATH =
   process.env.DB_FILE_PATH || path.join(process.cwd(), 'media-library.db');
+
+// [SECURITY] Register database file as sensitive to prevent download
+registerSensitiveFile(path.basename(DB_PATH));
+registerSensitiveFile(path.basename(DB_PATH) + '-wal');
+registerSensitiveFile(path.basename(DB_PATH) + '-shm');
 
 // In dev (tsx), the worker is TS. In prod (build), it is JS adjacent to this file.
 const WORKER_PATH = isDev
