@@ -96,6 +96,11 @@ const SENSITIVE_SUBDIRECTORIES = new Set([
   '.git',
   '.env',
   'node_modules',
+  'package.json',
+  'package-lock.json',
+  'yarn.lock',
+  'pnpm-lock.yaml',
+  'bun.lockb',
 ]);
 
 /**

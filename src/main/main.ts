@@ -14,7 +14,7 @@ import fs from 'fs/promises';
 log.initialize();
 
 import { initDatabase, closeDatabase } from './database';
-import { loadSecurityConfig } from '../core/security';
+import { loadSecurityConfig, registerSensitiveFile } from '../core/security';
 import {
   startLocalServer,
   stopLocalServer,
@@ -92,6 +92,11 @@ app.on('ready', () => {
   loadSecurityConfig(securityConfigPath).catch((err) => {
     log.error('[main.js] Failed to load security config:', err);
   });
+
+  // [SECURITY] Protect database file
+  registerSensitiveFile('media_slideshow_stats.sqlite');
+  registerSensitiveFile('media_slideshow_stats.sqlite-wal');
+  registerSensitiveFile('media_slideshow_stats.sqlite-shm');
 
   initDatabase()
     .then(async () => {
