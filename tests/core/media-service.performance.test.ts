@@ -1,8 +1,6 @@
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { extractAndSaveMetadata } from '../../src/core/media-service';
-import { getVideoDuration } from '../../src/core/media-handler';
 import fs from 'fs/promises';
-import * as database from '../../src/core/database';
 import * as mediaUtils from '../../src/core/media-utils';
 
 // Mock dependencies
