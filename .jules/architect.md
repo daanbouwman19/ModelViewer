@@ -21,3 +21,9 @@
 **Smell:** `scanDirectoryRecursive` had "Arrow Code" (deep nesting) inside its main loop, mixing iteration, type checking, filtering, and logging.
 **Insight:** Separating traversal logic (recursion) from item processing (file validation) makes the recursive function easier to read and allows independent testing of file validation rules.
 **Prevention:** When writing loops that iterate over items and perform complex checks, extract the check-and-process logic into a helper function (e.g., `processItem`).
+
+## 2026-01-17 - Extracting Root Scan Logic
+
+**Smell:** `performFullMediaScan` mixed iteration logic with the complex details of how to scan each root (Drive vs Local, error handling).
+**Insight:** Extracting the per-root scanning logic into `scanRootDirectory` removed nested try/catch blocks and made the main orchestration function declarative and readable.
+**Prevention:** When mapping over items to perform complex async operations (especially with error handling), extract the operation into a named async function.
