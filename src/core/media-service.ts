@@ -24,6 +24,7 @@ import PQueue from 'p-queue';
 import {
   METADATA_EXTRACTION_CONCURRENCY,
   METADATA_BATCH_SIZE,
+  SUPPORTED_VIDEO_EXTENSIONS,
 } from './constants.ts';
 import { isDrivePath } from './media-utils.ts';
 
@@ -300,9 +301,13 @@ export async function extractAndSaveMetadata(
           status: 'processing',
         };
 
-        const result = await getVideoDuration(filePath, ffmpegPath);
-        if (result && 'duration' in result) {
-          metadata.duration = result.duration;
+        // Bolt Optimization: Only extract duration for video files
+        const ext = path.extname(filePath).toLowerCase();
+        if (SUPPORTED_VIDEO_EXTENSIONS.includes(ext)) {
+          const result = await getVideoDuration(filePath, ffmpegPath);
+          if (result && 'duration' in result) {
+            metadata.duration = result.duration;
+          }
         }
 
         // Mark success

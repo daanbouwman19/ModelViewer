@@ -12,3 +12,8 @@
 
 **Learning:** Using the spread operator (`push(...arr)`) for array concatenation causes stack overflow errors with large arrays (>65k items) because arguments are passed on the stack.
 **Action:** Use manual loops or iterative concat for processing large datasets to ensure stability and reduce memory pressure.
+
+## 2026-01-17 - [Redundant FS Stat in Media Processing]
+
+**Learning:** `fs.stat` is expensive when called in a loop. `LocalFileSystemProvider.getMetadata` performs `fs.stat` but returns a subset of metadata (no duration). Calling it just to check for `duration` (which it doesn't have) is wasteful.
+**Action:** Optimized `getVideoDuration` to skip the provider metadata check for local files, and updated `extractAndSaveMetadata` to skip duration extraction entirely for non-video files. This reduces I/O operations by 50% for local videos and 100% (of duration checks) for images.

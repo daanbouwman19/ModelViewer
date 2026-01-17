@@ -126,10 +126,14 @@ export async function getVideoDuration(
   ffmpegPath: string,
 ): Promise<{ duration: number } | { error: string }> {
   try {
-    const provider = getProvider(filePath);
-    const meta = await provider.getMetadata(filePath);
-    if (meta.duration) {
-      return { duration: meta.duration };
+    // Bolt Optimization: Skip provider metadata check for local files
+    // as LocalFileSystemProvider does not provide duration and performs redundant fs.stat
+    if (isDrivePath(filePath)) {
+      const provider = getProvider(filePath);
+      const meta = await provider.getMetadata(filePath);
+      if (meta.duration) {
+        return { duration: meta.duration };
+      }
     }
   } catch {
     // Ignore provider errors
