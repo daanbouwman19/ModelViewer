@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { isDrivePath } from './media-utils.ts';
-import { authorizeFilePath } from './security.ts';
+import { authorizeFilePath, AuthorizationResult } from './security.ts';
 
 /**
  * Helper: Validates access to the file path.
@@ -17,7 +17,7 @@ export async function validateFileAccess(
   if (isDrivePath(filePath)) return true;
 
   try {
-    const auth = await authorizeFilePath(filePath);
+    const auth: AuthorizationResult = await authorizeFilePath(filePath);
     if (!auth.isAllowed) {
       if (!res.headersSent) res.status(403).send('Access denied.');
       return false;

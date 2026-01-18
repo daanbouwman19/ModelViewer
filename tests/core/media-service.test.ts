@@ -33,19 +33,23 @@ const sharedState = vi.hoisted(() => ({
 }));
 
 vi.mock('electron', () => {
-  const app = {
-    get isPackaged() {
-      return sharedState.isPackaged;
-    },
-    set isPackaged(val) {
-      sharedState.isPackaged = val;
-    },
-    getPath: vi.fn().mockReturnValue('/tmp'),
-  };
-
   return {
-    app,
-    default: { app },
+    app: {
+      get isPackaged() {
+        return sharedState.isPackaged;
+      },
+      getPath: vi.fn().mockReturnValue('/tmp'),
+    },
+    default: {
+      get app() {
+        return {
+          get isPackaged() {
+            return sharedState.isPackaged;
+          },
+          getPath: vi.fn().mockReturnValue('/tmp'),
+        };
+      },
+    },
     __esModule: true,
   };
 });
@@ -339,11 +343,9 @@ describe('media-service', () => {
       vi.mocked(database.getMediaDirectories).mockResolvedValue([
         { path: '/d', isActive: true },
       ] as any);
-      // @ts-expect-error - Mocking potentially missing function due to version mismatch or mock limitations
       vi.mocked(database.getAllMediaViewCounts).mockResolvedValue({
         '/v1.mp4': 5,
       });
-      // @ts-expect-error - Mocking potentially missing function due to version mismatch or mock limitations
       vi.mocked(database.getAllMetadata).mockResolvedValue({});
       const albums = [{ id: 1, textures: [{ path: '/v1.mp4' }] }];
       const promise = getAlbumsWithViewCountsAfterScan();
@@ -401,11 +403,9 @@ describe('media-service', () => {
     it('returns albums with view counts from cache', async () => {
       const albums = [{ id: 1, textures: [{ path: '/v1.mp4' }] }];
       vi.mocked(database.getCachedAlbums).mockResolvedValue(albums as any);
-      // @ts-expect-error - Mocking potentially missing function due to version mismatch or mock limitations
       vi.mocked(database.getAllMediaViewCounts).mockResolvedValue({
         '/v1.mp4': 10,
       });
-      // @ts-expect-error - Mocking potentially missing function due to version mismatch or mock limitations
       vi.mocked(database.getAllMetadata).mockResolvedValue({});
       const result = await getAlbumsWithViewCounts();
       expect(result[0].textures[0].viewCount).toBe(10);
