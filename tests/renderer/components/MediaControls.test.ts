@@ -158,8 +158,8 @@ describe('MediaControls.vue', () => {
     const wrapper = mount(MediaControls, { props: defaultProps });
     const prevBtn = wrapper.find('button[aria-label="Previous media"]');
     const nextBtn = wrapper.find('button[aria-label="Next media"]');
-    expect(prevBtn.attributes('title')).toBe('Previous media');
-    expect(nextBtn.attributes('title')).toBe('Next media');
+    expect(prevBtn.attributes('title')).toBe('Previous media (Z)');
+    expect(nextBtn.attributes('title')).toBe('Next media (X)');
   });
 
   it('should have tooltips on play/pause button', async () => {
@@ -169,17 +169,19 @@ describe('MediaControls.vue', () => {
 
     // Initially paused
     const playBtn = wrapper.find('button[aria-label="Play video"]');
-    expect(playBtn.attributes('title')).toBe('Play video');
+    expect(playBtn.attributes('title')).toBe('Play video (Space)');
 
     // Update to playing
     await wrapper.setProps({ isPlaying: true });
     // Use dynamic selector because aria-label changes
     const pauseBtn = wrapper.find('button[aria-label="Pause video"]');
-    expect(pauseBtn.attributes('title')).toBe('Pause video');
+    expect(pauseBtn.attributes('title')).toBe('Pause video (Space)');
   });
 
   it('should have tooltips on rating stars', async () => {
-    const wrapper = mount(MediaControls, { props: defaultProps });
+    const wrapper = mount(MediaControls, {
+      props: { ...defaultProps, currentMediaItem: { ...defaultProps.currentMediaItem, rating: 0 } }
+    });
 
     // Wait for resize observer to trigger visibility
     await wrapper.vm.$nextTick();
@@ -189,6 +191,22 @@ describe('MediaControls.vue', () => {
       expect(stars[0].attributes('title')).toBe('Rate 1 star');
       expect(stars[1].attributes('title')).toBe('Rate 2 stars');
       expect(stars[4].attributes('title')).toBe('Rate 5 stars');
+    }
+  });
+
+  it('should indicate current rating on stars', async () => {
+    const wrapper = mount(MediaControls, {
+      props: { ...defaultProps, currentMediaItem: { ...defaultProps.currentMediaItem, rating: 3 } }
+    });
+
+    // Wait for resize observer to trigger visibility
+    await wrapper.vm.$nextTick();
+
+    const stars = wrapper.findAll('button[aria-label^="Rate"]');
+    if (stars.length > 0) {
+      expect(stars[2].attributes('title')).toBe('Rate 3 stars (Current)');
+      expect(stars[2].attributes('aria-label')).toBe('Rate 3 stars, current rating');
+      expect(stars[2].attributes('aria-pressed')).toBe('true');
     }
   });
 });

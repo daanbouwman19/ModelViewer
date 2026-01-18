@@ -13,7 +13,7 @@
         :disabled="!canNavigate"
         class="group transition-all duration-200 hover:bg-(--accent-color) disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0"
         :class="navButtonClass"
-        title="Previous media"
+        title="Previous media (Z)"
         aria-label="Previous media"
         @click="$emit('previous')"
       >
@@ -25,7 +25,7 @@
         :disabled="!canNavigate"
         class="group transition-all duration-200 hover:bg-(--accent-color) disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0"
         :class="navButtonClass"
-        title="Next media"
+        title="Next media (X)"
         aria-label="Next media"
         @click="$emit('next')"
       >
@@ -49,8 +49,9 @@
               ? 'text-(--accent-color)'
               : 'text-white/30 hover:text-white/70'
           "
-          :aria-label="`Rate ${star} ${star === 1 ? 'star' : 'stars'}`"
-          :title="`Rate ${star} ${star === 1 ? 'star' : 'stars'}`"
+          :aria-label="`Rate ${star} ${star === 1 ? 'star' : 'stars'}${currentMediaItem?.rating === star ? ', current rating' : ''}`"
+          :title="`Rate ${star} ${star === 1 ? 'star' : 'stars'}${currentMediaItem?.rating === star ? ' (Current)' : ''}`"
+          :aria-pressed="currentMediaItem?.rating === star"
           @click="$emit('set-rating', star)"
         >
           <StarIcon class="w-4 h-4 md:w-5 md:h-5" />
@@ -68,7 +69,7 @@
         v-if="!isImage && currentMediaItem"
         class="play-pause-button p-1.5 md:p-2 rounded-full text-white transition-all duration-200 hover:bg-(--accent-color) focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0"
         :aria-label="isPlaying ? 'Pause video' : 'Play video'"
-        :title="isPlaying ? 'Pause video' : 'Play video'"
+        :title="isPlaying ? 'Pause video (Space)' : 'Play video (Space)'"
         @click="$emit('toggle-play')"
       >
         <PauseIcon v-if="isPlaying" class="w-5 h-5 md:w-6 md:h-6" />
