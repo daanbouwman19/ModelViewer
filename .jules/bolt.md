@@ -18,7 +18,7 @@
 **Learning:** `fs.stat` is expensive when called in a loop. `LocalFileSystemProvider.getMetadata` performs `fs.stat` but returns a subset of metadata (no duration). Calling it just to check for `duration` (which it doesn't have) is wasteful.
 **Action:** Optimized `getVideoDuration` to skip the provider metadata check for local files, and updated `extractAndSaveMetadata` to skip duration extraction entirely for non-video files. This reduces I/O operations by 50% for local videos and 100% (of duration checks) for images.
 
-## 2026-01-25 - [DB Lookup vs FS Stat]
+## 2026-01-18 - [DB Lookup vs FS Stat]
 
 **Learning:** `fs.stat` is expensive when called in bulk (e.g., getting metadata for thousands of files). For files already in the database, we can skip `fs.stat` and generating the hash by looking up the ID directly using the file path.
 **Action:** Added an index on `media_metadata(file_path)` and optimized `generateFileIdsBatched` to query the DB first. This reduces I/O for `getMetadata` and `bulkUpsertMetadata` on existing files by skipping redundant filesystem checks.
