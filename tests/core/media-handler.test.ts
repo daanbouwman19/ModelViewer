@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { IMediaSource } from '../../src/core/media-source-types';
 import { PassThrough, EventEmitter } from 'stream';
+import path from 'path';
 import request from 'supertest';
 import { createMediaSource } from '../../src/core/media-source';
 
@@ -641,7 +642,9 @@ describe('media-handler unit tests', () => {
       });
 
       await serveStaticFile(req, res, testPath);
-      expect(res.sendFile).toHaveBeenCalledWith(testPath);
+      expect(res.sendFile).toHaveBeenCalledWith(path.basename(testPath), {
+        root: path.dirname(testPath),
+      });
     });
 
     it('handles access denied', async () => {
@@ -678,7 +681,9 @@ describe('media-handler unit tests', () => {
       });
 
       await handleStreamRequest(req, res, 'ffmpeg');
-      expect(res.sendFile).toHaveBeenCalledWith(testFile);
+      expect(res.sendFile).toHaveBeenCalledWith(path.basename(testFile), {
+        root: path.dirname(testFile),
+      });
     });
 
     it('handles local file access denied', async () => {

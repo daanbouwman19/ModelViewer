@@ -8,6 +8,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { spawn } from 'child_process';
 import { createInterface } from 'readline';
+import path from 'path';
 import { createMediaSource } from './media-source.ts';
 
 import { IMediaSource } from './media-source-types.ts';
@@ -52,7 +53,9 @@ function tryServeDirectFile(res: Response, filePath: string): boolean {
   if (isDrivePath(filePath)) return false;
 
   try {
-    res.sendFile(filePath);
+    const rootDir = path.dirname(filePath);
+    const fileName = path.basename(filePath);
+    res.sendFile(fileName, { root: rootDir });
     return true;
   } catch (e) {
     console.error('[Handler] SendFile check failed:', e);
@@ -287,8 +290,13 @@ export async function serveStaticFile(
         if (!auth.isAllowed || !auth.realPath) {
           throw new Error(auth.message || 'Access denied (path sanitization)');
         }
-        return res.sendFile(auth.realPath);
+
+        // Use an explicit root directory and basename to avoid exposing arbitrary paths
+        const rootDir = path.dirname(auth.realPath);
+        const fileName = path.basename(auth.realPath);
+        return res.sendFile(fileName, { root: rootDir });
       }
+
       const source = createMediaSource(authorizedPath);
       return await serveRawStream(req, res, source);
     } else {
