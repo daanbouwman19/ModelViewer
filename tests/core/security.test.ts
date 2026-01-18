@@ -56,17 +56,23 @@ describe('authorizeFilePath Security', () => {
       return p; // /allowed remains /allowed
     });
 
-    const resultForbidden = await authorizeFilePath('../secret/passwd');
+    const resultForbidden = await authorizeFilePath('/secret/passwd');
 
     // VERIFY FIX: Messages should be identical "Access denied"
     expect(resultMissing.message).toBe('Access denied');
     expect(resultForbidden.message).toBe('Access denied');
   });
 
-  it('rejects absolute paths', async () => {
-    const result = await authorizeFilePath('/absolute/path');
-    expect(result.isAllowed).toBe(false);
-    expect(result.message).toBe('Access denied');
+  it('validates absolute paths', async () => {
+    // Inside allowed root
+    (vi.mocked(fs.realpath) as any).mockImplementation(async (p: string) => p);
+    const resultIn = await authorizeFilePath('/allowed/video.mp4');
+    expect(resultIn.isAllowed).toBe(true);
+
+    // Outside allowed root
+    const resultOut = await authorizeFilePath('/absolute/path');
+    expect(resultOut.isAllowed).toBe(false);
+    expect(resultOut.message).toBe('Access denied');
 
     if (process.platform === 'win32') {
       const resultWin = await authorizeFilePath('C:\\Windows\\System32');
@@ -99,8 +105,10 @@ describe('authorizeFilePath Security', () => {
   it('allows access to valid local files within allowed directories', async () => {
     const result = await authorizeFilePath('video.mp4');
     expect(result.isAllowed).toBe(true);
-    // On Windows, realpath will return C:\allowed\video.mp4 if /allowed is resolved
     expect(result.realPath).toContain('video.mp4');
+
+    const resultAbs = await authorizeFilePath('/allowed/video.mp4');
+    expect(resultAbs.isAllowed).toBe(true);
   });
 
   it('blocks access to sensitive subdirectories', async () => {
@@ -110,6 +118,10 @@ describe('authorizeFilePath Security', () => {
     const result = await authorizeFilePath('.env');
     expect(result.isAllowed).toBe(false);
     expect(result.message).toBe('Access to sensitive file denied');
+
+    const resultAbs = await authorizeFilePath('/allowed/.env');
+    expect(resultAbs.isAllowed).toBe(false);
+    expect(resultAbs.message).toBe('Access to sensitive file denied');
 
     const result2 = await authorizeFilePath('node_modules/package.json');
     expect(result2.isAllowed).toBe(false);

@@ -4,14 +4,15 @@ import path from 'path';
 import { Readable } from 'stream';
 
 // Mock dependencies
-const mockFsPromises = {
-  access: vi.fn(),
-  stat: vi.fn(),
-  readFile: vi.fn(),
-  realpath: vi.fn(),
-};
-
-const mockCreateReadStream = vi.fn();
+const { mockFsPromises, mockCreateReadStream } = vi.hoisted(() => ({
+  mockFsPromises: {
+    access: vi.fn(),
+    stat: vi.fn(),
+    readFile: vi.fn(),
+    realpath: vi.fn(async (p) => p),
+  },
+  mockCreateReadStream: vi.fn(),
+}));
 
 vi.mock('fs', () => ({
   default: {
@@ -147,9 +148,14 @@ describe('Security: load-file-as-data-url', () => {
 
     const sensitiveFile = '/etc/passwd';
 
-    // Mock FS to pretend the file exists
+    // Mock FS to return the sensitive path only for itself
     const mockPromises = fsPromises.default || fsPromises;
-    (mockPromises.realpath as unknown as Mock).mockResolvedValue(sensitiveFile);
+    (mockPromises.realpath as unknown as Mock).mockImplementation(
+      async (p: string) => {
+        if (p.includes('passwd')) return sensitiveFile;
+        return p;
+      },
+    );
 
     const result = await handler(null, sensitiveFile);
 
@@ -175,7 +181,12 @@ describe('Security: load-file-as-data-url', () => {
 
     // Mock FS
     const mockPromises = fsPromises.default || fsPromises;
-    (mockPromises.realpath as unknown as Mock).mockResolvedValue(resolvedPath);
+    (mockPromises.realpath as unknown as Mock).mockImplementation(
+      async (p: string) => {
+        if (p.includes('passwd')) return resolvedPath;
+        return p;
+      },
+    );
 
     const result = await handler(null, traversalPath);
 
@@ -201,7 +212,13 @@ describe('Security: load-file-as-data-url', () => {
 
     // Mock realpath to return the sensitive target
     const mockPromises = fsPromises.default || fsPromises;
-    (mockPromises.realpath as unknown as Mock).mockResolvedValue(targetPath);
+    (mockPromises.realpath as unknown as Mock).mockImplementation(
+      async (p: string) => {
+        if (p.includes('secret_link') || p.includes('passwd'))
+          return targetPath;
+        return p;
+      },
+    );
 
     const result = await handler(null, symlinkPath);
 

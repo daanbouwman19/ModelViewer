@@ -168,40 +168,36 @@ async function authorizeLocalPath(
   filePath: string,
   allowedPaths: string[],
 ): Promise<AuthorizationResult | null> {
-  // Derive a safe, normalized relative path from the user-supplied filePath.
-  // Reject absolute paths or traversal-like patterns up front.
-  if (path.isAbsolute(filePath)) {
-    return {
-      isAllowed: false,
-      message: 'Access denied',
-    };
-  }
+  const isAbsolute = path.isAbsolute(filePath);
+  let safePath = filePath;
 
-  // Normalize separators and collapse any "." / ".." segments
-  const safeRelative = path.normalize(filePath);
+  if (!isAbsolute) {
+    // Normalize separators and collapse any "." / ".." segments for relative paths.
+    safePath = path.normalize(filePath);
 
-  // After normalization, reject any path that still attempts to traverse upwards
-  if (
-    safeRelative === '..' ||
-    safeRelative.startsWith('..' + path.sep) ||
-    safeRelative.includes('/..') ||
-    safeRelative.includes('\\..')
-  ) {
-    return {
-      isAllowed: false,
-      message: 'Access denied',
-    };
-  }
+    // After normalization, reject any path that still attempts to traverse upwards.
+    if (
+      safePath === '..' ||
+      safePath.startsWith('..' + path.sep) ||
+      safePath.includes('/..') ||
+      safePath.includes('\\..')
+    ) {
+      return {
+        isAllowed: false,
+        message: 'Access denied',
+      };
+    }
 
-  // On Windows, also defensively reject drive-like prefixes in a "relative" path
-  if (
-    process.platform === 'win32' &&
-    /^[a-zA-Z]:[\\/]|^\\\\/.test(safeRelative)
-  ) {
-    return {
-      isAllowed: false,
-      message: 'Access denied',
-    };
+    // On Windows, also defensively reject drive-like prefixes in a "relative" path.
+    if (
+      process.platform === 'win32' &&
+      /^[a-zA-Z]:[\\/]|^\\\\/.test(safePath)
+    ) {
+      return {
+        isAllowed: false,
+        message: 'Access denied',
+      };
+    }
   }
 
   for (const allowedDir of allowedPaths) {
@@ -212,7 +208,7 @@ async function authorizeLocalPath(
     try {
       const allowedRootReal = await fs.realpath(path.resolve(allowedDir));
       const candidateRealPath = await fs.realpath(
-        path.resolve(allowedRootReal, safeRelative),
+        path.resolve(allowedRootReal, safePath),
       );
 
       const normalizedRoot = allowedRootReal.endsWith(path.sep)
@@ -238,7 +234,7 @@ async function authorizeLocalPath(
     } catch (error) {
       if (!isErrnoException(error) || error.code !== 'ENOENT') {
         console.warn(
-          `[Security] File check failed for ${safeRelative}: ${(error as Error).message}`,
+          `[Security] File check failed for ${safePath}: ${(error as Error).message}`,
         );
       }
     }
