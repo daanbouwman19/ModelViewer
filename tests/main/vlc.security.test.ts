@@ -2,13 +2,18 @@ import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { ipcMain } from 'electron';
 
 // Mock dependencies
-vi.mock('fs/promises', () => ({
-  default: {
+const { mockFsPromises } = vi.hoisted(() => ({
+  mockFsPromises: {
     access: vi.fn(),
     stat: vi.fn(),
     readFile: vi.fn(),
-    realpath: vi.fn(),
+    realpath: vi.fn(async (p) => p),
   },
+}));
+
+vi.mock('fs/promises', () => ({
+  default: mockFsPromises,
+  ...mockFsPromises,
 }));
 
 vi.mock('child_process', () => ({
@@ -119,8 +124,11 @@ describe('Security: open-in-vlc', () => {
       const sensitiveFile = '/etc/passwd';
 
       // Mock fs.realpath so it resolves successfully to the sensitive file
-      (fsPromises.default.realpath as unknown as Mock).mockResolvedValue(
-        sensitiveFile,
+      (fsPromises.default.realpath as unknown as Mock).mockImplementation(
+        async (p: string) => {
+          if (p.includes('passwd')) return sensitiveFile;
+          return p;
+        },
       );
 
       const result = await handler(null, sensitiveFile);

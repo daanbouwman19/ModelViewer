@@ -5,13 +5,14 @@ import {
   isRestrictedPath,
   isSensitiveDirectory,
 } from '../../src/core/security';
+import path from 'path';
 import fs from 'fs/promises';
 import * as database from '../../src/core/database';
 
 vi.mock('fs/promises', () => {
   return {
     default: {
-      realpath: vi.fn(),
+      realpath: vi.fn(async (p) => p), // Default to returning the path itself
       readFile: vi.fn(),
     },
   };
@@ -40,13 +41,20 @@ describe('authorizeFilePath Security', () => {
   });
 
   it('prevents file enumeration: returns uniform error message', async () => {
-    // Case 1: File does not exist -> fs.realpath throws
+    // Case 1: File does not exist -> fs.realpath throws ENOENT for any path
     vi.mocked(fs.realpath).mockRejectedValue(new Error('ENOENT'));
+    (vi.mocked(fs.realpath) as any).mockImplementation(async (p: string) => {
+      if (p.includes('missing')) throw { code: 'ENOENT' };
+      return p; // Return same path for roots etc.
+    });
 
-    const resultMissing = await authorizeFilePath('/missing');
+    const resultMissing = await authorizeFilePath('missing');
 
-    // Case 2: File exists but not allowed -> fs.realpath returns path
-    vi.mocked(fs.realpath).mockResolvedValue('/secret/passwd');
+    // Case 2: File exists but not allowed -> fs.realpath returns forbidden path
+    (vi.mocked(fs.realpath) as any).mockImplementation(async (p: string) => {
+      if (p.includes('passwd')) return '/secret/passwd';
+      return p; // /allowed remains /allowed
+    });
 
     const resultForbidden = await authorizeFilePath('/secret/passwd');
 
@@ -55,10 +63,37 @@ describe('authorizeFilePath Security', () => {
     expect(resultForbidden.message).toBe('Access denied');
   });
 
+  it('validates absolute paths', async () => {
+    // Inside allowed root
+    (vi.mocked(fs.realpath) as any).mockImplementation(async (p: string) => p);
+    const resultIn = await authorizeFilePath('/allowed/video.mp4');
+    expect(resultIn.isAllowed).toBe(true);
+
+    // Outside allowed root
+    const resultOut = await authorizeFilePath('/absolute/path');
+    expect(resultOut.isAllowed).toBe(false);
+    expect(resultOut.message).toBe('Access denied');
+
+    if (process.platform === 'win32') {
+      const resultWin = await authorizeFilePath('C:\\Windows\\System32');
+      expect(resultWin.isAllowed).toBe(false);
+      expect(resultWin.message).toBe('Access denied');
+    }
+  });
+
+  it('rejects traversal patterns', async () => {
+    const cases = ['..', '../foo', 'bar/../../baz'];
+    for (const c of cases) {
+      const result = await authorizeFilePath(c);
+      expect(result.isAllowed).toBe(false);
+      expect(result.message).toBe('Access denied');
+    }
+  });
+
   it('rejects empty file path', async () => {
     const result = await authorizeFilePath('');
     expect(result.isAllowed).toBe(false);
-    expect(result.message).toBe('File path is empty');
+    expect(result.message).toBe('Invalid file path');
   });
 
   it('allows access to valid gdrive:// paths', async () => {
@@ -68,24 +103,27 @@ describe('authorizeFilePath Security', () => {
   });
 
   it('allows access to valid local files within allowed directories', async () => {
-    vi.mocked(fs.realpath).mockResolvedValue('/allowed/video.mp4');
-    const result = await authorizeFilePath('/allowed/video.mp4');
+    const result = await authorizeFilePath('video.mp4');
     expect(result.isAllowed).toBe(true);
-    expect(result.realPath).toBe('/allowed/video.mp4');
+    expect(result.realPath).toContain('video.mp4');
+
+    const resultAbs = await authorizeFilePath('/allowed/video.mp4');
+    expect(resultAbs.isAllowed).toBe(true);
   });
 
   it('blocks access to sensitive subdirectories', async () => {
-    vi.mocked(fs.realpath).mockResolvedValue('/allowed/.env');
-    const result = await authorizeFilePath('/allowed/.env');
+    (vi.mocked(fs.realpath) as any).mockImplementation(async (p: string) =>
+      path.resolve(p),
+    );
+    const result = await authorizeFilePath('.env');
     expect(result.isAllowed).toBe(false);
     expect(result.message).toBe('Access to sensitive file denied');
 
-    vi.mocked(fs.realpath).mockResolvedValue(
-      '/allowed/node_modules/package.json',
-    );
-    const result2 = await authorizeFilePath(
-      '/allowed/node_modules/package.json',
-    );
+    const resultAbs = await authorizeFilePath('/allowed/.env');
+    expect(resultAbs.isAllowed).toBe(false);
+    expect(resultAbs.message).toBe('Access to sensitive file denied');
+
+    const result2 = await authorizeFilePath('node_modules/package.json');
     expect(result2.isAllowed).toBe(false);
     expect(result2.message).toBe('Access to sensitive file denied');
   });

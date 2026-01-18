@@ -38,13 +38,13 @@ describe('getQueryParam', () => {
       name: 'returns undefined if value is null (treated as unknown)',
       query: { key: null },
       key: 'key',
-      expected: null as unknown as string, // Cast to match return type behavior
+      expected: undefined,
     },
     {
-      name: 'returns raw value if value is a number',
+      name: 'returns undefined if value is a number (treated as unknown)',
       query: { key: 123 },
       key: 'key',
-      expected: 123 as unknown as string, // Cast to match return type behavior
+      expected: undefined,
     },
   ];
 

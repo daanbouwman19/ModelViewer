@@ -13,6 +13,32 @@ import {
 const FFMPEG_TRANSCODE_PRESET = 'ultrafast';
 const FFMPEG_TRANSCODE_CRF = '23';
 
+/**
+ * Standard FFmpeg input options for probing and analysis.
+ */
+const FFMPEG_INPUT_OPTIONS = ['-analyzeduration', '100M', '-probesize', '100M'];
+
+/**
+ * Standard FFmpeg output options for transcoding to browser-compatible format (MP4/H.264).
+ */
+const FFMPEG_OUTPUT_OPTIONS = [
+  '-f',
+  'mp4',
+  '-vcodec',
+  'libx264',
+  '-acodec',
+  'aac',
+  '-movflags',
+  'frag_keyframe+empty_moov',
+  '-preset',
+  FFMPEG_TRANSCODE_PRESET,
+  '-crf',
+  FFMPEG_TRANSCODE_CRF,
+  '-pix_fmt',
+  'yuv420p',
+  'pipe:1',
+];
+
 const KNOWN_MIME_TYPES: Record<string, string> = {
   mp4: 'video/mp4',
   webm: 'video/webm',
@@ -127,29 +153,9 @@ export function getTranscodeArgs(
     args.push('-ss', startTime);
   }
 
-  args.push(
-    '-analyzeduration',
-    '100M',
-    '-probesize',
-    '100M',
-    '-i',
-    inputPath,
-    '-f',
-    'mp4',
-    '-vcodec',
-    'libx264',
-    '-acodec',
-    'aac',
-    '-movflags',
-    'frag_keyframe+empty_moov',
-    '-preset',
-    FFMPEG_TRANSCODE_PRESET,
-    '-crf',
-    FFMPEG_TRANSCODE_CRF,
-    '-pix_fmt',
-    'yuv420p',
-    'pipe:1',
-  );
+  args.push(...FFMPEG_INPUT_OPTIONS);
+  args.push('-i', inputPath);
+  args.push(...FFMPEG_OUTPUT_OPTIONS);
 
   return args;
 }
@@ -248,10 +254,13 @@ export function getQueryParam(
   key: string,
 ): string | undefined {
   const value = query[key];
-  if (Array.isArray(value)) {
-    return value[0] as string;
+  if (typeof value === 'string') {
+    return value;
   }
-  return value as string | undefined;
+  if (Array.isArray(value) && typeof value[0] === 'string') {
+    return value[0];
+  }
+  return undefined;
 }
 
 export function parseFFmpegDuration(stderr: string): number | null {

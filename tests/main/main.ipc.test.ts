@@ -13,7 +13,7 @@ vi.mock('fs/promises', () => ({
 }));
 
 // Mock ipc-helper to capture handlers
-const handlers = new Map();
+const { handlers } = vi.hoisted(() => ({ handlers: new Map() }));
 vi.mock('../../src/main/utils/ipc-helper', () => ({
   handleIpc: vi.fn((channel, handler) => {
     handlers.set(channel, handler);
