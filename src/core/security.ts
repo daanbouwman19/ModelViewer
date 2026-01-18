@@ -84,120 +84,174 @@ export async function loadSecurityConfig(configPath: string): Promise<void> {
 export async function authorizeFilePath(
   filePath: string,
 ): Promise<AuthorizationResult> {
-  if (!filePath || filePath.includes('\0')) {
-    return { isAllowed: false, message: 'File path is empty' };
-  }
+  const inputResult = validateInput(filePath);
+  if (inputResult) return inputResult;
 
   const mediaDirectories = await getMediaDirectories();
   const allowedPaths = mediaDirectories.map((d) => d.path);
 
-  let realPath: string | undefined;
-
   if (isDrivePath(filePath)) {
-    // Treat drive paths as logical identifiers (e.g., gdrive://...) rather than filesystem paths.
-    // Enforce a conservative format and reject traversal-like segments.
-    const trimmed = filePath.trim();
-    // Basic scheme check: must look like "<scheme>://..."
-    const schemeMatch = /^([a-zA-Z][a-zA-Z0-9+.-]*):\/\//.exec(trimmed);
-    if (!schemeMatch) {
-      return {
+    return (
+      authorizeVirtualPath(filePath, allowedPaths) ?? {
         isAllowed: false,
         message: 'Access denied',
-      };
-    }
-    // Disallow any parent-directory segments or backslashes in virtual paths
-    if (trimmed.includes('..') || trimmed.includes('\\')) {
-      return {
-        isAllowed: false,
-        message: 'Access denied',
-      };
-    }
-
-    // At this point, the drive path is syntactically valid; delegate further checks
-    // to the corresponding drive provider. We do not convert it to a filesystem path.
-    realPath = trimmed;
-  } else {
-    // For non-drive paths, resolve relative to each allowed media directory
-    for (const allowedDir of allowedPaths) {
-      try {
-        const candidate = path.resolve(allowedDir, filePath);
-        let candidateRealPath = await fs.realpath(candidate);
-        // fs.realpath should already return an absolute path, but enforce it defensively
-        if (!path.isAbsolute(candidateRealPath)) {
-          candidateRealPath = path.resolve(candidateRealPath);
-        }
-
-        const relativeToAllowed = path.relative(allowedDir, candidateRealPath);
-        if (
-          !relativeToAllowed.startsWith('..') &&
-          !path.isAbsolute(relativeToAllowed)
-        ) {
-          realPath = candidateRealPath;
-          break;
-        }
-      } catch (error) {
-        // Treat missing files or access errors as "Access denied" without logging spam for mundane checks.
-        if (!isErrnoException(error) || error.code !== 'ENOENT') {
-          console.warn(
-            `[Security] File check failed for ${filePath}: ${(error as Error).message}`,
-          );
-        }
-        // Try next allowedDir, if any
       }
-    }
-
-    if (!realPath) {
-      // No allowed directory produced a valid real path
-      console.warn(
-        `[Security] Access denied to file outside media directories: (resolved from ${filePath})`,
-      );
-      return {
-        isAllowed: false,
-        message: 'Access denied',
-      };
-    }
+    );
   }
 
-  let isPathAllowed = false;
+  const localResult = await authorizeLocalPath(filePath, allowedPaths);
+  if (localResult) return localResult;
+
+  // No allowed directory produced a valid real path
+  console.warn(
+    `[Security] Access denied to file outside media directories: (resolved from ${filePath})`,
+  );
+  return {
+    isAllowed: false,
+    message: 'Access denied',
+  };
+}
+
+/**
+ * Basic sanity checks for file paths.
+ */
+function validateInput(filePath: string): AuthorizationResult | null {
+  if (
+    !filePath ||
+    filePath.includes('\0') ||
+    filePath.includes('\r') ||
+    filePath.includes('\n')
+  ) {
+    return { isAllowed: false, message: 'Invalid file path' };
+  }
+  return null;
+}
+
+/**
+ * Handles validation for virtual/drive paths (e.g., gdrive://).
+ */
+function authorizeVirtualPath(
+  filePath: string,
+  allowedPaths: string[],
+): AuthorizationResult | null {
+  const trimmed = filePath.trim();
+  const schemeMatch = /^([a-zA-Z][a-zA-Z0-9+.-]*):\/\//.exec(trimmed);
+
+  if (!schemeMatch || trimmed.includes('..') || trimmed.includes('\\')) {
+    return null;
+  }
 
   for (const allowedDir of allowedPaths) {
-    const relative = path.relative(allowedDir, realPath);
-    // Check if file is inside the directory
-    if (!relative.startsWith('..') && !path.isAbsolute(relative)) {
-      // It is inside. Now check for sensitive subdirectories.
-      const segments = relative.split(path.sep);
-      const hasSensitiveSegment = segments.some(
-        (segment) =>
-          sensitiveSubdirectoriesSet.has(segment.toLowerCase()) ||
-          segment.toLowerCase().startsWith('.env'),
-      );
-
-      if (hasSensitiveSegment) {
-        console.warn(`[Security] Access denied to sensitive file: ${realPath}`);
-        return {
-          isAllowed: false,
-          message: 'Access to sensitive file denied',
-        };
+    if (isDrivePath(allowedDir)) {
+      const relative = path.relative(allowedDir, trimmed);
+      if (!relative.startsWith('..') && !path.isAbsolute(relative)) {
+        if (hasSensitiveSegments(relative)) {
+          console.warn(
+            `[Security] Access denied to sensitive file: ${trimmed}`,
+          );
+          return {
+            isAllowed: false,
+            message: 'Access to sensitive file denied',
+          };
+        }
+        return { isAllowed: true, realPath: trimmed };
       }
+    }
+  }
+  return null;
+}
 
-      isPathAllowed = true;
-      break;
+/**
+ * Handles validation for local filesystem paths.
+ */
+async function authorizeLocalPath(
+  filePath: string,
+  allowedPaths: string[],
+): Promise<AuthorizationResult | null> {
+  // Normalize separators and collapse any "." / ".." segments for consistent handling.
+  const safePath = path.normalize(filePath);
+  const isAbsolute = path.isAbsolute(safePath);
+
+  if (!isAbsolute) {
+    // After normalization, reject any path that still attempts to traverse upwards.
+    if (
+      safePath === '..' ||
+      safePath.startsWith('..' + path.sep) ||
+      safePath.includes('/..') ||
+      safePath.includes('\\..')
+    ) {
+      return {
+        isAllowed: false,
+        message: 'Access denied',
+      };
+    }
+
+    // On Windows, also defensively reject drive-like prefixes in a "relative" path.
+    if (
+      process.platform === 'win32' &&
+      /^[a-zA-Z]:[\\/]|^\\\\/.test(safePath)
+    ) {
+      return {
+        isAllowed: false,
+        message: 'Access denied',
+      };
     }
   }
 
-  if (!isPathAllowed) {
-    // Only warn if it's genuinely outside allowed paths, ensuring we don't leak info but helpful for debugging
-    // checking if we should log based on environment could be better, but this is fine for now on failures.
-    console.warn(
-      `[Security] Access denied to file outside media directories: ${realPath} (resolved from ${filePath})`,
-    );
-    return {
-      isAllowed: false,
-      message: 'Access denied',
-    };
-  }
+  for (const allowedDir of allowedPaths) {
+    if (!allowedDir || !String(allowedDir).trim() || isDrivePath(allowedDir)) {
+      continue;
+    }
 
-  return { isAllowed: true, realPath };
+    try {
+      const allowedRootReal = await fs.realpath(path.resolve(allowedDir));
+
+      // Always resolve candidate paths relative to the allowed root so that
+      // the final real path can be strictly contained within this root.
+      const candidateResolved = path.resolve(allowedRootReal, safePath);
+      const candidateRealPath = await fs.realpath(candidateResolved);
+
+      const normalizedRoot = allowedRootReal.endsWith(path.sep)
+        ? allowedRootReal
+        : allowedRootReal + path.sep;
+
+      if (
+        candidateRealPath === allowedRootReal ||
+        candidateRealPath.startsWith(normalizedRoot)
+      ) {
+        const relative = path.relative(allowedRootReal, candidateRealPath);
+        if (hasSensitiveSegments(relative)) {
+          console.warn(
+            `[Security] Access denied to sensitive file: ${candidateRealPath}`,
+          );
+          return {
+            isAllowed: false,
+            message: 'Access to sensitive file denied',
+          };
+        }
+        return { isAllowed: true, realPath: candidateRealPath };
+      }
+    } catch (error) {
+      if (!isErrnoException(error) || error.code !== 'ENOENT') {
+        console.warn(
+          `[Security] File check failed for ${safePath}: ${(error as Error).message}`,
+        );
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Checks if a relative path contains sensitive segments.
+ */
+function hasSensitiveSegments(relativePath: string): boolean {
+  const segments = relativePath.split(path.sep);
+  return segments.some(
+    (segment) =>
+      sensitiveSubdirectoriesSet.has(segment.toLowerCase()) ||
+      segment.toLowerCase().startsWith('.env'),
+  );
 }
 
 /**
