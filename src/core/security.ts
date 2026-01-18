@@ -205,10 +205,28 @@ async function authorizeLocalPath(
 
     try {
       const allowedRootReal = await fs.realpath(path.resolve(allowedDir));
+
+      // Always resolve candidate paths relative to the allowed root.
+      let relativeSegment = safePath;
+
+      if (isAbsolute) {
+        // If the input is absolute, ensure it is inside this allowed root.
+        const relToRoot = path.relative(allowedRootReal, safePath);
+        if (
+          !relToRoot ||
+          relToRoot === '..' ||
+          relToRoot.startsWith('..' + path.sep) ||
+          relToRoot.includes('/..') ||
+          relToRoot.includes('\\..')
+        ) {
+          // Not within this root, try next allowedDir.
+          continue;
+        }
+        relativeSegment = relToRoot;
+      }
+
       const candidateRealPath = await fs.realpath(
-        isAbsolute
-          ? path.resolve(safePath)
-          : path.resolve(allowedRootReal, safePath),
+        path.resolve(allowedRootReal, relativeSegment),
       );
 
       const normalizedRoot = allowedRootReal.endsWith(path.sep)
