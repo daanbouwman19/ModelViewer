@@ -169,7 +169,7 @@ export async function authorizeFilePath(
       const hasSensitiveSegment = segments.some(
         (segment) =>
           sensitiveSubdirectoriesSet.has(segment.toLowerCase()) ||
-          segment.toLowerCase().startsWith('.env'),
+          segment.startsWith('.'),
       );
 
       if (hasSensitiveSegment) {
@@ -277,7 +277,11 @@ export function isRestrictedPath(dirPath: string): boolean {
   // We use the same list, but check if the *target* directory itself is sensitive
   // or if we are trying to list inside it.
   // Note: listing /home/user is fine, listing /home/user/.ssh is not.
-  if (segments.some((s) => sensitiveSubdirectoriesSet.has(s.toLowerCase()))) {
+  if (
+    segments.some(
+      (s) => sensitiveSubdirectoriesSet.has(s.toLowerCase()) || s.startsWith('.'),
+    )
+  ) {
     return true;
   }
 
@@ -311,7 +315,11 @@ export function isSensitiveDirectory(dirPath: string): boolean {
 
   // Check against sensitive subdirectories (e.g. .ssh, .env)
   // This prevents adding a sensitive directory (like ~/.ssh) as a media root
-  if (segments.some((s) => sensitiveSubdirectoriesSet.has(s.toLowerCase()))) {
+  if (
+    segments.some(
+      (s) => sensitiveSubdirectoriesSet.has(s.toLowerCase()) || s.startsWith('.'),
+    )
+  ) {
     return true;
   }
 
