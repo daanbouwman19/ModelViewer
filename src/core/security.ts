@@ -212,6 +212,8 @@ async function authorizeLocalPath(
       if (isAbsolute) {
         // If the input is absolute, ensure it is inside this allowed root.
         const relToRoot = path.relative(allowedRootReal, safePath);
+        // Reject any absolute path that, when made relative to the root,
+        // still attempts to traverse upwards or escapes the root.
         if (
           (relToRoot !== '' && path.isAbsolute(relToRoot)) ||
           relToRoot === '..' ||
