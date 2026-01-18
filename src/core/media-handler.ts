@@ -291,10 +291,8 @@ export async function serveStaticFile(
           throw new Error(auth.message || 'Access denied (path sanitization)');
         }
 
-        // Use an explicit root directory and basename to avoid exposing arbitrary paths
-        const rootDir = path.dirname(auth.realPath);
-        const fileName = path.basename(auth.realPath);
-        return res.sendFile(fileName, { root: rootDir });
+        // Use the fully validated absolute path directly to avoid exposing arbitrary paths
+        return res.sendFile(auth.realPath);
       }
 
       const source = createMediaSource(authorizedPath);
