@@ -84,7 +84,13 @@ export async function loadSecurityConfig(configPath: string): Promise<void> {
 export async function authorizeFilePath(
   filePath: string,
 ): Promise<AuthorizationResult> {
-  if (!filePath || filePath.includes('\0')) {
+  // Basic sanity checks: reject empty or obviously malicious paths early.
+  if (
+    !filePath ||
+    filePath.includes('\0') ||
+    filePath.includes('\r') ||
+    filePath.includes('\n')
+  ) {
     return { isAllowed: false, message: 'File path is empty' };
   }
 
@@ -117,21 +123,73 @@ export async function authorizeFilePath(
     // to the corresponding drive provider. We do not convert it to a filesystem path.
     realPath = trimmed;
   } else {
-    // For non-drive paths, resolve relative to each allowed media directory
+    // For non-drive paths, resolve relative to each allowed media directory.
+    // We normalize both the allowed directory and the candidate path and then
+    // enforce that the candidate is contained within the allowed root.
     for (const allowedDir of allowedPaths) {
+      // Skip misconfigured/empty roots defensively
+      if (!allowedDir || !String(allowedDir).trim()) {
+        continue;
+      }
+
       try {
-        const candidate = path.resolve(allowedDir, filePath);
+        // Normalize and resolve the allowed directory itself to a real absolute root
+        const allowedRootResolved = path.resolve(allowedDir);
+        let allowedRootReal = allowedRootResolved;
+        try {
+          // realpath may fail if the directory was removed; in that case, just skip it
+          allowedRootReal = await fs.realpath(allowedRootResolved);
+        } catch (rootErr) {
+          if (!isErrnoException(rootErr) || rootErr.code !== 'ENOENT') {
+            console.warn(
+              `[Security] Failed to resolve media root ${allowedDir}: ${(rootErr as Error).message}`,
+            );
+          }
+          // This root is not usable; proceed to the next one.
+          continue;
+        }
+
+        // Ensure the media root is absolute
+        if (!path.isAbsolute(allowedRootReal)) {
+          allowedRootReal = path.resolve(allowedRootReal);
+        }
+
+        // Build the candidate path relative to this allowed root and normalize it.
+        const candidate = path.resolve(allowedRootReal, filePath);
         let candidateRealPath = await fs.realpath(candidate);
         // fs.realpath should already return an absolute path, but enforce it defensively
         if (!path.isAbsolute(candidateRealPath)) {
           candidateRealPath = path.resolve(candidateRealPath);
         }
 
-        const relativeToAllowed = path.relative(allowedDir, candidateRealPath);
+        // Fast containment check using prefix with trailing separator
+        const normalizedRoot =
+          allowedRootReal.endsWith(path.sep)
+            ? allowedRootReal
+            : allowedRootReal + path.sep;
+
+        let isContained = false;
         if (
-          !relativeToAllowed.startsWith('..') &&
-          !path.isAbsolute(relativeToAllowed)
+          candidateRealPath === allowedRootReal ||
+          candidateRealPath.startsWith(normalizedRoot)
         ) {
+          isContained = true;
+        } else {
+          // Fallback to path.relative-based check to handle edge cases
+          const relativeToAllowed = path.relative(
+            allowedRootReal,
+            candidateRealPath,
+          );
+          if (
+            relativeToAllowed !== '..' &&
+            !relativeToAllowed.startsWith(`..${path.sep}`) &&
+            !path.isAbsolute(relativeToAllowed)
+          ) {
+            isContained = true;
+          }
+        }
+
+        if (isContained) {
           realPath = candidateRealPath;
           break;
         }
