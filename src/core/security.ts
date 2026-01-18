@@ -92,10 +92,22 @@ export async function authorizeFilePath(
 
   let realPath: string;
   if (isDrivePath(filePath)) {
-    realPath = filePath;
+    // Normalize drive/local paths to prevent traversal and ensure consistent checks
+    const normalized = path.resolve(filePath);
+    if (!path.isAbsolute(normalized)) {
+      return {
+        isAllowed: false,
+        message: 'Access denied',
+      };
+    }
+    realPath = normalized;
   } else {
     try {
       realPath = await fs.realpath(filePath);
+      // fs.realpath should already return an absolute path, but enforce it defensively
+      if (!path.isAbsolute(realPath)) {
+        realPath = path.resolve(realPath);
+      }
     } catch (error) {
       // Treat missing files or access errors as "Access denied" without logging spam for mundane checks.
       if (!isErrnoException(error) || error.code !== 'ENOENT') {
