@@ -119,9 +119,26 @@ export async function authorizeFilePath(
       };
     }
 
-    // At this point, the drive path is syntactically valid; delegate further checks
-    // to the corresponding drive provider. We do not convert it to a filesystem path.
-    realPath = trimmed;
+    // Check if the drive path is within allowed media directories
+    for (const allowedDir of allowedPaths) {
+      if (isDrivePath(allowedDir)) {
+        const relative = path.relative(allowedDir, trimmed);
+        if (!relative.startsWith('..') && !path.isAbsolute(relative)) {
+          // It is inside. Now check for sensitive subdirectories.
+          if (hasSensitiveSegments(relative)) {
+            console.warn(
+              `[Security] Access denied to sensitive file: ${trimmed}`,
+            );
+            return {
+              isAllowed: false,
+              message: 'Access to sensitive file denied',
+            };
+          }
+          realPath = trimmed;
+          break;
+        }
+      }
+    }
   } else {
     // For non-drive paths, resolve relative to each allowed media directory.
     // We normalize both the allowed directory and the candidate path and then
@@ -150,14 +167,7 @@ export async function authorizeFilePath(
           candidateRealPath.startsWith(normalizedRoot)
         ) {
           const relative = path.relative(allowedRootReal, candidateRealPath);
-          const segments = relative.split(path.sep);
-          const hasSensitiveSegment = segments.some(
-            (segment) =>
-              sensitiveSubdirectoriesSet.has(segment.toLowerCase()) ||
-              segment.toLowerCase().startsWith('.env'),
-          );
-
-          if (hasSensitiveSegment) {
+          if (hasSensitiveSegments(relative)) {
             console.warn(
               `[Security] Access denied to sensitive file: ${candidateRealPath}`,
             );
@@ -194,6 +204,18 @@ export async function authorizeFilePath(
   }
 
   return { isAllowed: true, realPath };
+}
+
+/**
+ * Checks if a relative path contains sensitive segments.
+ */
+function hasSensitiveSegments(relativePath: string): boolean {
+  const segments = relativePath.split(path.sep);
+  return segments.some(
+    (segment) =>
+      sensitiveSubdirectoriesSet.has(segment.toLowerCase()) ||
+      segment.toLowerCase().startsWith('.env'),
+  );
 }
 
 /**
