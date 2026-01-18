@@ -264,7 +264,8 @@ async function setDirectoryActiveState(
     });
   } catch (error) {
     console.error(
-      `[database.js] Error setting active state for '${directoryPath}':`,
+      '[database.js] Error setting active state for %s:',
+      directoryPath,
       error,
     );
     throw error;
@@ -284,7 +285,7 @@ async function upsertMetadata(
       ...metadata,
     });
   } catch (error) {
-    console.error('[database.js] Error upserting metadata:', error);
+    console.error('[database.js] Error upserting metadata:', filePath, error);
     throw error;
   }
 }
@@ -313,7 +314,7 @@ async function setRating(filePath: string, rating: number): Promise<void> {
       rating,
     });
   } catch (error) {
-    console.error('[database.js] Error setting rating:', error);
+    console.error('[database.js] Error setting rating:', filePath, error);
     throw error;
   }
 }
@@ -330,7 +331,7 @@ async function getMetadata(
       { filePaths },
     );
   } catch (error) {
-    console.error('[database.js] Error getting metadata:', error);
+    console.error('[database.js] Error getting metadata:', filePaths, error);
     return {};
   }
 }

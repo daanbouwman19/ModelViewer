@@ -105,7 +105,6 @@ describe('Google Drive Service', () => {
       listMock.mockResolvedValueOnce({ data: { files: [] } });
 
       const result = await driveService.listDriveFiles('root');
-
       expect(result.textures).toHaveLength(1);
       expect(result.textures[0].path).toBe('gdrive://f1');
 
@@ -177,11 +176,13 @@ describe('Google Drive Service', () => {
       mockStream.emit('end');
       expect(console.log).toHaveBeenCalledWith(
         expect.stringContaining('Stream ended'),
+        'fileId',
       );
 
       mockStream.emit('error', new Error('Fail'));
       expect(console.error).toHaveBeenCalledWith(
         expect.stringContaining('Stream error'),
+        'fileId',
         expect.anything(),
       );
     });

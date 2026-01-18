@@ -46,6 +46,10 @@ import {
   RATE_LIMIT_AUTH_MAX_REQUESTS,
   RATE_LIMIT_WRITE_WINDOW_MS,
   RATE_LIMIT_WRITE_MAX_REQUESTS,
+  RATE_LIMIT_READ_WINDOW_MS,
+  RATE_LIMIT_READ_MAX_REQUESTS,
+  RATE_LIMIT_FILE_WINDOW_MS,
+  RATE_LIMIT_FILE_MAX_REQUESTS,
   MAX_CONCURRENT_TRANSCODES,
 } from '../core/constants.ts';
 import { listDirectory } from '../core/file-system.ts';
@@ -73,7 +77,7 @@ import {
 import { getQueryParam } from '../core/media-utils.ts';
 import { createMediaSource } from '../core/media-source.ts';
 import ffmpegStatic from 'ffmpeg-static';
-import { createRateLimiter } from './rate-limiter.ts';
+import { createRateLimiter } from '../core/rate-limiter.ts';
 import { getGoogleAuthSuccessPage } from './auth-views.ts';
 
 // Check if we are running in dev mode or production
@@ -200,6 +204,20 @@ export async function createApp() {
     'Too many requests. Please slow down.',
   );
 
+  // Read: For metadata/albums browsing (120 req / 1 min)
+  const readLimiter = createRateLimiter(
+    RATE_LIMIT_READ_WINDOW_MS,
+    RATE_LIMIT_READ_MAX_REQUESTS,
+    'Too many requests. Please slow down.',
+  );
+
+  // File/Expensive: For streaming/thumbnails/listing (60 req / 1 min)
+  const fileLimiter = createRateLimiter(
+    RATE_LIMIT_FILE_WINDOW_MS,
+    RATE_LIMIT_FILE_MAX_REQUESTS,
+    'Too many requests. Please slow down.',
+  );
+
   // [SECURITY] Concurrency Limiter for Transcoding
   // Prevent CPU exhaustion by limiting concurrent ffmpeg processes
   let currentTranscodes = 0;
@@ -234,7 +252,7 @@ export async function createApp() {
   // --- API Routes (Mirroring IMediaBackend) ---
 
   // Albums
-  app.get('/api/albums', async (_req, res) => {
+  app.get('/api/albums', readLimiter, async (_req, res) => {
     try {
       const albums = await getAlbumsWithViewCounts();
       res.json(albums);
@@ -255,7 +273,7 @@ export async function createApp() {
   });
 
   // Media Views
-  app.post('/api/media/view', async (req, res) => {
+  app.post('/api/media/view', writeLimiter, async (req, res) => {
     const { filePath } = req.body;
     if (!filePath || typeof filePath !== 'string')
       return res.status(400).send('Missing or invalid filePath');
@@ -268,7 +286,7 @@ export async function createApp() {
     res.sendStatus(200);
   });
 
-  app.post('/api/media/views', async (req, res) => {
+  app.post('/api/media/views', readLimiter, async (req, res) => {
     const { filePaths } = req.body;
     if (
       !Array.isArray(filePaths) ||
@@ -290,7 +308,7 @@ export async function createApp() {
   });
 
   // Smart Playlists
-  app.get('/api/smart-playlists', async (_req, res) => {
+  app.get('/api/smart-playlists', readLimiter, async (_req, res) => {
     try {
       const playlists = await getSmartPlaylists();
       res.json(playlists);
@@ -362,7 +380,7 @@ export async function createApp() {
     }
   });
 
-  app.get('/api/media/all', async (_req, res) => {
+  app.get('/api/media/all', readLimiter, async (_req, res) => {
     try {
       const items = await getAllMetadataAndStats();
       res.json(items);
@@ -372,7 +390,7 @@ export async function createApp() {
     }
   });
 
-  app.get('/api/media/history', async (req, res) => {
+  app.get('/api/media/history', readLimiter, async (req, res) => {
     const rawLimit = parseInt(getQueryParam(req.query, 'limit') as string, 10);
     const limit =
       !isNaN(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 1000) : 50;
@@ -385,7 +403,7 @@ export async function createApp() {
     }
   });
 
-  app.post('/api/media/metadata', async (req, res) => {
+  app.post('/api/media/metadata', writeLimiter, async (req, res) => {
     const { filePath, metadata } = req.body;
     if (!filePath || typeof filePath !== 'string' || !metadata)
       return res.status(400).send('Missing or invalid arguments');
@@ -403,7 +421,7 @@ export async function createApp() {
     }
   });
 
-  app.post('/api/media/metadata/batch', async (req, res) => {
+  app.post('/api/media/metadata/batch', readLimiter, async (req, res) => {
     const { filePaths } = req.body;
     if (
       !Array.isArray(filePaths) ||
@@ -430,7 +448,7 @@ export async function createApp() {
   });
 
   // Directories
-  app.get('/api/directories', async (_req, res) => {
+  app.get('/api/directories', readLimiter, async (_req, res) => {
     const dirs = await getMediaDirectories();
     res.json(dirs);
   });
@@ -440,19 +458,33 @@ export async function createApp() {
     if (!dirPath) return res.status(400).send('Missing path');
 
     try {
-      // Resolve path to handle symlinks and relative paths
-      // This prevents bypassing the sensitive directory check via symlinks (e.g., link -> /)
-      let resolvedPath = dirPath;
+      if (typeof dirPath !== 'string' || dirPath.includes('\0')) {
+        return res.status(400).json({ error: 'Invalid path' });
+      }
+
+      // Preliminary check on the input path before filesystem access
+      if (isSensitiveDirectory(dirPath)) {
+        console.warn(
+          `[Security] Blocked attempt to add sensitive directory: ${dirPath}`,
+        );
+        return res.status(403).json({
+          error: 'Access restricted for sensitive system directories',
+        });
+      }
+
+      let resolvedPath: string;
       try {
+        // Resolve path to handle symlinks and relative paths
+        // Now that we've pre-validated, this is safe from basic path traversal
         resolvedPath = await fs.realpath(dirPath);
       } catch {
         return res.status(400).json({ error: 'Directory does not exist' });
       }
 
-      // Check the resolved path against sensitive directories
+      // Final check on the resolved path to catch symlinks pointing to restricted areas
       if (isSensitiveDirectory(resolvedPath)) {
         console.warn(
-          `[Security] Blocked attempt to add sensitive directory: ${dirPath} (resolved to ${resolvedPath})`,
+          `[Security] Blocked attempt to add sensitive directory (resolved): ${resolvedPath}`,
         );
         return res.status(403).json({
           error: 'Access restricted for sensitive system directories',
@@ -490,7 +522,7 @@ export async function createApp() {
   });
 
   // File System
-  app.get('/api/fs/ls', async (req, res) => {
+  app.get('/api/fs/ls', fileLimiter, async (req, res) => {
     const dirPath = getQueryParam(req.query, 'path');
     if (!dirPath || typeof dirPath !== 'string')
       return res.status(400).send('Missing path');
@@ -510,7 +542,7 @@ export async function createApp() {
     }
   });
 
-  app.get('/api/fs/parent', (req, res) => {
+  app.get('/api/fs/parent', fileLimiter, (req, res) => {
     const dirPath = getQueryParam(req.query, 'path');
     if (!dirPath || typeof dirPath !== 'string')
       return res.status(400).send('Missing path');
@@ -544,7 +576,7 @@ export async function createApp() {
   // Google Drive Auth & Source Management
   // Typically these would be in a separate controller, but keeping inline for consistency with this file.
 
-  app.get('/api/auth/google-drive/start', async (_req, res) => {
+  app.get('/api/auth/google-drive/start', authLimiter, async (_req, res) => {
     try {
       const url = generateAuthUrl();
       res.send(url); // Send raw string
@@ -616,7 +648,7 @@ export async function createApp() {
     }
   });
 
-  app.get('/api/drive/files', async (req, res) => {
+  app.get('/api/drive/files', fileLimiter, async (req, res) => {
     const folderId = getQueryParam(req.query, 'folderId');
     // folderId is optional, defaults to root but usually we pass it
     try {
@@ -628,7 +660,7 @@ export async function createApp() {
     }
   });
 
-  app.get('/api/drive/parent', async (req, res) => {
+  app.get('/api/drive/parent', fileLimiter, async (req, res) => {
     const folderId = getQueryParam(req.query, 'folderId');
     if (!folderId) return res.status(400).send('Missing folderId');
     try {
@@ -640,13 +672,13 @@ export async function createApp() {
     }
   });
 
-  app.get('/api/metadata', (req, res) => {
+  app.get('/api/metadata', fileLimiter, (req, res) => {
     const filePath = getQueryParam(req.query, 'file');
     if (!filePath) return res.status(400).send('Missing file');
     serveMetadata(req, res, filePath, ffmpegStatic);
   });
 
-  app.get('/api/stream', async (req, res) => {
+  app.get('/api/stream', fileLimiter, async (req, res) => {
     const filePath = getQueryParam(req.query, 'file');
     const startTime = getQueryParam(req.query, 'startTime');
     const isTranscode = getQueryParam(req.query, 'transcode') === 'true';
@@ -654,11 +686,12 @@ export async function createApp() {
     if (!filePath) return res.status(400).send('Missing file');
 
     try {
-      // [SECURITY] Explicitly validate access before creating source or streaming.
-      // This prevents unauthorized access even if the source implementation fails to check.
-      if (!(await validateFileAccess(res, filePath))) return;
+      const validated = await validateFileAccess(res, filePath);
+      if (!validated) return;
+      const authorizedPath =
+        typeof validated === 'string' ? validated : filePath;
 
-      const source = createMediaSource(filePath);
+      const source = createMediaSource(authorizedPath);
       if (isTranscode) {
         // [SECURITY] Check concurrency limit
         if (currentTranscodes >= MAX_CONCURRENT_TRANSCODES) {
@@ -709,20 +742,23 @@ export async function createApp() {
     }
   });
 
-  app.get('/api/thumbnail', (req, res) => {
+  app.get('/api/thumbnail', fileLimiter, (req, res) => {
     const filePath = getQueryParam(req.query, 'file');
     if (!filePath) return res.status(400).send('Missing file');
     serveThumbnail(req, res, filePath, ffmpegStatic, CACHE_DIR);
   });
 
-  app.get('/api/serve', async (req, res) => {
+  app.get('/api/serve', fileLimiter, async (req, res) => {
     const filePath = getQueryParam(req.query, 'path');
     if (!filePath) return res.status(400).send('Missing path');
     try {
       // [SECURITY] Explicitly validate access before creating source or streaming.
-      if (!(await validateFileAccess(res, filePath))) return;
+      const validated = await validateFileAccess(res, filePath);
+      if (!validated) return;
+      const authorizedPath =
+        typeof validated === 'string' ? validated : filePath;
 
-      const source = createMediaSource(filePath);
+      const source = createMediaSource(authorizedPath);
       await serveRawStream(req, res, source);
     } catch (e: unknown) {
       console.error('Serve error:', e);

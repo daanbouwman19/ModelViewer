@@ -29,6 +29,16 @@ class DriveCacheManager extends EventEmitter {
   public async getCachedFilePath(
     fileId: string,
   ): Promise<{ path: string; totalSize: number; mimeType: string }> {
+    if (
+      !fileId ||
+      typeof fileId !== 'string' ||
+      fileId.includes('..') ||
+      fileId.includes('/') ||
+      fileId.includes('\\') ||
+      fileId.includes('\0')
+    ) {
+      throw new Error('Invalid fileId');
+    }
     const filePath = path.join(this.cacheDir, fileId);
 
     // Get metadata (cached or fresh) to return correct total size
@@ -54,7 +64,8 @@ class DriveCacheManager extends EventEmitter {
       const nodeError = error as NodeJS.ErrnoException;
       if (nodeError.code !== 'ENOENT') {
         console.error(
-          `[DriveCache] Failed to stat cache file for ${fileId}:`,
+          '[DriveCache] Failed to stat cache file for %s:',
+          fileId,
           error,
         );
       }
@@ -65,7 +76,7 @@ class DriveCacheManager extends EventEmitter {
       // If no active download and size < totalSize, maybe resume?
       if (!this.activeDownloads.has(fileId) && stats.size < metadata.size) {
         this.startDownload(fileId, filePath, stats.size).catch((err) =>
-          console.error('[DriveCache] Download failed:', err),
+          console.error('[DriveCache] Download failed:', fileId, err),
         );
       }
 
@@ -84,7 +95,7 @@ class DriveCacheManager extends EventEmitter {
       try {
         await downloadPromise;
       } catch (e) {
-        console.error('[DriveCache] Failed to start download:', e);
+        console.error('[DriveCache] Failed to start download:', fileId, e);
         throw e;
       }
     } else {
@@ -95,6 +106,7 @@ class DriveCacheManager extends EventEmitter {
         // Ignore error if specific download failed, maybe retry?
         console.warn(
           '[DriveCache] Existing download errored, trying to proceed anyway:',
+          fileId,
           e,
         );
       }
@@ -132,13 +144,13 @@ class DriveCacheManager extends EventEmitter {
 
       // Also handle early errors (e.g. permission)
       fileStream.on('error', (err) => {
-        console.error(`[DriveCache] File write error for ${fileId}:`, err);
+        console.error('[DriveCache] File write error for %s:', fileId, err);
         this.activeDownloads.delete(fileId);
         reject(err);
       });
 
       stream.on('error', (err) => {
-        console.error(`[DriveCache] Drive Stream error for ${fileId}:`, err);
+        console.error('[DriveCache] Drive Stream error for %s:', fileId, err);
         fileStream.close();
         this.activeDownloads.delete(fileId);
         // We don't reject here because we already resolved 'ready'.

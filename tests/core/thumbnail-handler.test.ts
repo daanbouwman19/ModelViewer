@@ -81,7 +81,7 @@ vi.mock('../../src/core/access-validator', () => ({
         if (!res.headersSent) res.status(403).send('Access denied.');
         return false;
       }
-      return true;
+      return auth.realPath || true;
     } catch {
       if (!res.headersSent) res.status(500).send('Internal server error.');
       return false;
@@ -130,7 +130,10 @@ describe('thumbnail-handler unit tests', () => {
   describe('serveThumbnail', () => {
     it('serves from cache if available', async () => {
       // Must allow file access first
-      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+      mockAuthorizeFilePath.mockResolvedValue({
+        isAllowed: true,
+        realPath: '/local/file',
+      });
 
       const cachePath = '/cache/thumb.jpg';
       mockGetThumbnailCachePath.mockReturnValue(cachePath);
@@ -221,7 +224,10 @@ describe('thumbnail-handler unit tests', () => {
 
     it('handles ffmpg generation for local file', async () => {
       mockCheckThumbnailCache.mockResolvedValue(false);
-      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+      mockAuthorizeFilePath.mockResolvedValue({
+        isAllowed: true,
+        realPath: '/local/file',
+      });
       mockGetThumbnailCachePath.mockReturnValue('/cache/local.jpg');
 
       const mockProcess = {
@@ -249,7 +255,10 @@ describe('thumbnail-handler unit tests', () => {
 
     it('handles ffmpeg failure (non-zero exit)', async () => {
       mockCheckThumbnailCache.mockResolvedValue(false);
-      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+      mockAuthorizeFilePath.mockResolvedValue({
+        isAllowed: true,
+        realPath: '/local/file',
+      });
 
       const mockProcess = {
         on: vi.fn().mockImplementation((event, cb) => {
@@ -270,7 +279,10 @@ describe('thumbnail-handler unit tests', () => {
 
     it('collects stderr output', async () => {
       mockCheckThumbnailCache.mockResolvedValue(false);
-      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+      mockAuthorizeFilePath.mockResolvedValue({
+        isAllowed: true,
+        realPath: '/local/file',
+      });
 
       const mockProcess = new EventEmitter() as any;
       mockProcess.stdout = new PassThrough();
@@ -296,7 +308,10 @@ describe('thumbnail-handler unit tests', () => {
 
     it('handles ffmpeg close success but file missing', async () => {
       mockCheckThumbnailCache.mockResolvedValue(false);
-      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+      mockAuthorizeFilePath.mockResolvedValue({
+        isAllowed: true,
+        realPath: '/local/file',
+      });
       const mockProcess = new EventEmitter() as any;
       mockProcess.stderr = new EventEmitter();
       mockSpawn.mockReturnValue(mockProcess);
@@ -328,7 +343,10 @@ describe('thumbnail-handler unit tests', () => {
 
     it('handles spawn error', async () => {
       mockCheckThumbnailCache.mockResolvedValue(false);
-      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+      mockAuthorizeFilePath.mockResolvedValue({
+        isAllowed: true,
+        realPath: '/local/file',
+      });
       const mockProcess = new EventEmitter() as any;
       mockProcess.stderr = new EventEmitter();
       mockSpawn.mockReturnValue(mockProcess);
@@ -348,7 +366,10 @@ describe('thumbnail-handler unit tests', () => {
 
     it('returns 500 if ffmpeg binary is not found', async () => {
       mockCheckThumbnailCache.mockResolvedValue(false);
-      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+      mockAuthorizeFilePath.mockResolvedValue({
+        isAllowed: true,
+        realPath: '/local/file',
+      });
 
       await serveThumbnail(req, res, '/video.mp4', null, '/cache');
 
@@ -400,7 +421,10 @@ describe('thumbnail-handler unit tests', () => {
 
     it('handles stream error during sending generated file', async () => {
       mockCheckThumbnailCache.mockResolvedValue(false);
-      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+      mockAuthorizeFilePath.mockResolvedValue({
+        isAllowed: true,
+        realPath: '/local/file',
+      });
       mockGetThumbnailCachePath.mockReturnValue('/cache/local.jpg');
 
       const mockProcess = {

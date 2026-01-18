@@ -97,8 +97,11 @@ describe('Server Coverage', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    mocks.mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
-    mocks.mockValidateFileAccess.mockResolvedValue(true);
+    mocks.mockAuthorizeFilePath.mockResolvedValue({
+      isAllowed: true,
+      realPath: '/local/file',
+    });
+    mocks.mockValidateFileAccess.mockResolvedValue('/local/file');
     // Reload app to ensure clean state if possible, though server.ts might have global state
     // For integration tests, we just assume createApp returns a fresh express instance.
     const { createApp } = await import('../../src/server/server');

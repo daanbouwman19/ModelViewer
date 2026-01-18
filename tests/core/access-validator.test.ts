@@ -28,9 +28,12 @@ describe('access-validator unit tests', () => {
   });
 
   it('allows authorized local paths', async () => {
-    mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+    mockAuthorizeFilePath.mockResolvedValue({
+      isAllowed: true,
+      realPath: '/local/file',
+    });
     const result = await validateFileAccess(res, '/local/file');
-    expect(result).toBe(true);
+    expect(result).toBe('/local/file');
     expect(mockAuthorizeFilePath).toHaveBeenCalledWith('/local/file');
   });
 

@@ -84,7 +84,7 @@ export async function loadSecurityConfig(configPath: string): Promise<void> {
 export async function authorizeFilePath(
   filePath: string,
 ): Promise<AuthorizationResult> {
-  if (!filePath) {
+  if (!filePath || filePath.includes('\0')) {
     return { isAllowed: false, message: 'File path is empty' };
   }
 

@@ -170,6 +170,14 @@ const RATE_LIMIT_AUTH_MAX_REQUESTS = 20;
 const RATE_LIMIT_WRITE_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_WRITE_MAX_REQUESTS = 10;
 
+// Read: For metadata/albums browsing (120 req / 1 min)
+const RATE_LIMIT_READ_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_READ_MAX_REQUESTS = 120;
+
+// File/Expensive: For streaming/thumbnails/listing (60 req / 1 min)
+const RATE_LIMIT_FILE_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_FILE_MAX_REQUESTS = 60;
+
 /**
  * Maximum number of concurrent transcoding streams allowed.
  * Used to prevent CPU exhaustion (DoS).
@@ -201,5 +209,9 @@ export {
   RATE_LIMIT_AUTH_MAX_REQUESTS,
   RATE_LIMIT_WRITE_WINDOW_MS,
   RATE_LIMIT_WRITE_MAX_REQUESTS,
+  RATE_LIMIT_READ_WINDOW_MS,
+  RATE_LIMIT_READ_MAX_REQUESTS,
+  RATE_LIMIT_FILE_WINDOW_MS,
+  RATE_LIMIT_FILE_MAX_REQUESTS,
   MAX_CONCURRENT_TRANSCODES,
 };

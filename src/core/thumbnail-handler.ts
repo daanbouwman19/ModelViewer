@@ -105,8 +105,10 @@ export async function generateLocalThumbnail(
   cacheFile: string,
   ffmpegPath: string | null,
 ): Promise<void> {
-  // Use validateFileAccess to enforce security
-  if (!(await validateFileAccess(res, filePath))) return;
+  // Use validateFileAccess to enforce security and get realPath
+  const validated = await validateFileAccess(res, filePath);
+  if (!validated) return;
+  const authorizedPath = typeof validated === 'string' ? validated : filePath;
 
   if (!ffmpegPath) {
     res.status(500).send('FFmpeg binary not found');
@@ -115,7 +117,9 @@ export async function generateLocalThumbnail(
 
   try {
     const queue = await getThumbnailQueue();
-    await queue.add(() => runFFmpegThumbnail(filePath, cacheFile, ffmpegPath));
+    await queue.add(() =>
+      runFFmpegThumbnail(authorizedPath, cacheFile, ffmpegPath),
+    );
 
     // Verify file exists
     await fsPromises.stat(cacheFile);
@@ -151,21 +155,23 @@ export async function serveThumbnail(
   cacheDir: string,
 ) {
   // [SECURITY] Validate access before checking cache to prevent IDOR on cached thumbnails
-  if (!(await validateFileAccess(res, filePath))) return;
+  const validated = await validateFileAccess(res, filePath);
+  if (!validated) return;
+  const authorizedPath = typeof validated === 'string' ? validated : filePath;
 
   // 1. Check Cache
-  const cacheFile = getThumbnailCachePath(filePath, cacheDir);
+  const cacheFile = getThumbnailCachePath(authorizedPath, cacheDir);
   if (await tryServeFromCache(res, cacheFile)) {
     return;
   }
 
   // 2. Try Provider (Drive)
-  if (await tryServeFromProvider(res, filePath, cacheFile)) {
+  if (await tryServeFromProvider(res, authorizedPath, cacheFile)) {
     return;
   }
 
   // Ensure GDrive files don't fall through to local FS if provider fetch failed
-  if (isDrivePath(filePath)) {
+  if (isDrivePath(authorizedPath)) {
     if (!res.headersSent) {
       res.status(404).end();
     }
@@ -173,5 +179,5 @@ export async function serveThumbnail(
   }
 
   // 3. Fallback to FFmpeg (Local)
-  await generateLocalThumbnail(res, filePath, cacheFile, ffmpegPath);
+  await generateLocalThumbnail(res, authorizedPath, cacheFile, ffmpegPath);
 }

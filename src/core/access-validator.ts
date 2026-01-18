@@ -12,7 +12,7 @@ import { authorizeFilePath } from './security.ts';
 export async function validateFileAccess(
   res: Response,
   filePath: string,
-): Promise<boolean> {
+): Promise<boolean | string> {
   // GDrive files are handled by their specific providers/logic
   if (isDrivePath(filePath)) return true;
 
@@ -22,7 +22,8 @@ export async function validateFileAccess(
       if (!res.headersSent) res.status(403).send('Access denied.');
       return false;
     }
-    return true;
+    // We return the authorized realPath to ensure subsequent file operations use the validated path.
+    return auth.realPath || true;
   } catch (error) {
     console.error('[Access] Validation error:', error);
     if (!res.headersSent) res.status(500).send('Internal server error.');
