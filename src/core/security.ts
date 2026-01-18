@@ -89,8 +89,10 @@ export async function authorizeFilePath(
   }
 
   const mediaDirectories = await getMediaDirectories();
+  const allowedPaths = mediaDirectories.map((d) => d.path);
 
-  let realPath: string;
+  let realPath: string | undefined;
+
   if (isDrivePath(filePath)) {
     // Normalize drive/local paths to prevent traversal and ensure consistent checks
     const normalized = path.resolve(filePath);
@@ -102,19 +104,37 @@ export async function authorizeFilePath(
     }
     realPath = normalized;
   } else {
-    try {
-      realPath = await fs.realpath(filePath);
-      // fs.realpath should already return an absolute path, but enforce it defensively
-      if (!path.isAbsolute(realPath)) {
-        realPath = path.resolve(realPath);
+    // For non-drive paths, resolve relative to each allowed media directory
+    for (const allowedDir of allowedPaths) {
+      try {
+        const candidate = path.resolve(allowedDir, filePath);
+        let candidateRealPath = await fs.realpath(candidate);
+        // fs.realpath should already return an absolute path, but enforce it defensively
+        if (!path.isAbsolute(candidateRealPath)) {
+          candidateRealPath = path.resolve(candidateRealPath);
+        }
+
+        const relativeToAllowed = path.relative(allowedDir, candidateRealPath);
+        if (!relativeToAllowed.startsWith('..') && !path.isAbsolute(relativeToAllowed)) {
+          realPath = candidateRealPath;
+          break;
+        }
+      } catch (error) {
+        // Treat missing files or access errors as "Access denied" without logging spam for mundane checks.
+        if (!isErrnoException(error) || error.code !== 'ENOENT') {
+          console.warn(
+            `[Security] File check failed for ${filePath}: ${(error as Error).message}`,
+          );
+        }
+        // Try next allowedDir, if any
       }
-    } catch (error) {
-      // Treat missing files or access errors as "Access denied" without logging spam for mundane checks.
-      if (!isErrnoException(error) || error.code !== 'ENOENT') {
-        console.warn(
-          `[Security] File check failed for ${filePath}: ${(error as Error).message}`,
-        );
-      }
+    }
+
+    if (!realPath) {
+      // No allowed directory produced a valid real path
+      console.warn(
+        `[Security] Access denied to file outside media directories: (resolved from ${filePath})`,
+      );
       return {
         isAllowed: false,
         message: 'Access denied',
@@ -122,7 +142,6 @@ export async function authorizeFilePath(
     }
   }
 
-  const allowedPaths = mediaDirectories.map((d) => d.path);
   let isPathAllowed = false;
 
   for (const allowedDir of allowedPaths) {
