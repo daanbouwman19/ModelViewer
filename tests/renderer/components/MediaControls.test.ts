@@ -180,7 +180,10 @@ describe('MediaControls.vue', () => {
 
   it('should have tooltips on rating stars', async () => {
     const wrapper = mount(MediaControls, {
-      props: { ...defaultProps, currentMediaItem: { ...defaultProps.currentMediaItem, rating: 0 } }
+      props: {
+        ...defaultProps,
+        currentMediaItem: { ...defaultProps.currentMediaItem, rating: 0 },
+      },
     });
 
     // Wait for resize observer to trigger visibility
@@ -196,7 +199,10 @@ describe('MediaControls.vue', () => {
 
   it('should indicate current rating on stars', async () => {
     const wrapper = mount(MediaControls, {
-      props: { ...defaultProps, currentMediaItem: { ...defaultProps.currentMediaItem, rating: 3 } }
+      props: {
+        ...defaultProps,
+        currentMediaItem: { ...defaultProps.currentMediaItem, rating: 3 },
+      },
     });
 
     // Wait for resize observer to trigger visibility
@@ -205,7 +211,9 @@ describe('MediaControls.vue', () => {
     const stars = wrapper.findAll('button[aria-label^="Rate"]');
     if (stars.length > 0) {
       expect(stars[2].attributes('title')).toBe('Rate 3 stars (Current)');
-      expect(stars[2].attributes('aria-label')).toBe('Rate 3 stars, current rating');
+      expect(stars[2].attributes('aria-label')).toBe(
+        'Rate 3 stars, current rating',
+      );
       expect(stars[2].attributes('aria-pressed')).toBe('true');
     }
   });
