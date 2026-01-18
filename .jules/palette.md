@@ -70,3 +70,8 @@
 3. `src/renderer/composables/useLibraryStore.ts` (History mapping)
 4. `src/renderer/components/AlbumsList.vue` (Playlist mapping)
    **Action:** When adding properties, ensure all mapping points are updated to prevent partial data.
+
+## 2026-01-18 - [Star Rating Accessibility]
+
+**Learning:** The star rating component had valid `aria-label`s ("Rate 3 stars"), but provided no state information. A screen reader user would select a rating but never know if it was active or what the current rating was, as that information was purely color-based.
+**Action:** For rating components, always use `aria-pressed="true"` on the selected item and append ", current rating" (or similar context) to the label of the active item to make the state explicit.
