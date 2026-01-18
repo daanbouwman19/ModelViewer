@@ -128,7 +128,10 @@ export async function authorizeFilePath(
         }
 
         const relativeToAllowed = path.relative(allowedDir, candidateRealPath);
-        if (!relativeToAllowed.startsWith('..') && !path.isAbsolute(relativeToAllowed)) {
+        if (
+          !relativeToAllowed.startsWith('..') &&
+          !path.isAbsolute(relativeToAllowed)
+        ) {
           realPath = candidateRealPath;
           break;
         }

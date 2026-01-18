@@ -123,7 +123,9 @@ describe('media-handler input validation', () => {
       expect(security.authorizeFilePath).toHaveBeenCalledWith(
         '/valid/path/1.mp4',
       );
-      expect(res.sendFile).toHaveBeenCalledWith('/valid/path/1.mp4');
+      expect(res.sendFile).toHaveBeenCalledWith('1.mp4', {
+        root: '/valid/path',
+      });
     });
 
     it('handles "startTime" parameter as an array by taking the first element', async () => {

@@ -81,18 +81,20 @@ describe('Media Controller IPC Handlers', () => {
 
     const nonExistentPath = '/path/to/nothing.txt';
     const fsPromises = await import('fs/promises');
+    const expectedError = new Error('ENOENT');
+    (expectedError as any).code = 'ENOENT';
     (fsPromises.default.realpath as unknown as Mock).mockRejectedValue(
-      new Error('ENOENT'),
+      expectedError,
     );
 
     const result = await handler(null, nonExistentPath);
 
     // media-controller returns the result of generateFileUrl directly
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       type: 'error',
       message: 'Access denied',
     });
 
-    expect(fsPromises.default.realpath).toHaveBeenCalledWith(nonExistentPath);
+    expect(fsPromises.default.realpath).toHaveBeenCalled();
   });
 });

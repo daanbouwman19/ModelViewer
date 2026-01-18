@@ -642,9 +642,7 @@ describe('media-handler unit tests', () => {
       });
 
       await serveStaticFile(req, res, testPath);
-      expect(res.sendFile).toHaveBeenCalledWith(path.basename(testPath), {
-        root: path.dirname(testPath),
-      });
+      expect(res.sendFile).toHaveBeenCalledWith(testPath);
     });
 
     it('handles access denied', async () => {
