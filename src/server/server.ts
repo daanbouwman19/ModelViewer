@@ -546,6 +546,7 @@ export async function createApp() {
     const dirPath = getQueryParam(req.query, 'path');
     if (!dirPath || typeof dirPath !== 'string')
       return res.status(400).send('Missing path');
+
     const parent = path.dirname(dirPath);
     // If we are at root or at a drive root (e.g., C:\)
     // path.dirname('C:\\') returns 'C:\\' on Windows

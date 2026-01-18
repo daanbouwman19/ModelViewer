@@ -106,6 +106,11 @@ describe('Server Coverage', () => {
       realPath: '/local/file',
     });
     mocks.mockValidateFileAccess.mockResolvedValue('/local/file');
+    mocks.mockServeRawStream.mockImplementation((req, res) => {
+      // Must send response to finish request
+      res.status(200).send('mock-stream');
+    });
+
     // Reload app to ensure clean state if possible, though server.ts might have global state
     // For integration tests, we just assume createApp returns a fresh express instance.
     const { createApp } = await import('../../src/server/server');
