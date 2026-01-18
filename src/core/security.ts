@@ -94,15 +94,28 @@ export async function authorizeFilePath(
   let realPath: string | undefined;
 
   if (isDrivePath(filePath)) {
-    // Normalize drive/local paths to prevent traversal and ensure consistent checks
-    const normalized = path.resolve(filePath);
-    if (!path.isAbsolute(normalized)) {
+    // Treat drive paths as logical identifiers (e.g., gdrive://...) rather than filesystem paths.
+    // Enforce a conservative format and reject traversal-like segments.
+    const trimmed = filePath.trim();
+    // Basic scheme check: must look like "<scheme>://..."
+    const schemeMatch = /^([a-zA-Z][a-zA-Z0-9+.-]*):\/\//.exec(trimmed);
+    if (!schemeMatch) {
       return {
         isAllowed: false,
         message: 'Access denied',
       };
     }
-    realPath = normalized;
+    // Disallow any parent-directory segments or backslashes in virtual paths
+    if (trimmed.includes('..') || trimmed.includes('\\')) {
+      return {
+        isAllowed: false,
+        message: 'Access denied',
+      };
+    }
+
+    // At this point, the drive path is syntactically valid; delegate further checks
+    // to the corresponding drive provider. We do not convert it to a filesystem path.
+    realPath = trimmed;
   } else {
     // For non-drive paths, resolve relative to each allowed media directory
     for (const allowedDir of allowedPaths) {
