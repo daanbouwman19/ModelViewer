@@ -48,7 +48,9 @@ export class LocalMediaSource implements IMediaSource {
 
     // Validate range
     if (start > end || start >= stats.size) {
-      // throw or handle empty stream
+      throw new Error(
+        `Invalid range requested: start=${start}, end=${end}, size=${stats.size}`,
+      );
     }
 
     const length = end - start + 1;
