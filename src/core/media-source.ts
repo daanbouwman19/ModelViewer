@@ -13,26 +13,27 @@ export class LocalMediaSource implements IMediaSource {
 
   constructor(private filePath: string) {}
 
-  private async ensureAuthorized(): Promise<void> {
+  private async ensureAuthorized(): Promise<string> {
     if (!this.authResult) {
       this.authResult = authorizeFilePath(this.filePath);
     }
     const auth = await this.authResult;
-    if (!auth.isAllowed) {
+    if (!auth.isAllowed || !auth.realPath) {
       throw new Error(auth.message || 'Access denied');
     }
+    return auth.realPath;
   }
 
   async getFFmpegInput(): Promise<string> {
-    await this.ensureAuthorized();
-    return this.filePath;
+    const realPath = await this.ensureAuthorized();
+    return realPath;
   }
 
   async getStream(range?: {
     start: number;
     end: number;
   }): Promise<{ stream: Readable; length: number }> {
-    await this.ensureAuthorized();
+    const realPath = await this.ensureAuthorized();
 
     const options: { start?: number; end?: number } = {};
     if (range) {
@@ -41,24 +42,19 @@ export class LocalMediaSource implements IMediaSource {
     }
 
     // Check stats after auth
-    const stats = await fs.promises.stat(this.filePath);
+    const stats = await fs.promises.stat(realPath);
     const start = options.start || 0;
     const end = options.end !== undefined ? options.end : stats.size - 1;
 
     // Validate range
     if (start > end || start >= stats.size) {
-      // Return empty stream or throw.
-      // Since we want to be robust, let's return an empty stream
-      // or rely on caller to handle the 416 based on lengthCheck?
-      // Actually caller checks size. But if we are here, something is odd.
-      // Let's just allow fs to handle or return empty.
-      // fs.createReadStream with invalid range might error or return empty.
-      // We'll throw to be safe so caller sends 416 if they catch it,
-      // but serveRawStream checks size before calling this.
+      throw new Error(
+        `Invalid range requested: start=${start}, end=${end}, size=${stats.size}`,
+      );
     }
 
     const length = end - start + 1;
-    const stream = fs.createReadStream(this.filePath, options);
+    const stream = fs.createReadStream(realPath, options);
 
     return { stream, length };
   }
@@ -69,8 +65,8 @@ export class LocalMediaSource implements IMediaSource {
   }
 
   async getSize(): Promise<number> {
-    await this.ensureAuthorized();
-    const stats = await fs.promises.stat(this.filePath);
+    const realPath = await this.ensureAuthorized();
+    const stats = await fs.promises.stat(realPath);
     return stats.size;
   }
 }

@@ -232,7 +232,8 @@ export async function listDriveDirectory(
     });
   } catch (err) {
     console.error(
-      `[GoogleDriveService] Error listing files for query '${q}':`,
+      '[GoogleDriveService] Error listing files for query %s:',
+      q,
       err,
     );
     throw err;
@@ -257,7 +258,7 @@ export async function getDriveParent(folderId: string): Promise<string | null> {
       return res.data.parents[0];
     }
   } catch (e) {
-    console.warn('Failed to get parent for drive folder', folderId, e);
+    console.warn('Failed to get parent for drive folder %s:', folderId, e);
   }
   return null;
 }
@@ -284,12 +285,12 @@ export async function getDriveFileStream(
 
   if (res.data) {
     // Debug logging for stream
-    console.log(`[GoogleDrive] Stream started for ${fileId}`);
+    console.log('[GoogleDrive] Stream started for %s', fileId);
     res.data.on('end', () =>
-      console.log(`[GoogleDrive] Stream ended for ${fileId}`),
+      console.log('[GoogleDrive] Stream ended for %s', fileId),
     );
     res.data.on('error', (err) =>
-      console.error(`[GoogleDrive] Stream error for ${fileId}:`, err),
+      console.error('[GoogleDrive] Stream error for %s:', fileId, err),
     );
   }
 

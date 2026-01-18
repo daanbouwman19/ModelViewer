@@ -299,6 +299,7 @@ describe('DriveCacheManager', () => {
 
     expect(consoleSpy).toHaveBeenCalledWith(
       expect.stringContaining('Failed to stat cache file'),
+      fileId,
       expect.anything(),
     );
     consoleSpy.mockRestore();

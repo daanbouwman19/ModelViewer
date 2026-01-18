@@ -8,6 +8,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { spawn } from 'child_process';
 import { createInterface } from 'readline';
+import path from 'path';
 import { createMediaSource } from './media-source.ts';
 
 import { IMediaSource } from './media-source-types.ts';
@@ -23,7 +24,12 @@ import { getProvider } from './fs-provider-factory.ts';
 import { authorizeFilePath } from './security.ts';
 import { validateFileAccess } from './access-validator.ts';
 import { serveThumbnail } from './thumbnail-handler.ts';
-import { DATA_URL_THRESHOLD_MB } from './constants.ts';
+import {
+  DATA_URL_THRESHOLD_MB,
+  RATE_LIMIT_FILE_WINDOW_MS,
+  RATE_LIMIT_FILE_MAX_REQUESTS,
+} from './constants.ts';
+import { createRateLimiter } from './rate-limiter.ts';
 import { MediaRoutes } from './routes.ts';
 import {
   GenerateUrlOptions,
@@ -47,7 +53,9 @@ function tryServeDirectFile(res: Response, filePath: string): boolean {
   if (isDrivePath(filePath)) return false;
 
   try {
-    res.sendFile(filePath);
+    const rootDir = path.dirname(filePath);
+    const fileName = path.basename(filePath);
+    res.sendFile(fileName, { root: rootDir });
     return true;
   } catch (e) {
     console.error('[Handler] SendFile check failed:', e);
@@ -74,12 +82,14 @@ export async function handleStreamRequest(
   try {
     // 1. Authorization Check (Unified)
     // Always validate access first, regardless of transcode or direct play
-    if (!(await validateFileAccess(res, filePath))) return;
+    const validated = await validateFileAccess(res, filePath);
+    if (!validated) return;
+    const authorizedPath = typeof validated === 'string' ? validated : filePath;
 
     // 2. Direct File Optimization
     // If not transcoding and it's a local file, try sendFile for better performance/range support
     if (!isTranscodeForced) {
-      if (tryServeDirectFile(res, filePath)) return;
+      if (tryServeDirectFile(res, authorizedPath)) return;
     }
 
     // 3. Fallback / Transcoding Logic
@@ -87,7 +97,7 @@ export async function handleStreamRequest(
     // a) Transcoding is forced
     // b) It is a GDrive file
     // c) Local sendFile failed (fallback to manual stream)
-    const source = createMediaSource(filePath);
+    const source = createMediaSource(authorizedPath);
 
     if (isTranscodeForced) {
       if (!ffmpegPath) {
@@ -162,14 +172,16 @@ export async function serveMetadata(
   filePath: string,
   ffmpegPath: string | null,
 ) {
-  if (!(await validateFileAccess(res, filePath))) return;
+  const validated = await validateFileAccess(res, filePath);
+  if (!validated) return;
+  const authorizedPath = typeof validated === 'string' ? validated : filePath;
 
-  if (!ffmpegPath && !isDrivePath(filePath)) {
+  if (!ffmpegPath && !isDrivePath(authorizedPath)) {
     res.status(500).send('FFmpeg binary not found');
     return;
   }
 
-  const result = await getVideoDuration(filePath, ffmpegPath || '');
+  const result = await getVideoDuration(authorizedPath, ffmpegPath || '');
 
   res.json(result);
 }
@@ -267,17 +279,27 @@ export async function serveStaticFile(
   filePath: string,
 ) {
   try {
-    if (await validateFileAccess(res, filePath)) {
+    const validated = await validateFileAccess(res, filePath);
+    if (validated) {
+      const authorizedPath =
+        typeof validated === 'string' ? validated : filePath;
       // If local file, use res.sendFile for optimizing range/seeking
-      if (!isDrivePath(filePath)) {
-        return res.sendFile(filePath);
+      if (!isDrivePath(authorizedPath)) {
+        // [SECURITY] Explicitly re-validate/sanitize local path to prevent traversal
+        const auth = await authorizeFilePath(authorizedPath);
+        if (!auth.isAllowed || !auth.realPath) {
+          throw new Error(auth.message || 'Access denied (path sanitization)');
+        }
+
+        // Use the fully validated absolute path directly to avoid exposing arbitrary paths
+        return res.sendFile(auth.realPath);
       }
+
+      const source = createMediaSource(authorizedPath);
+      return await serveRawStream(req, res, source);
     } else {
       return; // validateFileAccess already responded
     }
-
-    const source = createMediaSource(filePath);
-    return await serveRawStream(req, res, source);
   } catch (err: unknown) {
     console.error('[ServeStatic] Error:', err);
     if (!res.headersSent) {
@@ -305,8 +327,14 @@ export function createMediaApp(options: MediaHandlerOptions) {
     }),
   );
 
+  const fileLimiter = createRateLimiter(
+    RATE_LIMIT_FILE_WINDOW_MS,
+    RATE_LIMIT_FILE_MAX_REQUESTS,
+    'Too many requests. Please slow down.',
+  );
+
   // Metadata Route
-  app.get(MediaRoutes.METADATA, async (req, res) => {
+  app.get(MediaRoutes.METADATA, fileLimiter, async (req, res) => {
     const filePath = getQueryParam(req.query, 'file');
     if (!filePath) {
       res.status(400).send('Missing file parameter');
@@ -316,13 +344,13 @@ export function createMediaApp(options: MediaHandlerOptions) {
   });
 
   // Streaming Route
-  app.get(MediaRoutes.STREAM, async (req, res) => {
+  app.get(MediaRoutes.STREAM, fileLimiter, async (req, res) => {
     // Logic handled inside handleStreamRequest by reading req.query
     await handleStreamRequest(req, res, ffmpegPath);
   });
 
   // Thumbnail Route
-  app.get(MediaRoutes.THUMBNAIL, async (req, res) => {
+  app.get(MediaRoutes.THUMBNAIL, fileLimiter, async (req, res) => {
     const filePath = getQueryParam(req.query, 'file');
     if (!filePath) {
       res.status(400).send('Missing file parameter');
@@ -332,7 +360,7 @@ export function createMediaApp(options: MediaHandlerOptions) {
   });
 
   // Static File Serving (Fallback)
-  app.use(async (req, res) => {
+  app.use(fileLimiter, async (req, res) => {
     let requestedPath = decodeURIComponent(req.path);
     // On Windows, pathname start with a slash like /C:/Users... Express req.path preserves it.
     // parseHttpRange logic handles paths.

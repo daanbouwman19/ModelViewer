@@ -77,7 +77,10 @@ describe('media-source', () => {
     });
 
     it('getFFmpegInput returns path if allowed', async () => {
-      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+      mockAuthorizeFilePath.mockResolvedValue({
+        isAllowed: true,
+        realPath: filePath,
+      });
       expect(await source.getFFmpegInput()).toBe(filePath);
     });
 
@@ -87,7 +90,10 @@ describe('media-source', () => {
     });
 
     it('getStream creates fs stream', async () => {
-      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+      mockAuthorizeFilePath.mockResolvedValue({
+        isAllowed: true,
+        realPath: filePath,
+      });
       mockFsStat.mockResolvedValue({ size: 1000 });
       const mockStream = { pipe: vi.fn() };
       mockFsCreateReadStream.mockReturnValue(mockStream);
@@ -101,7 +107,10 @@ describe('media-source', () => {
     });
 
     it('getStream handles range', async () => {
-      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+      mockAuthorizeFilePath.mockResolvedValue({
+        isAllowed: true,
+        realPath: filePath,
+      });
       mockFsStat.mockResolvedValue({ size: 1000 });
       const mockStream = { pipe: vi.fn() };
       mockFsCreateReadStream.mockReturnValue(mockStream);
@@ -115,19 +124,28 @@ describe('media-source', () => {
     });
 
     it('getMimeType detects video types', async () => {
-      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+      mockAuthorizeFilePath.mockResolvedValue({
+        isAllowed: true,
+        realPath: 'test.mp4',
+      });
       const s = new LocalMediaSource('test.mp4');
       expect(await s.getMimeType()).toBe('video/mp4');
     });
 
     it('getMimeType defaults to octet-stream', async () => {
-      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+      mockAuthorizeFilePath.mockResolvedValue({
+        isAllowed: true,
+        realPath: 'test.xyz',
+      });
       const s = new LocalMediaSource('test.xyz');
       expect(await s.getMimeType()).toBe('application/octet-stream');
     });
 
     it('getSize returns stat size', async () => {
-      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+      mockAuthorizeFilePath.mockResolvedValue({
+        isAllowed: true,
+        realPath: filePath,
+      });
       mockFsStat.mockResolvedValue({ size: 500 });
       expect(await source.getSize()).toBe(500);
     });

@@ -40,7 +40,23 @@ vi.mock('path', async (importOriginal) => {
     ...posix,
     join: (...args: string[]) =>
       args.join(process.platform === 'win32' ? '\\' : '/'),
-    resolve: actual.resolve,
+    resolve: (...args: string[]) => {
+      let res = '';
+      const isWin = process.platform === 'win32';
+      const isAbs = isWin ? win32.isAbsolute : posix.isAbsolute;
+      const sep = isWin ? '\\' : '/';
+
+      for (const arg of args) {
+        if (isAbs(arg)) {
+          res = arg;
+        } else {
+          // If res is empty and arg is relative, just set as arg
+          if (!res) res = arg;
+          else res = res.endsWith(sep) ? res + arg : res + sep + arg;
+        }
+      }
+      return res;
+    },
     dirname: actual.dirname,
     basename: actual.basename,
     extname: actual.extname,
@@ -118,10 +134,17 @@ vi.mock('../../src/main/local-server.js', () => ({
 }));
 
 vi.mock('../../src/core/database', () => ({
-  initDatabase: vi.fn(),
   closeDatabase: vi.fn(),
   getMediaDirectories: mockGetMediaDirectories,
 }));
+
+vi.mock('../../src/main/ipc/system-controller', async (importOriginal) => {
+  const actual = await importOriginal<any>();
+  return {
+    ...actual,
+    registerSystemHandlers: actual.registerSystemHandlers,
+  };
+});
 
 describe('Main Process IPC - open-in-vlc', () => {
   let openInVlcHandler: (event: any, filePath: string) => Promise<any>;
@@ -142,8 +165,10 @@ describe('Main Process IPC - open-in-vlc', () => {
       { path: '/', isActive: true },
     ]);
 
-    // Import main.js to register the handlers
-    await import('../../src/main/main.js');
+    // Register system handlers directly
+    await import('../../src/main/ipc/system-controller').then((mod) => {
+      mod.registerSystemHandlers();
+    });
 
     // Find the handler
     const handleCalls = (ipcMain.handle as unknown as Mock).mock.calls;

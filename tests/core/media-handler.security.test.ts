@@ -18,6 +18,11 @@ vi.mock('../../src/core/media-source', async () => {
   };
 });
 import { createMediaSource } from '../../src/core/media-source';
+import { validateFileAccess } from '../../src/core/access-validator';
+
+vi.mock('../../src/core/access-validator', () => ({
+  validateFileAccess: vi.fn(),
+}));
 
 vi.mock('fs', () => {
   return {
@@ -62,7 +67,12 @@ describe('media-handler security', () => {
 
   it('prevents file enumeration in serveStaticFile via handler', async () => {
     // Scenario: createMediaSource throws "Access denied"
-    // Since serveStaticFile calls authorizeFilePath first for non-gdrive files:
+    // Mock validateFileAccess to return false (denied)
+    vi.mocked(validateFileAccess).mockImplementation(async (r: any) => {
+      r.status(403).send('Access denied.');
+      return false;
+    });
+
     vi.mocked(security.authorizeFilePath).mockResolvedValue({
       isAllowed: false,
       message: 'Access denied',
@@ -73,15 +83,10 @@ describe('media-handler security', () => {
     expect(res.status).toHaveBeenCalledWith(403);
     expect(res.send).toHaveBeenCalledWith('Access denied.');
 
-    // Scenario 2: If we force gdrive (starts with gdrive://) - authorizeFilePath is skipped in local check logic
-    // but createMediaSource might throw.
-    // However, the original test tested basic file access for local usage.
-    // If we test createMediaSource failure:
+    // Scenario 2: If we force gdrive
     vi.clearAllMocks();
     res.status.mockClear();
 
-    // Bypass local check by mocking startWith or passing gdrive
-    // If we pass gdrive://, it goes to createMediaSource
     vi.mocked(createMediaSource).mockImplementation(() => {
       throw new Error('Access denied: File does not exist.');
     });
@@ -90,7 +95,28 @@ describe('media-handler security', () => {
     expect(res.status).toHaveBeenCalledWith(403);
   });
 
+  it('prevents unauthorized access in serveStaticFile even if validateFileAccess passes', async () => {
+    // Mock validateFileAccess to pass (simulate race condition or bypass)
+    vi.mocked(validateFileAccess).mockResolvedValue('/path/to/forbidden.txt');
+
+    // Mock authorizeFilePath to fail (the second check)
+    vi.mocked(security.authorizeFilePath).mockResolvedValue({
+      isAllowed: false,
+      message: 'Access denied (path sanitization)',
+    });
+
+    await serveStaticFile(req, res, '/path/to/forbidden.txt');
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.send).toHaveBeenCalledWith('Access denied.');
+  });
+
   it('prevents file enumeration in serveMetadata', async () => {
+    vi.mocked(validateFileAccess).mockImplementation(async (r: any) => {
+      r.status(403).send('Access denied.');
+      return false;
+    });
+
     vi.mocked(security.authorizeFilePath).mockResolvedValueOnce({
       isAllowed: false,
       message: 'Access denied: Forbidden',
@@ -105,7 +131,11 @@ describe('media-handler security', () => {
   it('prevents file enumeration in serveTranscodedStream (video/stream)', async () => {
     req.query = { file: '/forbidden.txt', transcode: 'true' };
 
-    // With handleStreamRequest, it checks authorization for local files.
+    vi.mocked(validateFileAccess).mockImplementation(async (r: any) => {
+      r.status(403).send('Access denied.');
+      return false;
+    });
+
     vi.mocked(security.authorizeFilePath).mockResolvedValueOnce({
       isAllowed: false,
       message: 'Access denied',
@@ -118,6 +148,11 @@ describe('media-handler security', () => {
   });
 
   it('prevents file enumeration in serveThumbnail', async () => {
+    vi.mocked(validateFileAccess).mockImplementation(async (r: any) => {
+      r.status(403).send('Access denied.');
+      return false;
+    });
+
     vi.mocked(security.authorizeFilePath).mockResolvedValueOnce({
       isAllowed: false,
       message: 'Access denied: Forbidden',

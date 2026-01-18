@@ -18,9 +18,12 @@ export interface FileSystemEntry {
 export async function listDirectory(
   directoryPath: string,
 ): Promise<FileSystemEntry[]> {
-  // Check for special Root indicator or empty path
   if (!directoryPath || directoryPath === 'ROOT') {
     return listDrives();
+  }
+
+  if (typeof directoryPath !== 'string' || directoryPath.includes('\0')) {
+    throw new Error('Invalid directory path');
   }
 
   try {
@@ -46,7 +49,8 @@ export async function listDirectory(
   } catch (error) {
     if (process.env.NODE_ENV !== 'test') {
       console.error(
-        `[file-system.ts] Error listing directory ${directoryPath}:`,
+        '[file-system.ts] Error listing directory %s:',
+        directoryPath,
         error,
       );
     }

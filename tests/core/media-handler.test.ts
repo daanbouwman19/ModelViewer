@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { IMediaSource } from '../../src/core/media-source-types';
 import { PassThrough, EventEmitter } from 'stream';
+import path from 'path';
 import request from 'supertest';
 import { createMediaSource } from '../../src/core/media-source';
 
@@ -312,7 +313,10 @@ describe('media-handler unit tests', () => {
     });
 
     it('returns error if ffmpeg path missing for local file', async () => {
-      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+      mockAuthorizeFilePath.mockResolvedValue({
+        isAllowed: true,
+        realPath: '/local/file',
+      });
       await serveMetadata(req, res, '/local/file', null);
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.send).toHaveBeenCalledWith('FFmpeg binary not found');
@@ -341,7 +345,13 @@ describe('media-handler unit tests', () => {
 
       mockSpawn.mockReturnValue(mockProcess);
 
-      await serveTranscodedStream(req, res, mockMediaSource, ffmpegPath, null);
+      await serveTranscodedStream(
+        req,
+        res,
+        mockMediaSource,
+        ffmpegPath,
+        undefined,
+      );
 
       expect(mockMediaSource.getFFmpegInput).toHaveBeenCalled();
       expect(mockSpawn).toHaveBeenCalledWith(
@@ -398,7 +408,13 @@ describe('media-handler unit tests', () => {
       };
       mockSpawn.mockReturnValue(mockProcess);
 
-      await serveTranscodedStream(req, res, mockMediaSource, ffmpegPath, null);
+      await serveTranscodedStream(
+        req,
+        res,
+        mockMediaSource,
+        ffmpegPath,
+        undefined,
+      );
 
       // Simulate request close
       const closeCalls = req.on.mock.calls.filter((c: any) => c[0] === 'close');
@@ -415,7 +431,13 @@ describe('media-handler unit tests', () => {
       );
 
       await expect(
-        serveTranscodedStream(req, res, mockMediaSource, '/bin/ffmpeg', null),
+        serveTranscodedStream(
+          req,
+          res,
+          mockMediaSource,
+          '/bin/ffmpeg',
+          undefined,
+        ),
       ).rejects.toThrow('Access denied');
 
       expect(res.writeHead).not.toHaveBeenCalled();
@@ -439,7 +461,7 @@ describe('media-handler unit tests', () => {
         res,
         mockMediaSource,
         'ffmpeg',
-        null,
+        undefined,
       );
 
       // Wait for the function to proceed past await getFFmpegInput
@@ -603,7 +625,11 @@ describe('media-handler unit tests', () => {
 
   describe('serveStaticFile', () => {
     it('serves file as raw stream', async () => {
-      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+      const testPath = '/static/file';
+      mockAuthorizeFilePath.mockResolvedValue({
+        isAllowed: true,
+        realPath: testPath,
+      });
       const mockStream = { pipe: vi.fn(), on: vi.fn(), destroy: vi.fn() };
 
       vi.mocked(createMediaSource).mockReturnValue({
@@ -615,8 +641,8 @@ describe('media-handler unit tests', () => {
         getFFmpegInput: vi.fn(),
       });
 
-      await serveStaticFile(req, res, '/static/file');
-      expect(res.sendFile).toHaveBeenCalledWith('/static/file');
+      await serveStaticFile(req, res, testPath);
+      expect(res.sendFile).toHaveBeenCalledWith(testPath);
     });
 
     it('handles access denied', async () => {
@@ -645,11 +671,17 @@ describe('media-handler unit tests', () => {
     });
 
     it('handles local file by sending file (optimization)', async () => {
-      req.query = { file: '/local/test.mp4' };
-      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+      const testFile = '/local/test.mp4';
+      req.query = { file: testFile };
+      mockAuthorizeFilePath.mockResolvedValue({
+        isAllowed: true,
+        realPath: testFile,
+      });
 
       await handleStreamRequest(req, res, 'ffmpeg');
-      expect(res.sendFile).toHaveBeenCalledWith('/local/test.mp4');
+      expect(res.sendFile).toHaveBeenCalledWith(path.basename(testFile), {
+        root: path.dirname(testFile),
+      });
     });
 
     it('handles local file access denied', async () => {
@@ -663,7 +695,10 @@ describe('media-handler unit tests', () => {
 
     it('handles transcode request', async () => {
       req.query = { file: '/local/test.mp4', transcode: 'true' };
-      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+      mockAuthorizeFilePath.mockResolvedValue({
+        isAllowed: true,
+        realPath: '/local/file',
+      });
 
       // We mocked createMediaSource in beforeEach to return standard source
       const sourceInput = '/path/to/media';
@@ -708,7 +743,10 @@ describe('media-handler unit tests', () => {
       // Use transcode=true to bypass the tryServeDirectFile optimization
       // so we definitely hit createMediaSource
       req.query = { file: '/bad', transcode: 'true' };
-      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+      mockAuthorizeFilePath.mockResolvedValue({
+        isAllowed: true,
+        realPath: '/local/file',
+      });
 
       // To force error in top level, we can fail createMediaSource
       vi.mocked(createMediaSource).mockImplementation(() => {
@@ -753,7 +791,13 @@ describe('media-handler unit tests', () => {
       getFFmpegInput: vi.fn().mockResolvedValue('input'),
     };
 
-    await serveTranscodedStream(req, res, mockSource as any, 'ffmpeg', null);
+    await serveTranscodedStream(
+      req,
+      res,
+      mockSource as any,
+      'ffmpeg',
+      undefined,
+    );
 
     // Trigger close
     req.emit('close');
@@ -773,7 +817,13 @@ describe('media-handler unit tests', () => {
       getFFmpegInput: vi.fn().mockResolvedValue('input'),
     };
 
-    await serveTranscodedStream(req, res, mockSource as any, 'ffmpeg', null);
+    await serveTranscodedStream(
+      req,
+      res,
+      mockSource as any,
+      'ffmpeg',
+      undefined,
+    );
 
     mockProc.emit('error', new Error('Process Error'));
     // assert calling console.error? Not strictly needed for coverage, just need execution.
@@ -793,7 +843,13 @@ describe('media-handler unit tests', () => {
       getFFmpegInput: vi.fn().mockResolvedValue('input'),
     };
 
-    await serveTranscodedStream(req, res, mockSource as any, 'ffmpeg', null);
+    await serveTranscodedStream(
+      req,
+      res,
+      mockSource as any,
+      'ffmpeg',
+      undefined,
+    );
 
     mockProc.stderr.emit('data', 'some log');
   });
