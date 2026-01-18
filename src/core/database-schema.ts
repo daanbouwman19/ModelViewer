@@ -54,6 +54,7 @@ export const DB_SCHEMA = {
 
 export const DB_INDEXES = {
   MEDIA_METADATA_IDX_STATUS: `CREATE INDEX IF NOT EXISTS idx_media_metadata_status ON media_metadata(extraction_status)`,
+  MEDIA_METADATA_IDX_FILE_PATH: `CREATE INDEX IF NOT EXISTS idx_media_metadata_file_path ON media_metadata(file_path)`,
   MEDIA_VIEWS_IDX_LAST_VIEWED: `CREATE INDEX IF NOT EXISTS idx_media_views_last_viewed ON media_views(last_viewed DESC)`,
 };
 
