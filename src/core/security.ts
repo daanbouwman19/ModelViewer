@@ -91,7 +91,7 @@ export async function authorizeFilePath(
     filePath.includes('\r') ||
     filePath.includes('\n')
   ) {
-    return { isAllowed: false, message: 'File path is empty' };
+    return { isAllowed: false, message: 'Invalid file path' };
   }
 
   const mediaDirectories = await getMediaDirectories();
@@ -134,62 +134,39 @@ export async function authorizeFilePath(
 
       try {
         // Normalize and resolve the allowed directory itself to a real absolute root
-        const allowedRootResolved = path.resolve(allowedDir);
-        let allowedRootReal = allowedRootResolved;
-        try {
-          // realpath may fail if the directory was removed; in that case, just skip it
-          allowedRootReal = await fs.realpath(allowedRootResolved);
-        } catch (rootErr) {
-          if (!isErrnoException(rootErr) || rootErr.code !== 'ENOENT') {
-            console.warn(
-              `[Security] Failed to resolve media root ${allowedDir}: ${(rootErr as Error).message}`,
-            );
-          }
-          // This root is not usable; proceed to the next one.
-          continue;
-        }
+        const allowedRootReal = await fs.realpath(path.resolve(allowedDir));
 
-        // Ensure the media root is absolute
-        if (!path.isAbsolute(allowedRootReal)) {
-          allowedRootReal = path.resolve(allowedRootReal);
-        }
-
-        // Build the candidate path relative to this allowed root and normalize it.
-        const candidate = path.resolve(allowedRootReal, filePath);
-        let candidateRealPath = await fs.realpath(candidate);
-        // fs.realpath should already return an absolute path, but enforce it defensively
-        if (!path.isAbsolute(candidateRealPath)) {
-          candidateRealPath = path.resolve(candidateRealPath);
-        }
+        const candidateRealPath = await fs.realpath(
+          path.resolve(allowedRootReal, filePath),
+        );
 
         // Fast containment check using prefix with trailing separator
-        const normalizedRoot =
-          allowedRootReal.endsWith(path.sep)
-            ? allowedRootReal
-            : allowedRootReal + path.sep;
+        const normalizedRoot = allowedRootReal.endsWith(path.sep)
+          ? allowedRootReal
+          : allowedRootReal + path.sep;
 
-        let isContained = false;
         if (
           candidateRealPath === allowedRootReal ||
           candidateRealPath.startsWith(normalizedRoot)
         ) {
-          isContained = true;
-        } else {
-          // Fallback to path.relative-based check to handle edge cases
-          const relativeToAllowed = path.relative(
-            allowedRootReal,
-            candidateRealPath,
+          const relative = path.relative(allowedRootReal, candidateRealPath);
+          const segments = relative.split(path.sep);
+          const hasSensitiveSegment = segments.some(
+            (segment) =>
+              sensitiveSubdirectoriesSet.has(segment.toLowerCase()) ||
+              segment.toLowerCase().startsWith('.env'),
           );
-          if (
-            relativeToAllowed !== '..' &&
-            !relativeToAllowed.startsWith(`..${path.sep}`) &&
-            !path.isAbsolute(relativeToAllowed)
-          ) {
-            isContained = true;
-          }
-        }
 
-        if (isContained) {
+          if (hasSensitiveSegment) {
+            console.warn(
+              `[Security] Access denied to sensitive file: ${candidateRealPath}`,
+            );
+            return {
+              isAllowed: false,
+              message: 'Access to sensitive file denied',
+            };
+          }
+
           realPath = candidateRealPath;
           break;
         }
@@ -214,45 +191,6 @@ export async function authorizeFilePath(
         message: 'Access denied',
       };
     }
-  }
-
-  let isPathAllowed = false;
-
-  for (const allowedDir of allowedPaths) {
-    const relative = path.relative(allowedDir, realPath);
-    // Check if file is inside the directory
-    if (!relative.startsWith('..') && !path.isAbsolute(relative)) {
-      // It is inside. Now check for sensitive subdirectories.
-      const segments = relative.split(path.sep);
-      const hasSensitiveSegment = segments.some(
-        (segment) =>
-          sensitiveSubdirectoriesSet.has(segment.toLowerCase()) ||
-          segment.toLowerCase().startsWith('.env'),
-      );
-
-      if (hasSensitiveSegment) {
-        console.warn(`[Security] Access denied to sensitive file: ${realPath}`);
-        return {
-          isAllowed: false,
-          message: 'Access to sensitive file denied',
-        };
-      }
-
-      isPathAllowed = true;
-      break;
-    }
-  }
-
-  if (!isPathAllowed) {
-    // Only warn if it's genuinely outside allowed paths, ensuring we don't leak info but helpful for debugging
-    // checking if we should log based on environment could be better, but this is fine for now on failures.
-    console.warn(
-      `[Security] Access denied to file outside media directories: ${realPath} (resolved from ${filePath})`,
-    );
-    return {
-      isAllowed: false,
-      message: 'Access denied',
-    };
   }
 
   return { isAllowed: true, realPath };
