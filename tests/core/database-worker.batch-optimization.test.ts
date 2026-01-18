@@ -8,7 +8,8 @@ const { mockStat } = vi.hoisted(() => {
 
 // Mock fs/promises
 vi.mock('fs/promises', async () => {
-  const actual = await vi.importActual<typeof import('fs/promises')>('fs/promises');
+  const actual =
+    await vi.importActual<typeof import('fs/promises')>('fs/promises');
   return {
     ...actual,
     default: {
@@ -54,7 +55,8 @@ describe('database-worker batch optimization', () => {
   afterEach(async () => {
     closeDatabase();
     // Clean up using actual fs
-    const realFs = await vi.importActual<typeof import('fs/promises')>('fs/promises');
+    const realFs =
+      await vi.importActual<typeof import('fs/promises')>('fs/promises');
     try {
       await realFs.unlink(dbPath);
     } catch {
@@ -118,8 +120,8 @@ describe('database-worker batch optimization', () => {
 
     // Bulk upsert mixed
     const payloads = [
-        { filePath: file1, rating: 5 },
-        { filePath: file2, rating: 3 }
+      { filePath: file1, rating: 5 },
+      { filePath: file2, rating: 3 },
     ];
 
     const result = await bulkUpsertMetadata(payloads);
