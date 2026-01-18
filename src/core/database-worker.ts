@@ -67,6 +67,7 @@ async function generateFileId(filePath: string): Promise<string> {
 
 /**
  * Helper to generate file IDs in batches to avoid EMFILE errors.
+ * Optimization: Checks DB first to avoid fs.stat for known files.
  * @param filePaths - List of file paths.
  * @returns Map of filePath to fileId.
  */
@@ -74,10 +75,53 @@ async function generateFileIdsBatched(
   filePaths: string[],
 ): Promise<Map<string, string>> {
   const pathIdMap = new Map<string, string>();
-  const BATCH_SIZE = 50;
 
-  for (let i = 0; i < filePaths.length; i += BATCH_SIZE) {
-    const batch = filePaths.slice(i, i + BATCH_SIZE);
+  // 1. Check Database for existing IDs (avoid fs.stat)
+  // Use SQL_BATCH_SIZE (900) for DB queries
+  if (db && statements.getFileIdsByPathsBatch) {
+    for (let i = 0; i < filePaths.length; i += SQL_BATCH_SIZE) {
+      const batchPaths = filePaths.slice(i, i + SQL_BATCH_SIZE);
+      let rows: { file_path: string; file_path_hash: string }[];
+
+      try {
+        if (batchPaths.length === SQL_BATCH_SIZE) {
+          rows = statements.getFileIdsByPathsBatch.all(...batchPaths) as {
+            file_path: string;
+            file_path_hash: string;
+          }[];
+        } else {
+          // Pad with nulls for cached statement
+          const args = new Array(SQL_BATCH_SIZE).fill(null);
+          for (let k = 0; k < batchPaths.length; k++) {
+            args[k] = batchPaths[k];
+          }
+          rows = statements.getFileIdsByPathsBatch.all(...args) as {
+            file_path: string;
+            file_path_hash: string;
+          }[];
+        }
+
+        for (const row of rows) {
+          if (row.file_path) {
+            pathIdMap.set(row.file_path, row.file_path_hash);
+          }
+        }
+      } catch (err) {
+        console.warn(
+          '[worker] Failed to query existing file IDs (falling back to generation):',
+          err,
+        );
+      }
+    }
+  }
+
+  // 2. Identify missing paths
+  const missingPaths = filePaths.filter((p) => !pathIdMap.has(p));
+
+  // 3. Process missing paths with fs.stat (limited concurrency)
+  const IO_BATCH_SIZE = 50;
+  for (let i = 0; i < missingPaths.length; i += IO_BATCH_SIZE) {
+    const batch = missingPaths.slice(i, i + IO_BATCH_SIZE);
     const results = await Promise.allSettled(
       batch.map(async (filePath) => {
         const fileId = await generateFileId(filePath);
@@ -235,6 +279,10 @@ export function initDatabase(dbPath: string): WorkerResult {
     );
     statements.getAllMetadata = db.prepare(
       `SELECT * FROM media_metadata WHERE file_path IS NOT NULL`,
+    );
+
+    statements.getFileIdsByPathsBatch = db.prepare(
+      `SELECT file_path, file_path_hash FROM media_metadata WHERE file_path IN (${placeholders})`,
     );
 
     console.log('[worker] SQLite database initialized at:', dbPath);
