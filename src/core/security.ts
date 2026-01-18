@@ -206,7 +206,9 @@ async function authorizeLocalPath(
     try {
       const allowedRootReal = await fs.realpath(path.resolve(allowedDir));
       const candidateRealPath = await fs.realpath(
-        isAbsolute ? safePath : path.resolve(allowedRootReal, safePath),
+        isAbsolute
+          ? path.resolve(safePath)
+          : path.resolve(allowedRootReal, safePath),
       );
 
       const normalizedRoot = allowedRootReal.endsWith(path.sep)
