@@ -213,7 +213,7 @@ async function authorizeLocalPath(
         // If the input is absolute, ensure it is inside this allowed root.
         const relToRoot = path.relative(allowedRootReal, safePath);
         if (
-          !relToRoot ||
+          (relToRoot !== '' && path.isAbsolute(relToRoot)) ||
           relToRoot === '..' ||
           relToRoot.startsWith('..' + path.sep) ||
           relToRoot.includes('/..') ||
