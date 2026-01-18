@@ -248,10 +248,13 @@ export function getQueryParam(
   key: string,
 ): string | undefined {
   const value = query[key];
-  if (Array.isArray(value)) {
-    return value[0] as string;
+  if (typeof value === 'string') {
+    return value;
   }
-  return value as string | undefined;
+  if (Array.isArray(value) && typeof value[0] === 'string') {
+    return value[0];
+  }
+  return undefined;
 }
 
 export function parseFFmpegDuration(stderr: string): number | null {

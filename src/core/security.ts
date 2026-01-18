@@ -168,13 +168,11 @@ async function authorizeLocalPath(
   filePath: string,
   allowedPaths: string[],
 ): Promise<AuthorizationResult | null> {
-  const isAbsolute = path.isAbsolute(filePath);
-  let safePath = filePath;
+  // Normalize separators and collapse any "." / ".." segments for consistent handling.
+  const safePath = path.normalize(filePath);
+  const isAbsolute = path.isAbsolute(safePath);
 
   if (!isAbsolute) {
-    // Normalize separators and collapse any "." / ".." segments for relative paths.
-    safePath = path.normalize(filePath);
-
     // After normalization, reject any path that still attempts to traverse upwards.
     if (
       safePath === '..' ||
@@ -208,7 +206,7 @@ async function authorizeLocalPath(
     try {
       const allowedRootReal = await fs.realpath(path.resolve(allowedDir));
       const candidateRealPath = await fs.realpath(
-        path.resolve(allowedRootReal, safePath),
+        isAbsolute ? safePath : path.resolve(allowedRootReal, safePath),
       );
 
       const normalizedRoot = allowedRootReal.endsWith(path.sep)
