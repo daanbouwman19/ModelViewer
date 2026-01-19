@@ -82,7 +82,7 @@ describe('Database Core Coverage', () => {
   });
 
   it('sendMessageToWorker handles timeout', async () => {
-    const worker = await initTestDb();
+    await initTestDb();
 
     // Set short timeout
     database.setOperationTimeout(100);
@@ -132,10 +132,8 @@ describe('Database Core Coverage', () => {
   });
 
   it('handles worker exit with error code', async () => {
-    const worker = await initTestDb();
-
     // Emit exit with code 1
-    worker.emit('exit', 1);
+    (await initTestDb()).emit('exit', 1);
   });
 
   it('removeMediaDirectory handles error', async () => {
