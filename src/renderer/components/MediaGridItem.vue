@@ -91,34 +91,15 @@ defineEmits<{
   (e: 'image-error', item: MediaFile): void;
 }>();
 
-// We need to handle the case where props.imageExtensionsSet might be wrapped in a Ref/Object if passed incorrectly,
-// OR simply ensure we access it correctly.
-const isImage = computed(() => {
-  // Defensive coding to handle potential non-unwrapped refs in tests/edge cases
-  const set = props.imageExtensionsSet as unknown as { value?: Set<string> };
-  let actualSet = props.imageExtensionsSet;
-  if (
-    set &&
-    typeof (set as Set<string>).has !== 'function' &&
-    set.value instanceof Set
-  ) {
-    actualSet = set.value;
-  }
-  return isMediaFileImage(props.item, actualSet);
-});
+// Optimization: Removed defensive coding that checked for wrapped Refs.
+// Props are guaranteed to be unwrapped Sets by Vue and strict typing.
+const isImage = computed(() =>
+  isMediaFileImage(props.item, props.imageExtensionsSet),
+);
 
-const isVideo = computed(() => {
-  const set = props.videoExtensionsSet as unknown as { value?: Set<string> };
-  let actualSet = props.videoExtensionsSet;
-  if (
-    set &&
-    typeof (set as Set<string>).has !== 'function' &&
-    set.value instanceof Set
-  ) {
-    actualSet = set.value;
-  }
-  return isMediaFileVideo(props.item, actualSet);
-});
+const isVideo = computed(() =>
+  isMediaFileVideo(props.item, props.videoExtensionsSet),
+);
 
 const mediaUrl = computed(() => {
   if (!props.mediaUrlGenerator) return '';
