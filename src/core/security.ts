@@ -194,10 +194,7 @@ async function authorizeLocalPath(
   }
 
   // On Windows, also defensively reject drive-like prefixes even if the path is not absolute.
-  if (
-    process.platform === 'win32' &&
-    /^[a-zA-Z]:[\\/]|^\\\\/.test(safePath)
-  ) {
+  if (process.platform === 'win32' && /^[a-zA-Z]:[\\/]|^\\\\/.test(safePath)) {
     return {
       isAllowed: false,
       message: 'Access denied',
