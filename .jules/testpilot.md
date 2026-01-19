@@ -16,3 +16,9 @@ Instead of importing `main.js`, test the specific controller (e.g., `src/main/ip
 **Discovery:** Multiple tests (`media-utils.test.ts`, `media-handler.input.test.ts`) were manually constructing mock `EventEmitter` objects to simulate `child_process.spawn`. This led to duplicated setup code and inconsistent mocking of streams like `stdout` and `stderr`.
 
 **Strategy:** Introduced a `createMockProcess` helper in `tests/helpers/test-utils.ts` that factories a standard mock process with `PassThrough` streams for `stdout`/`stderr` and default spies for methods like `kill`. This simplifies test setup and ensures consistent behavior across tests interacting with subprocesses.
+
+## 2025-02-14 - Removing False Async Waits in Worker Mocks
+
+**Discovery:** `tests/core/database.coverage.test.ts` relied on arbitrary `setTimeout` delays to test synchronous mock interactions, introducing unnecessary slowness and potential flakiness. The setup code was also heavily duplicated.
+
+**Strategy:** Refactored to remove all `setTimeout` calls (as `postMessage` on the mock is synchronous) and extracted the worker initialization into a factory helper (`initTestDb`), reducing noise and improving test speed.
