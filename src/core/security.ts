@@ -172,30 +172,36 @@ async function authorizeLocalPath(
   const safePath = path.normalize(filePath);
   const isAbsolute = path.isAbsolute(safePath);
 
-  if (!isAbsolute) {
-    // After normalization, reject any path that still attempts to traverse upwards.
-    if (
-      safePath === '..' ||
-      safePath.startsWith('..' + path.sep) ||
-      safePath.includes('/..') ||
-      safePath.includes('\\..')
-    ) {
-      return {
-        isAllowed: false,
-        message: 'Access denied',
-      };
-    }
+  // Disallow absolute local paths entirely; callers must use paths within registered media directories.
+  if (isAbsolute) {
+    return {
+      isAllowed: false,
+      message: 'Access denied',
+    };
+  }
 
-    // On Windows, also defensively reject drive-like prefixes in a "relative" path.
-    if (
-      process.platform === 'win32' &&
-      /^[a-zA-Z]:[\\/]|^\\\\/.test(safePath)
-    ) {
-      return {
-        isAllowed: false,
-        message: 'Access denied',
-      };
-    }
+  // After normalization, reject any path that still attempts to traverse upwards.
+  if (
+    safePath === '..' ||
+    safePath.startsWith('..' + path.sep) ||
+    safePath.includes('/..') ||
+    safePath.includes('\\..')
+  ) {
+    return {
+      isAllowed: false,
+      message: 'Access denied',
+    };
+  }
+
+  // On Windows, also defensively reject drive-like prefixes even if the path is not absolute.
+  if (
+    process.platform === 'win32' &&
+    /^[a-zA-Z]:[\\/]|^\\\\/.test(safePath)
+  ) {
+    return {
+      isAllowed: false,
+      message: 'Access denied',
+    };
   }
 
   for (const allowedDir of allowedPaths) {
