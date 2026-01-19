@@ -560,7 +560,7 @@ export async function createApp() {
   });
 
   // Extensions
-  app.get('/api/config/extensions', (_req, res) => {
+  app.get('/api/config/extensions', readLimiter, (_req, res) => {
     res.json({
       images: SUPPORTED_IMAGE_EXTENSIONS,
       videos: SUPPORTED_VIDEO_EXTENSIONS,
@@ -615,7 +615,7 @@ export async function createApp() {
   });
 
   // Auth Callback Handler for browser flow
-  app.get('/auth/google/callback', (req, res) => {
+  app.get('/auth/google/callback', authLimiter, (req, res) => {
     const code = getQueryParam(req.query, 'code');
     if (!code || typeof code !== 'string')
       return res.status(400).send('Missing or invalid code parameter');
@@ -790,7 +790,7 @@ export async function createApp() {
     app.use(express.static(clientDistPath));
 
     // SPA Fallback
-    app.get(/.*/, (_req, res) => {
+    app.get(/.*/, readLimiter, (_req, res) => {
       res.sendFile(path.join(clientDistPath, 'index.html'));
     });
   }
