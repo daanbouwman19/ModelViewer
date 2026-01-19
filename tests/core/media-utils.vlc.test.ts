@@ -42,7 +42,8 @@ describe('getVlcPath', () => {
       value: 'win32',
     });
     vi.mocked(fs.promises.access).mockImplementation((path: any) => {
-      if (path === 'C:\\Program Files\\VideoLAN\\VLC\\vlc.exe') return Promise.resolve();
+      if (path === 'C:\\Program Files\\VideoLAN\\VLC\\vlc.exe')
+        return Promise.resolve();
       return Promise.reject(new Error('Not found'));
     });
 
@@ -55,7 +56,8 @@ describe('getVlcPath', () => {
       value: 'win32',
     });
     vi.mocked(fs.promises.access).mockImplementation((path: any) => {
-      if (path === 'C:\\Program Files (x86)\\VideoLAN\\VLC\\vlc.exe') return Promise.resolve();
+      if (path === 'C:\\Program Files (x86)\\VideoLAN\\VLC\\vlc.exe')
+        return Promise.resolve();
       return Promise.reject(new Error('Not found'));
     });
 
