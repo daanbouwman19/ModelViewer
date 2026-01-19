@@ -983,7 +983,7 @@ describe('media-handler unit tests', () => {
       const result = await openMediaInVlc('gdrive://123', 3000);
       expect(result).toEqual({ success: true });
       expect(mockSpawn).toHaveBeenCalledWith(
-        'vlc',
+        '/usr/bin/vlc',
         [expect.stringContaining('http://localhost:3000/video/stream')],
         expect.anything(),
       );
