@@ -28,7 +28,5 @@ export function createRateLimiter(
     // The `trustProxy` option should be at the top level. `validate` is for custom validation.
     // Setting to `false` uses the direct client IP. If deploying behind a reverse proxy,
     // this should be `true` and `app.set('trust proxy', 1)` should be configured in `server.ts`.
-    trustProxy: false,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any);
+  });
 }
