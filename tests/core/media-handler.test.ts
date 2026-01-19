@@ -18,6 +18,7 @@ const {
   mockGetDriveStreamWithCache,
   mockFsReadFile,
   mockFsAccess,
+  mockGetFFmpegDuration,
 } = vi.hoisted(() => ({
   mockSpawn: vi.fn(),
   mockGetDriveFileMetadata: vi.fn(),
@@ -31,6 +32,7 @@ const {
   mockGetDriveStreamWithCache: vi.fn(),
   mockFsReadFile: vi.fn(),
   mockFsAccess: vi.fn(),
+  mockGetFFmpegDuration: vi.fn(),
 }));
 
 vi.mock('child_process', () => ({
@@ -118,6 +120,7 @@ vi.mock('../../src/core/media-utils', async (importOriginal) => {
     ...actual,
     getThumbnailCachePath: mockGetThumbnailCachePath,
     checkThumbnailCache: mockCheckThumbnailCache,
+    getFFmpegDuration: mockGetFFmpegDuration,
   };
 });
 
@@ -206,6 +209,7 @@ describe('media-handler unit tests', () => {
     });
   });
 
+  // ... (Other tests: getMimeType, etc. assumed same as previous)
   describe('getMimeType', () => {
     it('returns octet-stream for gdrive files', () => {
       expect(getMimeType('gdrive://123')).toBe('application/octet-stream');
@@ -243,51 +247,44 @@ describe('media-handler unit tests', () => {
     });
 
     it('fetches duration from local file using ffmpeg', async () => {
-      const mockProc = new EventEmitter() as any;
-      mockProc.stdout = new PassThrough();
-      mockProc.stderr = new EventEmitter();
-      mockSpawn.mockReturnValue(mockProc);
+      mockGetFFmpegDuration.mockResolvedValue(10.5);
 
-      const promise = getVideoDuration('/local/file.mp4', 'ffmpeg');
-      await vi.waitFor(() => expect(mockSpawn).toHaveBeenCalled());
+      const result = (await getVideoDuration(
+        '/local/file.mp4',
+        'ffmpeg',
+      )) as any;
 
-      // Emit on stderr as per implementation
-      mockProc.stderr.emit('data', 'Duration: 00:00:10.50, start:');
-      mockProc.emit('close', 0);
-
-      const result = (await promise) as any;
+      expect(mockGetFFmpegDuration).toHaveBeenCalledWith(
+        '/local/file.mp4',
+        'ffmpeg',
+      );
       expect(result.duration).toBeCloseTo(10.5);
     });
 
     it('handles ffmpeg failure for duration', async () => {
-      const mockProc = new EventEmitter() as any;
-      mockProc.stdout = new PassThrough();
-      mockProc.stderr = new EventEmitter();
-      mockSpawn.mockReturnValue(mockProc);
+      mockGetFFmpegDuration.mockRejectedValue(
+        new Error('Could not determine duration'),
+      );
 
-      const promise = getVideoDuration('/local/file.mp4', 'ffmpeg');
-      await vi.waitFor(() => expect(mockSpawn).toHaveBeenCalled());
-
-      mockProc.emit('close', 1);
-
-      const result = (await promise) as any;
+      const result = (await getVideoDuration(
+        '/local/file.mp4',
+        'ffmpeg',
+      )) as any;
       expect(result.error).toBe('Could not determine duration');
     });
 
     it('handles ffmpeg spawn error for duration', async () => {
-      const mockProc = new EventEmitter() as any;
-      mockProc.stdout = new PassThrough();
-      mockProc.stderr = new EventEmitter();
-      mockSpawn.mockReturnValue(mockProc);
+      mockGetFFmpegDuration.mockRejectedValue(
+        new Error('FFmpeg execution failed'),
+      );
 
-      const promise = getVideoDuration('/local/file.mp4', 'ffmpeg');
-      await vi.waitFor(() => expect(mockSpawn).toHaveBeenCalled());
-
-      mockProc.emit('error', new Error('Spawn failed'));
-
-      const result = (await promise) as any;
+      const result = (await getVideoDuration(
+        '/local/file.mp4',
+        'ffmpeg',
+      )) as any;
       expect(result.error).toBe('FFmpeg execution failed');
     });
+
     it('returns error if drive metadata has no duration', async () => {
       mockGetDriveFileMetadata.mockResolvedValue({});
       const result = await getVideoDuration('gdrive://123', 'ffmpeg');
@@ -321,10 +318,6 @@ describe('media-handler unit tests', () => {
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.send).toHaveBeenCalledWith('FFmpeg binary not found');
     });
-
-    // Note: Success path testing mockVideoDuration requires mocking spawn behavior which is complex here
-    // as getVideoDuration implementation is inside the same file and not easily mocked out purely via import
-    // unless we mock the module itself or the spawn call fully.
   });
 
   describe('serveTranscodedStream', () => {
@@ -1027,6 +1020,9 @@ describe('media-handler unit tests', () => {
         getMetadata: vi.fn().mockResolvedValue({ duration: 100 }),
       };
       vi.mocked(getProvider).mockReturnValue(mockProvider as any);
+
+      // Mocks for getVideoDuration inside serveMetadata
+      mockGetFFmpegDuration.mockResolvedValue(100);
 
       const res2 = await request(app).get(
         '/video/metadata?file=/test.mp4&file=/ignore.mp4',
