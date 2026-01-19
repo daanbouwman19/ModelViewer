@@ -61,6 +61,28 @@ vi.mock('../../src/core/security', () => ({
   authorizeFilePath: vi.fn(),
 }));
 
+vi.mock('electron-log/main.js', () => ({
+  default: {
+    initialize: vi.fn(),
+    errorHandler: { startCatching: vi.fn() },
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    verbose: vi.fn(),
+    transports: {
+      file: {
+        resolvePath: vi.fn(),
+        level: 'info',
+      },
+    },
+  },
+}));
+
+vi.mock('ffmpeg-static', () => ({
+  default: '/mock/ffmpeg/path',
+}));
+
 describe('main.js IPC Security', () => {
   const handlers: { [key: string]: (event: any, ...args: any[]) => any } = {};
 

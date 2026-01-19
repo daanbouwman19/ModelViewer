@@ -74,6 +74,16 @@ describe('media-service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetAllMocks();
+    vi.unstubAllGlobals(); // Ensure globals are clean from previous tests
+
+    // Explicitly ensure process.versions.electron is undefined to match "web" env by default
+    // We cannot easily delete from existing process.versions if we don't stub the whole process.
+    // So we stub it to a safe default here.
+    vi.stubGlobal('process', {
+      ...process,
+      versions: { ...process.versions, electron: undefined },
+    });
+
     sharedState.lastWorker = null;
     sharedState.isPackaged = false;
     // Default mock behavior for isDrivePath

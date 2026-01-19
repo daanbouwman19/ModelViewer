@@ -23,8 +23,12 @@ export function createRateLimiter(
       console.warn(
         `[Security] Rate limit exceeded for ${req.method} ${req.path} from ${req.ip}`,
       );
-      res.status(options.statusCode || 429).json(options.message);
+      res.status(options.statusCode).json(options.message);
     },
-    validate: { trustProxy: false },
-  });
+    // The `trustProxy` option should be at the top level. `validate` is for custom validation.
+    // Setting to `false` uses the direct client IP. If deploying behind a reverse proxy,
+    // this should be `true` and `app.set('trust proxy', 1)` should be configured in `server.ts`.
+    trustProxy: false,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any);
 }
