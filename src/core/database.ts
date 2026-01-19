@@ -239,7 +239,8 @@ async function removeMediaDirectory(directoryPath: string): Promise<void> {
     });
   } catch (error) {
     console.error(
-      `[database.js] Error removing media directory '${directoryPath}':`,
+      '[database.js] Error removing media directory %s',
+      directoryPath,
       error,
     );
     throw error;
