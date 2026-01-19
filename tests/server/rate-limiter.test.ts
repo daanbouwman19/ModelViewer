@@ -13,6 +13,9 @@ describe('createRateLimiter', () => {
       method: 'GET',
       path: '/test',
       headers: {},
+      app: {
+        get: vi.fn().mockReturnValue(false),
+      } as any,
     };
     res = {
       status: vi.fn().mockReturnThis(),
