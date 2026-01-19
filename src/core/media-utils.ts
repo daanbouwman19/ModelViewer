@@ -210,7 +210,7 @@ export async function runFFmpeg(
       throw new Error(`Process timed out after ${timeoutMs}ms`);
     }
 
-    return { code: result.exitCode, stderr: result.stderr };
+    return { code: result.exitCode ?? null, stderr: result.stderr };
   } catch (error: unknown) {
     // If it's a timeout error thrown by execa (can happen if reject: true, or maybe version diff)
     if (typeof error === 'object' && error !== null && 'timedOut' in error) {
