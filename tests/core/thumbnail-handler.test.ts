@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { EventEmitter, PassThrough } from 'stream';
+import { EventEmitter } from 'stream';
 import { serveThumbnail } from '../../src/core/thumbnail-handler';
 
 const {
-  mockSpawn,
+  mockRunFFmpeg,
   mockGetDriveFileThumbnail,
   mockAuthorizeFilePath,
   mockGetThumbnailCachePath,
@@ -12,7 +12,7 @@ const {
   mockFsCreateWriteStream,
   mockFsStat,
 } = vi.hoisted(() => ({
-  mockSpawn: vi.fn(),
+  mockRunFFmpeg: vi.fn(),
   mockGetDriveFileThumbnail: vi.fn(),
   mockAuthorizeFilePath: vi.fn(),
   mockGetThumbnailCachePath: vi.fn(),
@@ -20,11 +20,6 @@ const {
   mockFsCreateReadStream: vi.fn(),
   mockFsCreateWriteStream: vi.fn(),
   mockFsStat: vi.fn(),
-}));
-
-vi.mock('child_process', () => ({
-  spawn: mockSpawn,
-  default: { spawn: mockSpawn },
 }));
 
 vi.mock('fs', async (importOriginal) => {
@@ -96,6 +91,7 @@ vi.mock('../../src/core/media-utils', async (importOriginal) => {
     ...actual,
     getThumbnailCachePath: mockGetThumbnailCachePath,
     checkThumbnailCache: mockCheckThumbnailCache,
+    runFFmpeg: mockRunFFmpeg,
   };
 });
 
@@ -114,7 +110,7 @@ describe('thumbnail-handler unit tests', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSpawn.mockReset();
+    mockRunFFmpeg.mockReset();
 
     req = {};
     res = {
@@ -230,13 +226,8 @@ describe('thumbnail-handler unit tests', () => {
       });
       mockGetThumbnailCachePath.mockReturnValue('/cache/local.jpg');
 
-      const mockProcess = {
-        on: vi.fn().mockImplementation((event, cb) => {
-          if (event === 'close') cb(0);
-        }),
-        stderr: { on: vi.fn() },
-      };
-      mockSpawn.mockReturnValue(mockProcess);
+      // Mock runFFmpeg success
+      mockRunFFmpeg.mockResolvedValue({ code: 0, stderr: '' });
 
       mockFsStat.mockResolvedValue({} as any);
 
@@ -245,7 +236,7 @@ describe('thumbnail-handler unit tests', () => {
 
       await serveThumbnail(req, res, '/video.mp4', 'ffmpeg', '/cache');
 
-      expect(mockSpawn).toHaveBeenCalled();
+      expect(mockRunFFmpeg).toHaveBeenCalled();
       expect(res.set).toHaveBeenCalledWith(
         expect.objectContaining({ 'Content-Type': 'image/jpeg' }),
       );
@@ -260,50 +251,13 @@ describe('thumbnail-handler unit tests', () => {
         realPath: '/local/file',
       });
 
-      const mockProcess = {
-        on: vi.fn().mockImplementation((event, cb) => {
-          if (event === 'close') cb(1);
-        }),
-        stderr: { on: vi.fn() },
-      };
-      mockSpawn.mockReturnValue(mockProcess);
+      // Mock runFFmpeg failure
+      mockRunFFmpeg.mockResolvedValue({ code: 1, stderr: 'Error' });
 
       await serveThumbnail(req, res, '/video.mp4', 'ffmpeg', '/cache');
 
-      // wait for async
-      await new Promise((r) => setTimeout(r, 0));
-
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.send).toHaveBeenCalledWith('Generation failed');
-    });
-
-    it('collects stderr output', async () => {
-      mockCheckThumbnailCache.mockResolvedValue(false);
-      mockAuthorizeFilePath.mockResolvedValue({
-        isAllowed: true,
-        realPath: '/local/file',
-      });
-
-      const mockProcess = new EventEmitter() as any;
-      mockProcess.stdout = new PassThrough();
-      mockProcess.stderr = new EventEmitter();
-      mockProcess.kill = vi.fn();
-      mockSpawn.mockReturnValue(mockProcess);
-
-      const promise = serveThumbnail(
-        req,
-        res,
-        '/video.mp4',
-        'ffmpeg',
-        '/cache',
-      );
-
-      await new Promise((r) => setTimeout(r, 0)); // wait for spawn
-
-      mockProcess.stderr.emit('data', 'Error output');
-      mockProcess.emit('close', 1);
-
-      await promise;
     });
 
     it('handles ffmpeg close success but file missing', async () => {
@@ -312,9 +266,9 @@ describe('thumbnail-handler unit tests', () => {
         isAllowed: true,
         realPath: '/local/file',
       });
-      const mockProcess = new EventEmitter() as any;
-      mockProcess.stderr = new EventEmitter();
-      mockSpawn.mockReturnValue(mockProcess);
+
+      // Success but no file created
+      mockRunFFmpeg.mockResolvedValue({ code: 0, stderr: '' });
 
       mockFsStat.mockRejectedValue(new Error('ENOENT'));
 
@@ -322,14 +276,7 @@ describe('thumbnail-handler unit tests', () => {
         .spyOn(console, 'error')
         .mockImplementation(() => {});
 
-      const p = serveThumbnail(req, res, '/video.mp4', 'ffmpeg', '/cache');
-
-      await new Promise((r) => setTimeout(r, 0));
-      mockProcess.emit('close', 0);
-
-      // Wait for error handling
-      await new Promise((r) => setTimeout(r, 0));
-      await new Promise((r) => setTimeout(r, 0)); // extra tick
+      await serveThumbnail(req, res, '/video.mp4', 'ffmpeg', '/cache');
 
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.send).toHaveBeenCalledWith('Generation failed');
@@ -337,31 +284,22 @@ describe('thumbnail-handler unit tests', () => {
         '[Thumbnail] Generation failed:',
         expect.anything(),
       );
-      await p;
       consoleSpy.mockRestore();
     });
 
-    it('handles spawn error', async () => {
+    it('handles runFFmpeg error (e.g. timeout)', async () => {
       mockCheckThumbnailCache.mockResolvedValue(false);
       mockAuthorizeFilePath.mockResolvedValue({
         isAllowed: true,
         realPath: '/local/file',
       });
-      const mockProcess = new EventEmitter() as any;
-      mockProcess.stderr = new EventEmitter();
-      mockSpawn.mockReturnValue(mockProcess);
 
-      const p = serveThumbnail(req, res, '/video.mp4', 'ffmpeg', '/cache');
+      mockRunFFmpeg.mockRejectedValue(new Error('Process timed out'));
 
-      await new Promise((r) => setTimeout(r, 0));
-      mockProcess.emit('error', new Error('Spawn failed'));
-
-      // wait for async
-      await new Promise((r) => setTimeout(r, 0));
+      await serveThumbnail(req, res, '/video.mp4', 'ffmpeg', '/cache');
 
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.send).toHaveBeenCalledWith('Generation failed');
-      await p;
     });
 
     it('returns 500 if ffmpeg binary is not found', async () => {
@@ -386,14 +324,8 @@ describe('thumbnail-handler unit tests', () => {
       (mockStream as any).pipe = vi.fn();
       mockFsCreateReadStream.mockReturnValue(mockStream as any);
 
-      // Since we want to test fallback to generation, we need to setup generation mocks
-      const mockProcess = {
-        on: vi.fn().mockImplementation((event, cb) => {
-          if (event === 'close') cb(0);
-        }),
-        stderr: { on: vi.fn() },
-      };
-      mockSpawn.mockReturnValue(mockProcess);
+      // Setup generation mocks for fallback
+      mockRunFFmpeg.mockResolvedValue({ code: 0, stderr: '' });
       mockFsStat.mockResolvedValue({} as any);
 
       const mockGenStream = { pipe: vi.fn(), on: vi.fn() };
@@ -416,7 +348,7 @@ describe('thumbnail-handler unit tests', () => {
       // Should fall back to generation
       await promise;
 
-      expect(mockSpawn).toHaveBeenCalled();
+      expect(mockRunFFmpeg).toHaveBeenCalled();
     });
 
     it('handles stream error during sending generated file', async () => {
@@ -427,13 +359,7 @@ describe('thumbnail-handler unit tests', () => {
       });
       mockGetThumbnailCachePath.mockReturnValue('/cache/local.jpg');
 
-      const mockProcess = {
-        on: vi.fn().mockImplementation((event, cb) => {
-          if (event === 'close') cb(0);
-        }),
-        stderr: { on: vi.fn() },
-      };
-      mockSpawn.mockReturnValue(mockProcess);
+      mockRunFFmpeg.mockResolvedValue({ code: 0, stderr: '' });
       mockFsStat.mockResolvedValue({} as any);
 
       const mockStream = new EventEmitter();
@@ -448,11 +374,10 @@ describe('thumbnail-handler unit tests', () => {
         '/cache',
       );
 
-      await new Promise((r) => setTimeout(r, 0)); // wait for spawn
-
-      mockStream.emit('error', new Error('Stream error'));
-
       await promise;
+
+      // Simulate stream error after pipe
+      mockStream.emit('error', new Error('Stream error'));
 
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.end).toHaveBeenCalled();

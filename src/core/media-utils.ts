@@ -2,6 +2,7 @@ import path from 'path';
 import crypto from 'crypto';
 import fs from 'fs';
 import { spawn } from 'child_process';
+import { execa } from 'execa';
 import rangeParser from 'range-parser';
 
 import {
@@ -183,28 +184,41 @@ export function getThumbnailArgs(
   ];
 }
 
-export function runFFmpeg(
+/**
+ * Runs FFmpeg (or any command) with a timeout to prevent hanging processes (DoS).
+ * Uses `execa` for robust process handling.
+ *
+ * @param command - The command to run (e.g. ffmpeg path).
+ * @param args - Arguments for the command.
+ * @param timeoutMs - Timeout in milliseconds (default: 30000).
+ * @returns Promise resolving to { code, stderr }.
+ * @throws Error if process fails or times out.
+ */
+export async function runFFmpeg(
   command: string,
   args: string[],
+  timeoutMs = 30000,
 ): Promise<{ code: number | null; stderr: string }> {
-  return new Promise((resolve, reject) => {
-    const process = spawn(command, args);
-    let stderr = '';
+  try {
+    const result = await execa(command, args, {
+      timeout: timeoutMs,
+      reject: false, // We want to handle non-zero exit codes manually to match previous behavior
+    });
 
-    if (process.stderr) {
-      process.stderr.on('data', (data) => {
-        stderr += data.toString();
-      });
+    if (result.timedOut) {
+      // [SECURITY] Process timed out, ensure it was killed.
+      // Execa kills it automatically on timeout.
+      throw new Error(`Process timed out after ${timeoutMs}ms`);
     }
 
-    process.on('close', (code) => {
-      resolve({ code, stderr });
-    });
-
-    process.on('error', (err) => {
-      reject(err);
-    });
-  });
+    return { code: result.exitCode, stderr: result.stderr };
+  } catch (error: any) {
+    // If it's a timeout error thrown by execa (can happen if reject: true, or maybe version diff)
+    if (error.timedOut) {
+      throw new Error(`Process timed out after ${timeoutMs}ms`);
+    }
+    throw error;
+  }
 }
 
 /**
