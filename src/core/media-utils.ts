@@ -1,7 +1,6 @@
 import path from 'path';
 import crypto from 'crypto';
 import fs from 'fs';
-import { spawn } from 'child_process';
 import { execa } from 'execa';
 import rangeParser from 'range-parser';
 
@@ -212,9 +211,9 @@ export async function runFFmpeg(
     }
 
     return { code: result.exitCode, stderr: result.stderr };
-  } catch (error: any) {
+  } catch (error: unknown) {
     // If it's a timeout error thrown by execa (can happen if reject: true, or maybe version diff)
-    if (error.timedOut) {
+    if (typeof error === 'object' && error !== null && 'timedOut' in error) {
       throw new Error(`Process timed out after ${timeoutMs}ms`);
     }
     throw error;
