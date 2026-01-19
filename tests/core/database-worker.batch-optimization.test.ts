@@ -55,8 +55,8 @@ describe('database-worker batch optimization', () => {
   afterEach(async () => {
     closeDatabase();
     // Clean up using actual fs
-    const realFs =
-      await vi.importActual<typeof import('fs/promises')>('fs/promises');
+    const { promises: realFs } =
+      await vi.importActual<typeof import('fs')>('fs');
     try {
       await realFs.unlink(dbPath);
     } catch {
