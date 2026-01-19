@@ -203,40 +203,54 @@ async function authorizeLocalPath(
       continue;
     }
 
-    try {
-      const allowedRootReal = await fs.realpath(path.resolve(allowedDir));
+    const result = await validatePathAgainstDir(allowedDir, safePath);
+    if (result) {
+      return result;
+    }
+  }
+  return null;
+}
 
-      // Always resolve candidate paths relative to the allowed root so that
-      // the final real path can be strictly contained within this root.
-      const candidateResolved = path.resolve(allowedRootReal, safePath);
-      const candidateRealPath = await fs.realpath(candidateResolved);
+/**
+ * Tries to resolve and validate a path against a specific allowed directory.
+ */
+export async function validatePathAgainstDir(
+  allowedDir: string,
+  safePath: string,
+): Promise<AuthorizationResult | null> {
+  try {
+    const allowedRootReal = await fs.realpath(path.resolve(allowedDir));
 
-      const normalizedRoot = allowedRootReal.endsWith(path.sep)
-        ? allowedRootReal
-        : allowedRootReal + path.sep;
+    // Always resolve candidate paths relative to the allowed root so that
+    // the final real path can be strictly contained within this root.
+    const candidateResolved = path.resolve(allowedRootReal, safePath);
+    const candidateRealPath = await fs.realpath(candidateResolved);
 
-      if (
-        candidateRealPath === allowedRootReal ||
-        candidateRealPath.startsWith(normalizedRoot)
-      ) {
-        const relative = path.relative(allowedRootReal, candidateRealPath);
-        if (hasSensitiveSegments(relative)) {
-          console.warn(
-            `[Security] Access denied to sensitive file: ${candidateRealPath}`,
-          );
-          return {
-            isAllowed: false,
-            message: 'Access to sensitive file denied',
-          };
-        }
-        return { isAllowed: true, realPath: candidateRealPath };
-      }
-    } catch (error) {
-      if (!isErrnoException(error) || error.code !== 'ENOENT') {
+    const normalizedRoot = allowedRootReal.endsWith(path.sep)
+      ? allowedRootReal
+      : allowedRootReal + path.sep;
+
+    if (
+      candidateRealPath === allowedRootReal ||
+      candidateRealPath.startsWith(normalizedRoot)
+    ) {
+      const relative = path.relative(allowedRootReal, candidateRealPath);
+      if (hasSensitiveSegments(relative)) {
         console.warn(
-          `[Security] File check failed for ${safePath}: ${(error as Error).message}`,
+          `[Security] Access denied to sensitive file: ${candidateRealPath}`,
         );
+        return {
+          isAllowed: false,
+          message: 'Access to sensitive file denied',
+        };
       }
+      return { isAllowed: true, realPath: candidateRealPath };
+    }
+  } catch (error) {
+    if (!isErrnoException(error) || error.code !== 'ENOENT') {
+      console.warn(
+        `[Security] File check failed for ${safePath}: ${(error as Error).message}`,
+      );
     }
   }
   return null;
