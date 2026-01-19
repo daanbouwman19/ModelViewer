@@ -45,6 +45,16 @@ describe('Database Core Coverage', () => {
     await database.closeDatabase();
   });
 
+  async function initTestDb() {
+    const initPromise = database.initDatabase(':memory:', 'worker.js');
+    const worker = workerInstances[0];
+    // worker.postMessage is synchronous, no need to wait
+    const initMsg = worker.postMessage.mock.calls[0][0];
+    worker.emit('message', { id: initMsg.id, result: { success: true } });
+    await initPromise;
+    return worker;
+  }
+
   it('initDatabase handles worker error event', async () => {
     // Provide absolute path to satisfy Node.js Worker/checks even if mocked
     const workerPath = path.resolve(__dirname, 'worker.js');
@@ -55,8 +65,7 @@ describe('Database Core Coverage', () => {
     expect(worker).toBeDefined();
 
     const postMessageSpy = worker.postMessage;
-    // Wait for postMessage to be called
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    // Removed unnecessary setTimeout
 
     expect(postMessageSpy).toHaveBeenCalled();
     const initMsg = postMessageSpy.mock.calls[0][0];
@@ -73,13 +82,7 @@ describe('Database Core Coverage', () => {
   });
 
   it('sendMessageToWorker handles timeout', async () => {
-    // Init
-    const initPromise = database.initDatabase(':memory:', 'worker.js');
-    const worker = workerInstances[0];
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    const initMsg = worker.postMessage.mock.calls[0][0];
-    worker.emit('message', { id: initMsg.id, result: { success: true } });
-    await initPromise;
+    await initTestDb();
 
     // Set short timeout
     database.setOperationTimeout(100);
@@ -93,13 +96,7 @@ describe('Database Core Coverage', () => {
   });
 
   it('sendMessageToWorker handles worker postMessage exception', async () => {
-    // Init
-    const initPromise = database.initDatabase(':memory:', 'worker.js');
-    const worker = workerInstances[0];
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    const initMsg = worker.postMessage.mock.calls[0][0];
-    worker.emit('message', { id: initMsg.id, result: { success: true } });
-    await initPromise;
+    const worker = await initTestDb();
 
     // Make postMessage throw
     worker.postMessage.mockImplementationOnce(() => {
@@ -113,20 +110,14 @@ describe('Database Core Coverage', () => {
   });
 
   it('addMediaDirectory handles object payload', async () => {
-    // Init
-    const initPromise = database.initDatabase(':memory:', 'worker.js');
-    const worker = workerInstances[0];
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    const initMsg = worker.postMessage.mock.calls[0][0];
-    worker.emit('message', { id: initMsg.id, result: { success: true } });
-    await initPromise;
+    const worker = await initTestDb();
 
     const promise = database.addMediaDirectory({
       path: '/path/to/obj',
       name: 'ObjDir',
     });
 
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    // Removed unnecessary setTimeout
     const call = worker.postMessage.mock.calls.find(
       (c: any) => c[0].type === 'addMediaDirectory',
     );
@@ -141,26 +132,12 @@ describe('Database Core Coverage', () => {
   });
 
   it('handles worker exit with error code', async () => {
-    // Init
-    const initPromise = database.initDatabase(':memory:', 'worker.js');
-    const worker = workerInstances[0];
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    const initMsg = worker.postMessage.mock.calls[0][0];
-    worker.emit('message', { id: initMsg.id, result: { success: true } });
-    await initPromise;
-
     // Emit exit with code 1
-    worker.emit('exit', 1);
+    (await initTestDb()).emit('exit', 1);
   });
 
   it('removeMediaDirectory handles error', async () => {
-    // Init
-    const initPromise = database.initDatabase(':memory:', 'worker.js');
-    const worker = workerInstances[0];
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    const initMsg = worker.postMessage.mock.calls[0][0];
-    worker.emit('message', { id: initMsg.id, result: { success: true } });
-    await initPromise;
+    const worker = await initTestDb();
 
     worker.postMessage.mockImplementationOnce(() => {
       throw new Error('Worker communication error');
@@ -170,13 +147,7 @@ describe('Database Core Coverage', () => {
   });
 
   it('setDirectoryActiveState handles error', async () => {
-    // Init
-    const initPromise = database.initDatabase(':memory:', 'worker.js');
-    const worker = workerInstances[0];
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    const initMsg = worker.postMessage.mock.calls[0][0];
-    worker.emit('message', { id: initMsg.id, result: { success: true } });
-    await initPromise;
+    const worker = await initTestDb();
 
     worker.postMessage.mockImplementationOnce(() => {
       throw new Error('Worker communication error');
@@ -188,13 +159,7 @@ describe('Database Core Coverage', () => {
   });
 
   it('bulkUpsertMetadata handles error', async () => {
-    // Init
-    const initPromise = database.initDatabase(':memory:', 'worker.js');
-    const worker = workerInstances[0];
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    const initMsg = worker.postMessage.mock.calls[0][0];
-    worker.emit('message', { id: initMsg.id, result: { success: true } });
-    await initPromise;
+    const worker = await initTestDb();
 
     worker.postMessage.mockImplementationOnce(() => {
       throw new Error('Worker communication error');
@@ -218,17 +183,11 @@ describe('Database Core Coverage', () => {
   });
 
   it('saveSetting/getSetting handles success and error', async () => {
-    // Init
-    const initPromise = database.initDatabase(':memory:', 'worker.js');
-    const worker = workerInstances[0];
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    const initMsg = worker.postMessage.mock.calls[0][0];
-    worker.emit('message', { id: initMsg.id, result: { success: true } });
-    await initPromise;
+    const worker = await initTestDb();
 
     // saveSetting success
     const savePromise = database.saveSetting('key', 'value');
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    // Removed unnecessary setTimeout
     const saveMsg = worker.postMessage.mock.calls.find(
       (c: any) => c[0].type === 'saveSetting',
     );
@@ -245,12 +204,9 @@ describe('Database Core Coverage', () => {
     });
     await expect(database.saveSetting('key', 'val')).rejects.toThrow();
 
-    // Restore mock
-    // Mock automatically restores after Once
-
     // getSetting success
     const getPromise = database.getSetting('key');
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    // Removed unnecessary setTimeout
     const getMsg = worker.postMessage.mock.calls.find(
       (c: any) => c[0].type === 'getSetting',
     );
@@ -269,17 +225,11 @@ describe('Database Core Coverage', () => {
   });
 
   it('getRecentlyPlayed handles success and error', async () => {
-    // Init
-    const initPromise = database.initDatabase(':memory:', 'worker.js');
-    const worker = workerInstances[0];
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    const initMsg = worker.postMessage.mock.calls[0][0];
-    worker.emit('message', { id: initMsg.id, result: { success: true } });
-    await initPromise;
+    const worker = await initTestDb();
 
     // Success
     const promise = database.getRecentlyPlayed(10);
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    // Removed unnecessary setTimeout
     const msg = worker.postMessage.mock.calls.find(
       (c: any) => c[0].type === 'getRecentlyPlayed',
     );
@@ -299,17 +249,11 @@ describe('Database Core Coverage', () => {
   });
 
   it('getPendingMetadata handles success and error', async () => {
-    // Init
-    const initPromise = database.initDatabase(':memory:', 'worker.js');
-    const worker = workerInstances[0];
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    const initMsg = worker.postMessage.mock.calls[0][0];
-    worker.emit('message', { id: initMsg.id, result: { success: true } });
-    await initPromise;
+    const worker = await initTestDb();
 
     // Success
     const promise = database.getPendingMetadata();
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    // Removed unnecessary setTimeout
     const msg = worker.postMessage.mock.calls.find(
       (c: any) => c[0].type === 'getPendingMetadata',
     );
