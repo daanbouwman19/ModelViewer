@@ -24,7 +24,7 @@ describe('media-utils unit tests', () => {
       expect(mockExeca).toHaveBeenCalledWith(
         'ffmpeg',
         expect.arrayContaining(['-i', '/path/to/video.mp4']),
-        expect.objectContaining({ timeout: 30000 })
+        expect.objectContaining({ timeout: 30000 }),
       );
     });
 
@@ -35,18 +35,18 @@ describe('media-utils unit tests', () => {
         stderr: 'No duration info here',
       });
 
-      await expect(getFFmpegDuration('/path/to/video.mp4', 'ffmpeg')).rejects.toThrow(
-        'Could not determine duration',
-      );
+      await expect(
+        getFFmpegDuration('/path/to/video.mp4', 'ffmpeg'),
+      ).rejects.toThrow('Could not determine duration');
     });
 
     it('rejects when ffmpeg spawn fails', async () => {
       const spawnError = new Error('Spawn failed');
       mockExeca.mockRejectedValue(spawnError);
 
-      await expect(getFFmpegDuration('/path/to/video.mp4', 'ffmpeg')).rejects.toThrow(
-        'FFmpeg execution failed',
-      );
+      await expect(
+        getFFmpegDuration('/path/to/video.mp4', 'ffmpeg'),
+      ).rejects.toThrow('FFmpeg execution failed');
     });
   });
 });

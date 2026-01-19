@@ -249,23 +249,39 @@ describe('media-handler unit tests', () => {
     it('fetches duration from local file using ffmpeg', async () => {
       mockGetFFmpegDuration.mockResolvedValue(10.5);
 
-      const result = (await getVideoDuration('/local/file.mp4', 'ffmpeg')) as any;
+      const result = (await getVideoDuration(
+        '/local/file.mp4',
+        'ffmpeg',
+      )) as any;
 
-      expect(mockGetFFmpegDuration).toHaveBeenCalledWith('/local/file.mp4', 'ffmpeg');
+      expect(mockGetFFmpegDuration).toHaveBeenCalledWith(
+        '/local/file.mp4',
+        'ffmpeg',
+      );
       expect(result.duration).toBeCloseTo(10.5);
     });
 
     it('handles ffmpeg failure for duration', async () => {
-      mockGetFFmpegDuration.mockRejectedValue(new Error('Could not determine duration'));
+      mockGetFFmpegDuration.mockRejectedValue(
+        new Error('Could not determine duration'),
+      );
 
-      const result = (await getVideoDuration('/local/file.mp4', 'ffmpeg')) as any;
+      const result = (await getVideoDuration(
+        '/local/file.mp4',
+        'ffmpeg',
+      )) as any;
       expect(result.error).toBe('Could not determine duration');
     });
 
     it('handles ffmpeg spawn error for duration', async () => {
-      mockGetFFmpegDuration.mockRejectedValue(new Error('FFmpeg execution failed'));
+      mockGetFFmpegDuration.mockRejectedValue(
+        new Error('FFmpeg execution failed'),
+      );
 
-      const result = (await getVideoDuration('/local/file.mp4', 'ffmpeg')) as any;
+      const result = (await getVideoDuration(
+        '/local/file.mp4',
+        'ffmpeg',
+      )) as any;
       expect(result.error).toBe('FFmpeg execution failed');
     });
 

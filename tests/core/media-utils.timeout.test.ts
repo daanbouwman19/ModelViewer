@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest';
-import { runFFmpeg } from '../src/core/media-utils';
+import { runFFmpeg } from '../../src/core/media-utils';
 
 describe('Security: Process Timeouts', () => {
   it('should timeout when a process runs too long', async () => {
