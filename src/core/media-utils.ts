@@ -104,33 +104,40 @@ export async function checkThumbnailCache(cacheFile: string): Promise<boolean> {
   }
 }
 
-export async function getVlcPath(): Promise<string | null> {
-  const platform = process.platform;
-  if (platform === 'win32') {
-    const commonPaths = [
-      'C:\\Program Files\\VideoLAN\\VLC\\vlc.exe',
-      'C:\\Program Files (x86)\\VideoLAN\\VLC\\vlc.exe',
-    ];
-    for (const p of commonPaths) {
-      try {
-        await fs.promises.access(p);
-        return p;
-      } catch {
-        // Continue checking
-      }
-    }
-    return null;
-  } else if (platform === 'darwin') {
-    const macPath = '/Applications/VLC.app/Contents/MacOS/VLC';
+async function getWindowsVlcPath(): Promise<string | null> {
+  const commonPaths = [
+    'C:\\Program Files\\VideoLAN\\VLC\\vlc.exe',
+    'C:\\Program Files (x86)\\VideoLAN\\VLC\\vlc.exe',
+  ];
+  for (const p of commonPaths) {
     try {
-      await fs.promises.access(macPath);
-      return macPath;
+      await fs.promises.access(p);
+      return p;
     } catch {
-      return 'vlc';
+      // Continue checking
     }
-  } else {
+  }
+  return null;
+}
+
+async function getMacVlcPath(): Promise<string> {
+  const macPath = '/Applications/VLC.app/Contents/MacOS/VLC';
+  try {
+    await fs.promises.access(macPath);
+    return macPath;
+  } catch {
     return 'vlc';
   }
+}
+
+export async function getVlcPath(): Promise<string | null> {
+  if (process.platform === 'win32') {
+    return getWindowsVlcPath();
+  }
+  if (process.platform === 'darwin') {
+    return getMacVlcPath();
+  }
+  return 'vlc';
 }
 
 export function isValidTimeFormat(time: string): boolean {
