@@ -130,12 +130,34 @@ async function getMacVlcPath(): Promise<string> {
   }
 }
 
+async function getLinuxVlcPath(): Promise<string> {
+  const commonPaths = [
+    '/usr/bin/vlc',
+    '/usr/local/bin/vlc',
+    '/snap/bin/vlc',
+    '/var/lib/flatpak/exports/bin/org.videolan.VLC',
+  ];
+
+  for (const p of commonPaths) {
+    try {
+      await fs.promises.access(p);
+      return p;
+    } catch {
+      // Continue checking
+    }
+  }
+  return 'vlc';
+}
+
 export async function getVlcPath(): Promise<string | null> {
   if (process.platform === 'win32') {
     return getWindowsVlcPath();
   }
   if (process.platform === 'darwin') {
     return getMacVlcPath();
+  }
+  if (process.platform === 'linux') {
+    return getLinuxVlcPath();
   }
   return 'vlc';
 }

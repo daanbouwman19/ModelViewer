@@ -85,9 +85,32 @@ describe('getVlcPath', () => {
     expect(result).toBe('vlc');
   });
 
-  it('should return "vlc" on Linux', async () => {
+  it('should return specific path on Linux if found', async () => {
     Object.defineProperty(process, 'platform', {
       value: 'linux',
+    });
+    vi.mocked(fs.promises.access).mockImplementation((path: any) => {
+      if (path === '/usr/bin/vlc') return Promise.resolve();
+      return Promise.reject(new Error('Not found'));
+    });
+
+    const result = await getVlcPath();
+    expect(result).toBe('/usr/bin/vlc');
+  });
+
+  it('should return "vlc" if not found on Linux', async () => {
+    Object.defineProperty(process, 'platform', {
+      value: 'linux',
+    });
+    vi.mocked(fs.promises.access).mockRejectedValue(new Error('Not found'));
+
+    const result = await getVlcPath();
+    expect(result).toBe('vlc');
+  });
+
+  it('should return "vlc" on unknown platform', async () => {
+    Object.defineProperty(process, 'platform', {
+      value: 'sunos',
     });
 
     const result = await getVlcPath();

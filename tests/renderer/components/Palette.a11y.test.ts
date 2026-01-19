@@ -184,13 +184,13 @@ describe('Palette Accessibility Improvements', () => {
     it('navigation buttons should have accessible labels', () => {
       const wrapper = mount(MediaDisplay);
 
-      const prevBtn = wrapper.find('button[aria-label="Previous media"]');
-      const nextBtn = wrapper.find('button[aria-label="Next media"]');
+      const prevBtn = wrapper.find('button[aria-label="Previous media (Z)"]');
+      const nextBtn = wrapper.find('button[aria-label="Next media (X)"]');
 
       expect(prevBtn.exists()).toBe(true);
       expect(nextBtn.exists()).toBe(true);
-      expect(prevBtn.attributes('aria-label')).toBe('Previous media');
-      expect(nextBtn.attributes('aria-label')).toBe('Next media');
+      expect(prevBtn.attributes('aria-label')).toBe('Previous media (Z)');
+      expect(nextBtn.attributes('aria-label')).toBe('Next media (X)');
     });
 
     it('VLC button should have accessible label', async () => {

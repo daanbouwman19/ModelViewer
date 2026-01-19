@@ -73,13 +73,15 @@ describe('MediaControls.vue', () => {
 
   it('should emit previous when back button clicked', async () => {
     const wrapper = mount(MediaControls, { props: defaultProps });
-    await wrapper.find('button[aria-label="Previous media"]').trigger('click');
+    await wrapper
+      .find('button[aria-label="Previous media (Z)"]')
+      .trigger('click');
     expect(wrapper.emitted('previous')).toBeTruthy();
   });
 
   it('should emit next when forward button clicked', async () => {
     const wrapper = mount(MediaControls, { props: defaultProps });
-    await wrapper.find('button[aria-label="Next media"]').trigger('click');
+    await wrapper.find('button[aria-label="Next media (X)"]').trigger('click');
     expect(wrapper.emitted('next')).toBeTruthy();
   });
 
@@ -135,10 +137,10 @@ describe('MediaControls.vue', () => {
     });
     const buttons = wrapper.findAll('button');
     const prev = buttons.find(
-      (b) => b.attributes('aria-label') === 'Previous media',
+      (b) => b.attributes('aria-label') === 'Previous media (Z)',
     );
     const next = buttons.find(
-      (b) => b.attributes('aria-label') === 'Next media',
+      (b) => b.attributes('aria-label') === 'Next media (X)',
     );
     expect(prev?.attributes('disabled')).toBeDefined();
     expect(next?.attributes('disabled')).toBeDefined();
@@ -156,10 +158,10 @@ describe('MediaControls.vue', () => {
 
   it('should have tooltips on navigation buttons', () => {
     const wrapper = mount(MediaControls, { props: defaultProps });
-    const prevBtn = wrapper.find('button[aria-label="Previous media"]');
-    const nextBtn = wrapper.find('button[aria-label="Next media"]');
-    expect(prevBtn.attributes('title')).toBe('Previous media');
-    expect(nextBtn.attributes('title')).toBe('Next media');
+    const prevBtn = wrapper.find('button[aria-label="Previous media (Z)"]');
+    const nextBtn = wrapper.find('button[aria-label="Next media (X)"]');
+    expect(prevBtn.attributes('title')).toBe('Previous media (Z)');
+    expect(nextBtn.attributes('title')).toBe('Next media (X)');
   });
 
   it('should have tooltips on play/pause button', async () => {
@@ -168,14 +170,14 @@ describe('MediaControls.vue', () => {
     });
 
     // Initially paused
-    const playBtn = wrapper.find('button[aria-label="Play video"]');
-    expect(playBtn.attributes('title')).toBe('Play video');
+    const playBtn = wrapper.find('button[aria-label="Play video (Space)"]');
+    expect(playBtn.attributes('title')).toBe('Play video (Space)');
 
     // Update to playing
     await wrapper.setProps({ isPlaying: true });
     // Use dynamic selector because aria-label changes
-    const pauseBtn = wrapper.find('button[aria-label="Pause video"]');
-    expect(pauseBtn.attributes('title')).toBe('Pause video');
+    const pauseBtn = wrapper.find('button[aria-label="Pause video (Space)"]');
+    expect(pauseBtn.attributes('title')).toBe('Pause video (Space)');
   });
 
   it('should have tooltips on rating stars', async () => {
