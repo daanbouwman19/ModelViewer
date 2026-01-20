@@ -58,6 +58,7 @@ describe('AlbumsList Accessibility', () => {
       albumsSelectedForSlideshow: {},
       smartPlaylists: [],
       historyMedia: [],
+      mediaDirectories: [],
     });
 
     mockPlayerState = reactive({
