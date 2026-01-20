@@ -8,7 +8,7 @@ import {
   setDirectoryActiveState,
   getMediaDirectories,
 } from '../../../src/main/database';
-import { openMediaInVlc } from '../../../src/core/media-handler';
+import { openMediaInVlc } from '../../../src/core/vlc-player';
 import { listDirectory } from '../../../src/core/file-system';
 import { getServerPort } from '../../../src/main/local-server';
 import { shell, dialog } from 'electron';
@@ -25,7 +25,7 @@ vi.mock('../../../src/main/database', () => ({
   getMediaDirectories: vi.fn(),
 }));
 
-vi.mock('../../../src/core/media-handler', () => ({
+vi.mock('../../../src/core/vlc-player', () => ({
   openMediaInVlc: vi.fn(),
 }));
 

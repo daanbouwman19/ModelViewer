@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { IMediaSource } from '../../src/core/media-source-types';
 import { PassThrough, EventEmitter } from 'stream';
 import path from 'path';
@@ -95,7 +95,6 @@ import {
   serveStaticFile,
   handleStreamRequest,
   generateFileUrl,
-  openMediaInVlc,
   createMediaApp,
 } from '../../src/core/media-handler';
 import { getMimeType } from '../../src/core/media-utils';
@@ -950,59 +949,6 @@ describe('media-handler unit tests', () => {
         serverPort: 3000,
       });
       expect(result.type).toBe('data-url');
-    });
-  });
-
-  describe('openMediaInVlc', () => {
-    const originalPlatform = process.platform;
-    afterEach(() => {
-      Object.defineProperty(process, 'platform', { value: originalPlatform });
-    });
-
-    it('should return error for Drive file if serverPort is 0', async () => {
-      const result = await openMediaInVlc('gdrive://123', 0);
-      expect(result).toEqual({
-        success: false,
-        message: 'Local server is not running to stream files.',
-      });
-    });
-
-    it('should prepare stream url for Drive file', async () => {
-      Object.defineProperty(process, 'platform', { value: 'linux' });
-      // Mock spawn to succeed
-      const mockChild = { unref: vi.fn(), on: vi.fn() };
-      mockSpawn.mockReturnValue(mockChild);
-
-      const result = await openMediaInVlc('gdrive://123', 3000);
-      expect(result).toEqual({ success: true });
-      expect(mockSpawn).toHaveBeenCalledWith(
-        '/usr/bin/vlc',
-        [expect.stringContaining('http://localhost:3000/video/stream')],
-        expect.anything(),
-      );
-    });
-
-    it('should handle win32 platform', async () => {
-      Object.defineProperty(process, 'platform', { value: 'win32' });
-      mockFsAccess.mockResolvedValue(undefined);
-
-      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
-      const mockChild = { unref: vi.fn(), on: vi.fn() };
-      mockSpawn.mockReturnValue(mockChild);
-
-      const result = await openMediaInVlc('/local.mp4', 3000);
-      expect(result).toEqual({ success: true });
-    });
-
-    it('should handle darwin platform', async () => {
-      Object.defineProperty(process, 'platform', { value: 'darwin' });
-      mockFsAccess.mockResolvedValue(undefined);
-      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
-      const mockChild = { unref: vi.fn(), on: vi.fn() };
-      mockSpawn.mockReturnValue(mockChild);
-
-      const result = await openMediaInVlc('/local.mp4', 3000);
-      expect(result).toEqual({ success: true });
     });
   });
 
