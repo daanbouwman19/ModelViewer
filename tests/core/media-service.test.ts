@@ -40,6 +40,7 @@ vi.mock('fs/promises', () => {
 const sharedState = vi.hoisted(() => ({
   lastWorker: null as any,
   isPackaged: false,
+  postMessageCallback: null as ((msg: any) => void) | null,
 }));
 
 vi.mock('electron', () => {
@@ -68,7 +69,11 @@ vi.mock('electron', () => {
 vi.mock('worker_threads', () => {
   const Worker = vi.fn(function (this: any) {
     this.on = vi.fn();
-    this.postMessage = vi.fn();
+    this.postMessage = vi.fn((msg) => {
+      if (sharedState.postMessageCallback) {
+        sharedState.postMessageCallback(msg);
+      }
+    });
     this.terminate = vi.fn().mockResolvedValue(0);
     this.removeAllListeners = vi.fn();
     sharedState.lastWorker = this;
@@ -98,6 +103,7 @@ describe('media-service', () => {
 
     sharedState.lastWorker = null;
     sharedState.isPackaged = false;
+    sharedState.postMessageCallback = null;
     // Default mock behavior for isDrivePath
     if (vi.isMockFunction(isDrivePath)) {
       vi.mocked(isDrivePath).mockImplementation((path) =>
@@ -128,12 +134,17 @@ describe('media-service', () => {
         { path: '/dir', isActive: true },
       ] as any);
 
-      const promise = scanDiskForAlbumsAndCache();
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      let msgId: string | undefined;
+      const postMessagePromise = new Promise<void>((resolve) => {
+        sharedState.postMessageCallback = (msg: any) => {
+          msgId = msg.id;
+          resolve();
+        };
+      });
 
-      // Get the ID from the postMessage call
-      const lastCall = sharedState.lastWorker.postMessage.mock.lastCall;
-      const msgId = lastCall?.[0]?.id;
+      const promise = scanDiskForAlbumsAndCache();
+
+      await postMessagePromise;
 
       const onMessage = sharedState.lastWorker.on.mock.calls.find(
         (c: any) => c[0] === 'message',
@@ -163,11 +174,17 @@ describe('media-service', () => {
       vi.mocked(database.getMediaDirectories).mockResolvedValue([
         { path: '/dir', isActive: true },
       ] as any);
-      const promise = scanDiskForAlbumsAndCache();
-      await new Promise((resolve) => setTimeout(resolve, 50));
 
-      const lastCall = sharedState.lastWorker.postMessage.mock.lastCall;
-      const msgId = lastCall?.[0]?.id;
+      let msgId: string | undefined;
+      const postMessagePromise = new Promise<void>((resolve) => {
+        sharedState.postMessageCallback = (msg: any) => {
+          msgId = msg.id;
+          resolve();
+        };
+      });
+
+      const promise = scanDiskForAlbumsAndCache();
+      await postMessagePromise;
 
       const onMessage = sharedState.lastWorker.on.mock.calls.find(
         (c: any) => c[0] === 'message',
@@ -197,11 +214,17 @@ describe('media-service', () => {
       vi.mocked(database.getMediaDirectories).mockResolvedValue([
         { path: '/dir', isActive: true },
       ] as any);
-      const promise = scanDiskForAlbumsAndCache();
-      await new Promise((resolve) => setTimeout(resolve, 50));
 
-      const lastCall = sharedState.lastWorker.postMessage.mock.lastCall;
-      const msgId = lastCall?.[0]?.id;
+      let msgId: string | undefined;
+      const postMessagePromise = new Promise<void>((resolve) => {
+        sharedState.postMessageCallback = (msg: any) => {
+          msgId = msg.id;
+          resolve();
+        };
+      });
+
+      const promise = scanDiskForAlbumsAndCache();
+      await postMessagePromise;
 
       const onMessage = sharedState.lastWorker.on.mock.calls.find(
         (c: any) => c[0] === 'message',
@@ -226,11 +249,17 @@ describe('media-service', () => {
       vi.mocked(database.getMediaDirectories).mockResolvedValue([
         { path: '/d', isActive: true },
       ] as any);
-      const promise = scanDiskForAlbumsAndCache();
-      await new Promise((resolve) => setTimeout(resolve, 50));
 
-      const lastCall = sharedState.lastWorker.postMessage.mock.lastCall;
-      const msgId = lastCall?.[0]?.id;
+      let msgId: string | undefined;
+      const postMessagePromise = new Promise<void>((resolve) => {
+        sharedState.postMessageCallback = (msg: any) => {
+          msgId = msg.id;
+          resolve();
+        };
+      });
+
+      const promise = scanDiskForAlbumsAndCache();
+      await postMessagePromise;
 
       const onMessage = sharedState.lastWorker.on.mock.calls.find(
         (c: any) => c[0] === 'message',
@@ -250,8 +279,16 @@ describe('media-service', () => {
       vi.mocked(database.getMediaDirectories).mockResolvedValue([
         { path: '/d', isActive: true },
       ] as any);
+
+      const postMessagePromise = new Promise<void>((resolve) => {
+        sharedState.postMessageCallback = () => {
+          resolve();
+        };
+      });
+
       const promise = scanDiskForAlbumsAndCache();
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await postMessagePromise;
+
       const onError = sharedState.lastWorker.on.mock.calls.find(
         (c: any) => c[0] === 'error',
       )?.[1];
@@ -263,8 +300,16 @@ describe('media-service', () => {
       vi.mocked(database.getMediaDirectories).mockResolvedValue([
         { path: '/d', isActive: true },
       ] as any);
+
+      const postMessagePromise = new Promise<void>((resolve) => {
+        sharedState.postMessageCallback = () => {
+          resolve();
+        };
+      });
+
       const promise = scanDiskForAlbumsAndCache();
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await postMessagePromise;
+
       const onExit = sharedState.lastWorker.on.mock.calls.find(
         (c: any) => c[0] === 'exit',
       )?.[1];
@@ -276,8 +321,16 @@ describe('media-service', () => {
       vi.mocked(database.getMediaDirectories).mockResolvedValue([
         { path: '/d', isActive: true },
       ] as any);
+
+      const postMessagePromise = new Promise<void>((resolve) => {
+        sharedState.postMessageCallback = () => {
+          resolve();
+        };
+      });
+
       const promise = scanDiskForAlbumsAndCache();
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await postMessagePromise;
+
       const onExit = sharedState.lastWorker.on.mock.calls.find(
         (c: any) => c[0] === 'exit',
       )?.[1];
@@ -297,11 +350,17 @@ describe('media-service', () => {
         .mockImplementation(() => {});
 
       const albums = [{ id: 1, textures: [{ path: '/v.mp4' }] }];
-      const promise = scanDiskForAlbumsAndCache('/ffmpeg');
-      await new Promise((resolve) => setTimeout(resolve, 50));
 
-      const lastCall = sharedState.lastWorker.postMessage.mock.lastCall;
-      const msgId = lastCall?.[0]?.id;
+      let msgId: string | undefined;
+      const postMessagePromise = new Promise<void>((resolve) => {
+        sharedState.postMessageCallback = (msg: any) => {
+          msgId = msg.id;
+          resolve();
+        };
+      });
+
+      const promise = scanDiskForAlbumsAndCache('/ffmpeg');
+      await postMessagePromise;
 
       const onMessage = sharedState.lastWorker.on.mock.calls.find(
         (c: any) => c[0] === 'message',
@@ -316,7 +375,11 @@ describe('media-service', () => {
 
       await promise;
 
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // This is background async work, we still need to wait for it.
+      // But we can avoid setTimeout by using a smarter approach if possible.
+      // For now, since it runs *after* the main promise resolves and is unawaited by the main function,
+      // we do need to wait for the microtasks or a small delay.
+      await new Promise((resolve) => setTimeout(resolve, 10));
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining('Background metadata extraction failed'),
         expect.any(Error),
@@ -338,11 +401,17 @@ describe('media-service', () => {
       vi.mocked(database.getMediaDirectories).mockResolvedValue([
         { path: '/d', isActive: true },
       ] as any);
-      const promise = getAlbumsFromCacheOrDisk();
-      await new Promise((resolve) => setTimeout(resolve, 50));
 
-      const lastCall = sharedState.lastWorker.postMessage.mock.lastCall;
-      const msgId = lastCall?.[0]?.id;
+      let msgId: string | undefined;
+      const postMessagePromise = new Promise<void>((resolve) => {
+        sharedState.postMessageCallback = (msg: any) => {
+          msgId = msg.id;
+          resolve();
+        };
+      });
+
+      const promise = getAlbumsFromCacheOrDisk();
+      await postMessagePromise;
 
       const onMessage = sharedState.lastWorker.on.mock.calls.find(
         (c: any) => c[0] === 'message',
@@ -370,11 +439,17 @@ describe('media-service', () => {
       });
       vi.mocked(database.getAllMetadata).mockResolvedValue({});
       const albums = [{ id: 1, textures: [{ path: '/v1.mp4' }] }];
-      const promise = getAlbumsWithViewCountsAfterScan();
-      await new Promise((resolve) => setTimeout(resolve, 50));
 
-      const lastCall = sharedState.lastWorker.postMessage.mock.lastCall;
-      const msgId = lastCall?.[0]?.id;
+      let msgId: string | undefined;
+      const postMessagePromise = new Promise<void>((resolve) => {
+        sharedState.postMessageCallback = (msg: any) => {
+          msgId = msg.id;
+          resolve();
+        };
+      });
+
+      const promise = getAlbumsWithViewCountsAfterScan();
+      await postMessagePromise;
 
       const onMessage = sharedState.lastWorker.on.mock.calls.find(
         (c: any) => c[0] === 'message',
@@ -400,11 +475,17 @@ describe('media-service', () => {
       vi.mocked(database.getMediaDirectories).mockResolvedValue([
         { path: '/d', isActive: true },
       ] as any);
-      const promise = getAlbumsWithViewCountsAfterScan();
-      await new Promise((resolve) => setTimeout(resolve, 50));
 
-      const lastCall = sharedState.lastWorker.postMessage.mock.lastCall;
-      const msgId = lastCall?.[0]?.id;
+      let msgId: string | undefined;
+      const postMessagePromise = new Promise<void>((resolve) => {
+        sharedState.postMessageCallback = (msg: any) => {
+          msgId = msg.id;
+          resolve();
+        };
+      });
+
+      const promise = getAlbumsWithViewCountsAfterScan();
+      await postMessagePromise;
 
       const onMessage = sharedState.lastWorker.on.mock.calls.find(
         (c: any) => c[0] === 'message',

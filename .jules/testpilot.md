@@ -22,3 +22,10 @@ Instead of importing `main.js`, test the specific controller (e.g., `src/main/ip
 **Discovery:** `tests/core/database.coverage.test.ts` relied on arbitrary `setTimeout` delays to test synchronous mock interactions, introducing unnecessary slowness and potential flakiness. The setup code was also heavily duplicated.
 
 **Strategy:** Refactored to remove all `setTimeout` calls (as `postMessage` on the mock is synchronous) and extracted the worker initialization into a factory helper (`initTestDb`), reducing noise and improving test speed.
+
+## 2026-01-20 - Deterministic Worker Messaging Tests
+
+**Discovery:** `tests/core/media-service.test.ts` relied on flaky `setTimeout` delays (50ms) to wait for worker `postMessage` calls. This introduced race conditions where tests could fail on slower CI environments if the worker didn't respond in time.
+
+**Strategy:**
+Implemented a callback-based interception mechanism for the `postMessage` mock. Tests now await a promise that resolves immediately when `postMessage` is called, ensuring deterministic execution and eliminating arbitrary sleeps.
