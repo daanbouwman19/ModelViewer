@@ -96,7 +96,7 @@ describe('vlc-player unit tests', () => {
       expect(result).toEqual({ success: true });
     });
 
-    it('should log error when spawn fails asynchronously', async () => {
+    it('should resolve with failure when spawn fails asynchronously', async () => {
       Object.defineProperty(process, 'platform', { value: 'linux' });
       const mockChild = new EventEmitter();
       (mockChild as any).unref = vi.fn();
@@ -105,16 +105,52 @@ describe('vlc-player unit tests', () => {
         .spyOn(console, 'error')
         .mockImplementation(() => {});
 
-      await openMediaInVlc('gdrive://123', 3000);
+      // Use fake timers to control the 300ms delay
+      vi.useFakeTimers();
 
-      // Trigger error asynchronously
+      const promise = openMediaInVlc('gdrive://123', 3000);
+
+      // Wait for spawn to be called (handles async getVlcPath)
+      await vi.waitFor(() => expect(mockSpawn).toHaveBeenCalled());
+
+      // Trigger error asynchronously (before timeout)
       mockChild.emit('error', new Error('Spawn Error'));
+
+      const result = await promise;
 
       expect(consoleSpy).toHaveBeenCalledWith(
         '[vlc-player] Error launching VLC (async):',
         expect.any(Error),
       );
+      expect(result).toEqual({
+        success: false,
+        message: 'Failed to launch VLC: Spawn Error',
+      });
       consoleSpy.mockRestore();
+      vi.useRealTimers();
+    });
+
+    it('should resolve with success after timeout if no error', async () => {
+      Object.defineProperty(process, 'platform', { value: 'linux' });
+      const mockChild = new EventEmitter();
+      (mockChild as any).unref = vi.fn();
+      mockSpawn.mockReturnValue(mockChild);
+
+      vi.useFakeTimers();
+
+      const promise = openMediaInVlc('gdrive://123', 3000);
+
+      // Wait for spawn to be called (handles async getVlcPath)
+      await vi.waitFor(() => expect(mockSpawn).toHaveBeenCalled());
+
+      // Fast-forward past the 300ms timeout
+      vi.advanceTimersByTime(300);
+
+      const result = await promise;
+      expect(result).toEqual({ success: true });
+      expect((mockChild as any).unref).toHaveBeenCalled();
+
+      vi.useRealTimers();
     });
   });
 });

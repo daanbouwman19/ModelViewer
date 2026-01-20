@@ -39,23 +39,32 @@ export async function openMediaInVlc(
     };
   }
 
-  try {
-    const child = spawn(vlcPath, [fileArg], {
-      detached: true,
-      stdio: 'ignore',
-    });
+  return new Promise((resolve) => {
+    try {
+      const child = spawn(vlcPath, [fileArg], {
+        detached: true,
+        stdio: 'ignore',
+      });
 
-    child.on('error', (err) => {
-      console.error('[vlc-player] Error launching VLC (async):', err);
-    });
+      const successTimeout = setTimeout(() => {
+        child.unref();
+        resolve({ success: true });
+      }, 300);
 
-    child.unref();
-    return { success: true };
-  } catch (error: unknown) {
-    console.error('[vlc-player] Error launching VLC:', error);
-    return {
-      success: false,
-      message: `Failed to launch VLC: ${(error as Error).message}`,
-    };
-  }
+      child.on('error', (err) => {
+        clearTimeout(successTimeout);
+        console.error('[vlc-player] Error launching VLC (async):', err);
+        resolve({
+          success: false,
+          message: `Failed to launch VLC: ${err.message}`,
+        });
+      });
+    } catch (error: unknown) {
+      console.error('[vlc-player] Error launching VLC:', error);
+      resolve({
+        success: false,
+        message: `Failed to launch VLC: ${(error as Error).message}`,
+      });
+    }
+  });
 }
