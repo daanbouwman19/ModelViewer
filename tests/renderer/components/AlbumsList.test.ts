@@ -77,6 +77,7 @@ describe('AlbumsList.vue', () => {
       albumsSelectedForSlideshow: { Album1: true },
       smartPlaylists: [],
       historyMedia: [],
+      mediaDirectories: [{ path: '/test', isActive: true }], // Default to having sources
     });
 
     mockPlayerState = reactive({
@@ -122,6 +123,24 @@ describe('AlbumsList.vue', () => {
     expect(albumTrees.length).toBe(2);
     expect(albumTrees[0].props('album')).toEqual(mockAlbums[0]);
     expect(albumTrees[1].props('album')).toEqual(mockAlbums[1]);
+  });
+
+  it('shows "Add your first source" when no sources are configured', async () => {
+    mockLibraryState.mediaDirectories = [];
+    mockLibraryState.allAlbums = [];
+    const wrapper = mount(AlbumsList);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.text()).toContain('Add your first source...');
+    expect(wrapper.text()).not.toContain('No albums found using your sources');
+  });
+
+  it('shows "No albums found" when sources exist but no albums are loaded', async () => {
+    mockLibraryState.mediaDirectories = [{ path: '/foo' }];
+    mockLibraryState.allAlbums = [];
+    const wrapper = mount(AlbumsList);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.text()).toContain('No albums found in your sources');
+    expect(wrapper.text()).not.toContain('Add your first source...');
   });
 
   it('calls startSlideshow then toggleSlideshowTimer when the global start button is clicked and no slideshow is active', async () => {

@@ -49,6 +49,7 @@ describe('Progress Bars', () => {
       supportedExtensions: { images: ['.jpg'], videos: ['.mp4'] },
       imageExtensionsSet: new Set(['.jpg']),
       videoExtensionsSet: new Set(['.mp4']),
+      mediaDirectories: [],
     });
 
     mockPlayerState = reactive({

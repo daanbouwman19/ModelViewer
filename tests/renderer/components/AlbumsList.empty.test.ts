@@ -81,7 +81,8 @@ describe('AlbumsList Empty State', () => {
       albumsSelectedForSlideshow: {},
       smartPlaylists: [],
       fetchHistory: vi.fn(),
-      state: { historyMedia: [] },
+      state: { historyMedia: [], mediaDirectories: [] },
+      mediaDirectories: [],
     });
 
     const isSourcesModalVisible = { value: false };

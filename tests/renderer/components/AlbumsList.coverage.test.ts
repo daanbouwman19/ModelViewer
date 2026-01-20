@@ -41,6 +41,7 @@ describe('AlbumsList Coverage (Filtering)', () => {
       albumsSelectedForSlideshow: {},
       smartPlaylists: [],
       historyMedia: [],
+      mediaDirectories: [],
     });
 
     mockPlayerState = reactive({
