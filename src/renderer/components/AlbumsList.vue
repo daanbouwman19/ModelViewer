@@ -56,9 +56,17 @@
             <ul class="space-y-0.5">
               <li
                 v-if="allAlbums.length === 0"
-                class="px-3 text-sm text-gray-600 italic"
+                class="px-1"
               >
-                No albums found. Add sources.
+                <button
+                  class="w-full text-left text-sm text-indigo-400 hover:text-indigo-300 hover:bg-white/5 p-2 rounded-md transition-colors flex items-center gap-2 group focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:outline-none"
+                  @click="openModal"
+                >
+                  <div class="bg-indigo-500/20 p-1.5 rounded-md group-hover:bg-indigo-500/30 transition-colors">
+                    <PlaylistAddIcon class="w-4 h-4" />
+                  </div>
+                  <span>Add your first source...</span>
+                </button>
               </li>
               <AlbumTree
                 v-for="album in allAlbums"
