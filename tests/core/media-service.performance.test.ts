@@ -19,6 +19,7 @@ vi.mock('../../src/core/database', () => ({
   getAllMetadata: vi.fn(),
   cacheAlbums: vi.fn(),
   getCachedAlbums: vi.fn(),
+  getMetadata: vi.fn().mockResolvedValue({}),
 }));
 
 vi.mock('../../src/core/media-utils', async (importOriginal) => {

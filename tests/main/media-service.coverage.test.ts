@@ -5,7 +5,11 @@ import * as mediaHandler from '../../src/core/media-handler';
 import fs from 'fs/promises';
 import { isDrivePath } from '../../src/core/media-utils';
 
-vi.mock('../../src/core/database');
+vi.mock('../../src/core/database', () => ({
+  bulkUpsertMetadata: vi.fn(),
+  getAllMetadata: vi.fn(),
+  getMetadata: vi.fn().mockResolvedValue({}),
+}));
 vi.mock('../../src/core/media-handler');
 vi.mock('../../src/core/media-utils'); // Auto-mock
 
