@@ -1,4 +1,3 @@
-
 import { mount } from '@vue/test-utils';
 import { describe, it, expect, vi } from 'vitest';
 import AlbumsList from '../../../src/renderer/components/AlbumsList.vue';
@@ -109,7 +108,9 @@ describe('AlbumsList Empty State', () => {
     expect(emptyStateButton.text()).toContain('Add your first source...');
 
     // Verify icons are present
-    expect(wrapper.findComponent({ name: 'PlaylistAddIcon' }).exists()).toBe(true);
+    expect(wrapper.findComponent({ name: 'PlaylistAddIcon' }).exists()).toBe(
+      true,
+    );
 
     // Verify interaction
     await emptyStateButton.trigger('click');
