@@ -23,7 +23,7 @@ Instead of importing `main.js`, test the specific controller (e.g., `src/main/ip
 
 **Strategy:** Refactored to remove all `setTimeout` calls (as `postMessage` on the mock is synchronous) and extracted the worker initialization into a factory helper (`initTestDb`), reducing noise and improving test speed.
 
-## 2026-01-22 - Deterministic Worker Messaging Tests
+## 2026-01-20 - Deterministic Worker Messaging Tests
 
 **Discovery:** `tests/core/media-service.test.ts` relied on flaky `setTimeout` delays (50ms) to wait for worker `postMessage` calls. This introduced race conditions where tests could fail on slower CI environments if the worker didn't respond in time.
 
