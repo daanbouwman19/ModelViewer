@@ -122,7 +122,6 @@ describe('AlbumsList.vue', () => {
     const albumTrees = wrapper.findAllComponents({ name: 'AlbumTree' });
     expect(albumTrees.length).toBe(2);
     expect(albumTrees[0].props('album')).toEqual(mockAlbums[0]);
-    expect(albumTrees[0].props('album')).toEqual(mockAlbums[0]);
     expect(albumTrees[1].props('album')).toEqual(mockAlbums[1]);
   });
 
