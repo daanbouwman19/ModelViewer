@@ -13,7 +13,17 @@ import { Worker } from 'worker_threads';
 import { isDrivePath } from '../../src/core/media-utils';
 
 // Mock dependencies
-vi.mock('../../src/core/database');
+vi.mock('../../src/core/database', () => ({
+  getMediaDirectories: vi.fn(),
+  cacheAlbums: vi.fn(),
+  getCachedAlbums: vi.fn(),
+  getAllMediaViewCounts: vi.fn(),
+  getAllMetadata: vi.fn(),
+  getPendingMetadata: vi.fn(),
+  bulkUpsertMetadata: vi.fn(),
+  getMetadata: vi.fn().mockResolvedValue({}),
+  getSetting: vi.fn(),
+}));
 vi.mock('../../src/core/media-scanner');
 vi.mock('../../src/core/media-handler');
 vi.mock('../../src/core/media-utils'); // Auto-mock
@@ -75,6 +85,8 @@ describe('media-service', () => {
     vi.clearAllMocks();
     vi.resetAllMocks();
     vi.unstubAllGlobals(); // Ensure globals are clean from previous tests
+    vi.mocked(database.getMetadata).mockResolvedValue({});
+    vi.mocked(database.getAllMetadata).mockResolvedValue({});
 
     // Explicitly ensure process.versions.electron is undefined to match "web" env by default
     // We cannot easily delete from existing process.versions if we don't stub the whole process.
@@ -436,6 +448,7 @@ describe('media-service', () => {
     });
 
     it('processes items successfully including duration', async () => {
+      vi.mocked(database.getMetadata).mockResolvedValue({});
       vi.spyOn(console, 'warn').mockImplementation(() => {});
       vi.mocked(fs.stat).mockResolvedValue({
         size: 100,

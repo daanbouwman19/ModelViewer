@@ -12,6 +12,7 @@ import {
   getPendingMetadata,
   getSetting,
   getAllMetadata,
+  getMetadata,
 } from './database.ts';
 import { type WorkerOptions } from 'worker_threads';
 import { WorkerClient } from './worker-client.ts';
@@ -268,6 +269,22 @@ export async function extractAndSaveMetadata(
   filePaths: string[],
   ffmpegPath: string,
 ): Promise<void> {
+  // Bolt Optimization: Fetch existing metadata to skip unnecessary processing
+  // Use getAllMetadata for large batches (likely initial scan), getMetadata for small ones.
+  let existingMetadataMap: { [path: string]: MediaMetadata } = {};
+  try {
+    if (filePaths.length > 1000) {
+      existingMetadataMap = await getAllMetadata();
+    } else if (filePaths.length > 0) {
+      existingMetadataMap = await getMetadata(filePaths);
+    }
+  } catch (e) {
+    console.warn(
+      '[media-service] Failed to fetch existing metadata for optimization:',
+      e,
+    );
+  }
+
   const queue = new PQueue({ concurrency: METADATA_EXTRACTION_CONCURRENCY });
 
   // Batching logic
@@ -295,6 +312,18 @@ export async function extractAndSaveMetadata(
         }
 
         const stats = await fs.stat(filePath);
+
+        // Check against existing metadata
+        const existing = existingMetadataMap[filePath];
+        if (
+          existing &&
+          existing.status === 'success' &&
+          existing.size === stats.size &&
+          existing.createdAt === stats.birthtime.toISOString()
+        ) {
+          return; // Skip redundant processing
+        }
+
         const metadata: MediaMetadata = {
           size: stats.size,
           createdAt: stats.birthtime.toISOString(),
