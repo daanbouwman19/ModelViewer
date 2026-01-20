@@ -178,6 +178,15 @@ export async function createApp() {
     }),
   );
 
+  // [SECURITY] Add Permissions-Policy header to disable unused powerful features
+  app.use((_req, res, next) => {
+    res.setHeader(
+      'Permissions-Policy',
+      'geolocation=(), camera=(), microphone=(), payment=(), usb=()',
+    );
+    next();
+  });
+
   // Restrict CORS to development server only, or disable in production (Same-Origin)
   const corsOptions = {
     origin: isDev
