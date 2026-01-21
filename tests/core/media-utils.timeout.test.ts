@@ -1,9 +1,15 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { runFFmpeg } from '../../src/core/media-utils';
-import { execa } from 'execa';
 
-vi.mock('execa');
+// Hoist mockExeca so it can be used in factory
+const { mockExeca } = vi.hoisted(() => ({
+  mockExeca: vi.fn(),
+}));
+
+vi.mock('execa', () => ({
+  execa: mockExeca,
+}));
 
 describe('Security: Process Timeouts', () => {
   beforeEach(() => {
@@ -12,7 +18,7 @@ describe('Security: Process Timeouts', () => {
 
   it('should timeout when a process runs too long', async () => {
     // Mock execa to simulate a timeout
-    vi.mocked(execa).mockResolvedValue({
+    mockExeca.mockResolvedValue({
       timedOut: true,
       exitCode: null,
       stderr: '',
@@ -22,7 +28,7 @@ describe('Security: Process Timeouts', () => {
       failed: false,
       isCanceled: false,
       killed: false,
-    } as any);
+    });
 
     const command = 'ffmpeg';
     const args = ['-i', 'input.mp4'];
@@ -32,14 +38,14 @@ describe('Security: Process Timeouts', () => {
       `Process timed out after ${timeoutMs}ms`
     );
 
-    expect(execa).toHaveBeenCalledWith(command, args, expect.objectContaining({
+    expect(mockExeca).toHaveBeenCalledWith(command, args, expect.objectContaining({
       timeout: timeoutMs,
       reject: false,
     }));
   });
 
   it('should return result when process completes successfully', async () => {
-    vi.mocked(execa).mockResolvedValue({
+    mockExeca.mockResolvedValue({
       timedOut: false,
       exitCode: 0,
       stderr: 'ok',
@@ -49,14 +55,14 @@ describe('Security: Process Timeouts', () => {
       failed: false,
       isCanceled: false,
       killed: false,
-    } as any);
+    });
 
     const command = 'ffmpeg';
     const args = ['-version'];
     const result = await runFFmpeg(command, args);
 
     expect(result).toEqual({ code: 0, stderr: 'ok' });
-    expect(execa).toHaveBeenCalledWith(command, args, expect.objectContaining({
+    expect(mockExeca).toHaveBeenCalledWith(command, args, expect.objectContaining({
       timeout: 30000, // Default timeout
       reject: false,
     }));
