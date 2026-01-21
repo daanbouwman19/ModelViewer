@@ -35,13 +35,17 @@ describe('Security: Process Timeouts', () => {
     const timeoutMs = 1000;
 
     await expect(runFFmpeg(command, args, timeoutMs)).rejects.toThrow(
-      `Process timed out after ${timeoutMs}ms`
+      `Process timed out after ${timeoutMs}ms`,
     );
 
-    expect(mockExeca).toHaveBeenCalledWith(command, args, expect.objectContaining({
-      timeout: timeoutMs,
-      reject: false,
-    }));
+    expect(mockExeca).toHaveBeenCalledWith(
+      command,
+      args,
+      expect.objectContaining({
+        timeout: timeoutMs,
+        reject: false,
+      }),
+    );
   });
 
   it('should return result when process completes successfully', async () => {
@@ -62,9 +66,13 @@ describe('Security: Process Timeouts', () => {
     const result = await runFFmpeg(command, args);
 
     expect(result).toEqual({ code: 0, stderr: 'ok' });
-    expect(mockExeca).toHaveBeenCalledWith(command, args, expect.objectContaining({
-      timeout: 30000, // Default timeout
-      reject: false,
-    }));
+    expect(mockExeca).toHaveBeenCalledWith(
+      command,
+      args,
+      expect.objectContaining({
+        timeout: 30000, // Default timeout
+        reject: false,
+      }),
+    );
   });
 });
