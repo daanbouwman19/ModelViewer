@@ -113,9 +113,9 @@ export function registerMediaHandlers() {
         console.warn('FFmpeg not found, skipping metadata extraction');
         return;
       }
-      extractAndSaveMetadata(filePaths, ffmpegPath).catch((err) =>
-        console.error('State extraction failed', err),
-      );
+      extractAndSaveMetadata(filePaths, ffmpegPath, {
+        forceCheck: true,
+      }).catch((err) => console.error('State extraction failed', err));
     },
   );
 
