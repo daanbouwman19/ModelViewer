@@ -63,9 +63,15 @@
           </button>
         </template>
         <template v-else>
-          <p class="text-gray-500 placeholder text-lg font-medium">
-            Select an album to start playback
-          </p>
+          <div
+            class="flex flex-col items-center gap-3 text-gray-500 opacity-60"
+            role="status"
+            aria-live="polite"
+          >
+            <PlaylistIcon class="w-16 h-16 opacity-50" aria-hidden="true" />
+            <p class="text-lg font-medium">Select an album to start playback</p>
+            <p class="text-sm">Choose from the sidebar to begin</p>
+          </div>
         </template>
       </div>
 
@@ -187,6 +193,7 @@ import { useUIStore } from '../composables/useUIStore';
 import { useSlideshow } from '../composables/useSlideshow';
 import { api } from '../api';
 import VlcIcon from './icons/VlcIcon.vue';
+import PlaylistIcon from './icons/PlaylistIcon.vue';
 import TranscodingStatus from './TranscodingStatus.vue';
 import MediaControls from './MediaControls.vue';
 import VRVideoPlayer from './VRVideoPlayer.vue'; // [NEW]
