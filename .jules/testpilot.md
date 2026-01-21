@@ -29,3 +29,9 @@ Instead of importing `main.js`, test the specific controller (e.g., `src/main/ip
 
 **Strategy:**
 Implemented a callback-based interception mechanism for the `postMessage` mock. Tests now await a promise that resolves immediately when `postMessage` is called, ensuring deterministic execution and eliminating arbitrary sleeps.
+
+## 2026-02-14 - Targeted Mocking for Process Timeouts
+
+**Discovery:** `tests/core/media-utils.timeout.test.ts` was relying on a real 1-second process sleep to test timeout logic, causing unnecessary delay and reliance on system scheduling.
+
+**Strategy:** Refactored to mock `execa` directly, simulating the timeout condition immediately. This reduced test duration from ~1000ms to ~15ms and removed flaky timing dependencies.
