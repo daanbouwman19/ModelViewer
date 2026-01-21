@@ -22,3 +22,8 @@
 
 **Learning:** `fs.stat` is expensive when called in bulk (e.g., getting metadata for thousands of files). For files already in the database, we can skip `fs.stat` and generating the hash by looking up the ID directly using the file path.
 **Action:** Added an index on `media_metadata(file_path)` and optimized `generateFileIdsBatched` to query the DB first. This reduces I/O for `getMetadata` and `bulkUpsertMetadata` on existing files by skipping redundant filesystem checks.
+
+## 2026-01-21 - [Metadata Verification Optimization]
+
+**Learning:** `fs.stat` on thousands of files during background scanning is a significant bottleneck even if files are cached.
+**Action:** Skip `fs.stat` for files with known valid metadata during routine scans, reserving full verification for manual re-indexing or "force check" operations.

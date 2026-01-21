@@ -169,7 +169,10 @@ export async function scanDiskForAlbumsAndCache(
         const pending = await getPendingMetadata();
         // Merge unique paths
         const uniquePaths = new Set([...pending, ...allFilePaths]);
-        await extractAndSaveMetadata(Array.from(uniquePaths), ffmpegPath);
+        // Bolt Optimization: Do not force check for background scans. Only process new/pending items.
+        await extractAndSaveMetadata(Array.from(uniquePaths), ffmpegPath, {
+          forceCheck: false,
+        });
       } catch (e) {
         console.error(
           '[media-service] Background metadata extraction failed:',
@@ -268,7 +271,10 @@ export async function getAlbumsWithViewCounts(
 export async function extractAndSaveMetadata(
   filePaths: string[],
   ffmpegPath: string,
+  options: { forceCheck?: boolean } = {},
 ): Promise<void> {
+  const { forceCheck = false } = options;
+
   // Bolt Optimization: Fetch existing metadata to skip unnecessary processing
   // Use getAllMetadata for large batches (likely initial scan), getMetadata for small ones.
   let existingMetadataMap: { [path: string]: MediaMetadata } = {};
@@ -302,6 +308,11 @@ export async function extractAndSaveMetadata(
 
   for (const filePath of filePaths) {
     if (!filePath) {
+      continue;
+    }
+
+    // Bolt Optimization: Skip redundant fs.stat if metadata exists and is valid, unless forced
+    if (!forceCheck && existingMetadataMap[filePath]?.status === 'success') {
       continue;
     }
 

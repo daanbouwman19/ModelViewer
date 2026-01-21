@@ -212,6 +212,7 @@ describe('media-controller', () => {
       expect(extractAndSaveMetadata).toHaveBeenCalledWith(
         ['/path'],
         '/mock/ffmpeg',
+        { forceCheck: true },
       );
     });
 
