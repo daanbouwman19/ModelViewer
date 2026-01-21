@@ -74,7 +74,7 @@ import {
   serveThumbnail,
   validateFileAccess,
 } from '../core/media-handler.ts';
-import { getQueryParam } from '../core/media-utils.ts';
+import { getQueryParam } from '../core/utils/http-utils.ts';
 import { createMediaSource } from '../core/media-source.ts';
 import ffmpegStatic from 'ffmpeg-static';
 import { createRateLimiter } from '../core/rate-limiter.ts';
