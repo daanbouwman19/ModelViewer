@@ -14,11 +14,10 @@ import { createMediaSource } from './media-source.ts';
 import { IMediaSource } from './media-source-types.ts';
 import {
   getTranscodeArgs,
-  parseHttpRange,
-  getQueryParam,
   getFFmpegDuration,
   isDrivePath,
 } from './media-utils.ts';
+import { parseHttpRange, getQueryParam } from './utils/http-utils.ts';
 import { getProvider } from './fs-provider-factory.ts';
 import { authorizeFilePath } from './security.ts';
 import { validateFileAccess } from './access-validator.ts';

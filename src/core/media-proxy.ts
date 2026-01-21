@@ -2,7 +2,7 @@ import http from 'http';
 import { AddressInfo } from 'net';
 import { getDriveFileMetadata } from '../main/google-drive-service';
 import { getDriveStreamWithCache } from './drive-stream';
-import { parseHttpRange } from './media-utils.ts';
+import { parseHttpRange } from './utils/http-utils.ts';
 
 export class InternalMediaProxy {
   private static instance: InternalMediaProxy;
