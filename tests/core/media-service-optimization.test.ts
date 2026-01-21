@@ -36,7 +36,7 @@ describe('media-service optimization', () => {
     // Setup existing metadata
     const filePath = '/existing.mp4';
     vi.mocked(database.getMetadata).mockResolvedValue({
-      [filePath]: { status: 'success', size: 100, createdAt: '2023-01-01' }
+      [filePath]: { status: 'success', size: 100, createdAt: '2023-01-01' },
     });
 
     // Call with forceCheck: false (default)
@@ -50,13 +50,13 @@ describe('media-service optimization', () => {
     // Setup existing metadata
     const filePath = '/existing.mp4';
     vi.mocked(database.getMetadata).mockResolvedValue({
-      [filePath]: { status: 'success', size: 100, createdAt: '2023-01-01' }
+      [filePath]: { status: 'success', size: 100, createdAt: '2023-01-01' },
     });
 
     // Mock fs.stat to succeed
     vi.mocked(fs.stat).mockResolvedValue({
       size: 100,
-      birthtime: { toISOString: () => '2023-01-01' }
+      birthtime: { toISOString: () => '2023-01-01' },
     } as any);
 
     // Call with forceCheck: true
@@ -72,7 +72,7 @@ describe('media-service optimization', () => {
 
     vi.mocked(fs.stat).mockResolvedValue({
       size: 100,
-      birthtime: { toISOString: () => '2023-01-01' }
+      birthtime: { toISOString: () => '2023-01-01' },
     } as any);
 
     await extractAndSaveMetadata([filePath], 'ffmpeg');
