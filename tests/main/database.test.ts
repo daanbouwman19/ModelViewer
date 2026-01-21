@@ -1,17 +1,7 @@
-import {
-  describe,
-  it,
-  expect,
-  beforeEach,
-  afterEach,
-  vi,
-} from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 // Import mocks
-import {
-  mockWorkerInstance,
-  resetMockWorker,
-} from './mocks/worker';
+import { mockWorkerInstance, resetMockWorker } from './mocks/worker';
 
 vi.mock('worker_threads', async () => {
   const { MockWorker } = await import('./mocks/worker');
