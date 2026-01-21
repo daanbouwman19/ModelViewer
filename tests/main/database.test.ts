@@ -5,156 +5,33 @@ import {
   beforeEach,
   afterEach,
   vi,
-  type Mock,
 } from 'vitest';
-import { EventEmitter } from 'events';
 
-// Define types for mock data
-interface MockAlbum {
-  id: string;
-  name: string;
-  textures: { name: string; path: string }[];
-  children: MockAlbum[];
-}
+// Import mocks
+import {
+  mockWorkerInstance,
+  resetMockWorker,
+} from './mocks/worker';
 
-interface MockDirectory {
-  path: string;
-  isActive: boolean;
-}
-
-interface MockDB {
-  views: Record<string, number>;
-  albums: MockAlbum[];
-  albumsCached: boolean;
-  directories: MockDirectory[];
-}
-
-// Store data in mock to simulate DB
-const mockDb: MockDB = {
-  views: {},
-  albums: [],
-  albumsCached: false,
-  directories: [],
-};
-
-// Module-scoped variable to hold the latest mock worker instance
-let mockWorkerInstance: MockWorker | null = null;
-function setMockWorkerInstance(instance: MockWorker) {
-  mockWorkerInstance = instance;
-}
-
-class MockWorker extends EventEmitter {
-  terminate: Mock;
-  postMessage: Mock;
-
-  constructor() {
-    super();
-    this.terminate = vi.fn().mockResolvedValue(undefined);
-
-    this.postMessage = vi.fn(
-      (message: { id: string; type: string; payload: any }) => {
-        const { id, type, payload } = message;
-        let resultData: unknown = undefined;
-        const success = true;
-
-        if (type === 'init') {
-          // success
-        } else if (type === 'recordMediaView') {
-          const filePath = payload.filePath;
-          mockDb.views[filePath] = (mockDb.views[filePath] || 0) + 1;
-        } else if (type === 'getMediaViewCounts') {
-          const paths = payload.filePaths;
-          const counts: Record<string, number> = {};
-          paths.forEach((p: string) => {
-            counts[p] = mockDb.views[p] || 0;
-          });
-          resultData = counts;
-        } else if (type === 'cacheAlbums') {
-          mockDb.albums = payload.albums;
-          mockDb.albumsCached = true;
-        } else if (type === 'getCachedAlbums') {
-          // Return null only when there are no cached albums (initial state)
-          // Return the actual array (even if empty) if cacheAlbums was called
-          resultData = mockDb.albumsCached ? mockDb.albums : null;
-        } else if (type === 'addMediaDirectory') {
-          const dirObj = payload.directoryObj;
-          const dirPath = typeof dirObj === 'string' ? dirObj : dirObj.path;
-          mockDb.directories.push({
-            path: dirPath,
-            isActive: true,
-          });
-        } else if (type === 'getMediaDirectories') {
-          resultData = mockDb.directories;
-        } else if (type === 'removeMediaDirectory') {
-          mockDb.directories = mockDb.directories.filter(
-            (d: MockDirectory) => d.path !== payload.directoryPath,
-          );
-        } else if (type === 'setDirectoryActiveState') {
-          const dir = mockDb.directories.find(
-            (d: MockDirectory) => d.path === payload.directoryPath,
-          );
-          if (dir) dir.isActive = payload.isActive;
-        } else if (type === 'close') {
-          // success
-        }
-
-        // Simulate async response
-        process.nextTick(() => {
-          this.emit('message', {
-            id: id,
-            result: { success, data: resultData },
-          });
-        });
-      },
-    );
-    setMockWorkerInstance(this);
-  }
-
-  // Helper methods
-  simulateMessage(message: unknown) {
-    this.emit('message', message);
-  }
-
-  simulateError(error: unknown) {
-    this.emit('error', error);
-  }
-
-  simulateExit(code: number) {
-    this.emit('exit', code);
-  }
-}
-
-vi.mock('worker_threads', () => ({
-  Worker: MockWorker,
-  default: { Worker: MockWorker },
-}));
+vi.mock('worker_threads', async () => {
+  const { MockWorker } = await import('./mocks/worker');
+  return {
+    Worker: MockWorker,
+    default: { Worker: MockWorker },
+  };
+});
 
 import { createMockElectron } from './mocks/electron';
 
 vi.mock('electron', () => createMockElectron());
 
+// Static import
+import * as db from '../../src/main/database';
+
 describe('Database', () => {
-  // Use a type that matches the exported module structure
-  // Since we are dynamically importing, we can use `typeof import(...)` or `any` if necessary,
-  // but let's try to be specific or use `unknown` if we just need to access methods known to exist.
-  // Ideally, we import the type. But for now, let's use a loosely typed object or just `any` IS the problem.
-  // We can use a mapped type of the module.
-
-  let db: typeof import('../../src/main/database');
-
   beforeEach(async () => {
-    // Reset mock DB state (keeping the same object reference)
-    mockDb.views = {};
-    mockDb.albums = [];
-    mockDb.albumsCached = false;
-    mockDb.directories = [];
-
-    vi.resetModules();
-    // Ensure mockWorkerInstance is reset implicitly by calls, or explicitly if needed, although new worker is created on initDatabase
-    mockWorkerInstance = null;
-
-    // Import fresh module
-    db = await import('../../src/main/database');
+    // Reset mock DB state
+    resetMockWorker();
 
     // Set a shorter timeout for tests
     db.setOperationTimeout(5000);
@@ -470,27 +347,22 @@ interface WorkerMessage {
 }
 
 describe('database.js additional coverage - uninitialized', () => {
-  beforeEach(() => {
-    vi.resetModules();
-    mockWorkerInstance = null;
+  beforeEach(async () => {
+    await db.closeDatabase();
+    resetMockWorker();
   });
 
   it('should reject if dbWorker is not initialized', async () => {
-    const freshDb = await import('../../src/main/database');
-    await expect(freshDb.addMediaDirectory('/test/path')).rejects.toThrow(
+    // We use the static db instance. It should be uninitialized here.
+    await expect(db.addMediaDirectory('/test/path')).rejects.toThrow(
       'Database worker not initialized',
     );
   });
 });
 
 describe('Additional Function Coverage', () => {
-  let db: typeof import('../../src/main/database');
-
   beforeEach(async () => {
-    vi.resetModules();
-    mockWorkerInstance = null;
-
-    db = await import('../../src/main/database');
+    resetMockWorker();
     await db.initDatabase();
   });
 
