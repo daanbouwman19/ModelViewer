@@ -38,7 +38,8 @@ describe('Database Worker', () => {
       fs.mkdirSync(testDir, { recursive: true });
     }
     tempDir = fs.mkdtempSync(path.join(testDir, 'test-db-'));
-    dbPath = path.join(tempDir, 'test.sqlite');
+    // Use in-memory DB by default for speed
+    dbPath = ':memory:';
 
     // We don't remove listeners because the worker's listener must remain.
     // We only need to ensure we don't have stale 'workerMessage' listeners from previous tests.
@@ -103,6 +104,9 @@ describe('Database Worker', () => {
 
     it('should handle re-initialization', async () => {
       await sendMessage('init', { dbPath });
+      // For re-init test, we can use another in-memory DB or a file.
+      // Since it tests changing path, we can use a new path (memory or file).
+      // Let's use file to be distinct.
       const newDbPath = path.join(tempDir, 'new.sqlite');
       const result = await sendMessage('init', { dbPath: newDbPath });
       expect(result.success).toBe(true);
@@ -115,9 +119,11 @@ describe('Database Worker', () => {
     });
 
     it('should migrate old media_directories schema', async () => {
+      // Migration test requires persistent file to setup old schema first
+      const migrationDbPath = path.join(tempDir, 'migration_old_schema.sqlite');
+
       // 1. Setup old schema manually
-      // 1. Setup old schema manually
-      const tempDb = new Database(dbPath);
+      const tempDb = new Database(migrationDbPath);
       tempDb
         .prepare(
           `
@@ -136,7 +142,7 @@ describe('Database Worker', () => {
       tempDb.close();
 
       // 2. Initialize via worker (triggers migration)
-      const result = await sendMessage('init', { dbPath });
+      const result = await sendMessage('init', { dbPath: migrationDbPath });
       expect(result.success).toBe(true);
 
       // 3. Verify migration
@@ -607,6 +613,8 @@ describe('Database Worker', () => {
     });
 
     it('should handle migrations for media_metadata missing columns', async () => {
+      // This test requires file persistence because it creates a DB with old schema on disk,
+      // closes it, and then expects the worker to open it and migrate it.
       const migDbPath = path.join(
         tempDir,
         `mig-test-${Math.random().toString(36).substring(7)}.sqlite`,
