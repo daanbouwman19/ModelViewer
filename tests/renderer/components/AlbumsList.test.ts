@@ -42,61 +42,76 @@ vi.mock('../../../src/renderer/composables/usePlayerStore');
 vi.mock('../../../src/renderer/composables/useUIStore');
 // --- End New Mocking Strategy ---
 
-const mockAlbums = [
-  {
-    id: 'Album1',
-    name: 'Album1',
-    textures: [{ name: 't1.jpg', path: '/t1.jpg' }],
-    children: [
-      {
-        id: 'SubAlbum1',
-        name: 'SubAlbum1',
-        textures: [{ name: 'st1.jpg', path: '/st1.jpg' }],
-        children: [],
-      },
-    ],
-  },
-  {
-    id: 'Album2',
-    name: 'Album2',
-    textures: [{ name: 't2.jpg', path: '/t2.jpg' }],
-    children: [],
-  },
-];
+// --- Factories ---
+function createMockAlbums() {
+  return [
+    {
+      id: 'Album1',
+      name: 'Album1',
+      textures: [{ name: 't1.jpg', path: '/t1.jpg' }],
+      children: [
+        {
+          id: 'SubAlbum1',
+          name: 'SubAlbum1',
+          textures: [{ name: 'st1.jpg', path: '/st1.jpg' }],
+          children: [],
+        },
+      ],
+    },
+    {
+      id: 'Album2',
+      name: 'Album2',
+      textures: [{ name: 't2.jpg', path: '/t2.jpg' }],
+      children: [],
+    },
+  ];
+}
+
+function createMockState() {
+  const libraryState = reactive({
+    allAlbums: createMockAlbums(),
+    albumsSelectedForSlideshow: { Album1: true },
+    smartPlaylists: [],
+    historyMedia: [],
+    mediaDirectories: [{ path: '/test', isActive: true }], // Default to having sources
+  });
+
+  const playerState = reactive({
+    timerDuration: 5,
+    isTimerRunning: false,
+    timerProgress: 0,
+    isSlideshowActive: false,
+    playFullVideo: false,
+    pauseTimerOnPlay: false,
+  });
+
+  const uiState = reactive({
+    isSourcesModalVisible: false,
+    isSmartPlaylistModalVisible: false,
+    gridMediaFiles: [],
+    viewMode: 'player',
+    playlistToEdit: null,
+    mediaFilter: 'All',
+  });
+
+  return { libraryState, playerState, uiState };
+}
 
 describe('AlbumsList.vue', () => {
   let mockLibraryState: any;
   let mockPlayerState: any;
   let mockUIState: any;
 
+  // We keep a reference to default mock albums for assertions that rely on the initial structure
+  const defaultMockAlbums = createMockAlbums();
+
   beforeEach(() => {
     vi.resetAllMocks();
 
-    mockLibraryState = reactive({
-      allAlbums: mockAlbums,
-      albumsSelectedForSlideshow: { Album1: true },
-      smartPlaylists: [],
-      historyMedia: [],
-      mediaDirectories: [{ path: '/test', isActive: true }], // Default to having sources
-    });
-
-    mockPlayerState = reactive({
-      timerDuration: 5,
-      isTimerRunning: false,
-      timerProgress: 0,
-      isSlideshowActive: false,
-      playFullVideo: false,
-      pauseTimerOnPlay: false,
-    });
-
-    mockUIState = reactive({
-      isSourcesModalVisible: false,
-      isSmartPlaylistModalVisible: false,
-      gridMediaFiles: [],
-      viewMode: 'player',
-      playlistToEdit: null,
-      mediaFilter: 'All',
-    });
+    const { libraryState, playerState, uiState } = createMockState();
+    mockLibraryState = libraryState;
+    mockPlayerState = playerState;
+    mockUIState = uiState;
 
     (useLibraryStore as Mock).mockReturnValue({
       state: mockLibraryState,
@@ -121,8 +136,8 @@ describe('AlbumsList.vue', () => {
     const wrapper = mount(AlbumsList);
     const albumTrees = wrapper.findAllComponents({ name: 'AlbumTree' });
     expect(albumTrees.length).toBe(2);
-    expect(albumTrees[0].props('album')).toEqual(mockAlbums[0]);
-    expect(albumTrees[1].props('album')).toEqual(mockAlbums[1]);
+    expect(albumTrees[0].props('album')).toEqual(defaultMockAlbums[0]);
+    expect(albumTrees[1].props('album')).toEqual(defaultMockAlbums[1]);
   });
 
   it('shows "Add your first source" when no sources are configured', async () => {
@@ -173,11 +188,11 @@ describe('AlbumsList.vue', () => {
     const wrapper = mount(AlbumsList);
     const albumTree = wrapper.findComponent({ name: 'AlbumTree' });
 
-    albumTree.vm.$emit('albumClick', mockAlbums[0]);
+    albumTree.vm.$emit('albumClick', defaultMockAlbums[0]);
     await wrapper.vm.$nextTick();
 
     expect(mocks.mockStartIndividualAlbumSlideshow).toHaveBeenCalled();
-    const expectedTextures = collectTexturesRecursive(mockAlbums[0]);
+    const expectedTextures = collectTexturesRecursive(defaultMockAlbums[0]);
     expect(mocks.mockStartIndividualAlbumSlideshow).toHaveBeenCalledWith(
       expect.objectContaining({
         name: 'Album1',
@@ -193,7 +208,7 @@ describe('AlbumsList.vue', () => {
     const albumTree = wrapper.findComponent({ name: 'AlbumTree' });
 
     albumTree.vm.$emit('toggleSelection', {
-      album: mockAlbums[0],
+      album: defaultMockAlbums[0],
       recursive: true,
     });
     await wrapper.vm.$nextTick();
@@ -215,7 +230,7 @@ describe('AlbumsList.vue', () => {
     const albumTree = wrapper.findComponent({ name: 'AlbumTree' });
 
     albumTree.vm.$emit('toggleSelection', {
-      album: mockAlbums[0],
+      album: defaultMockAlbums[0],
       recursive: true,
     });
     await wrapper.vm.$nextTick();
