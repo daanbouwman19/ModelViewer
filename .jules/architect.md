@@ -28,13 +28,13 @@
 **Insight:** Extracting the per-root scanning logic into `scanRootDirectory` removed nested try/catch blocks and made the main orchestration function declarative and readable.
 **Prevention:** When mapping over items to perform complex async operations (especially with error handling), extract the operation into a named async function.
 
-## 2026-02-18 - Extracting FFmpeg Configuration
+## 2026-01-18 - Extracting FFmpeg Configuration
 
 **Smell:** `getTranscodeArgs` contained a long list of magic strings defining the FFmpeg transcoding profile, making it hard to read and modify.
 **Insight:** Separating configuration (transcoding parameters) from logic (argument building) improves readability and reduces the risk of accidental flag deletion.
 **Prevention:** When defining complex CLI commands or configurations, use named constants to group related arguments instead of inlining them.
 
-## 2026-02-19 - Extracting VLC Path Logic
+## 2026-01-22 - Extracting VLC Path Logic
 
 **Smell:** `media-utils.ts` was becoming a "Kitchen Sink" containing platform-specific VLC path discovery mixed with generic file logic and FFmpeg helpers.
 **Insight:** Platform-specific tool discovery (like finding VLC binary) is distinct from generic media file utilities.
