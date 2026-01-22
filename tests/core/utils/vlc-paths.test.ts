@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { getVlcPath } from '../../src/core/media-utils';
+import { getVlcPath } from '../../../src/core/utils/vlc-paths.ts';
 import fs from 'fs';
 
 // Mock fs.promises.access
