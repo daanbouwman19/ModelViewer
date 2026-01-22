@@ -51,6 +51,7 @@ import {
   RATE_LIMIT_FILE_WINDOW_MS,
   RATE_LIMIT_FILE_MAX_REQUESTS,
   MAX_CONCURRENT_TRANSCODES,
+  MAX_API_BATCH_SIZE,
 } from '../core/constants.ts';
 import { listDirectory } from '../core/file-system.ts';
 import {
@@ -303,6 +304,12 @@ export async function createApp() {
     )
       return res.status(400).send('Invalid filePaths');
 
+    if (filePaths.length > MAX_API_BATCH_SIZE) {
+      return res
+        .status(400)
+        .send(`Batch size exceeds limit of ${MAX_API_BATCH_SIZE}`);
+    }
+
     // Filter out unauthorized paths to prevent probing
     const allowedPaths: string[] = [];
     for (const p of filePaths) {
@@ -437,6 +444,12 @@ export async function createApp() {
       !filePaths.every((p) => typeof p === 'string')
     )
       return res.status(400).send('Invalid filePaths');
+
+    if (filePaths.length > MAX_API_BATCH_SIZE) {
+      return res
+        .status(400)
+        .send(`Batch size exceeds limit of ${MAX_API_BATCH_SIZE}`);
+    }
 
     // Filter out unauthorized paths to prevent probing
     const allowedPaths: string[] = [];
