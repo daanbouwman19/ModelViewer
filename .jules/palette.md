@@ -77,5 +77,6 @@
 **Action:** For rating components, always use `aria-pressed="true"` on the selected item and append ", current rating" (or similar context) to the label of the active item to make the state explicit.
 
 ## 2026-01-21 - [Empty State Improvement]
+
 **Learning:** Empty states are often overlooked but are critical for user onboarding and orientation. A text-only empty state can feel broken or unfinished.
 **Action:** Always provide a visual cue (icon) and clear instruction ("Choose from the sidebar") in empty states. Use `aria-live="polite"` so screen reader users know the state has changed.
