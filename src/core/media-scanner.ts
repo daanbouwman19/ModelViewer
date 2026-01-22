@@ -10,7 +10,7 @@ import fs from 'fs/promises';
 import type { Dirent } from 'fs';
 import path from 'path';
 import {
-  ALL_SUPPORTED_EXTENSIONS,
+  ALL_SUPPORTED_EXTENSIONS_SET,
   DISK_SCAN_CONCURRENCY,
 } from './constants.ts';
 import { isDrivePath, getDriveId } from './media-utils.ts';
@@ -21,9 +21,6 @@ import { ConcurrencyLimiter } from './utils/concurrency-limiter.ts';
 // Limit concurrent file system scans to avoid EMFILE errors
 // Note: This limit applies only to the `readdir` call itself, not the whole recursion.
 const scanLimiter = new ConcurrencyLimiter(DISK_SCAN_CONCURRENCY);
-
-// Optimization: Use a Set for O(1) extension lookups in the hot loop
-const SUPPORTED_EXTENSIONS_SET = new Set(ALL_SUPPORTED_EXTENSIONS);
 
 /**
  * Processes a single file entry from a directory scan.
@@ -39,7 +36,7 @@ function processFileItem(
   const fileExtension = path.extname(item.name).toLowerCase();
 
   // Bolt Optimization: Set.has is O(1) vs Array.includes O(N)
-  if (!SUPPORTED_EXTENSIONS_SET.has(fileExtension)) return null;
+  if (!ALL_SUPPORTED_EXTENSIONS_SET.has(fileExtension)) return null;
 
   const fullPath = path.join(directoryPath, item.name);
 

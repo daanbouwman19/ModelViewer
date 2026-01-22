@@ -5,8 +5,8 @@ import { execa } from 'execa';
 
 import {
   GDRIVE_PROTOCOL,
-  SUPPORTED_IMAGE_EXTENSIONS,
-  SUPPORTED_VIDEO_EXTENSIONS,
+  SUPPORTED_IMAGE_EXTENSIONS_SET,
+  SUPPORTED_VIDEO_EXTENSIONS_SET,
 } from './constants.ts';
 
 const FFMPEG_TRANSCODE_PRESET = 'ultrafast';
@@ -79,12 +79,16 @@ export function getMimeType(filePath: string): string {
     return 'application/octet-stream';
   }
 
-  const extension = path.extname(filePath).substring(1).toLowerCase();
-  if (SUPPORTED_IMAGE_EXTENSIONS.includes(`.${extension}`)) {
-    return KNOWN_MIME_TYPES[extension] || `image/${extension}`;
+  // Bolt Optimization: Use Set for O(1) lookup and avoid substring(1) until needed
+  const ext = path.extname(filePath).toLowerCase();
+
+  if (SUPPORTED_IMAGE_EXTENSIONS_SET.has(ext)) {
+    const extNoDot = ext.slice(1);
+    return KNOWN_MIME_TYPES[extNoDot] || `image/${extNoDot}`;
   }
-  if (SUPPORTED_VIDEO_EXTENSIONS.includes(`.${extension}`)) {
-    return KNOWN_MIME_TYPES[extension] || `video/${extension}`;
+  if (SUPPORTED_VIDEO_EXTENSIONS_SET.has(ext)) {
+    const extNoDot = ext.slice(1);
+    return KNOWN_MIME_TYPES[extNoDot] || `video/${extNoDot}`;
   }
   return 'application/octet-stream';
 }
