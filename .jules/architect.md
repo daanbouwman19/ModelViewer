@@ -33,3 +33,9 @@
 **Smell:** `getTranscodeArgs` contained a long list of magic strings defining the FFmpeg transcoding profile, making it hard to read and modify.
 **Insight:** Separating configuration (transcoding parameters) from logic (argument building) improves readability and reduces the risk of accidental flag deletion.
 **Prevention:** When defining complex CLI commands or configurations, use named constants to group related arguments instead of inlining them.
+
+## 2026-02-19 - Extracting VLC Path Logic
+
+**Smell:** `media-utils.ts` was becoming a "Kitchen Sink" containing platform-specific VLC path discovery mixed with generic file logic and FFmpeg helpers.
+**Insight:** Platform-specific tool discovery (like finding VLC binary) is distinct from generic media file utilities.
+**Prevention:** Group external tool discovery/configuration in dedicated modules (e.g., `utils/vlc-paths.ts`) rather than generic utility files.

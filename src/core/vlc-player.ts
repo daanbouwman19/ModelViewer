@@ -1,6 +1,7 @@
 import { spawn } from 'child_process';
 import { MediaRoutes } from './routes.ts';
-import { getVlcPath, isDrivePath } from './media-utils.ts';
+import { isDrivePath } from './media-utils.ts';
+import { getVlcPath } from './utils/vlc-paths.ts';
 import { authorizeFilePath } from './security.ts';
 
 /**

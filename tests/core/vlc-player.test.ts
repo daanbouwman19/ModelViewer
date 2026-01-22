@@ -29,14 +29,9 @@ vi.mock('../../src/core/security', () => ({
   authorizeFilePath: mockAuthorizeFilePath,
 }));
 
-vi.mock('../../src/core/media-utils', async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import('../../src/core/media-utils')>();
-  return {
-    ...actual,
-    getVlcPath: vi.fn().mockResolvedValue('/usr/bin/vlc'),
-  };
-});
+vi.mock('../../src/core/utils/vlc-paths', () => ({
+  getVlcPath: vi.fn().mockResolvedValue('/usr/bin/vlc'),
+}));
 
 describe('vlc-player unit tests', () => {
   beforeEach(() => {

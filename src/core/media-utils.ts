@@ -103,64 +103,6 @@ export async function checkThumbnailCache(cacheFile: string): Promise<boolean> {
   }
 }
 
-async function getWindowsVlcPath(): Promise<string | null> {
-  const commonPaths = [
-    'C:\\Program Files\\VideoLAN\\VLC\\vlc.exe',
-    'C:\\Program Files (x86)\\VideoLAN\\VLC\\vlc.exe',
-  ];
-  for (const p of commonPaths) {
-    try {
-      await fs.promises.access(p);
-      return p;
-    } catch {
-      // Continue checking
-    }
-  }
-  return null;
-}
-
-async function getMacVlcPath(): Promise<string> {
-  const macPath = '/Applications/VLC.app/Contents/MacOS/VLC';
-  try {
-    await fs.promises.access(macPath);
-    return macPath;
-  } catch {
-    return 'vlc';
-  }
-}
-
-async function getLinuxVlcPath(): Promise<string> {
-  const commonPaths = [
-    '/usr/bin/vlc',
-    '/usr/local/bin/vlc',
-    '/snap/bin/vlc',
-    '/var/lib/flatpak/exports/bin/org.videolan.VLC',
-  ];
-
-  for (const p of commonPaths) {
-    try {
-      await fs.promises.access(p);
-      return p;
-    } catch {
-      // Continue checking
-    }
-  }
-  return 'vlc';
-}
-
-export async function getVlcPath(): Promise<string | null> {
-  if (process.platform === 'win32') {
-    return getWindowsVlcPath();
-  }
-  if (process.platform === 'darwin') {
-    return getMacVlcPath();
-  }
-  if (process.platform === 'linux') {
-    return getLinuxVlcPath();
-  }
-  return 'vlc';
-}
-
 export function isValidTimeFormat(time: string): boolean {
   // Allow simple seconds (e.g., "10", "10.5") or timestamps (e.g., "00:00:10", "00:10.5")
   // [SECURITY] Strictly validate format to prevent ReDoS and invalid FFmpeg arguments.
