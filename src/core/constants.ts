@@ -191,6 +191,12 @@ const RATE_LIMIT_FILE_MAX_REQUESTS = 60;
  */
 const MAX_CONCURRENT_TRANSCODES = 3;
 
+/**
+ * Maximum number of items allowed in a batch API request.
+ * Used to prevent Denial of Service (DoS) attacks via large payloads.
+ */
+const MAX_API_BATCH_SIZE = 1000;
+
 export {
   GDRIVE_PROTOCOL,
   MAX_DATA_URL_SIZE_MB,
@@ -224,4 +230,5 @@ export {
   RATE_LIMIT_FILE_WINDOW_MS,
   RATE_LIMIT_FILE_MAX_REQUESTS,
   MAX_CONCURRENT_TRANSCODES,
+  MAX_API_BATCH_SIZE,
 };
