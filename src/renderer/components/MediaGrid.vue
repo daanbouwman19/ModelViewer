@@ -135,13 +135,6 @@ const failedImagePaths = reactive(new Set<string>());
 
 // Chunk items into rows for the scroller
 const chunkedItems = computed<GridRow[]>(() => {
-  // Ensure we re-chunk if generators or extensions change,
-  // to force re-render of slots with new RenderProps
-  void mediaUrlGenerator.value;
-  void thumbnailUrlGenerator.value;
-  void imageExtensionsSet.value;
-  void videoExtensionsSet.value;
-
   const total = allMediaFiles.value.length;
   const cols = columnCount.value;
   const rows: GridRow[] = [];
