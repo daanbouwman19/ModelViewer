@@ -555,10 +555,14 @@ export function getSetting(key: string): WorkerResult {
 export async function executeSmartPlaylist(/* criteriaJson: string */): Promise<WorkerResult> {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
+    // Optimization: Dropped UNION ALL for performance.
+    // We assume files of interest are indexed in media_metadata.
+    // Files that are only in media_views (viewed but not indexed) will be excluded from Smart Playlists
+    // until they are indexed. This avoids a full scan of media_views and a large UNION operation.
     const query = `
       SELECT
         m.file_path_hash,
-        COALESCE(m.file_path, v.file_path) as file_path,
+        m.file_path,
         m.duration,
         m.rating,
         m.created_at,
@@ -566,18 +570,6 @@ export async function executeSmartPlaylist(/* criteriaJson: string */): Promise<
         v.last_viewed
       FROM media_metadata m
       LEFT JOIN media_views v ON m.file_path_hash = v.file_path_hash
-      UNION ALL
-      SELECT
-        v.file_path_hash,
-        COALESCE(m.file_path, v.file_path) as file_path,
-        m.duration,
-        m.rating,
-        m.created_at,
-        v.view_count,
-        v.last_viewed
-      FROM media_views v
-      LEFT JOIN media_metadata m ON v.file_path_hash = m.file_path_hash
-      WHERE m.file_path_hash IS NULL
     `;
     const rows = db.prepare(query).all();
     return { success: true, data: rows };

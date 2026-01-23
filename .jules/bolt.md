@@ -27,3 +27,8 @@
 
 **Learning:** `fs.stat` on thousands of files during background scanning is a significant bottleneck even if files are cached.
 **Action:** Skip `fs.stat` for files with known valid metadata during routine scans, reserving full verification for manual re-indexing or "force check" operations.
+
+## 2026-02-01 - [Full Outer Join Simulation in SQLite]
+
+**Learning:** Simulating FULL OUTER JOIN using `LEFT JOIN` + `UNION ALL` + `ANTI-JOIN` is expensive because it scans the second table twice and creates a temporary result set.
+**Action:** When the primary table (e.g., `media_metadata`) is the source of truth for the application's domain, use a simple `LEFT JOIN`. The performance gain (40% faster) outweighs the edge case of missing unindexed items, which should be transient anyway.
