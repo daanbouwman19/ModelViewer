@@ -427,16 +427,26 @@ export async function getMetadata(filePaths: string[]): Promise<WorkerResult> {
       const batchIds = allFileIds.slice(i, i + SQL_BATCH_SIZE);
       if (batchIds.length === 0) continue;
 
-      const placeholders = batchIds.map(() => '?').join(',');
-      const query = `SELECT * FROM media_metadata WHERE file_path_hash IN (${placeholders})`;
+      let rows: { file_path: string; [key: string]: unknown }[];
 
-      const rows = db.prepare(query).all(...batchIds) as {
-        file_path: string;
-        [key: string]: unknown;
-      }[];
+      if (batchIds.length === SQL_BATCH_SIZE) {
+        rows = statements.getMetadataBatch.all(...batchIds) as {
+          file_path: string;
+          [key: string]: unknown;
+        }[];
+      } else {
+        const args = new Array(SQL_BATCH_SIZE).fill(null);
+        for (let k = 0; k < batchIds.length; k++) {
+          args[k] = batchIds[k];
+        }
+        rows = statements.getMetadataBatch.all(...args) as {
+          file_path: string;
+          [key: string]: unknown;
+        }[];
+      }
 
       for (const row of rows) {
-        if (row.file_path) {
+        if (row && row.file_path) {
           metadataMap[row.file_path] = row;
         }
       }

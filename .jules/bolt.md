@@ -27,3 +27,8 @@
 
 **Learning:** `fs.stat` on thousands of files during background scanning is a significant bottleneck even if files are cached.
 **Action:** Skip `fs.stat` for files with known valid metadata during routine scans, reserving full verification for manual re-indexing or "force check" operations.
+
+## 2026-01-23 - [Prepared Statement Optimization]
+
+**Learning:** `db.prepare()` inside a loop re-parses the SQL string every time, causing significant CPU overhead (~20-30%).
+**Action:** Use a cached prepared statement with a fixed batch size (padding with `null`s) to reuse the query plan for batch operations.
