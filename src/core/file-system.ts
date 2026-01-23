@@ -3,6 +3,7 @@
  */
 import fs from 'fs/promises';
 import path from 'path';
+import { isSensitiveEntry } from './security';
 
 export interface FileSystemEntry {
   name: string;
@@ -30,7 +31,10 @@ export async function listDirectory(
     const items = await fs.readdir(directoryPath, { withFileTypes: true });
     const entries: FileSystemEntry[] = items
       // [SECURITY] Filter out hidden files/dirs to prevent exposing sensitive data (e.g. .env, .git)
-      .filter((item) => !item.name.startsWith('.'))
+      // Also filter out explicitly sensitive files/directories (e.g. node_modules, package.json)
+      .filter(
+        (item) => !item.name.startsWith('.') && !isSensitiveEntry(item.name),
+      )
       .map((item) => ({
         name: item.name,
         path: path.join(directoryPath, item.name),

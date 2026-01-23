@@ -400,3 +400,16 @@ export function isSensitiveDirectory(dirPath: string): boolean {
     );
   }
 }
+
+/**
+ * Checks if a file or directory name is considered sensitive.
+ * @param name - The name of the file or directory (not full path).
+ * @returns True if it is sensitive.
+ */
+export function isSensitiveEntry(name: string): boolean {
+  if (!name) return false;
+  const lowerName = name.toLowerCase();
+  return (
+    sensitiveSubdirectoriesSet.has(lowerName) || lowerName.startsWith('.env')
+  );
+}
