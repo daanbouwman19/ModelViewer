@@ -39,3 +39,9 @@
 **Smell:** `media-utils.ts` was becoming a "Kitchen Sink" containing platform-specific VLC path discovery mixed with generic file logic and FFmpeg helpers.
 **Insight:** Platform-specific tool discovery (like finding VLC binary) is distinct from generic media file utilities.
 **Prevention:** Group external tool discovery/configuration in dedicated modules (e.g., `utils/vlc-paths.ts`) rather than generic utility files.
+
+## 2026-01-24 - Extracting Environment Logging
+
+**Smell:** `media-scanner.ts` was polluted with repetitive `if (process.env.NODE_ENV !== 'test')` checks around every log statement, burying the actual scanning logic.
+**Insight:** Logging conditional logic is an implementation detail that should be abstracted away. Inline environment checks create visual noise that makes control flow harder to follow.
+**Prevention:** Use a dedicated logger or helper functions (`safeLog`) to encapsulate environment-specific logging rules.

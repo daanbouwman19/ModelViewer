@@ -23,6 +23,24 @@ import { ConcurrencyLimiter } from './utils/concurrency-limiter.ts';
 const scanLimiter = new ConcurrencyLimiter(DISK_SCAN_CONCURRENCY);
 
 /**
+ * Logs a message only if not in test environment.
+ */
+function safeLog(message: string, ...args: unknown[]) {
+  if (process.env.NODE_ENV !== 'test') {
+    console.log(message, ...args);
+  }
+}
+
+/**
+ * Logs an error only if not in test environment.
+ */
+function safeError(message: string, ...args: unknown[]) {
+  if (process.env.NODE_ENV !== 'test') {
+    console.error(message, ...args);
+  }
+}
+
+/**
  * Processes a single file entry from a directory scan.
  * Checks extension and returns a MediaFile if supported.
  */
@@ -40,14 +58,38 @@ function processFileItem(
 
   const fullPath = path.join(directoryPath, item.name);
 
-  if (process.env.NODE_ENV !== 'test') {
-    // Only log if it's a new file (not in knownPaths)
-    if (!knownPaths || !knownPaths.has(fullPath)) {
-      console.log(`[MediaScanner] Found file: ${fullPath}`);
-    }
+  // Only log if it's a new file (not in knownPaths)
+  if (!knownPaths || !knownPaths.has(fullPath)) {
+    safeLog(`[MediaScanner] Found file: ${fullPath}`);
   }
 
   return { name: item.name, path: fullPath };
+}
+
+/**
+ * Separates directory entries into media files and child directory promises.
+ */
+function processDirectoryEntries(
+  items: Dirent[],
+  directoryPath: string,
+  knownPaths?: Set<string>,
+): { textures: MediaFile[]; childrenPromises: Promise<Album | null>[] } {
+  const textures: MediaFile[] = [];
+  const childrenPromises: Promise<Album | null>[] = [];
+
+  for (const item of items) {
+    if (item.isDirectory()) {
+      const fullPath = path.join(directoryPath, item.name);
+      childrenPromises.push(scanDirectoryRecursive(fullPath, knownPaths));
+    } else {
+      const mediaFile = processFileItem(item, directoryPath, knownPaths);
+      if (mediaFile) {
+        textures.push(mediaFile);
+      }
+    }
+  }
+
+  return { textures, childrenPromises };
 }
 
 /**
@@ -69,31 +111,20 @@ async function scanDirectoryRecursive(
       fs.readdir(directoryPath, { withFileTypes: true }),
     );
 
-    const textures: MediaFile[] = [];
-    const childrenPromises: Promise<Album | null>[] = [];
-
-    for (const item of items) {
-      if (item.isDirectory()) {
-        const fullPath = path.join(directoryPath, item.name);
-        childrenPromises.push(scanDirectoryRecursive(fullPath, knownPaths));
-      } else {
-        const mediaFile = processFileItem(item, directoryPath, knownPaths);
-        if (mediaFile) {
-          textures.push(mediaFile);
-        }
-      }
-    }
+    const { textures, childrenPromises } = processDirectoryEntries(
+      items,
+      directoryPath,
+      knownPaths,
+    );
 
     const children = (await Promise.all(childrenPromises)).filter(
       (child): child is Album => child !== null,
     );
 
     if (textures.length > 0 || children.length > 0) {
-      if (process.env.NODE_ENV !== 'test') {
-        console.log(
-          `[MediaScanner] Folder: ${path.basename(directoryPath)} - Files: ${textures.length}`,
-        );
-      }
+      safeLog(
+        `[MediaScanner] Folder: ${path.basename(directoryPath)} - Files: ${textures.length}`,
+      );
       return {
         id: directoryPath,
         name: path.basename(directoryPath),
@@ -102,12 +133,10 @@ async function scanDirectoryRecursive(
       };
     }
   } catch (err: unknown) {
-    if (process.env.NODE_ENV !== 'test') {
-      console.error(
-        `[media-scanner.js] Error reading directory ${directoryPath}:`,
-        (err as Error).message,
-      );
-    }
+    safeError(
+      `[media-scanner.js] Error reading directory ${directoryPath}:`,
+      (err as Error).message,
+    );
   }
   return null;
 }
@@ -126,7 +155,7 @@ async function scanGoogleDrive(folderId: string): Promise<Album | null> {
     }
     return null;
   } catch (err) {
-    console.error(
+    safeError(
       `[media-scanner.js] Error scanning Google Drive folder ${folderId}:`,
       err,
     );
@@ -151,11 +180,9 @@ async function scanRootDirectory(
       return await scanDirectoryRecursive(baseDir, knownPaths);
     }
   } catch (dirError: unknown) {
-    if (process.env.NODE_ENV !== 'test') {
-      console.error(
-        `[media-scanner.js] Error accessing or scanning directory ${baseDir}: ${(dirError as Error).message}`,
-      );
-    }
+    safeError(
+      `[media-scanner.js] Error accessing or scanning directory ${baseDir}: ${(dirError as Error).message}`,
+    );
     return null;
   }
 }
@@ -170,12 +197,10 @@ async function performFullMediaScan(
   baseMediaDirectories: string[],
   knownPaths?: Set<string>,
 ): Promise<Album[]> {
-  if (process.env.NODE_ENV !== 'test') {
-    console.log(
-      `[media-scanner.js] Starting disk scan in directories:`,
-      baseMediaDirectories,
-    );
-  }
+  safeLog(
+    `[media-scanner.js] Starting disk scan in directories:`,
+    baseMediaDirectories,
+  );
 
   try {
     const scanPromises = baseMediaDirectories.map((baseDir) =>
@@ -186,24 +211,20 @@ async function performFullMediaScan(
       (album): album is Album => album !== null,
     );
 
-    if (process.env.NODE_ENV !== 'test') {
-      const countFiles = (albums: Album[]): number =>
-        albums.reduce(
-          (count, album) =>
-            count + album.textures.length + countFiles(album.children),
-          0,
-        );
-
-      const totalFiles = countFiles(result);
-      console.log(
-        `[media-scanner.js] Found ${result.length} root albums with ${totalFiles} total files.`,
+    const countFiles = (albums: Album[]): number =>
+      albums.reduce(
+        (count, album) =>
+          count + album.textures.length + countFiles(album.children),
+        0,
       );
-    }
+
+    const totalFiles = countFiles(result);
+    safeLog(
+      `[media-scanner.js] Found ${result.length} root albums with ${totalFiles} total files.`,
+    );
     return result;
   } catch (e) {
-    if (process.env.NODE_ENV !== 'test') {
-      console.error(`[media-scanner.js] Error scanning disk for albums:`, e);
-    }
+    safeError(`[media-scanner.js] Error scanning disk for albums:`, e);
     return [];
   }
 }
