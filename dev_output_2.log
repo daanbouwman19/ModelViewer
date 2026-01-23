@@ -1,0 +1,295 @@
+
+> mediaplayer-app@1.0.5 predev:all
+> npm rebuild better-sqlite3
+
+rebuilt dependencies successfully
+
+> mediaplayer-app@1.0.5 dev:all
+> concurrently "npm run dev:server" "wait-on tcp:3000 && npm run dev:web"
+
+[0]
+[0] > mediaplayer-app@1.0.5 dev:server
+[0] > tsx --watch src/server/server.ts
+[0]
+[0] SSL Certificates found.
+[0] Initializing database at /app/media-library.db using worker /app/src/core/database-worker.ts
+[0] [database.js] Worker error: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/app/src/core/constants.js' imported from /app/src/core/media-utils.ts
+[0]     at finalizeResolution (node:internal/modules/esm/resolve:274:11)
+[0]     at moduleResolve (node:internal/modules/esm/resolve:859:10)
+[0]     at defaultResolve (node:internal/modules/esm/resolve:983:11)
+[0]     at #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+[0]     at ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+[0]     at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+[0]     at ModuleJob._link (node:internal/modules/esm/module_job:182:49)
+[0]     at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+[0]   code: 'ERR_MODULE_NOT_FOUND',
+[0]   url: 'file:///app/src/core/constants.js'
+[0] }
+[0] [database.js] CRITICAL ERROR: Failed to initialize worker: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/app/src/core/constants.js' imported from /app/src/core/media-utils.ts
+[0]     at finalizeResolution (node:internal/modules/esm/resolve:274:11)
+[0]     at moduleResolve (node:internal/modules/esm/resolve:859:10)
+[0]     at defaultResolve (node:internal/modules/esm/resolve:983:11)
+[0]     at #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+[0]     at ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+[0]     at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+[0]     at ModuleJob._link (node:internal/modules/esm/module_job:182:49)
+[0]     at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+[0]   code: 'ERR_MODULE_NOT_FOUND',
+[0]   url: 'file:///app/src/core/constants.js'
+[0] }
+[0] Failed to initialize database: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/app/src/core/constants.js' imported from /app/src/core/media-utils.ts
+[0]     at finalizeResolution (node:internal/modules/esm/resolve:274:11)
+[0]     at moduleResolve (node:internal/modules/esm/resolve:859:10)
+[0]     at defaultResolve (node:internal/modules/esm/resolve:983:11)
+[0]     at #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+[0]     at ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+[0]     at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+[0]     at ModuleJob._link (node:internal/modules/esm/module_job:182:49)
+[0]     at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+[0]   code: 'ERR_MODULE_NOT_FOUND',
+[0]   url: 'file:///app/src/core/constants.js'
+[0] }
+[0] Failed running 'src/server/server.ts'. Waiting for file changes before restarting...
+[0] Restarting 'src/server/server.ts'
+[0] SSL Certificates found.
+[0] Initializing database at /app/media-library.db using worker /app/src/core/database-worker.ts
+[0] [database.js] Worker error: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/app/src/core/constants.js' imported from /app/src/core/media-utils.ts
+[0]     at finalizeResolution (node:internal/modules/esm/resolve:274:11)
+[0]     at moduleResolve (node:internal/modules/esm/resolve:859:10)
+[0]     at defaultResolve (node:internal/modules/esm/resolve:983:11)
+[0]     at #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+[0]     at ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+[0]     at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+[0]     at ModuleJob._link (node:internal/modules/esm/module_job:182:49)
+[0]     at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+[0]   code: 'ERR_MODULE_NOT_FOUND',
+[0]   url: 'file:///app/src/core/constants.js'
+[0] }
+[0] [database.js] CRITICAL ERROR: Failed to initialize worker: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/app/src/core/constants.js' imported from /app/src/core/media-utils.ts
+[0]     at finalizeResolution (node:internal/modules/esm/resolve:274:11)
+[0]     at moduleResolve (node:internal/modules/esm/resolve:859:10)
+[0]     at defaultResolve (node:internal/modules/esm/resolve:983:11)
+[0]     at #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+[0]     at ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+[0]     at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+[0]     at ModuleJob._link (node:internal/modules/esm/module_job:182:49)
+[0]     at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+[0]   code: 'ERR_MODULE_NOT_FOUND',
+[0]   url: 'file:///app/src/core/constants.js'
+[0] }
+[0] Failed to initialize database: Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/app/src/core/constants.js' imported from /app/src/core/media-utils.ts
+[0]     at finalizeResolution (node:internal/modules/esm/resolve:274:11)
+[0]     at moduleResolve (node:internal/modules/esm/resolve:859:10)
+[0]     at defaultResolve (node:internal/modules/esm/resolve:983:11)
+[0]     at #cachedDefaultResolve (node:internal/modules/esm/loader:731:20)
+[0]     at ModuleLoader.resolve (node:internal/modules/esm/loader:708:38)
+[0]     at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:310:38)
+[0]     at ModuleJob._link (node:internal/modules/esm/module_job:182:49)
+[0]     at process.processTicksAndRejections (node:internal/process/task_queues:105:5) {
+[0]   code: 'ERR_MODULE_NOT_FOUND',
+[0]   url: 'file:///app/src/core/constants.js'
+[0] }
+[0] Failed running 'src/server/server.ts'. Waiting for file changes before restarting...
+[0] Restarting 'src/server/server.ts'
+[0] SSL Certificates found.
+[0] Initializing database at /app/media-library.db using worker /app/src/core/database-worker.ts
+[0] [database-worker.js] Worker thread started and ready.
+[0] [worker] SQLite database initialized at: /app/media-library.db
+[0] [database.js] Worker initialized successfully.
+[0] Initialized DriveCacheManager with cache dir: /app/cache/drive
+[0] Server running at https://127.0.0.1:3000
+[0] Environment: Development
+[1]
+[1] > mediaplayer-app@1.0.5 dev:web
+[1] > vite
+[1]
+[1] Port 5173 is in use, trying another one...
+[1]
+[1]   VITE v7.3.1  ready in 1136 ms
+[1]
+[1]   ➜  Local:   http://localhost:5174/
+[1]   ➜  Network: http://192.168.0.2:5174/
+[0] Restarting 'src/server/server.ts'
+[0] SSL Certificates found.
+[0] Initializing database at /app/media-library.db using worker /app/src/core/database-worker.ts
+[0] [database-worker.js] Worker thread started and ready.
+[0] [worker] SQLite database initialized at: /app/media-library.db
+[0] [database.js] Worker initialized successfully.
+[0] Initialized DriveCacheManager with cache dir: /app/cache/drive
+[0] Server running at https://127.0.0.1:3000
+[0] Environment: Development
+[0] Restarting 'src/server/server.ts'
+[0] SSL Certificates found.
+[0] Initializing database at /app/media-library.db using worker /app/src/core/database-worker.ts
+[0] [database-worker.js] Worker thread started and ready.
+[0] [worker] SQLite database initialized at: /app/media-library.db
+[0] [database.js] Worker initialized successfully.
+[0] Initialized DriveCacheManager with cache dir: /app/cache/drive
+[0] Server running at https://127.0.0.1:3000
+[0] Environment: Development
+[1] 7:22:49 PM [vite] (client) page reload coverage/index.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/core/access-validator.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/core/database.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/core/drive-stream.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/core/file-system.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/core/fs-provider-factory.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/core/index.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/core/media-handler.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/core/media-proxy.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/core/media-scanner.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/core/media-service.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/core/media-source.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/core/database-schema.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/core/media-utils.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/core/rate-limiter.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/core/routes.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/core/scan-worker.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/core/security.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/core/thumbnail-handler.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/core/vlc-player.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/core/worker-client.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/index.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/main/auth-server.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/main/database.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/main/drive-cache-manager.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/main/google-auth.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/main/google-drive-service.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/main/google-secrets.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/main/index.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/main/local-server.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/App.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/index.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/server/auth-views.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/server/index.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/server/server.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/core/constants.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/core/database-worker.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/main/ipc/auth-controller.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/main/ipc/database-controller.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/main/ipc/index.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/main/ipc/media-controller.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/main/ipc/system-controller.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/main/utils/index.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/main/utils/ipc-helper.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/main/utils/security-utils.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/api/ElectronAdapter.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/api/WebAdapter.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/api/index.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/api/index.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/components/AlbumTree.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/components/AlbumsList.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/components/AmbientBackground.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/components/FileExplorer.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/components/KeyboardShortcutsModal.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/components/LoadingMask.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/components/MediaControls.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/components/MediaDisplay.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/components/MediaGrid.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/components/MediaGridItem.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/components/SmartPlaylistModal.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/components/SourcesModal.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/components/TranscodingStatus.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/components/VRVideoPlayer.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/components/VideoPlayer.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/components/index.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/utils/albumUtils.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/utils/index.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/utils/mediaUtils.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/utils/selectionUtils.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/utils/timeUtils.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/composables/index.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/composables/useLibraryStore.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/composables/usePlayerStore.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/composables/useSlideshow.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/renderer/composables/useUIStore.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/core/providers/drive-provider.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/core/providers/index.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/core/providers/local-provider.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/core/utils/concurrency-limiter.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/core/utils/http-utils.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/core/utils/index.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/core/utils/vlc-paths.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/core/access-validator.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/core/constants.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/core/database-schema.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/core/database-worker.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/core/database.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/core/drive-stream.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/core/file-system.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/core/fs-provider-factory.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/core/index.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/core/media-handler.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/core/media-proxy.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/core/media-scanner.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/core/media-service.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/core/media-source.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/core/media-utils.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/core/rate-limiter.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/core/routes.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/core/scan-worker.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/core/security.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/core/thumbnail-handler.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/core/vlc-player.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/core/worker-client.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/core/utils/concurrency-limiter.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/core/utils/http-utils.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/core/utils/index.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/core/utils/vlc-paths.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/core/providers/drive-provider.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/core/providers/index.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/core/providers/local-provider.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/main/auth-server.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/main/database.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/main/drive-cache-manager.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/main/google-auth.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/main/google-drive-service.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/main/google-secrets.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/main/index.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/main/local-server.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/main/utils/index.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/main/utils/ipc-helper.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/main/utils/security-utils.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/main/ipc/auth-controller.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/main/ipc/database-controller.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/main/ipc/index.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/main/ipc/media-controller.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/main/ipc/system-controller.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/App.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/index.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/api/WebAdapter.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/api/ElectronAdapter.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/api/index.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/api/index.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/components/AlbumTree.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/components/AlbumsList.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/components/AmbientBackground.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/components/FileExplorer.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/components/KeyboardShortcutsModal.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/components/LoadingMask.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/components/MediaControls.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/components/MediaDisplay.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/components/MediaGridItem.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/components/SmartPlaylistModal.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/components/SourcesModal.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/components/MediaGrid.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/components/TranscodingStatus.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/components/VRVideoPlayer.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/components/VideoPlayer.vue.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/components/index.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/composables/index.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/composables/useLibraryStore.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/composables/usePlayerStore.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/composables/useSlideshow.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/composables/useUIStore.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/utils/albumUtils.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/utils/index.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/utils/mediaUtils.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/utils/selectionUtils.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/renderer/utils/timeUtils.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/server/auth-views.ts.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/server/index.html
+[1] 7:22:49 PM [vite] (client) page reload coverage/lcov-report/server/server.ts.html
+[0] Failed running 'src/server/server.ts'. Waiting for file changes before restarting...
+[1] 7:25:15 PM [vite] (client) page reload playwright-report/index.html
+[1] 7:25:15 PM [vite] (client) page reload playwright-report/index.html
+[1] 7:26:34 PM [vite] (client) page reload playwright-report/index.html

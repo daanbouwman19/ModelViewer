@@ -1,0 +1,54 @@
+
+> mediaplayer-app@1.0.5 predev:all
+> npm rebuild better-sqlite3
+
+rebuilt dependencies successfully
+
+> mediaplayer-app@1.0.5 dev:all
+> concurrently "npm run dev:server" "wait-on tcp:3000 && npm run dev:web"
+
+[0]
+[0] > mediaplayer-app@1.0.5 dev:server
+[0] > tsx --watch src/server/server.ts
+[0]
+[1]
+[1] > mediaplayer-app@1.0.5 dev:web
+[1] > vite
+[1]
+[1] Port 5173 is in use, trying another one...
+[1] Port 5174 is in use, trying another one...
+[1]
+[1]   VITE v7.3.1  ready in 691 ms
+[1]
+[1]   ➜  Local:   http://localhost:5175/
+[1]   ➜  Network: http://192.168.0.2:5175/
+[0] SSL Certificates found.
+[0] Initializing database at /app/media-library.db using worker /app/src/core/database-worker.ts
+[0] [database-worker.js] Worker thread started and ready.
+[0] [worker] SQLite database initialized at: /app/media-library.db
+[0] [database.js] Worker initialized successfully.
+[0] Initialized DriveCacheManager with cache dir: /app/cache/drive
+[0] node:events:497
+[0]       throw er; // Unhandled 'error' event
+[0]       ^
+[0]
+[0] Error: listen EADDRINUSE: address already in use 127.0.0.1:3000
+[0]     at Server.setupListenHandle [as _listen2] (node:net:1940:16)
+[0]     at listenInCluster (node:net:1997:12)
+[0]     at node:net:2206:7
+[0]     at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+[0] Emitted 'error' event on Server instance at:
+[0]     at emitErrorNT (node:net:1976:8)
+[0]     at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+[0]   code: 'EADDRINUSE',
+[0]   errno: -98,
+[0]   syscall: 'listen',
+[0]   address: '127.0.0.1',
+[0]   port: 3000
+[0] }
+[0]
+[0] Node.js v22.21.1
+[0] Failed running 'src/server/server.ts'. Waiting for file changes before restarting...
+[1] 7:25:15 PM [vite] (client) page reload playwright-report/index.html
+[1] 7:25:15 PM [vite] (client) page reload playwright-report/index.html
+[1] 7:26:34 PM [vite] (client) page reload playwright-report/index.html

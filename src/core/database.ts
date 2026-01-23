@@ -4,15 +4,15 @@
  */
 
 import { type WorkerOptions } from 'worker_threads';
-import { FILE_INDEX_CACHE_KEY } from './constants';
+import { FILE_INDEX_CACHE_KEY } from './constants.ts';
 import type {
   Album,
   MediaDirectory,
   SmartPlaylist,
   MediaMetadata,
   MediaLibraryItem,
-} from './types';
-import { WorkerClient } from './worker-client';
+} from './types.ts';
+import { WorkerClient } from './worker-client.ts';
 
 /**
  * The database worker client instance.
