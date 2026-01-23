@@ -150,7 +150,11 @@ describe('MediaGrid.vue', () => {
 
   it('renders "No media files found" when gridMediaFiles is empty', () => {
     const wrapper = mountGrid();
-    expect(wrapper.text()).toContain('No media files found in this album');
+    const emptyState = wrapper.find('[role="status"]');
+    expect(emptyState.exists()).toBe(true);
+    expect(emptyState.attributes('aria-live')).toBe('polite');
+    expect(wrapper.text()).toContain('No media files found');
+    expect(wrapper.text()).toContain('Try selecting a different album');
   });
 
   it('renders grid items when gridMediaFiles has items', async () => {
