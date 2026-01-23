@@ -22,9 +22,15 @@
     >
       <div
         v-if="allMediaFiles.length === 0"
-        class="flex items-center justify-center h-full text-gray-500"
+        class="flex flex-col items-center justify-center h-full text-gray-500 opacity-80"
+        role="status"
+        aria-live="polite"
       >
-        No media files found in this album.
+        <div class="mb-4 p-4 rounded-full bg-gray-800">
+          <PlaylistIcon class="w-12 h-12 opacity-50" aria-hidden="true" />
+        </div>
+        <p class="text-lg font-medium">No media files found</p>
+        <p class="text-sm">Try selecting a different album</p>
       </div>
 
       <RecycleScroller
@@ -70,6 +76,7 @@ import { useUIStore } from '../composables/useUIStore';
 import type { MediaFile } from '../../core/types';
 import { api } from '../api';
 import MediaGridItem from './MediaGridItem.vue';
+import PlaylistIcon from './icons/PlaylistIcon.vue';
 
 const libraryStore = useLibraryStore();
 const playerStore = usePlayerStore();
