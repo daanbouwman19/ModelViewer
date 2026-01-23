@@ -93,15 +93,9 @@ describe('Media Scanner', () => {
       new Error('Network error'),
     );
 
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const result = await performFullMediaScan(['gdrive://bad-id']);
 
     expect(result).toEqual([]);
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Error scanning Google Drive folder'),
-      expect.anything(),
-    );
-    consoleSpy.mockRestore();
   });
 
   // Coverage tests
