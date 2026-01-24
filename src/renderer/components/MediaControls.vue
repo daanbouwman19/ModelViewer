@@ -159,6 +159,7 @@ import StarIcon from './icons/StarIcon.vue';
 import type { MediaFile } from '../../core/types';
 import { useUIStore } from '../composables/useUIStore';
 import { computed, ref, onMounted, onUnmounted } from 'vue';
+import { formatTime } from '../utils/timeUtils';
 
 const props = defineProps<{
   currentMediaItem: MediaFile | null;
@@ -268,19 +269,6 @@ const showStars = computed(() => {
 const showTime = computed(() => {
   return containerWidth.value > SHOW_TIME_THRESHOLD;
 });
-
-const formatTime = (seconds: number) => {
-  if (typeof seconds !== 'number' || !isFinite(seconds) || seconds <= 0)
-    return '00:00';
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Math.floor(seconds % 60);
-
-  if (h > 0) {
-    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  }
-  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-};
 
 const formattedTime = computed(() => {
   const current = formatTime(props.currentTime || 0);
