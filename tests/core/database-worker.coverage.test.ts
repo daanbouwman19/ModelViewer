@@ -1,6 +1,4 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import path from 'path';
-import fs from 'fs/promises';
 import {
   initDatabase,
   closeDatabase,
@@ -20,26 +18,12 @@ vi.mock('worker_threads', () => ({
 }));
 
 describe('database-worker coverage (exported functions)', () => {
-  let dbPath: string;
-
   beforeEach(() => {
-    dbPath = path.join(process.cwd(), `test-db-unit-${Date.now()}.sqlite`);
-    initDatabase(dbPath);
+    initDatabase(':memory:');
   });
 
-  afterEach(async () => {
+  afterEach(() => {
     closeDatabase();
-    try {
-      await fs.unlink(dbPath);
-    } catch {
-      // ignore
-    }
-    try {
-      await fs.unlink(`${dbPath}-wal`);
-      await fs.unlink(`${dbPath}-shm`);
-    } catch {
-      // ignore
-    }
   });
 
   it('getAllMediaViewCounts returns empty object when no views exist', () => {
