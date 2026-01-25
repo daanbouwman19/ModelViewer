@@ -183,10 +183,48 @@ describe('MediaGrid.vue', () => {
       encodeURIComponent('/path/to/image1.jpg'),
     );
 
-    const video = items[1].find('video');
-    expect(video.exists()).toBe(true);
-    expect(video.attributes('src')).toContain(
+    // Bolt Optimization: Video items now render an img (thumbnail) by default
+    const videoImg = items[1].find('img');
+    expect(videoImg.exists()).toBe(true);
+    // It should point to the thumbnail generator output
+    expect(videoImg.attributes('src')).toContain('thumb');
+    expect(videoImg.attributes('src')).toContain(
       encodeURIComponent('/path/to/video1.mp4'),
+    );
+  });
+
+  it('falls back to video tag when thumbnail loading fails', async () => {
+    mockUIState.gridMediaFiles = [
+      { path: '/path/to/video_fail.mp4', name: 'video_fail.mp4' },
+    ];
+
+    const wrapper = mountGrid();
+    await flushPromises();
+
+    // Trigger resize
+    const calls = (ResizeObserverMock as any).mock.calls;
+    const observerCallback = calls[calls.length - 1][0];
+    observerCallback([
+      { contentRect: { width: 1000 }, contentBoxSize: [{ inlineSize: 1000 }] },
+    ]);
+    await wrapper.vm.$nextTick();
+
+    const items = wrapper.findAll('.grid-item');
+    expect(items).toHaveLength(1);
+
+    // Initially should be img
+    let img = items[0].find('img');
+    expect(img.exists()).toBe(true);
+    expect(items[0].find('video').exists()).toBe(false);
+
+    // Simulate error
+    await img.trigger('error');
+
+    // Now should be video
+    expect(items[0].find('img').exists()).toBe(false);
+    expect(items[0].find('video').exists()).toBe(true);
+    expect(items[0].find('video').attributes('src')).toContain(
+      encodeURIComponent('/path/to/video_fail.mp4'),
     );
   });
 

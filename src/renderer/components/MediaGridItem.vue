@@ -36,7 +36,16 @@
       />
     </template>
     <template v-else-if="isVideo">
+      <!-- Bolt Optimization: Use img for video thumbnails to save memory/CPU -->
+      <img
+        v-if="posterUrl && !posterFailed"
+        :src="posterUrl"
+        class="h-full w-full object-cover rounded block"
+        loading="lazy"
+        @error="handlePosterError"
+      />
       <video
+        v-else
         :src="mediaUrl"
         muted
         preload="metadata"
@@ -68,7 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import type { MediaFile } from '../../core/types';
 import {
   getDisplayName,
@@ -138,6 +147,20 @@ const handleImageError = (event: Event) => {
     props.failedImagePaths.add(props.item.path);
   }
 };
+
+const posterFailed = ref(false);
+
+const handlePosterError = () => {
+  posterFailed.value = true;
+};
+
+// Reset posterFailed when item changes (RecycleScroller reuse)
+watch(
+  () => props.item.path,
+  () => {
+    posterFailed.value = false;
+  },
+);
 </script>
 
 <style scoped>
