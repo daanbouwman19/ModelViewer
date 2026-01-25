@@ -145,7 +145,7 @@
                 </div>
 
                 <button
-                  class="px-3 py-1.5 text-xs font-semibold text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 remove-button"
+                  class="px-3 py-1.5 text-xs font-semibold text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 remove-button"
                   :aria-label="'Remove ' + dir.path"
                   @click="handleRemove(dir.path)"
                 >

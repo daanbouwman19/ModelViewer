@@ -58,7 +58,7 @@
       {{ item.rating }}
     </div>
     <div
-      class="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none"
+      class="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 group-focus:opacity-100 group-focus-visible:opacity-100 transition-opacity duration-200 pointer-events-none"
     >
       <p class="text-white text-xs truncate">
         {{ displayName }}
