@@ -4,7 +4,7 @@ import {
   upsertMetadata,
   recordMediaView,
   executeSmartPlaylist,
-  closeDatabase
+  closeDatabase,
 } from '../../src/core/database-worker';
 
 describe('Database Worker Optimization', () => {
@@ -23,7 +23,7 @@ describe('Database Worker Optimization', () => {
       duration: 100,
       size: 1000,
       createdAt: new Date().toISOString(),
-      status: 'success'
+      status: 'success',
     });
 
     // 2. Insert ghost file (viewed but no metadata)
@@ -36,8 +36,8 @@ describe('Database Worker Optimization', () => {
     const items = result.data as any[];
 
     // Check what we have
-    const validItem = items.find(i => i.file_path === validPath);
-    const ghostItem = items.find(i => i.file_path === ghostPath);
+    const validItem = items.find((i) => i.file_path === validPath);
+    const ghostItem = items.find((i) => i.file_path === ghostPath);
 
     expect(validItem).toBeDefined();
 
