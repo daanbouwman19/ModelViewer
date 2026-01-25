@@ -41,3 +41,9 @@
 **Vulnerability:** Files like `.npmrc` (containing auth tokens), `docker-compose.yml`, and shell history files were accessible via the API if located within an allowed media directory. The `SENSITIVE_SUBDIRECTORIES` blocklist was incomplete.
 **Learning:** Default blocklists for sensitive files must be comprehensive and include development artifacts (Docker, NPM config) and system history files, not just common secrets like `.env` or `.ssh`. Attackers look for these specific files for credentials.
 **Prevention:** Expanded `SENSITIVE_SUBDIRECTORIES` to include `.npmrc`, `.docker`, `docker-compose.yml`, `.bash_history` and other critical files.
+
+## 2026-01-25 - Critical System and Credential File Exposure
+
+**Vulnerability:** Despite previous protections, critical system files (`server.key`, `.bashrc`, `.zshrc`, `id_rsa`, `.htpasswd`) remained accessible if located within an allowed media directory. The blocklist was missing these specific high-value targets.
+**Learning:** Security blocklists must be exhaustive and cover not just development artifacts but also system administration credentials (SSH keys, SSL keys) and user profile configurations which often contain exported secrets.
+**Prevention:** Expanded `SENSITIVE_SUBDIRECTORIES` to include `server.key` (SSL private key), shell configuration files (`.bashrc`, `.profile`), SSH private keys (`id_rsa`, etc.), and other credential stores.

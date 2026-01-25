@@ -126,6 +126,19 @@ describe('authorizeFilePath Security', () => {
     const result2 = await authorizeFilePath('node_modules/package.json');
     expect(result2.isAllowed).toBe(false);
     expect(result2.message).toBe('Access to sensitive file denied');
+
+    // Additional sensitive files
+    const resultKey = await authorizeFilePath('server.key');
+    expect(resultKey.isAllowed).toBe(false);
+    expect(resultKey.message).toBe('Access to sensitive file denied');
+
+    const resultBash = await authorizeFilePath('.bashrc');
+    expect(resultBash.isAllowed).toBe(false);
+    expect(resultBash.message).toBe('Access to sensitive file denied');
+
+    const resultSsh = await authorizeFilePath('id_rsa');
+    expect(resultSsh.isAllowed).toBe(false);
+    expect(resultSsh.message).toBe('Access to sensitive file denied');
   });
 });
 
