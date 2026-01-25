@@ -36,7 +36,7 @@
 **Learning:** File system security checks must account for platform-specific case sensitivity. Explicitly identifying and blocking critical application artifacts (like databases) is essential when user-controlled paths can overlap with application paths.
 **Prevention:** Added database filenames and lockfiles to the blocklist. Updated `authorizeFilePath` to perform case-insensitive checks against the sensitive directory list.
 
-## 2026-01-22 - Critical Environment File Exposure
+## 2026-01-24 - Critical Environment File Exposure
 
 **Vulnerability:** Files like `.npmrc` (containing auth tokens), `docker-compose.yml`, and shell history files were accessible via the API if located within an allowed media directory. The `SENSITIVE_SUBDIRECTORIES` blocklist was incomplete.
 **Learning:** Default blocklists for sensitive files must be comprehensive and include development artifacts (Docker, NPM config) and system history files, not just common secrets like `.env` or `.ssh`. Attackers look for these specific files for credentials.
