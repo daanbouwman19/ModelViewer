@@ -85,3 +85,8 @@
 
 **Learning:** The app uses `sr-only` inputs for custom toggles but was missing visual focus indicators on the sibling `div`s, making keyboard navigation impossible.
 **Action:** When finding `sr-only` inputs, always check if the visual sibling has `peer-focus-visible` styles. Use `peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-500` to match the design system.
+
+## 2026-01-24 - Accessibility of Hover Controls
+
+**Learning:** Interactive controls that appear on hover (like play/grid buttons in a list) are often invisible to keyboard users. Using `opacity-0 group-hover:opacity-100` is insufficient for accessibility.
+**Action:** Always include `group-focus-within:opacity-100` alongside `group-hover:opacity-100` to ensure controls become visible when a keyboard user tabs into the container.
