@@ -213,7 +213,7 @@ describe('MediaGrid.vue', () => {
     expect(items).toHaveLength(1);
 
     // Initially should be img
-    let img = items[0].find('img');
+    const img = items[0].find('img');
     expect(img.exists()).toBe(true);
     expect(items[0].find('video').exists()).toBe(false);
 

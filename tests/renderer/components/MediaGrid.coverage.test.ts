@@ -204,8 +204,9 @@ describe('MediaGrid.vue Coverage', () => {
     await wrapper.vm.$nextTick();
     await nextTick();
 
-    const video = wrapper.find('video');
-    expect(video.attributes('poster')).toBe('thumb.jpg');
+    const img = wrapper.find('img');
+    expect(img.exists()).toBe(true);
+    expect(img.attributes('src')).toBe('thumb.jpg');
     expect(mockThumbGen).toHaveBeenCalledWith('/vid.mp4');
   });
 
