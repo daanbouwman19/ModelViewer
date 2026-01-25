@@ -120,6 +120,29 @@ const SENSITIVE_SUBDIRECTORIES = new Set([
   'yarn.lock',
   'pnpm-lock.yaml',
   'bun.lockb',
+  // Shell Configuration
+  '.bashrc',
+  '.zshrc',
+  '.profile',
+  '.bash_profile',
+  '.bash_login',
+  '.bash_logout',
+  '.zprofile',
+  '.zlogin',
+  '.zlogout',
+  // SSH & Auth
+  'id_rsa',
+  'id_dsa',
+  'id_ecdsa',
+  'id_ed25519',
+  'known_hosts',
+  'authorized_keys',
+  '.htpasswd',
+  '.netrc',
+  // App Specific
+  'server.key',
+  'server.crt',
+  'server.cert',
 ]);
 
 /**
