@@ -1,7 +1,7 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { extractAndSaveMetadata } from '../../src/core/media-service';
 import fs from 'fs/promises';
-import * as mediaUtils from '../../src/core/media-utils';
+import * as ffmpegUtils from '../../src/core/utils/ffmpeg-utils';
 
 // Mock dependencies
 vi.mock('fs/promises', () => ({
@@ -28,8 +28,15 @@ vi.mock('../../src/core/media-utils', async (importOriginal) => {
     ...actual,
     isDrivePath: (p: string) => p.startsWith('gdrive://'),
     getMimeType: () => 'video/mp4',
-    getFFmpegDuration: vi.fn().mockResolvedValue(100),
     getVlcPath: vi.fn(),
+  };
+});
+
+vi.mock('../../src/core/utils/ffmpeg-utils', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    getFFmpegDuration: vi.fn().mockResolvedValue(100),
   };
 });
 
@@ -57,7 +64,7 @@ describe('Performance Optimization Reproduction', () => {
     expect(fs.stat).toHaveBeenCalledTimes(1);
 
     // Check that video duration was attempted
-    expect(mediaUtils.getFFmpegDuration).toHaveBeenCalled();
+    expect(ffmpegUtils.getFFmpegDuration).toHaveBeenCalled();
   });
 
   it('should call fs.stat ONCE for image files and SKIP video duration check', async () => {
@@ -79,6 +86,6 @@ describe('Performance Optimization Reproduction', () => {
     expect(fs.stat).toHaveBeenCalledTimes(1);
 
     // Optimization 2: Should NOT attempt to get duration for images
-    expect(mediaUtils.getFFmpegDuration).not.toHaveBeenCalled();
+    expect(ffmpegUtils.getFFmpegDuration).not.toHaveBeenCalled();
   });
 });

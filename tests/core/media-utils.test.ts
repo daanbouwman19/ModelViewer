@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { getFFmpegDuration } from '../../src/core/media-utils';
+import { getFFmpegDuration } from '../../src/core/utils/ffmpeg-utils';
 
 // Hoist mockExeca so it can be used in factory
 const { mockExeca } = vi.hoisted(() => ({
