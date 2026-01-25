@@ -292,25 +292,20 @@ describe('Server', () => {
       expect(database.getRecentlyPlayed).toHaveBeenCalledWith(10);
     });
 
-    it('should default limit to 50', async () => {
+    it.each([
+      [undefined, 50],
+      [-5, 50],
+      ['abc', 50],
+      [9999, 1000],
+      [10, 10],
+    ])('should use limit %s as %i', async (inputLimit, expectedLimit) => {
       vi.mocked(database.getRecentlyPlayed).mockResolvedValue([]);
-      await request(app).get('/api/media/history');
-      expect(database.getRecentlyPlayed).toHaveBeenCalledWith(50);
-    });
-
-    it('should default invalid/negative limit to 50', async () => {
-      vi.mocked(database.getRecentlyPlayed).mockResolvedValue([]);
-      await request(app).get('/api/media/history').query({ limit: -5 });
-      expect(database.getRecentlyPlayed).toHaveBeenCalledWith(50);
-
-      await request(app).get('/api/media/history').query({ limit: 'abc' });
-      expect(database.getRecentlyPlayed).toHaveBeenCalledWith(50);
-    });
-
-    it('should cap limit at 1000', async () => {
-      vi.mocked(database.getRecentlyPlayed).mockResolvedValue([]);
-      await request(app).get('/api/media/history').query({ limit: 9999 });
-      expect(database.getRecentlyPlayed).toHaveBeenCalledWith(1000);
+      const req = request(app).get('/api/media/history');
+      if (inputLimit !== undefined) {
+        req.query({ limit: inputLimit });
+      }
+      await req;
+      expect(database.getRecentlyPlayed).toHaveBeenCalledWith(expectedLimit);
     });
 
     it('should handle errors', async () => {
