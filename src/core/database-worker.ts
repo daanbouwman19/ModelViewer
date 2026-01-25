@@ -565,10 +565,13 @@ export function getSetting(key: string): WorkerResult {
 export async function executeSmartPlaylist(/* criteriaJson: string */): Promise<WorkerResult> {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
+    // Bolt Optimization: Removed UNION ALL with media_views to avoid fetching "ghost" files
+    // (files with history but no longer in library/metadata).
+    // This reduces query cost significantly by avoiding a second table scan + merge.
     const query = `
       SELECT
         m.file_path_hash,
-        COALESCE(m.file_path, v.file_path) as file_path,
+        m.file_path,
         m.duration,
         m.rating,
         m.created_at,
@@ -576,18 +579,6 @@ export async function executeSmartPlaylist(/* criteriaJson: string */): Promise<
         v.last_viewed
       FROM media_metadata m
       LEFT JOIN media_views v ON m.file_path_hash = v.file_path_hash
-      UNION ALL
-      SELECT
-        v.file_path_hash,
-        COALESCE(m.file_path, v.file_path) as file_path,
-        m.duration,
-        m.rating,
-        m.created_at,
-        v.view_count,
-        v.last_viewed
-      FROM media_views v
-      LEFT JOIN media_metadata m ON v.file_path_hash = m.file_path_hash
-      WHERE m.file_path_hash IS NULL
     `;
     const rows = db.prepare(query).all();
     return { success: true, data: rows };
