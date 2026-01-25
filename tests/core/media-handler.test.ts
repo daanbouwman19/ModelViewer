@@ -119,6 +119,14 @@ vi.mock('../../src/core/media-utils', async (importOriginal) => {
     ...actual,
     getThumbnailCachePath: mockGetThumbnailCachePath,
     checkThumbnailCache: mockCheckThumbnailCache,
+  };
+});
+
+vi.mock('../../src/core/utils/ffmpeg-utils', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../src/core/utils/ffmpeg-utils')>();
+  return {
+    ...actual,
     getFFmpegDuration: mockGetFFmpegDuration,
   };
 });

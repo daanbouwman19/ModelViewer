@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { runFFmpeg } from '../../src/core/media-utils';
+import { runFFmpeg } from '../../../src/core/utils/ffmpeg-utils';
 
 // Hoist mockExeca so it can be used in factory
 const { mockExeca } = vi.hoisted(() => ({

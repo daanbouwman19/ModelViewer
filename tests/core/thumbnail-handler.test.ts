@@ -91,9 +91,13 @@ vi.mock('../../src/core/media-utils', async (importOriginal) => {
     ...actual,
     getThumbnailCachePath: mockGetThumbnailCachePath,
     checkThumbnailCache: mockCheckThumbnailCache,
-    runFFmpeg: mockRunFFmpeg,
   };
 });
+
+vi.mock('../../src/core/utils/ffmpeg-utils', () => ({
+  getThumbnailArgs: vi.fn(),
+  runFFmpeg: mockRunFFmpeg,
+}));
 
 vi.mock('../../src/core/fs-provider-factory', async (importOriginal) => {
   const actual =

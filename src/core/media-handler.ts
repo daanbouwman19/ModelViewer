@@ -12,11 +12,8 @@ import path from 'path';
 import { createMediaSource } from './media-source.ts';
 
 import { IMediaSource } from './media-source-types.ts';
-import {
-  getTranscodeArgs,
-  getFFmpegDuration,
-  isDrivePath,
-} from './media-utils.ts';
+import { isDrivePath } from './media-utils.ts';
+import { getTranscodeArgs, getFFmpegDuration } from './utils/ffmpeg-utils.ts';
 import { parseHttpRange, getQueryParam } from './utils/http-utils.ts';
 import { getProvider } from './fs-provider-factory.ts';
 import { authorizeFilePath } from './security.ts';
