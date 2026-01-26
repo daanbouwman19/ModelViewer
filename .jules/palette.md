@@ -90,3 +90,8 @@
 
 **Learning:** Interactive controls that appear on hover (like play/grid buttons in a list) are often invisible to keyboard users. Using `opacity-0 group-hover:opacity-100` is insufficient for accessibility.
 **Action:** Always include `group-focus-within:opacity-100` alongside `group-hover:opacity-100` to ensure controls become visible when a keyboard user tabs into the container.
+
+## 2026-02-18 - [Accessible Loading States]
+
+**Learning:** Blocking loading masks (overlays) need `role="status"` and `aria-live="assertive"` to ensure screen readers announce the state change immediately. Decorative spinners should be hidden with `aria-hidden="true"`.
+**Action:** When creating full-screen loading indicators, always use `role="status"`, `aria-live="assertive"`, `aria-atomic="true"`, and ensure the visible message is the only thing announced.

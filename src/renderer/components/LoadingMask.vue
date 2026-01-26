@@ -2,9 +2,12 @@
   <div
     class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center"
     style="z-index: 2000"
+    role="status"
+    aria-live="assertive"
+    aria-atomic="true"
   >
-    <div class="text-center text-white">
-      <div class="spinner mb-4"></div>
+    <div class="text-center text-white" role="document">
+      <div class="spinner mb-4" aria-hidden="true"></div>
       <p class="text-xl">{{ message }}</p>
     </div>
   </div>
