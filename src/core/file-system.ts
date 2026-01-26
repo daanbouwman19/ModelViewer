@@ -3,7 +3,7 @@
  */
 import fs from 'fs/promises';
 import path from 'path';
-import { SENSITIVE_SUBDIRECTORIES } from './constants.ts';
+import { SENSITIVE_SUBDIRECTORIES } from './constants';
 
 // Pre-calculate lowercase set for O(1) case-insensitive lookup
 const SENSITIVE_SET_LOWER = new Set(
