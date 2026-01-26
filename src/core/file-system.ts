@@ -3,6 +3,12 @@
  */
 import fs from 'fs/promises';
 import path from 'path';
+import { SENSITIVE_SUBDIRECTORIES } from './constants.ts';
+
+// Pre-calculate lowercase set for O(1) case-insensitive lookup
+const SENSITIVE_SET_LOWER = new Set(
+  Array.from(SENSITIVE_SUBDIRECTORIES).map((s) => s.toLowerCase()),
+);
 
 export interface FileSystemEntry {
   name: string;
@@ -29,8 +35,12 @@ export async function listDirectory(
   try {
     const items = await fs.readdir(directoryPath, { withFileTypes: true });
     const entries: FileSystemEntry[] = items
-      // [SECURITY] Filter out hidden files/dirs to prevent exposing sensitive data (e.g. .env, .git)
-      .filter((item) => !item.name.startsWith('.'))
+      // [SECURITY] Filter out hidden files/dirs and known sensitive files to prevent exposing sensitive data (e.g. .env, .git, server.key)
+      .filter((item) => {
+        if (item.name.startsWith('.')) return false;
+        if (SENSITIVE_SET_LOWER.has(item.name.toLowerCase())) return false;
+        return true;
+      })
       .map((item) => ({
         name: item.name,
         path: path.join(directoryPath, item.name),
