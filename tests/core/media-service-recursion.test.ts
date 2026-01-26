@@ -82,14 +82,14 @@ describe('media-service recursion', () => {
         id: 'child',
         name: 'Child',
         textures: [{ path: '/child/file.mp4', name: 'file.mp4' }],
-        children: []
+        children: [],
       };
 
       const rootAlbum = {
         id: 'root',
         name: 'Root',
         textures: [],
-        children: [nestedAlbum]
+        children: [nestedAlbum],
       };
 
       vi.mocked(database.getCachedAlbums).mockResolvedValue([rootAlbum] as any);
@@ -130,12 +130,12 @@ describe('media-service recursion', () => {
       const nestedAlbum = {
         id: 'child',
         textures: [{ path: '/child/video.mp4' }],
-        children: []
+        children: [],
       };
       const rootAlbum = {
         id: 'root',
         textures: [],
-        children: [nestedAlbum]
+        children: [nestedAlbum],
       };
 
       vi.mocked(database.getPendingMetadata).mockResolvedValue([]);

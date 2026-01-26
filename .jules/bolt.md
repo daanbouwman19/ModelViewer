@@ -33,7 +33,7 @@
 **Learning:** `db.prepare()` inside a loop re-parses the SQL string every time, causing significant CPU overhead (~20-30%).
 **Action:** Use a cached prepared statement with a fixed batch size (padding with `null`s) to reuse the query plan for batch operations.
 
-## 2026-02-28 - [Recursive Data Processing]
+## 2026-01-26 - [Recursive Data Processing]
 
 **Learning:** Using shallow iteration methods (like `flatMap` or `map`) on recursive data structures (like nested albums) leads to incomplete data processing (missing metadata for files in subdirectories). This causes "phantom" performance issues where data appears missing or requires lazy loading.
 **Action:** Implement recursive helpers (e.g., `collectAllFilePaths`, `mapAlbumsWithStats`) when processing tree-like structures to ensure O(N) completeness and correct application of metadata across all levels.

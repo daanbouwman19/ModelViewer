@@ -223,7 +223,10 @@ export async function getAlbumsWithViewCountsAfterScan(
 /**
  * Recursively collects all file paths from an album tree.
  */
-function collectAllFilePaths(albums: Album[], accumulator: string[] = []): string[] {
+function collectAllFilePaths(
+  albums: Album[],
+  accumulator: string[] = [],
+): string[] {
   for (const album of albums) {
     for (const texture of album.textures) {
       accumulator.push(texture.path);
