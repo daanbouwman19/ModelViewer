@@ -2,12 +2,11 @@ import fs from 'fs';
 import fsPromises from 'fs/promises';
 import { Response } from 'express';
 import {
-  getThumbnailArgs,
-  runFFmpeg,
   getThumbnailCachePath,
   checkThumbnailCache,
   isDrivePath,
 } from './media-utils.ts';
+import { getThumbnailArgs, runFFmpeg } from './utils/ffmpeg-utils.ts';
 import { getProvider } from './fs-provider-factory.ts';
 import { validateFileAccess } from './access-validator.ts';
 

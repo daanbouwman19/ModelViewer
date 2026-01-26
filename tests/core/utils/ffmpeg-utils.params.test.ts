@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { getTranscodeArgs, getThumbnailArgs } from '../../src/core/media-utils';
+import {
+  getTranscodeArgs,
+  getThumbnailArgs,
+} from '../../../src/core/utils/ffmpeg-utils';
 
 describe('getTranscodeArgs', () => {
   const INPUT_PATH = '/path/to/video.mp4';

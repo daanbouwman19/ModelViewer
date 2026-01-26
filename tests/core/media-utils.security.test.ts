@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isValidTimeFormat } from '../../src/core/media-utils';
+import { isValidTimeFormat } from '../../src/core/utils/ffmpeg-utils';
 
 describe('isValidTimeFormat Security & Validation', () => {
   it('should accept valid time formats', () => {

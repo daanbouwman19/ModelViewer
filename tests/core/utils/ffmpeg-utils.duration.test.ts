@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseFFmpegDuration } from '../../src/core/media-utils';
+import { parseFFmpegDuration } from '../../../src/core/utils/ffmpeg-utils';
 
 describe('parseFFmpegDuration', () => {
   // Define test cases as [description, input string, expected result]
