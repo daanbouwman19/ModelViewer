@@ -10,7 +10,6 @@ vi.mock('../../src/core/security', () => ({
 }));
 
 describe('access-validator unit tests', () => {
-
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -34,12 +33,20 @@ describe('access-validator unit tests', () => {
   it('denies unauthorized local paths', async () => {
     mockAuthorizeFilePath.mockResolvedValue({ isAllowed: false });
     const result = await validateFileAccess('/local/file');
-    expect(result).toEqual({ success: false, error: 'Access denied.', statusCode: 403 });
+    expect(result).toEqual({
+      success: false,
+      error: 'Access denied.',
+      statusCode: 403,
+    });
   });
 
   it('handles auth error', async () => {
     mockAuthorizeFilePath.mockRejectedValue(new Error('Auth failed'));
     const result = await validateFileAccess('/local/file');
-     expect(result).toEqual({ success: false, error: 'Internal server error.', statusCode: 500 });
+    expect(result).toEqual({
+      success: false,
+      error: 'Internal server error.',
+      statusCode: 500,
+    });
   });
 });

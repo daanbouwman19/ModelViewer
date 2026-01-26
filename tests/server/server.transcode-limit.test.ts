@@ -79,7 +79,9 @@ vi.mock('../../src/core/media-handler', async (importOriginal) => {
     await importOriginal<typeof import('../../src/core/media-handler')>();
   return {
     ...actual,
-    validateFileAccess: vi.fn().mockResolvedValue({ success: true, path: 'test.mp4' }),
+    validateFileAccess: vi
+      .fn()
+      .mockResolvedValue({ success: true, path: 'test.mp4' }),
     serveTranscodedStream: vi.fn(async (req, res) => {
       // Simulate delay
       res.write('chunk');

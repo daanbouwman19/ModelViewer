@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { EventEmitter } from 'stream';
-import { serveThumbnail } from '../../src/core/thumbnail-handler';
+import {
+  serveThumbnail,
+  generateLocalThumbnail,
+} from '../../src/core/thumbnail-handler';
 
 const {
   mockRunFFmpeg,
@@ -77,7 +80,11 @@ vi.mock('../../src/core/access-validator', () => ({
       }
       return { success: true, path: auth.realPath || path };
     } catch {
-      return { success: false, error: 'Internal server error.', statusCode: 500 };
+      return {
+        success: false,
+        error: 'Internal server error.',
+        statusCode: 500,
+      };
     }
   }),
 }));
@@ -383,6 +390,15 @@ describe('thumbnail-handler unit tests', () => {
 
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.end).toHaveBeenCalled();
+    });
+  });
+
+  describe('generateLocalThumbnail', () => {
+    it('returns error if file access fails', async () => {
+      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: false });
+      await generateLocalThumbnail(res, '/denied.mp4', '/cache.jpg', 'ffmpeg');
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.send).toHaveBeenCalledWith('Access denied.');
     });
   });
 });

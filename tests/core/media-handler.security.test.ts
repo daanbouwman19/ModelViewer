@@ -6,19 +6,17 @@ import {
   serveThumbnail,
 } from '../../src/core/media-handler';
 import * as security from '../../src/core/security';
+import { validateFileAccess } from '../../src/core/access-validator';
+import { createMediaSource } from '../../src/core/media-source';
 
 // Mock dependencies
 vi.mock('../../src/core/security');
 vi.mock('../../src/core/media-source', async () => {
-  const actual = await vi.importActual('../../src/core/media-source');
   return {
-    ...(actual as any),
     createMediaSource: vi.fn(),
     IMediaSource: class {},
   };
 });
-import { createMediaSource } from '../../src/core/media-source';
-import { validateFileAccess } from '../../src/core/access-validator';
 
 vi.mock('../../src/core/access-validator', () => ({
   validateFileAccess: vi.fn(),
@@ -66,17 +64,11 @@ describe('media-handler security', () => {
   });
 
   it('prevents file enumeration in serveStaticFile via handler', async () => {
-    // Scenario: createMediaSource throws "Access denied"
-    // Mock validateFileAccess to return false (denied)
+    // Scenario 1: validateFileAccess returns failure
     vi.mocked(validateFileAccess).mockResolvedValue({
       success: false,
       error: 'Access denied.',
       statusCode: 403,
-    });
-
-    vi.mocked(security.authorizeFilePath).mockResolvedValue({
-      isAllowed: false,
-      message: 'Access denied',
     });
 
     await serveStaticFile(req, res, '/path/to/forbidden.txt');
@@ -84,16 +76,11 @@ describe('media-handler security', () => {
     expect(res.status).toHaveBeenCalledWith(403);
     expect(res.send).toHaveBeenCalledWith('Access denied.');
 
-    // Scenario 2: If we force gdrive
+    // Scenario 2: validateFileAccess succeeds, but createMediaSource fails (simulating sensitive file check deeper down or internal error)
     vi.clearAllMocks();
     res.status.mockClear();
+    res.send.mockClear();
 
-    // Reset mock for Scenario 2 (assuming we want to test createMediaSource failure logic)
-    // But wait, if validateFileAccess fails, serveStaticFile returns.
-    // The original test tested that if validateFileAccess "passed" but then something else failed...
-    // Actually the original test for Scenario 2 used 'gdrive://forbidden'.
-    // If validateFileAccess mock is global, it will fail for gdrive too unless we make it smart.
-    // Let's make the mock smart or override it.
     vi.mocked(validateFileAccess).mockResolvedValue({
       success: true,
       path: 'gdrive://forbidden',
@@ -105,6 +92,7 @@ describe('media-handler security', () => {
 
     await serveStaticFile(req, res, 'gdrive://forbidden');
     expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.send).toHaveBeenCalledWith('Access denied.');
   });
 
   it('prevents unauthorized access in serveStaticFile even if validateFileAccess passes', async () => {
@@ -114,7 +102,7 @@ describe('media-handler security', () => {
       path: '/path/to/forbidden.txt',
     });
 
-    // Mock authorizeFilePath to fail (the second check)
+    // Mock authorizeFilePath to fail (the second check for local files)
     vi.mocked(security.authorizeFilePath).mockResolvedValue({
       isAllowed: false,
       message: 'Access denied (path sanitization)',
@@ -133,15 +121,10 @@ describe('media-handler security', () => {
       statusCode: 403,
     });
 
-    vi.mocked(security.authorizeFilePath).mockResolvedValueOnce({
-      isAllowed: false,
-      message: 'Access denied: Forbidden',
-    });
-
     await serveMetadata(req, res, '/forbidden.txt', 'ffmpeg');
 
-    expect(res.send).toHaveBeenCalledWith('Access denied.');
     expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.send).toHaveBeenCalledWith('Access denied.');
   });
 
   it('prevents file enumeration in serveTranscodedStream (video/stream)', async () => {
@@ -151,11 +134,6 @@ describe('media-handler security', () => {
       success: false,
       error: 'Access denied.',
       statusCode: 403,
-    });
-
-    vi.mocked(security.authorizeFilePath).mockResolvedValueOnce({
-      isAllowed: false,
-      message: 'Access denied',
     });
 
     await handleStreamRequest(req, res, 'ffmpeg');
@@ -169,11 +147,6 @@ describe('media-handler security', () => {
       success: false,
       error: 'Access denied.',
       statusCode: 403,
-    });
-
-    vi.mocked(security.authorizeFilePath).mockResolvedValueOnce({
-      isAllowed: false,
-      message: 'Access denied: Forbidden',
     });
 
     await serveThumbnail(req, res, '/forbidden.txt', 'ffmpeg', '/cache');
