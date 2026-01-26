@@ -2,9 +2,13 @@
   <div
     v-if="isLoading || isTranscodingLoading || isBuffering"
     class="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-20 pointer-events-none"
+    role="status"
+    aria-live="polite"
+    aria-atomic="true"
   >
     <div
       class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-accent mb-4"
+      aria-hidden="true"
     ></div>
     <p class="text-white font-semibold text-center">
       <template v-if="isTranscodingLoading">
