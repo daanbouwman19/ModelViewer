@@ -1,6 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../src/server/server';
+import { serveTranscodedStream } from '../../src/core/media-handler';
 
 // Mock dependencies to isolate server logic
 vi.mock('../../src/core/database', () => ({
@@ -80,22 +81,31 @@ vi.mock('../../src/core/media-handler', async (importOriginal) => {
   return {
     ...actual,
     validateFileAccess: vi.fn().mockResolvedValue(true),
-    serveTranscodedStream: vi.fn(async (req, res) => {
-      // Simulate delay
-      res.write('chunk');
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      res.end();
-    }),
+    serveTranscodedStream: vi.fn(),
     // serveRawStream uses real impl but with mocked source
   };
 });
 
 describe('Server Transcode Concurrency', () => {
   let app: any;
+  let transcodeBarrier: Promise<void>;
+  let releaseTranscode: () => void;
+  let transcodeStartedCount = 0;
 
   beforeEach(async () => {
     vi.clearAllMocks();
     app = await createApp();
+    transcodeStartedCount = 0;
+    transcodeBarrier = new Promise((resolve) => {
+      releaseTranscode = resolve;
+    });
+
+    (serveTranscodedStream as Mock).mockImplementation(async (req, res) => {
+      transcodeStartedCount++;
+      res.write('chunk');
+      await transcodeBarrier;
+      res.end();
+    });
   });
 
   it('should limit concurrent transcoding requests', async () => {
@@ -111,8 +121,8 @@ describe('Server Transcode Concurrency', () => {
       pendingRequests.push(p);
     }
 
-    // Give them a moment to hit the server
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    // Wait until all LIMIT requests have started processing
+    await vi.waitUntil(() => transcodeStartedCount === LIMIT);
 
     // Launch one more, which should be blocked
     const blockedRes = await request(app).get(
@@ -121,6 +131,9 @@ describe('Server Transcode Concurrency', () => {
     expect(blockedRes.status).toBe(503);
     expect(blockedRes.text).toMatch(/server too busy/i);
 
+    // Release the blocked requests so they can finish
+    releaseTranscode();
+
     // Wait for others to finish
     const results = await Promise.all(pendingRequests);
     results.forEach((res) => {
@@ -128,8 +141,6 @@ describe('Server Transcode Concurrency', () => {
     });
 
     // After they finish, we should be able to request again
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
     const successRes = await request(app).get(
       '/api/stream?file=test.mp4&transcode=true',
     );

@@ -35,3 +35,9 @@ Implemented a callback-based interception mechanism for the `postMessage` mock. 
 **Discovery:** `tests/core/media-utils.timeout.test.ts` was relying on a real 1-second process sleep to test timeout logic, causing unnecessary delay and reliance on system scheduling.
 
 **Strategy:** Refactored to mock `execa` directly, simulating the timeout condition immediately. This reduced test duration from ~1000ms to ~15ms and removed flaky timing dependencies.
+
+## 2026-01-22 - Deterministic Concurrency Limit Testing
+
+**Discovery:** `tests/server/server.transcode-limit.test.ts` was using `setTimeout(100)` to wait for concurrent requests to be "in flight", and `setTimeout(500)` in the mock to simulate work. This made the test slow and flaky, relying on timing assumptions.
+
+**Strategy:** Replaced time-based waits with a controlled Promise barrier in the mock. The test now uses `vi.waitUntil` to confirm requests have started and explicitly releases them via a closure, ensuring deterministic execution regardless of system speed.
