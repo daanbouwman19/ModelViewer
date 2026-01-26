@@ -77,13 +77,11 @@ describe('Server Endpoint Security', () => {
     it('should explicitly validate file access before serving', async () => {
       const filePath = '/unauthorized/file.mp4';
 
-      // Mock validation to fail AND send response (simulating real behavior)
-      vi.mocked(validateFileAccess).mockImplementation(async (res) => {
-        // Just send a status code so supertest doesn't hang
-        // The real function sends 403, but here we just need to ensure 'res' is used
-        // so the request completes.
-        res.status(403).end();
-        return false;
+      // Mock validation to fail
+      vi.mocked(validateFileAccess).mockResolvedValue({
+        success: false,
+        error: 'Access denied',
+        statusCode: 403,
       });
 
       const response = await request(app)
@@ -92,10 +90,7 @@ describe('Server Endpoint Security', () => {
 
       expect(response.status).toBe(403);
       // Should verify that validateFileAccess was called
-      expect(validateFileAccess).toHaveBeenCalledWith(
-        expect.anything(),
-        filePath,
-      );
+      expect(validateFileAccess).toHaveBeenCalledWith(filePath);
 
       // Should verify that createMediaSource was NOT called (short-circuit)
       expect(createMediaSource).not.toHaveBeenCalled();
@@ -106,14 +101,14 @@ describe('Server Endpoint Security', () => {
       const filePath = '/authorized/file.mp4';
 
       // Mock validation to pass
-      vi.mocked(validateFileAccess).mockResolvedValue(true);
+      vi.mocked(validateFileAccess).mockResolvedValue({
+        success: true,
+        path: filePath,
+      });
 
       await request(app).get('/api/serve').query({ path: filePath });
 
-      expect(validateFileAccess).toHaveBeenCalledWith(
-        expect.anything(),
-        filePath,
-      );
+      expect(validateFileAccess).toHaveBeenCalledWith(filePath);
       expect(createMediaSource).toHaveBeenCalledWith(filePath);
       expect(serveRawStream).toHaveBeenCalled();
     });

@@ -709,10 +709,12 @@ export async function createApp() {
     if (!filePath) return res.status(400).send('Missing file');
 
     try {
-      const validated = await validateFileAccess(res, filePath);
-      if (!validated) return;
-      const authorizedPath =
-        typeof validated === 'string' ? validated : filePath;
+      const access = await validateFileAccess(filePath);
+      if (!access.success) {
+        if (!res.headersSent) res.status(access.statusCode).send(access.error);
+        return;
+      }
+      const authorizedPath = access.path;
 
       const source = createMediaSource(authorizedPath);
       if (isTranscode) {
@@ -776,10 +778,12 @@ export async function createApp() {
     if (!filePath) return res.status(400).send('Missing path');
     try {
       // [SECURITY] Explicitly validate access before creating source or streaming.
-      const validated = await validateFileAccess(res, filePath);
-      if (!validated) return;
-      const authorizedPath =
-        typeof validated === 'string' ? validated : filePath;
+      const access = await validateFileAccess(filePath);
+      if (!access.success) {
+        if (!res.headersSent) res.status(access.statusCode).send(access.error);
+        return;
+      }
+      const authorizedPath = access.path;
 
       const source = createMediaSource(authorizedPath);
       await serveRawStream(req, res, source);

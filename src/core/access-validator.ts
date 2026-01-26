@@ -1,32 +1,31 @@
-import { Response } from 'express';
 import { isDrivePath } from './media-utils.ts';
 import { authorizeFilePath, AuthorizationResult } from './security.ts';
 
+export type FileAccessResult =
+  | { success: true; path: string }
+  | { success: false; error: string; statusCode: number };
+
 /**
  * Helper: Validates access to the file path.
- * If validation fails, it sends the appropriate error response and returns false.
- * If validation succeeds, it returns true.
+ * Returns a result object indicating success or failure.
  *
  * This encapsulates the logic of checking "gdrive://" bypass vs local file authorization.
  */
 export async function validateFileAccess(
-  res: Response,
   filePath: string,
-): Promise<boolean | string> {
+): Promise<FileAccessResult> {
   // GDrive files are handled by their specific providers/logic
-  if (isDrivePath(filePath)) return true;
+  if (isDrivePath(filePath)) return { success: true, path: filePath };
 
   try {
     const auth: AuthorizationResult = await authorizeFilePath(filePath);
     if (!auth.isAllowed) {
-      if (!res.headersSent) res.status(403).send('Access denied.');
-      return false;
+      return { success: false, error: 'Access denied.', statusCode: 403 };
     }
     // We return the authorized realPath to ensure subsequent file operations use the validated path.
-    return auth.realPath || true;
+    return { success: true, path: auth.realPath || filePath };
   } catch (error) {
     console.error('[Access] Validation error:', error);
-    if (!res.headersSent) res.status(500).send('Internal server error.');
-    return false;
+    return { success: false, error: 'Internal server error.', statusCode: 500 };
   }
 }

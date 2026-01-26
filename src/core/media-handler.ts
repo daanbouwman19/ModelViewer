@@ -77,9 +77,12 @@ export async function handleStreamRequest(
   try {
     // 1. Authorization Check (Unified)
     // Always validate access first, regardless of transcode or direct play
-    const validated = await validateFileAccess(res, filePath);
-    if (!validated) return;
-    const authorizedPath = typeof validated === 'string' ? validated : filePath;
+    const access = await validateFileAccess(filePath);
+    if (!access.success) {
+      if (!res.headersSent) res.status(access.statusCode).send(access.error);
+      return;
+    }
+    const authorizedPath = access.path;
 
     // 2. Direct File Optimization
     // If not transcoding and it's a local file, try sendFile for better performance/range support
@@ -167,9 +170,12 @@ export async function serveMetadata(
   filePath: string,
   ffmpegPath: string | null,
 ) {
-  const validated = await validateFileAccess(res, filePath);
-  if (!validated) return;
-  const authorizedPath = typeof validated === 'string' ? validated : filePath;
+  const access = await validateFileAccess(filePath);
+  if (!access.success) {
+    if (!res.headersSent) res.status(access.statusCode).send(access.error);
+    return;
+  }
+  const authorizedPath = access.path;
 
   if (!ffmpegPath && !isDrivePath(authorizedPath)) {
     res.status(500).send('FFmpeg binary not found');
@@ -274,10 +280,9 @@ export async function serveStaticFile(
   filePath: string,
 ) {
   try {
-    const validated = await validateFileAccess(res, filePath);
-    if (validated) {
-      const authorizedPath =
-        typeof validated === 'string' ? validated : filePath;
+    const access = await validateFileAccess(filePath);
+    if (access.success) {
+      const authorizedPath = access.path;
       // If local file, use res.sendFile for optimizing range/seeking
       if (!isDrivePath(authorizedPath)) {
         // [SECURITY] Explicitly re-validate/sanitize local path to prevent traversal
@@ -293,7 +298,8 @@ export async function serveStaticFile(
       const source = createMediaSource(authorizedPath);
       return await serveRawStream(req, res, source);
     } else {
-      return; // validateFileAccess already responded
+      if (!res.headersSent) res.status(access.statusCode).send(access.error);
+      return;
     }
   } catch (err: unknown) {
     console.error('[ServeStatic] Error:', err);

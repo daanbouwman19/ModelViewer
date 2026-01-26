@@ -105,9 +105,12 @@ export async function generateLocalThumbnail(
   ffmpegPath: string | null,
 ): Promise<void> {
   // Use validateFileAccess to enforce security and get realPath
-  const validated = await validateFileAccess(res, filePath);
-  if (!validated) return;
-  const authorizedPath = typeof validated === 'string' ? validated : filePath;
+  const access = await validateFileAccess(filePath);
+  if (!access.success) {
+    if (!res.headersSent) res.status(access.statusCode).send(access.error);
+    return;
+  }
+  const authorizedPath = access.path;
 
   if (!ffmpegPath) {
     res.status(500).send('FFmpeg binary not found');
@@ -154,9 +157,12 @@ export async function serveThumbnail(
   cacheDir: string,
 ) {
   // [SECURITY] Validate access before checking cache to prevent IDOR on cached thumbnails
-  const validated = await validateFileAccess(res, filePath);
-  if (!validated) return;
-  const authorizedPath = typeof validated === 'string' ? validated : filePath;
+  const access = await validateFileAccess(filePath);
+  if (!access.success) {
+    if (!res.headersSent) res.status(access.statusCode).send(access.error);
+    return;
+  }
+  const authorizedPath = access.path;
 
   // 1. Check Cache
   const cacheFile = getThumbnailCachePath(authorizedPath, cacheDir);

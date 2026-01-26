@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { EventEmitter } from 'stream';
-import { serveThumbnail } from '../../src/core/thumbnail-handler';
+import {
+  serveThumbnail,
+  generateLocalThumbnail,
+} from '../../src/core/thumbnail-handler';
 
 const {
   mockRunFFmpeg,
@@ -66,20 +69,22 @@ vi.mock('../../src/core/security', () => ({
 }));
 
 vi.mock('../../src/core/access-validator', () => ({
-  validateFileAccess: vi.fn().mockImplementation(async (res, path) => {
+  validateFileAccess: vi.fn().mockImplementation(async (path) => {
     // Mocking validateFileAccess logic for local files
     const { authorizeFilePath } = await import('../../src/core/security');
-    if (path.startsWith('gdrive://')) return true;
+    if (path.startsWith('gdrive://')) return { success: true, path };
     try {
       const auth = await authorizeFilePath(path);
       if (!auth.isAllowed) {
-        if (!res.headersSent) res.status(403).send('Access denied.');
-        return false;
+        return { success: false, error: 'Access denied.', statusCode: 403 };
       }
-      return auth.realPath || true;
+      return { success: true, path: auth.realPath || path };
     } catch {
-      if (!res.headersSent) res.status(500).send('Internal server error.');
-      return false;
+      return {
+        success: false,
+        error: 'Internal server error.',
+        statusCode: 500,
+      };
     }
   }),
 }));
@@ -385,6 +390,15 @@ describe('thumbnail-handler unit tests', () => {
 
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.end).toHaveBeenCalled();
+    });
+  });
+
+  describe('generateLocalThumbnail', () => {
+    it('returns error if file access fails', async () => {
+      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: false });
+      await generateLocalThumbnail(res, '/denied.mp4', '/cache.jpg', 'ffmpeg');
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.send).toHaveBeenCalledWith('Access denied.');
     });
   });
 });

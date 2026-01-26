@@ -105,7 +105,10 @@ describe('Server Coverage', () => {
       isAllowed: true,
       realPath: '/local/file',
     });
-    mocks.mockValidateFileAccess.mockResolvedValue('/local/file');
+    mocks.mockValidateFileAccess.mockResolvedValue({
+      success: true,
+      path: '/local/file',
+    });
     mocks.mockServeRawStream.mockImplementation((req, res) => {
       // Must send response to finish request
       res.status(200).send('mock-stream');
@@ -169,11 +172,10 @@ describe('Server Coverage', () => {
     });
 
     it('GET /api/stream handles access denied from validation pre-check', async () => {
-      // If validateFileAccess returns false (denied), request stops with 403.
-      // We must mock the response sending too, or the request hangs.
-      mocks.mockValidateFileAccess.mockImplementation(async (res: any) => {
-        res.status(403).send('Access denied');
-        return false;
+      mocks.mockValidateFileAccess.mockResolvedValue({
+        success: false,
+        error: 'Access denied',
+        statusCode: 403,
       });
       const res = await request(app)
         .get('/api/stream')
@@ -423,7 +425,10 @@ describe('Server Coverage', () => {
       expect(res.status).toBe(500);
     });
     it('GET /api/stream uses authorizedPath if returned as string', async () => {
-      mocks.mockValidateFileAccess.mockResolvedValue('/authorized/path');
+      mocks.mockValidateFileAccess.mockResolvedValue({
+        success: true,
+        path: '/authorized/path',
+      });
       const res = await request(app)
         .get('/api/stream')
         .query({ file: 'test.mp4' });
