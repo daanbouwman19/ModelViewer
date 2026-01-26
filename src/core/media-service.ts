@@ -151,9 +151,7 @@ export async function scanDiskForAlbumsAndCache(
     // 2. Process new items
 
     // For simplicity, we just trigger a check for all new items + pending items
-    const allFilePaths = albums.flatMap((album) =>
-      album.textures.map((texture) => texture.path),
-    );
+    const allFilePaths = collectAllFilePaths(albums);
 
     // Fire and forget, but also include checking for previously pending items
     // We combine them or run them.
@@ -219,17 +217,52 @@ export async function getAlbumsWithViewCountsAfterScan(
     getAllMetadata(),
   ]);
 
+  return mapAlbumsWithStats(albums, viewCountsMap, metadataMap);
+}
+
+/**
+ * Recursively collects all file paths from an album tree.
+ */
+function collectAllFilePaths(albums: Album[], accumulator: string[] = []): string[] {
+  for (const album of albums) {
+    for (const texture of album.textures) {
+      accumulator.push(texture.path);
+    }
+    if (album.children && album.children.length > 0) {
+      collectAllFilePaths(album.children, accumulator);
+    }
+  }
+  return accumulator;
+}
+
+/**
+ * Recursively maps albums to attach stats (view count, duration, rating).
+ */
+function mapAlbumsWithStats(
+  albums: Album[],
+  viewCountsMap: { [path: string]: number },
+  metadataMap: { [path: string]: MediaMetadata },
+): Album[] {
   return albums.map((album) => ({
     ...album,
     textures: album.textures.map((texture) => {
       const metadata = metadataMap[texture.path];
+      // Use existing rating if available (from scan), otherwise DB metadata, otherwise undefined
+      const rating =
+        metadata?.rating !== undefined ? metadata.rating : texture.rating;
+
       return {
         ...texture,
         viewCount: viewCountsMap[texture.path] || 0,
         duration: metadata?.duration,
-        rating: metadata?.rating || texture.rating,
+        rating,
       };
     }),
+    children: mapAlbumsWithStats(
+      album.children || [],
+      viewCountsMap,
+      metadataMap,
+    ),
   }));
 }
 
@@ -251,18 +284,7 @@ export async function getAlbumsWithViewCounts(
     getAllMetadata(),
   ]);
 
-  return albums.map((album) => ({
-    ...album,
-    textures: album.textures.map((texture) => {
-      const metadata = metadataMap[texture.path];
-      return {
-        ...texture,
-        viewCount: viewCountsMap[texture.path] || 0,
-        duration: metadata?.duration,
-        rating: metadata?.rating || texture.rating,
-      };
-    }),
-  }));
+  return mapAlbumsWithStats(albums, viewCountsMap, metadataMap);
 }
 /**
  * Extracts metadata for a list of files and saves it to the database.
