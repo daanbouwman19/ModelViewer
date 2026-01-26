@@ -66,20 +66,18 @@ vi.mock('../../src/core/security', () => ({
 }));
 
 vi.mock('../../src/core/access-validator', () => ({
-  validateFileAccess: vi.fn().mockImplementation(async (res, path) => {
+  validateFileAccess: vi.fn().mockImplementation(async (path) => {
     // Mocking validateFileAccess logic for local files
     const { authorizeFilePath } = await import('../../src/core/security');
-    if (path.startsWith('gdrive://')) return true;
+    if (path.startsWith('gdrive://')) return { success: true, path };
     try {
       const auth = await authorizeFilePath(path);
       if (!auth.isAllowed) {
-        if (!res.headersSent) res.status(403).send('Access denied.');
-        return false;
+        return { success: false, error: 'Access denied.', statusCode: 403 };
       }
-      return auth.realPath || true;
+      return { success: true, path: auth.realPath || path };
     } catch {
-      if (!res.headersSent) res.status(500).send('Internal server error.');
-      return false;
+      return { success: false, error: 'Internal server error.', statusCode: 500 };
     }
   }),
 }));

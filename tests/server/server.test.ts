@@ -35,7 +35,7 @@ vi.mock('../../src/core/media-handler', () => ({
   serveRawStream: vi.fn((req, res) => res.end()),
   serveThumbnail: vi.fn((req, res) => res.end()),
   serveStaticFile: vi.fn((req, res) => res.end()),
-  validateFileAccess: vi.fn().mockResolvedValue(true),
+  validateFileAccess: vi.fn().mockResolvedValue({ success: true, path: '/resolved/path' }),
 }));
 
 vi.mock('../../src/main/google-auth');

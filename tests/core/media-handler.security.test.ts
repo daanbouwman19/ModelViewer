@@ -68,9 +68,10 @@ describe('media-handler security', () => {
   it('prevents file enumeration in serveStaticFile via handler', async () => {
     // Scenario: createMediaSource throws "Access denied"
     // Mock validateFileAccess to return false (denied)
-    vi.mocked(validateFileAccess).mockImplementation(async (r: any) => {
-      r.status(403).send('Access denied.');
-      return false;
+    vi.mocked(validateFileAccess).mockResolvedValue({
+      success: false,
+      error: 'Access denied.',
+      statusCode: 403,
     });
 
     vi.mocked(security.authorizeFilePath).mockResolvedValue({
@@ -87,6 +88,17 @@ describe('media-handler security', () => {
     vi.clearAllMocks();
     res.status.mockClear();
 
+    // Reset mock for Scenario 2 (assuming we want to test createMediaSource failure logic)
+    // But wait, if validateFileAccess fails, serveStaticFile returns.
+    // The original test tested that if validateFileAccess "passed" but then something else failed...
+    // Actually the original test for Scenario 2 used 'gdrive://forbidden'.
+    // If validateFileAccess mock is global, it will fail for gdrive too unless we make it smart.
+    // Let's make the mock smart or override it.
+    vi.mocked(validateFileAccess).mockResolvedValue({
+      success: true,
+      path: 'gdrive://forbidden',
+    });
+
     vi.mocked(createMediaSource).mockImplementation(() => {
       throw new Error('Access denied: File does not exist.');
     });
@@ -97,7 +109,10 @@ describe('media-handler security', () => {
 
   it('prevents unauthorized access in serveStaticFile even if validateFileAccess passes', async () => {
     // Mock validateFileAccess to pass (simulate race condition or bypass)
-    vi.mocked(validateFileAccess).mockResolvedValue('/path/to/forbidden.txt');
+    vi.mocked(validateFileAccess).mockResolvedValue({
+      success: true,
+      path: '/path/to/forbidden.txt',
+    });
 
     // Mock authorizeFilePath to fail (the second check)
     vi.mocked(security.authorizeFilePath).mockResolvedValue({
@@ -112,9 +127,10 @@ describe('media-handler security', () => {
   });
 
   it('prevents file enumeration in serveMetadata', async () => {
-    vi.mocked(validateFileAccess).mockImplementation(async (r: any) => {
-      r.status(403).send('Access denied.');
-      return false;
+    vi.mocked(validateFileAccess).mockResolvedValue({
+      success: false,
+      error: 'Access denied.',
+      statusCode: 403,
     });
 
     vi.mocked(security.authorizeFilePath).mockResolvedValueOnce({
@@ -131,9 +147,10 @@ describe('media-handler security', () => {
   it('prevents file enumeration in serveTranscodedStream (video/stream)', async () => {
     req.query = { file: '/forbidden.txt', transcode: 'true' };
 
-    vi.mocked(validateFileAccess).mockImplementation(async (r: any) => {
-      r.status(403).send('Access denied.');
-      return false;
+    vi.mocked(validateFileAccess).mockResolvedValue({
+      success: false,
+      error: 'Access denied.',
+      statusCode: 403,
     });
 
     vi.mocked(security.authorizeFilePath).mockResolvedValueOnce({
@@ -148,9 +165,10 @@ describe('media-handler security', () => {
   });
 
   it('prevents file enumeration in serveThumbnail', async () => {
-    vi.mocked(validateFileAccess).mockImplementation(async (r: any) => {
-      r.status(403).send('Access denied.');
-      return false;
+    vi.mocked(validateFileAccess).mockResolvedValue({
+      success: false,
+      error: 'Access denied.',
+      statusCode: 403,
     });
 
     vi.mocked(security.authorizeFilePath).mockResolvedValueOnce({
