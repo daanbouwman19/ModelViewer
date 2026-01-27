@@ -47,3 +47,9 @@
 **Vulnerability:** Despite previous protections, critical system files (`server.key`, `.bashrc`, `.zshrc`, `id_rsa`, `.htpasswd`) remained accessible if located within an allowed media directory. The blocklist was missing these specific high-value targets.
 **Learning:** Security blocklists must be exhaustive and cover not just development artifacts but also system administration credentials (SSH keys, SSL keys) and user profile configurations which often contain exported secrets.
 **Prevention:** Expanded `SENSITIVE_SUBDIRECTORIES` to include `server.key` (SSL private key), shell configuration files (`.bashrc`, `.profile`), SSH private keys (`id_rsa`, etc.), and other credential stores.
+
+## 2026-01-26 - Unbounded HLS Transcoding DoS
+
+**Vulnerability:** The HLS streaming endpoint (`/api/hls/playlist.m3u8`) allowed creating unlimited HLS transcoding sessions. Each request for a unique file initiated a new FFmpeg process via `HlsManager`, bypassing the existing `MAX_CONCURRENT_TRANSCODES` limit in `server.ts` (which only applied to direct streams).
+**Learning:** Security limits (like concurrency caps) must be enforced at the service layer (`HlsManager`) rather than just the controller layer (`server.ts`) to ensure all access paths respect the limits. Singleton managers need internal resource accounting.
+**Prevention:** Enforced `MAX_CONCURRENT_TRANSCODES` check inside `HlsManager.ensureSession()` to block excessive concurrent HLS transcoding tasks.
