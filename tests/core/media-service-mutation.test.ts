@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { getAlbumsWithViewCountsAfterScan } from '../../src/core/media-service';
 import * as database from '../../src/core/database';
-import { WorkerClient } from '../../src/core/worker-client';
+// import { WorkerClient } from '../../src/core/worker-client';
 
 // Mock dependencies
 vi.mock('../../src/core/database', () => ({
@@ -14,12 +14,19 @@ vi.mock('../../src/core/database', () => ({
   getCachedAlbums: vi.fn(),
 }));
 
+const mockSendMessage = vi.fn();
+const mockInit = vi.fn().mockResolvedValue(undefined);
+const mockTerminate = vi.fn().mockResolvedValue(undefined);
+
 vi.mock('../../src/core/worker-client', () => {
-  const MockWorkerClient = vi.fn();
-  MockWorkerClient.prototype.init = vi.fn().mockResolvedValue(undefined);
-  MockWorkerClient.prototype.sendMessage = vi.fn();
-  MockWorkerClient.prototype.terminate = vi.fn().mockResolvedValue(undefined);
-  return { WorkerClient: MockWorkerClient };
+  return {
+    WorkerClient: class {
+      init = mockInit;
+      sendMessage = mockSendMessage;
+      terminate = mockTerminate;
+      constructor() {}
+    },
+  };
 });
 
 describe('media-service mutation', () => {
@@ -50,11 +57,7 @@ describe('media-service mutation', () => {
     vi.mocked(database.getPendingMetadata).mockResolvedValue([]);
 
     // Mock WorkerClient to return our album
-    const mockSendMessage = vi.fn().mockResolvedValue([mockAlbum]);
-    // We need to access the instance method.
-    // Since we mocked the class, we can set the prototype method implementation
-    // But better to mock it per test if possible, or just globally here since it's one test.
-    (WorkerClient as any).prototype.sendMessage = mockSendMessage;
+    mockSendMessage.mockResolvedValue([mockAlbum]);
 
     // Mock DB responses for stats
     vi.mocked(database.getAllMediaViewCounts).mockResolvedValue({
@@ -66,7 +69,7 @@ describe('media-service mutation', () => {
 
     // 2. Execute
     // This calls scanDiskForAlbumsAndCache -> WorkerClient -> returns mockAlbum
-    // Then calls mapAlbumsWithStats (which we want to test)
+    // Then calls enrichAlbumsWithStats (which we want to test)
     const result = await getAlbumsWithViewCountsAfterScan('ffmpeg');
 
     // 3. Verify

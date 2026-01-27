@@ -222,7 +222,7 @@ export async function getAlbumsWithViewCountsAfterScan(
     getAllMetadata(),
   ]);
 
-  return mapAlbumsWithStats(albums, viewCountsMap, metadataMap);
+  return enrichAlbumsWithStats(albums, viewCountsMap, metadataMap);
 }
 
 /**
@@ -244,11 +244,11 @@ function collectAllFilePaths(
 }
 
 /**
- * Recursively maps albums to attach stats (view count, duration, rating).
+ * Recursively enriches albums to attach stats (view count, duration, rating).
  * Bolt Optimization: Mutates the albums array in-place to avoid expensive deep copying
  * of the entire library structure.
  */
-function mapAlbumsWithStats(
+function enrichAlbumsWithStats(
   albums: Album[],
   viewCountsMap: { [path: string]: number },
   metadataMap: { [path: string]: MediaMetadata },
@@ -267,7 +267,7 @@ function mapAlbumsWithStats(
 
     // Recursively process children
     if (album.children && album.children.length > 0) {
-      mapAlbumsWithStats(album.children, viewCountsMap, metadataMap);
+      enrichAlbumsWithStats(album.children, viewCountsMap, metadataMap);
     } else if (!album.children) {
       // Ensure children is always an array (normalization behavior preservation)
       album.children = [];
@@ -295,7 +295,7 @@ export async function getAlbumsWithViewCounts(
     getAllMetadata(),
   ]);
 
-  return mapAlbumsWithStats(albums, viewCountsMap, metadataMap);
+  return enrichAlbumsWithStats(albums, viewCountsMap, metadataMap);
 }
 /**
  * Extracts metadata for a list of files and saves it to the database.
