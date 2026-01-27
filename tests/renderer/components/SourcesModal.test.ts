@@ -150,13 +150,41 @@ describe('SourcesModal.vue', () => {
     );
   });
 
-  it('should call removeMediaDirectory when remove button clicked', async () => {
+  it('should call removeMediaDirectory when confirm button clicked', async () => {
     const wrapper = mount(SourcesModal);
     // Find the REMOVE button for the first item
     const removeButtons = wrapper.findAll('button');
     const removeBtn = removeButtons.find((b) => b.text().includes('REMOVE'));
     await removeBtn?.trigger('click');
+
+    // Now find CONFIRM button
+    const confirmBtn = wrapper
+      .findAll('button')
+      .find((b) => b.text().includes('CONFIRM'));
+    expect(confirmBtn?.exists()).toBe(true);
+    await confirmBtn?.trigger('click');
+
     expect(api.removeMediaDirectory).toHaveBeenCalledWith('/path/to/dir1');
+  });
+
+  it('should not remove when cancel button clicked', async () => {
+    const wrapper = mount(SourcesModal);
+    const removeBtn = wrapper
+      .findAll('button')
+      .find((b) => b.text().includes('REMOVE'));
+    await removeBtn?.trigger('click');
+
+    const cancelBtn = wrapper
+      .findAll('button')
+      .find((b) => b.text().includes('CANCEL'));
+    expect(cancelBtn?.exists()).toBe(true);
+    await cancelBtn?.trigger('click');
+
+    expect(api.removeMediaDirectory).not.toHaveBeenCalled();
+    // Should revert to showing REMOVE button
+    expect(
+      wrapper.findAll('button').find((b) => b.text().includes('REMOVE')),
+    ).toBeTruthy();
   });
 
   it('should open FileExplorer when add button clicked', async () => {
@@ -306,10 +334,15 @@ describe('SourcesModal.vue', () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const wrapper = mount(SourcesModal);
-    const removeButtons = wrapper.findAll('button');
-    const removeBtn = removeButtons.find((b) => b.text().includes('REMOVE'));
-
+    const removeBtn = wrapper
+      .findAll('button')
+      .find((b) => b.text().includes('REMOVE'));
     await removeBtn?.trigger('click');
+
+    const confirmBtn = wrapper
+      .findAll('button')
+      .find((b) => b.text().includes('CONFIRM'));
+    await confirmBtn?.trigger('click');
     await flushPromises();
 
     expect(consoleSpy).toHaveBeenCalledWith('Error removing directory:', error);
@@ -318,7 +351,8 @@ describe('SourcesModal.vue', () => {
 
   it('should handle directory not found during remove', async () => {
     const wrapper = mount(SourcesModal);
-    await (wrapper.vm as any).handleRemove('/non-existent/path');
+    // Directly calling internal method for this test case or mimicking UI
+    await (wrapper.vm as any).confirmRemove('/non-existent/path');
     expect(mockLibraryState.mediaDirectories).toHaveLength(2);
   });
 
