@@ -166,7 +166,12 @@ export async function scanDiskForAlbumsAndCache(
       try {
         const pending = await getPendingMetadata();
         // Merge unique paths
-        const uniquePaths = new Set([...pending, ...allFilePaths]);
+        // Bolt Optimization: Avoid spread operator on large arrays to prevent stack overflow/high memory usage
+        const uniquePaths = new Set(pending);
+        for (const p of allFilePaths) {
+          uniquePaths.add(p);
+        }
+
         // Bolt Optimization: Do not force check for background scans. Only process new/pending items.
         await extractAndSaveMetadata(Array.from(uniquePaths), ffmpegPath, {
           forceCheck: false,
@@ -217,7 +222,7 @@ export async function getAlbumsWithViewCountsAfterScan(
     getAllMetadata(),
   ]);
 
-  return mapAlbumsWithStats(albums, viewCountsMap, metadataMap);
+  return enrichAlbumsWithStats(albums, viewCountsMap, metadataMap);
 }
 
 /**
@@ -239,34 +244,37 @@ function collectAllFilePaths(
 }
 
 /**
- * Recursively maps albums to attach stats (view count, duration, rating).
+ * Recursively enriches albums to attach stats (view count, duration, rating).
+ * Bolt Optimization: Mutates the albums array in-place to avoid expensive deep copying
+ * of the entire library structure.
  */
-function mapAlbumsWithStats(
+function enrichAlbumsWithStats(
   albums: Album[],
   viewCountsMap: { [path: string]: number },
   metadataMap: { [path: string]: MediaMetadata },
 ): Album[] {
-  return albums.map((album) => ({
-    ...album,
-    textures: album.textures.map((texture) => {
+  for (const album of albums) {
+    // Mutate textures in-place
+    for (const texture of album.textures) {
       const metadata = metadataMap[texture.path];
-      // Use existing rating if available (from scan), otherwise DB metadata, otherwise undefined
       const rating =
         metadata?.rating !== undefined ? metadata.rating : texture.rating;
 
-      return {
-        ...texture,
-        viewCount: viewCountsMap[texture.path] || 0,
-        duration: metadata?.duration,
-        rating,
-      };
-    }),
-    children: mapAlbumsWithStats(
-      album.children || [],
-      viewCountsMap,
-      metadataMap,
-    ),
-  }));
+      texture.viewCount = viewCountsMap[texture.path] || 0;
+      texture.duration = metadata?.duration;
+      texture.rating = rating;
+    }
+
+    // Recursively process children
+    if (album.children && album.children.length > 0) {
+      enrichAlbumsWithStats(album.children, viewCountsMap, metadataMap);
+    } else if (!album.children) {
+      // Ensure children is always an array (normalization behavior preservation)
+      album.children = [];
+    }
+  }
+
+  return albums;
 }
 
 /**
@@ -287,7 +295,7 @@ export async function getAlbumsWithViewCounts(
     getAllMetadata(),
   ]);
 
-  return mapAlbumsWithStats(albums, viewCountsMap, metadataMap);
+  return enrichAlbumsWithStats(albums, viewCountsMap, metadataMap);
 }
 /**
  * Extracts metadata for a list of files and saves it to the database.
