@@ -68,6 +68,8 @@ describe('HlsManager', () => {
     mockProcess.kill = vi.fn();
     mockProcess.stdout = new EventEmitter();
     mockProcess.stderr = new EventEmitter();
+    mockProcess.exitCode = null;
+    mockProcess.killed = false;
     mockSpawn.mockReturnValue(mockProcess);
 
     await hlsManager.ensureSession(sessionId, filePath);
@@ -95,6 +97,8 @@ describe('HlsManager', () => {
 
     const mockProcess = new EventEmitter() as any;
     mockProcess.kill = vi.fn();
+    mockProcess.exitCode = null;
+    mockProcess.killed = false;
     mockSpawn.mockReturnValue(mockProcess);
 
     await hlsManager.ensureSession(sessionId, filePath);
@@ -114,6 +118,8 @@ describe('HlsManager', () => {
 
     const mockProcess = new EventEmitter() as any;
     mockProcess.kill = vi.fn();
+    mockProcess.exitCode = null;
+    mockProcess.killed = false;
     mockSpawn.mockReturnValue(mockProcess);
 
     await hlsManager.ensureSession(sessionId, filePath);
@@ -134,6 +140,8 @@ describe('HlsManager', () => {
 
     const mockProcess = new EventEmitter() as any;
     mockProcess.kill = vi.fn();
+    mockProcess.exitCode = null;
+    mockProcess.killed = false;
     mockSpawn.mockReturnValue(mockProcess);
 
     await hlsManager.ensureSession(sessionId, filePath);
@@ -150,5 +158,144 @@ describe('HlsManager', () => {
     (hlsManager as any).cleanup();
 
     expect(mockProcess.kill).toHaveBeenCalled();
+  });
+
+  it('returns the same instance (singleton)', () => {
+    const instance1 = HlsManager.getInstance();
+    const instance2 = HlsManager.getInstance();
+    expect(instance1).toBe(instance2);
+  });
+
+  it('throws error if cache directory is not set', async () => {
+    (hlsManager as any).cacheDir = null;
+    await expect(hlsManager.ensureSession('test', '/path')).rejects.toThrow(
+      'HLS Cache directory not set',
+    );
+  });
+
+  it('handles ffmpeg spawn error', async () => {
+    const sessionId = 'error-spawn';
+    const mockProcess = new EventEmitter() as any;
+    mockProcess.kill = vi.fn();
+    mockProcess.stdout = new EventEmitter();
+    mockProcess.stderr = new EventEmitter();
+    mockProcess.exitCode = null;
+    mockProcess.killed = false;
+    mockSpawn.mockReturnValue(mockProcess);
+
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    // Playlist does not exist yet
+    mockFsAccess.mockRejectedValue(new Error('no ent'));
+
+    // Silence the error event
+    mockProcess.on('error', () => {});
+
+    // Start ensuring session - it will wait for playlist
+    const promise = hlsManager.ensureSession(sessionId, '/path');
+
+    // Give it a tick to reach the spawn call and register listeners
+    await Promise.resolve();
+
+    // Simulate spawn error immediately
+    mockProcess.emit('error', new Error('Spawn failed'));
+
+    // Advance timers - it should catch session disappearance or timeout if deletion failed
+    await vi.runAllTimersAsync();
+
+    await expect(promise).rejects.toThrow();
+    expect(consoleSpy.mock.calls[0][0]).toContain('error-spawn');
+    expect(consoleSpy.mock.calls[0][1]).toBeInstanceOf(Error);
+    consoleSpy.mockRestore();
+  });
+
+  it('handles ffmpeg non-zero exit code', async () => {
+    const sessionId = 'error-exit';
+    const mockProcess = new EventEmitter() as any;
+    mockProcess.kill = vi.fn();
+    mockProcess.stdout = new EventEmitter();
+    mockProcess.stderr = new EventEmitter();
+    mockProcess.exitCode = null;
+    mockProcess.killed = false;
+    mockSpawn.mockReturnValue(mockProcess);
+
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    mockFsAccess.mockRejectedValue(new Error('no ent'));
+    const promise = hlsManager.ensureSession(sessionId, '/path');
+
+    // Give it a tick to reach the spawn call and register listeners
+    await Promise.resolve();
+
+    // Simulate non-zero exit
+    mockProcess.emit('exit', 1, null);
+    mockProcess.exitCode = 1;
+
+    await vi.runAllTimersAsync();
+
+    await expect(promise).rejects.toThrow(
+      'HLS process exited before playlist creation',
+    );
+    expect(consoleSpy.mock.calls[0][0]).toContain('exited with code 1');
+    consoleSpy.mockRestore();
+  });
+
+  it('stopSession handles already killed process', async () => {
+    const sessionId = 'killed';
+    const mockProcess = new EventEmitter() as any;
+    mockProcess.kill = vi.fn();
+    mockProcess.exitCode = null;
+    mockFsAccess.mockResolvedValue(undefined);
+    mockProcess.killed = false;
+    mockSpawn.mockReturnValue(mockProcess);
+
+    await hlsManager.ensureSession(sessionId, '/path');
+    mockProcess.killed = true;
+    hlsManager.stopSession(sessionId);
+
+    expect(mockProcess.kill).not.toHaveBeenCalled();
+  });
+
+  it('stopSession handles cleanup error', async () => {
+    const sessionId = 'cleanup-error';
+    const mockProcess = new EventEmitter() as any;
+    mockProcess.kill = vi.fn();
+    mockProcess.exitCode = null;
+    mockProcess.killed = false;
+    mockSpawn.mockReturnValue(mockProcess);
+
+    await hlsManager.ensureSession(sessionId, '/path');
+
+    mockFsRm.mockRejectedValue(new Error('RM failed'));
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    hlsManager.stopSession(sessionId);
+
+    await vi.advanceTimersByTimeAsync(0); // Flush microticks for the RM promise
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to clean up'),
+      expect.anything(),
+    );
+    consoleSpy.mockRestore();
+  });
+
+  it('ensureSession updates lastAccess if session exists', async () => {
+    const sessionId = 'exists';
+    const mockProcess = new EventEmitter() as any;
+    mockProcess.kill = vi.fn();
+    mockProcess.exitCode = null;
+    mockProcess.killed = false;
+    mockSpawn.mockReturnValue(mockProcess);
+
+    await hlsManager.ensureSession(sessionId, '/path');
+    const firstAccess = (hlsManager as any).sessions.get(sessionId).lastAccess;
+
+    vi.setSystemTime(Date.now() + 1000);
+    await hlsManager.ensureSession(sessionId, '/path');
+
+    const secondAccess = (hlsManager as any).sessions.get(sessionId).lastAccess;
+    expect(secondAccess).toBeGreaterThan(firstAccess);
+    expect(mockSpawn).toHaveBeenCalledTimes(1);
   });
 });

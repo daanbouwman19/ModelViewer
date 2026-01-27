@@ -107,14 +107,28 @@ export class HlsManager {
     });
 
     // Wait for playlist to be created?
-    await this.waitForPlaylist(playlistPath);
+    await this.waitForPlaylist(sessionId, playlistPath);
   }
 
   private async waitForPlaylist(
+    sessionId: string,
     playlistPath: string,
     retries = 20,
   ): Promise<void> {
     for (let i = 0; i < retries; i++) {
+      const session = this.sessions.get(sessionId);
+      if (!session) {
+        throw new Error('Session disappeared during HLS initialization');
+      }
+
+      if (
+        session.process.killed ||
+        (session.process.exitCode !== null &&
+          session.process.exitCode !== undefined)
+      ) {
+        throw new Error('HLS process exited before playlist creation');
+      }
+
       try {
         await fs.access(playlistPath);
         return;
