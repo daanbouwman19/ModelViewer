@@ -20,6 +20,7 @@ import {
   getAlbumsWithViewCountsAfterScan,
   extractAndSaveMetadata,
 } from '../../core/media-service';
+import { isDrivePath, getDriveId } from '../../core/media-utils';
 import { getServerPort } from '../local-server';
 import { handleIpc } from '../utils/ipc-helper';
 
@@ -67,8 +68,8 @@ export function registerMediaHandlers() {
     IPC_CHANNELS.GET_VIDEO_METADATA,
     async (_event: IpcMainInvokeEvent, filePath: string) => {
       try {
-        if (filePath.startsWith('gdrive://')) {
-          const fileId = filePath.replace('gdrive://', '');
+        if (isDrivePath(filePath)) {
+          const fileId = getDriveId(filePath);
           const meta = await getDriveFileMetadata(fileId);
           if (meta.videoMediaMetadata?.durationMillis) {
             return {
