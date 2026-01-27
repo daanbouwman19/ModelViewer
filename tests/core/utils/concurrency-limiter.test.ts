@@ -3,7 +3,7 @@ import { ConcurrencyLimiter } from '../../../src/core/utils/concurrency-limiter'
 
 // Helper to create a controlled promise
 function createDeferred() {
-  let resolve: () => void;
+  let resolve: (value: void | PromiseLike<void>) => void;
   const promise = new Promise<void>((r) => {
     resolve = r;
   });
