@@ -118,7 +118,7 @@ export async function listDriveFiles(folderId: string): Promise<Album> {
         f.mimeType === 'application/vnd.google-apps.shortcut' &&
         f.shortcutDetails?.targetId
       ) {
-        path = createDrivePath(f.shortcutDetails.targetId);
+        path = createDrivePath(f.shortcutDetails.targetId || '');
       }
       return {
         name: f.name || 'Untitled',
