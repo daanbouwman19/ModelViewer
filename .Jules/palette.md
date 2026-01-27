@@ -1,3 +1,6 @@
+# Palette's Journal
+
+## Critical Learnings
 
 ## 2026-01-27 - [Confirm Source Removal]
 **Learning:** Users can accidentally remove media sources if the action is immediate.
