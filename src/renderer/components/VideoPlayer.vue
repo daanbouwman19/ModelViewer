@@ -4,7 +4,7 @@
     <video
       ref="videoElement"
       class="w-full h-full object-contain rounded-xl"
-      :src="src || undefined"
+      :src="effectiveSrc"
       autoplay
       @error="handleError"
       @ended="handleEnded"
@@ -68,9 +68,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { ref, watch, onUnmounted, computed } from 'vue';
 import PlayIcon from './icons/PlayIcon.vue';
 import { formatTime } from '../utils/timeUtils';
+import Hls from 'hls.js';
 
 const props = defineProps<{
   src: string | null;
@@ -102,11 +103,67 @@ const currentVideoTime = ref(0);
 const currentVideoDuration = ref(0);
 const bufferedRanges = ref<{ start: number; end: number }[]>([]);
 
+const hls = ref<Hls | null>(null);
+
+const effectiveSrc = computed(() => {
+  // If Hls.js is supported and it's an m3u8, we return undefined
+  // so the video element doesn't try to load it natively (except via Hls.js attachment)
+  if (props.src?.includes('.m3u8') && Hls.isSupported()) {
+    return undefined;
+  }
+  return props.src || undefined;
+});
+
+const initHls = () => {
+  if (hls.value) {
+    hls.value.destroy();
+    hls.value = null;
+  }
+
+  if (!props.src || !videoElement.value) return;
+
+  if (props.src.includes('.m3u8')) {
+    if (Hls.isSupported()) {
+      const hlsInstance = new Hls();
+      hls.value = hlsInstance;
+      hlsInstance.loadSource(props.src);
+      hlsInstance.attachMedia(videoElement.value);
+      hlsInstance.on(Hls.Events.ERROR, (_event, data) => {
+        if (data.fatal) {
+          console.error('HLS Fatal Error:', data);
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR:
+              hlsInstance.startLoad();
+              break;
+            case Hls.ErrorTypes.MEDIA_ERROR:
+              hlsInstance.recoverMediaError();
+              break;
+            default:
+              hlsInstance.destroy();
+              break;
+          }
+        }
+      });
+    } else if (
+      videoElement.value.canPlayType('application/vnd.apple.mpegurl')
+    ) {
+      videoElement.value.src = props.src;
+    }
+  }
+};
+
+onUnmounted(() => {
+  if (hls.value) {
+    hls.value.destroy();
+  }
+});
+
 watch(videoElement, (el) => {
   emit('update:video-element', el);
   if (el && props.initialTime && props.initialTime > 0) {
     el.currentTime = props.initialTime;
   }
+  initHls();
 });
 
 // Watch src to reset state if needed
@@ -117,7 +174,7 @@ watch(
     currentVideoTime.value = 0;
     currentVideoDuration.value = 0;
     bufferedRanges.value = [];
-    // Reset play state if autoplay is expected, but usually autoplay attribute handles it
+    initHls();
   },
 );
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { getDriveStreamWithCache } from '../../src/core/drive-stream';
 import fs from 'fs';
 import { PassThrough } from 'stream';
@@ -26,29 +26,24 @@ vi.mock('../../src/main/google-drive-service', () => ({
   getDriveFileMetadata: mockGetDriveFileMetadata,
 }));
 
-vi.mock('fs', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('fs')>();
-  return {
-    ...actual,
-    default: {
-      ...actual,
-      promises: {
-        ...actual.promises,
-        stat: vi.fn(),
-      },
-      createReadStream: vi.fn(),
-    },
-    promises: {
-      ...actual.promises,
-      stat: vi.fn(),
-    },
-    createReadStream: vi.fn(),
-  };
-});
+// We do NOT mock 'fs' module. We use spies.
 
 describe('drive-stream unit tests', () => {
+  let statSpy: any;
+  let createReadStreamSpy: any;
+
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Setup spies
+    createReadStreamSpy = vi.spyOn(fs, 'createReadStream');
+    statSpy = vi.spyOn(fs.promises, 'stat');
+  });
+
+  afterEach(() => {
+    if (statSpy) statSpy.mockRestore();
+    if (createReadStreamSpy) createReadStreamSpy.mockRestore();
+    vi.restoreAllMocks();
   });
 
   it('returns local stream when file is fully cached', async () => {
@@ -57,10 +52,10 @@ describe('drive-stream unit tests', () => {
     const totalSize = 1000;
 
     mockGetCachedFilePath.mockResolvedValue({ path: cachedPath, totalSize });
-    vi.mocked(fs.promises.stat).mockResolvedValue({ size: totalSize } as any);
+    statSpy.mockResolvedValue({ size: totalSize } as any);
 
     const mockFsStream = new PassThrough();
-    vi.mocked(fs.createReadStream).mockReturnValue(mockFsStream as any);
+    createReadStreamSpy.mockReturnValue(mockFsStream as any);
 
     const result = await getDriveStreamWithCache(fileId);
 
@@ -80,10 +75,10 @@ describe('drive-stream unit tests', () => {
     const cachedSize = 1000;
 
     mockGetCachedFilePath.mockResolvedValue({ path: cachedPath, totalSize });
-    vi.mocked(fs.promises.stat).mockResolvedValue({ size: cachedSize } as any);
+    statSpy.mockResolvedValue({ size: cachedSize } as any);
 
     const mockFsStream = new PassThrough();
-    vi.mocked(fs.createReadStream).mockReturnValue(mockFsStream as any);
+    createReadStreamSpy.mockReturnValue(mockFsStream as any);
 
     // Request start 0, which is covered by cache (0-999)
     const result = await getDriveStreamWithCache(fileId, {
@@ -106,7 +101,7 @@ describe('drive-stream unit tests', () => {
     const cachedSize = 1000;
 
     mockGetCachedFilePath.mockResolvedValue({ path: cachedPath, totalSize });
-    vi.mocked(fs.promises.stat).mockResolvedValue({ size: cachedSize } as any);
+    statSpy.mockResolvedValue({ size: cachedSize } as any);
 
     const mockDriveStream = new PassThrough();
     mockGetDriveFileStream.mockResolvedValue(mockDriveStream);
@@ -147,7 +142,7 @@ describe('drive-stream unit tests', () => {
     const totalSize = 1000;
 
     mockGetCachedFilePath.mockResolvedValue({ path: cachedPath, totalSize });
-    vi.mocked(fs.promises.stat).mockRejectedValue(new Error('Stat failed'));
+    statSpy.mockRejectedValue(new Error('Stat failed'));
 
     const mockDriveStream = new PassThrough();
     mockGetDriveFileStream.mockResolvedValue(mockDriveStream);

@@ -1,13 +1,14 @@
 import { describe, it, expect, afterEach, beforeEach, vi, Mock } from 'vitest';
 import http from 'http';
+import cp from 'child_process'; // Import for spying
+import EventEmitter from 'events';
+
 import {
   startLocalServer,
   stopLocalServer,
   getServerPort,
 } from '../../src/main/local-server';
-// Mock core database instead of main database, as security.ts uses core
 import { getMediaDirectories } from '../../src/core/database';
-import EventEmitter from 'events';
 
 // Mock dependencies
 vi.mock('../../src/core/database', () => ({
@@ -16,45 +17,38 @@ vi.mock('../../src/core/database', () => ({
 
 vi.mock('ffmpeg-static', () => ({ default: '/usr/bin/ffmpeg' }));
 
-vi.mock('child_process', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('child_process')>();
-
-  // Create a mock spawn that returns an EventEmitter-like object
-  // so we can emit 'close'
-  const spawnMock = vi.fn().mockImplementation(() => {
-    const cp: any = new EventEmitter();
-    cp.stderr = new EventEmitter();
-    cp.stdout = new EventEmitter();
-    cp.stdout.pipe = vi.fn();
-    cp.kill = vi.fn();
-    cp.unref = vi.fn();
-
-    // Trigger close asynchronously to simulate process finishing
-    setTimeout(() => {
-      cp.emit('close', 0);
-    }, 10);
-
-    return cp;
-  });
-
-  return {
-    ...actual,
-    spawn: spawnMock,
-    default: {
-      ...actual,
-      spawn: spawnMock,
-    },
-  };
-});
+// REMOVED vi.mock('child_process')
 
 describe('Local Server Encoding Bug', () => {
+  let spawnSpy: any;
+
   beforeEach(() => {
     (getMediaDirectories as unknown as Mock).mockResolvedValue([
       { path: '/tmp' },
     ]);
+
+    // Setup spy on child_process.spawn
+    spawnSpy = vi.spyOn(cp, 'spawn').mockImplementation(() => {
+      const proc: any = new EventEmitter();
+      proc.stderr = new EventEmitter();
+      proc.stdout = new EventEmitter();
+      proc.stdout.pipe = vi.fn();
+      proc.kill = vi.fn();
+      proc.unref = vi.fn();
+
+      // Trigger close asynchronously to simulate process finishing
+      setTimeout(() => {
+        proc.emit('close', 0);
+      }, 10);
+
+      return proc;
+    });
   });
 
   afterEach(async () => {
+    // Restore spy
+    spawnSpy.mockRestore();
+
     await new Promise<void>((resolve) => stopLocalServer(resolve));
     vi.restoreAllMocks();
   });

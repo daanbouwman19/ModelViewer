@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { EventEmitter } from 'stream';
+import fs from 'fs'; // Import for spying
 import {
   serveThumbnail,
   generateLocalThumbnail,
@@ -11,53 +12,15 @@ const {
   mockAuthorizeFilePath,
   mockGetThumbnailCachePath,
   mockCheckThumbnailCache,
-  mockFsCreateReadStream,
-  mockFsCreateWriteStream,
-  mockFsStat,
 } = vi.hoisted(() => ({
   mockRunFFmpeg: vi.fn(),
   mockGetDriveFileThumbnail: vi.fn(),
   mockAuthorizeFilePath: vi.fn(),
   mockGetThumbnailCachePath: vi.fn(),
   mockCheckThumbnailCache: vi.fn(),
-  mockFsCreateReadStream: vi.fn(),
-  mockFsCreateWriteStream: vi.fn(),
-  mockFsStat: vi.fn(),
 }));
 
-vi.mock('fs', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('fs')>();
-  return {
-    ...actual,
-    default: {
-      ...actual,
-      promises: {
-        ...actual.promises,
-        stat: mockFsStat,
-      },
-      createReadStream: mockFsCreateReadStream,
-      createWriteStream: mockFsCreateWriteStream,
-    },
-    promises: {
-      ...actual.promises,
-      stat: mockFsStat,
-    },
-    createReadStream: mockFsCreateReadStream,
-    createWriteStream: mockFsCreateWriteStream,
-  };
-});
-
-vi.mock('fs/promises', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('fs/promises')>();
-  return {
-    ...actual,
-    default: {
-      ...actual,
-      stat: mockFsStat,
-    },
-    stat: mockFsStat,
-  };
-});
+// REMOVED vi.mock('fs') and vi.mock('fs/promises')
 
 // Mock dependencies
 vi.mock('../../src/main/google-drive-service', () => ({
@@ -71,6 +34,7 @@ vi.mock('../../src/core/security', () => ({
 vi.mock('../../src/core/access-validator', () => ({
   validateFileAccess: vi.fn().mockImplementation(async (path) => {
     // Mocking validateFileAccess logic for local files
+    // Dynamic import to get the mocked authorizeFilePath
     const { authorizeFilePath } = await import('../../src/core/security');
     if (path.startsWith('gdrive://')) return { success: true, path };
     try {
@@ -117,9 +81,41 @@ describe('thumbnail-handler unit tests', () => {
   let req: any;
   let res: any;
 
+  let mockFsStat: any;
+  let mockFsCreateReadStream: any;
+  let mockFsCreateWriteStream: any;
+
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Reset persistent mocks
     mockRunFFmpeg.mockReset();
+    mockGetDriveFileThumbnail.mockReset();
+    mockAuthorizeFilePath.mockReset();
+    mockGetThumbnailCachePath.mockReset();
+    mockCheckThumbnailCache.mockReset();
+
+    // Setup spies
+    mockFsStat = vi.spyOn(fs.promises, 'stat');
+    mockFsCreateReadStream = vi.spyOn(fs, 'createReadStream');
+    mockFsCreateWriteStream = vi.spyOn(fs, 'createWriteStream');
+
+    // Default implementations
+    mockFsStat.mockResolvedValue({ size: 1000 });
+
+    mockFsCreateReadStream.mockImplementation(() => {
+      const s = new EventEmitter();
+      setTimeout(() => s.emit('open', 1), 0);
+      return s;
+    });
+
+    mockFsCreateWriteStream.mockReturnValue(new EventEmitter());
+
+    // Default mock implementation for authorizeFilePath
+    mockAuthorizeFilePath.mockResolvedValue({
+      isAllowed: true,
+      realPath: '/test/path',
+    });
 
     req = {};
     res = {
@@ -130,6 +126,10 @@ describe('thumbnail-handler unit tests', () => {
       send: vi.fn(),
       set: vi.fn().mockReturnThis(),
     };
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe('serveThumbnail', () => {

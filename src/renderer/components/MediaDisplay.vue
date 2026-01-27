@@ -386,47 +386,26 @@ const tryTranscoding = async (startTime = 0, requestId?: number) => {
   // Guard: If we are running part of an old request sequence, stop.
   if (effectiveRequestId !== currentLoadRequestId) return;
 
-  isTranscodingMode.value = true;
+  // We are "transcoding" in the backend, but for the frontend player (HLS),
+  // it behaves like a native stream (seekable).
+  // So isTranscodingMode = false prevents manual seek triggers in VideoPlayer.
+  isTranscodingMode.value = false;
   isTranscodingLoading.value = true;
-  // Don't clear error globally here, as we might be recovering from one.
-  // But usually starting a new attempt clears old errors.
   error.value = null;
-
-  // For smooth transitions, `displayedItem` is updated once the new media URL is fully loaded.
-  // With transcoding, the stream URL is available immediately, so we update `displayedItem`
-  // right away to ensure UI consistency while the video buffers.
 
   currentTranscodeStartTime.value = startTime;
 
   try {
-    const generator = await ensureVideoStreamGenerator();
+    // Check if item still valid
     if (effectiveRequestId !== currentLoadRequestId) return;
 
-    const encodedPath = currentMediaItem.value.path;
+    // Use HLS for adaptive streaming
+    const rawPath = currentMediaItem.value.path;
+    const encodedPath = encodeURIComponent(rawPath);
+    const hlsUrl = `/api/hls/master.m3u8?file=${encodedPath}`;
 
-    // Fetch duration if not already known
-    if (transcodedDuration.value === 0) {
-      try {
-        const meta = await api.getVideoMetadata(encodedPath);
-        if (meta.duration) {
-          transcodedDuration.value = meta.duration;
-        }
-      } catch {
-        // Failed to fetch metadata
-      }
-    }
-    if (effectiveRequestId !== currentLoadRequestId) return;
-
-    let transcodeUrl = generator(encodedPath, startTime);
-
-    if (transcodeUrl.includes('?')) {
-      transcodeUrl += '&transcode=true';
-    } else {
-      transcodeUrl += '?transcode=true';
-    }
-
-    console.log('Transcoding URL:', transcodeUrl);
-    mediaUrl.value = transcodeUrl;
+    console.log('HLS URL:', hlsUrl);
+    mediaUrl.value = hlsUrl;
 
     // Sync displayed item when transcoding starts successfully
     displayedItem.value = currentMediaItem.value;
@@ -435,12 +414,10 @@ const tryTranscoding = async (startTime = 0, requestId?: number) => {
   } catch (e) {
     if (effectiveRequestId !== currentLoadRequestId) return;
 
-    console.error('Transcoding failed', e);
+    console.error('HLS setup failed', e);
     isTranscodingMode.value = false;
     isTranscodingLoading.value = false;
-    if (!error.value) {
-      error.value = 'Local server not available';
-    }
+    error.value = 'Failed to start playback';
   }
 };
 

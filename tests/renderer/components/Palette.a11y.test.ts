@@ -8,7 +8,7 @@ import {
   vi,
   type Mock,
 } from 'vitest';
-import { mount } from '@vue/test-utils';
+import { mount, flushPromises } from '@vue/test-utils';
 import { reactive, toRefs } from 'vue';
 import MediaDisplay from '@/components/MediaDisplay.vue';
 import VideoPlayer from '@/components/VideoPlayer.vue';
@@ -275,7 +275,7 @@ describe('Palette Accessibility Improvements', () => {
         path: '/video.mp4',
       };
       const wrapper = mount(MediaDisplay);
-      await wrapper.vm.$nextTick();
+      await flushPromises();
 
       // Enable transcoding mode
       (wrapper.vm as any).isTranscodingMode = true;

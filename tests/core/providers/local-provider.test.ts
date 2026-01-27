@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { LocalFileSystemProvider } from '../../../src/core/providers/local-provider';
 import { listDirectory } from '../../../src/core/file-system';
 import { getMimeType, isDrivePath } from '../../../src/core/media-utils';
@@ -6,45 +6,51 @@ import fs from 'fs';
 import fsPromises from 'fs/promises';
 import path from 'path';
 
+// Mock internal dependencies safe to mock
 vi.mock('../../../src/core/file-system', () => ({
   listDirectory: vi.fn(),
 }));
 
-// Mock isDrivePath and getMimeType
 vi.mock('../../../src/core/media-utils', () => ({
   getMimeType: vi.fn(),
   isDrivePath: vi.fn(),
 }));
 
-vi.mock('fs', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('fs')>();
-  return {
-    ...actual,
-    createReadStream: vi.fn(),
-    default: {
-      ...actual,
-      createReadStream: vi.fn(),
-    },
-  };
-});
-
-vi.mock('fs/promises', () => ({
-  default: {
-    stat: vi.fn(),
-    realpath: vi.fn(),
-  },
-}));
+// REMOVED vi.mock('fs') and vi.mock('fs/promises')
 
 describe('LocalFileSystemProvider', () => {
   let provider: LocalFileSystemProvider;
+  let mockStat: any;
+  let mockRealpath: any;
+  let mockCreateReadStream: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
     provider = new LocalFileSystemProvider();
+
     // Default implementation for isDrivePath in tests
     (isDrivePath as Mock).mockImplementation((path: string) =>
       path.startsWith('gdrive://'),
     );
+
+    // Setup spies
+    mockStat = vi.spyOn(fsPromises, 'stat').mockResolvedValue({
+      size: 100,
+      mtime: new Date('2021-01-01'),
+    } as any);
+
+    mockRealpath = vi
+      .spyOn(fsPromises, 'realpath')
+      .mockResolvedValue('/real/path');
+
+    // fs.createReadStream is on the default export for 'fs'
+    mockCreateReadStream = vi
+      .spyOn(fs, 'createReadStream')
+      .mockReturnValue({} as any);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe('canHandle', () => {
@@ -70,7 +76,7 @@ describe('LocalFileSystemProvider', () => {
   describe('getMetadata', () => {
     it('returns metadata', async () => {
       const stats = { size: 100, mtime: new Date('2021-01-01') };
-      (fsPromises.stat as Mock).mockResolvedValue(stats);
+      mockStat.mockResolvedValue(stats);
       (getMimeType as Mock).mockReturnValue('text/plain');
 
       const meta = await provider.getMetadata('/file.txt');
@@ -88,7 +94,7 @@ describe('LocalFileSystemProvider', () => {
   describe('getStream', () => {
     it('returns stream', async () => {
       const mockStream = {};
-      (fs.createReadStream as Mock).mockReturnValue(mockStream);
+      mockCreateReadStream.mockReturnValue(mockStream);
 
       const result = await provider.getStream('/file.txt', {
         start: 0,
@@ -105,25 +111,21 @@ describe('LocalFileSystemProvider', () => {
 
   describe('getParent', () => {
     it('returns parent directory', async () => {
-      // Here we rely on path loaded in enviroment, assuming posix like or windows depending on where tests run.
-      // Vitest runs in node, so path depends on OS. But we can verify logic generally.
-      // Or we can assume / separators for tests if we use posix paths in args.
-      // path.dirname('/a/b') -> '/a' usually.
-
       const res = await provider.getParent('/a/b/c');
       expect(res).toBe(path.dirname('/a/b/c'));
     });
 
     it('returns null if root', async () => {
-      // const root = path.parse(process.cwd()).root;
-      // Testing exact root equality might be flaky cross-platform.
-      // Let's use known behavior: dirname of '/' is '/'.
-      // If we pass '/', dirname returns '/'.
-      // Code: if (parent === filePath) return null;
-
-      // Linux:
+      // Logic relies on path.dirname behavior
       const res = await provider.getParent('/');
-      expect(res).toBeNull();
+      // If path.dirname('/') === '/', then returns null
+      if (path.dirname('/') === '/') {
+        expect(res).toBeNull();
+      } else {
+        // Windows or other behavior handling
+        // On windows path.dirname('/') is probably '/' or '\'
+        expect(res).toBeNull();
+      }
     });
 
     it('returns null if empty', async () => {
@@ -134,15 +136,14 @@ describe('LocalFileSystemProvider', () => {
 
   describe('resolvePath', () => {
     it('resolves real path', async () => {
-      (fsPromises.realpath as Mock).mockResolvedValue('/real/path');
+      mockRealpath.mockResolvedValue('/real/path');
       const res = await provider.resolvePath('/symlink');
       expect(res).toBe('/real/path');
     });
 
     it('fallbacks to path.resolve', async () => {
-      (fsPromises.realpath as Mock).mockRejectedValue(new Error('Fail'));
+      mockRealpath.mockRejectedValue(new Error('Fail'));
       const res = await provider.resolvePath('/some/path');
-      // path.resolve depends on cwd
       expect(res).toBe(path.resolve('/some/path'));
     });
   });

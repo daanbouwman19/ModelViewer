@@ -1,37 +1,31 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
-import { getVlcPath } from '../../../src/core/utils/vlc-paths.ts';
-import fs from 'fs';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
+import { getVlcPath } from '../../../src/core/utils/vlc-paths';
+import fs from 'fs'; // Import for spying
 
-// Mock fs.promises.access
-vi.mock('fs', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('fs')>();
-  return {
-    ...actual,
-    default: {
-      ...actual,
-      promises: {
-        ...actual.promises,
-        access: vi.fn(),
-      },
-    },
-  };
-});
+// REMOVED vi.mock('fs', ...)
 
 describe('getVlcPath', () => {
   const originalPlatform = process.platform;
+  let accessSpy: any;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Spy on fs.promises.access
+    accessSpy = vi.spyOn(fs.promises, 'access');
+  });
 
   afterEach(() => {
     Object.defineProperty(process, 'platform', {
       value: originalPlatform,
     });
-    vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('should return null on Windows if VLC is not found', async () => {
     Object.defineProperty(process, 'platform', {
       value: 'win32',
     });
-    vi.mocked(fs.promises.access).mockRejectedValue(new Error('Not found'));
+    accessSpy.mockRejectedValue(new Error('Not found'));
 
     const result = await getVlcPath();
     expect(result).toBeNull();
@@ -41,7 +35,7 @@ describe('getVlcPath', () => {
     Object.defineProperty(process, 'platform', {
       value: 'win32',
     });
-    vi.mocked(fs.promises.access).mockImplementation((path: any) => {
+    accessSpy.mockImplementation((path: any) => {
       if (path === 'C:\\Program Files\\VideoLAN\\VLC\\vlc.exe')
         return Promise.resolve();
       return Promise.reject(new Error('Not found'));
@@ -55,7 +49,7 @@ describe('getVlcPath', () => {
     Object.defineProperty(process, 'platform', {
       value: 'win32',
     });
-    vi.mocked(fs.promises.access).mockImplementation((path: any) => {
+    accessSpy.mockImplementation((path: any) => {
       if (path === 'C:\\Program Files (x86)\\VideoLAN\\VLC\\vlc.exe')
         return Promise.resolve();
       return Promise.reject(new Error('Not found'));
@@ -69,7 +63,7 @@ describe('getVlcPath', () => {
     Object.defineProperty(process, 'platform', {
       value: 'darwin',
     });
-    vi.mocked(fs.promises.access).mockResolvedValue(undefined);
+    accessSpy.mockResolvedValue(undefined);
 
     const result = await getVlcPath();
     expect(result).toBe('/Applications/VLC.app/Contents/MacOS/VLC');
@@ -79,7 +73,7 @@ describe('getVlcPath', () => {
     Object.defineProperty(process, 'platform', {
       value: 'darwin',
     });
-    vi.mocked(fs.promises.access).mockRejectedValue(new Error('Not found'));
+    accessSpy.mockRejectedValue(new Error('Not found'));
 
     const result = await getVlcPath();
     expect(result).toBe('vlc');
@@ -89,7 +83,7 @@ describe('getVlcPath', () => {
     Object.defineProperty(process, 'platform', {
       value: 'linux',
     });
-    vi.mocked(fs.promises.access).mockImplementation((path: any) => {
+    accessSpy.mockImplementation((path: any) => {
       if (path === '/usr/bin/vlc') return Promise.resolve();
       return Promise.reject(new Error('Not found'));
     });
@@ -102,7 +96,7 @@ describe('getVlcPath', () => {
     Object.defineProperty(process, 'platform', {
       value: 'linux',
     });
-    vi.mocked(fs.promises.access).mockRejectedValue(new Error('Not found'));
+    accessSpy.mockRejectedValue(new Error('Not found'));
 
     const result = await getVlcPath();
     expect(result).toBe('vlc');

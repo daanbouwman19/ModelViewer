@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   isDrivePath,
   getDriveId,
@@ -7,19 +7,23 @@ import {
   getThumbnailCachePath,
   checkThumbnailCache,
 } from '../../src/core/media-utils';
-import fs from 'fs';
+import fs from 'fs'; // Import for spyOn
 import path from 'path';
 
-// Mock fs.promises.access
-vi.mock('fs', () => ({
-  default: {
-    promises: {
-      access: vi.fn(),
-    },
-  },
-}));
+// REMOVED vi.mock('fs')
 
 describe('media-utils unit tests', () => {
+  let mockFsAccess: any;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFsAccess = vi.spyOn(fs.promises, 'access');
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   describe('Drive Helpers', () => {
     it('isDrivePath correctly identifies drive paths', () => {
       expect(isDrivePath('gdrive://123')).toBe(true);
@@ -68,19 +72,21 @@ describe('media-utils unit tests', () => {
       const filePath = '/test/video.mp4';
       const cacheDir = '/cache';
       const result = getThumbnailCachePath(filePath, cacheDir);
-      // MD5 of /test/video.mp4 is 0e352d0016a90326079946487532655c (echo -n "/test/video.mp4" | md5sum)
-      // Actually checking exact hash might be brittle if implementation changes, but format should be path join
-      expect(result).toMatch(/\/cache\/[a-f0-9]+\.jpg$/);
+
+      // Match path ending with /cache/<hash>.jpg, allowing either / or \ separator
+      expect(result).toMatch(/[\\/]cache[\\/][a-f0-9]+\.jpg$/);
+
+      // Verify validation logic works with platform specific check
       expect(result.startsWith(path.join(cacheDir))).toBe(true);
     });
 
     it('checkThumbnailCache returns true if file exists', async () => {
-      vi.mocked(fs.promises.access).mockResolvedValue(undefined);
+      mockFsAccess.mockResolvedValue(undefined);
       expect(await checkThumbnailCache('/path/to/thumb.jpg')).toBe(true);
     });
 
     it('checkThumbnailCache returns false if file access fails', async () => {
-      vi.mocked(fs.promises.access).mockRejectedValue(new Error('ENOENT'));
+      mockFsAccess.mockRejectedValue(new Error('ENOENT'));
       expect(await checkThumbnailCache('/path/to/thumb.jpg')).toBe(false);
     });
   });

@@ -1,5 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Readable } from 'stream';
+import fs from 'fs'; // Import for spying
+
 import {
   LocalMediaSource,
   DriveMediaSource,
@@ -8,34 +10,18 @@ import {
 
 // Mocks
 const {
-  mockFsStat,
-  mockFsCreateReadStream,
   mockAuthorizeFilePath,
   mockGetDriveFileMetadata,
   mockGetDriveStreamWithCache,
   mockProxyGetUrlForFile,
 } = vi.hoisted(() => ({
-  mockFsStat: vi.fn(),
-  mockFsCreateReadStream: vi.fn(),
   mockAuthorizeFilePath: vi.fn(),
   mockGetDriveFileMetadata: vi.fn(),
   mockGetDriveStreamWithCache: vi.fn(),
   mockProxyGetUrlForFile: vi.fn(),
 }));
 
-vi.mock('fs', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('fs')>();
-  return {
-    ...actual,
-    default: {
-      ...actual,
-      promises: { ...actual.promises, stat: mockFsStat },
-      createReadStream: mockFsCreateReadStream,
-    },
-    promises: { ...actual.promises, stat: mockFsStat },
-    createReadStream: mockFsCreateReadStream,
-  };
-});
+// REMOVED vi.mock('fs')
 
 vi.mock('../../src/core/security', () => ({
   authorizeFilePath: mockAuthorizeFilePath,
@@ -59,8 +45,28 @@ vi.mock('../../src/core/media-proxy', () => ({
 }));
 
 describe('media-source', () => {
+  let mockFsStat: any;
+  let mockFsCreateReadStream: any;
+
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Reset persistent mocks
+    mockAuthorizeFilePath.mockReset();
+    mockGetDriveFileMetadata.mockReset();
+    mockGetDriveStreamWithCache.mockReset();
+    mockProxyGetUrlForFile.mockReset();
+
+    // Setup spies
+    mockFsStat = vi.spyOn(fs.promises, 'stat');
+    mockFsCreateReadStream = vi.spyOn(fs, 'createReadStream');
+
+    // Default implementations
+    mockFsStat.mockResolvedValue({ size: 1000 });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe('LocalMediaSource', () => {

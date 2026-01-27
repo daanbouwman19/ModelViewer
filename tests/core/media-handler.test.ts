@@ -1,9 +1,10 @@
-import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach, Mock, afterEach } from 'vitest';
 import { IMediaSource } from '../../src/core/media-source-types';
 import { PassThrough, EventEmitter } from 'stream';
 import path from 'path';
 import request from 'supertest';
 import { createMediaSource } from '../../src/core/media-source';
+import fs from 'fs'; // Import fs for spying
 
 const {
   mockSpawn,
@@ -12,12 +13,7 @@ const {
   mockAuthorizeFilePath,
   mockGetThumbnailCachePath,
   mockCheckThumbnailCache,
-  mockFsCreateReadStream,
-  mockFsCreateWriteStream,
-  mockFsStat,
   mockGetDriveStreamWithCache,
-  mockFsReadFile,
-  mockFsAccess,
   mockGetFFmpegDuration,
 } = vi.hoisted(() => ({
   mockSpawn: vi.fn(),
@@ -26,12 +22,7 @@ const {
   mockAuthorizeFilePath: vi.fn(),
   mockGetThumbnailCachePath: vi.fn(),
   mockCheckThumbnailCache: vi.fn(),
-  mockFsCreateReadStream: vi.fn(),
-  mockFsCreateWriteStream: vi.fn(),
-  mockFsStat: vi.fn(),
   mockGetDriveStreamWithCache: vi.fn(),
-  mockFsReadFile: vi.fn(),
-  mockFsAccess: vi.fn(),
   mockGetFFmpegDuration: vi.fn(),
 }));
 
@@ -40,53 +31,7 @@ vi.mock('child_process', () => ({
   default: { spawn: mockSpawn },
 }));
 
-vi.mock('fs', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('fs')>();
-  return {
-    ...actual,
-    default: {
-      ...actual,
-      promises: {
-        ...actual.promises,
-        stat: mockFsStat,
-        readFile: mockFsReadFile,
-        access: mockFsAccess,
-      },
-      createReadStream: mockFsCreateReadStream,
-      createWriteStream: mockFsCreateWriteStream,
-      readFile: mockFsReadFile,
-      access: mockFsAccess,
-    },
-    promises: {
-      ...actual.promises,
-      stat: mockFsStat,
-      readFile: mockFsReadFile,
-      access: mockFsAccess,
-    },
-    createReadStream: mockFsCreateReadStream,
-    createWriteStream: mockFsCreateWriteStream,
-    readFile: mockFsReadFile,
-    access: mockFsAccess,
-  };
-});
-
-vi.mock('fs/promises', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('fs/promises')>();
-  return {
-    ...actual,
-    default: {
-      ...actual,
-      stat: mockFsStat,
-      readFile: mockFsReadFile,
-      access: mockFsAccess,
-    },
-    stat: mockFsStat,
-    readFile: mockFsReadFile,
-    access: mockFsAccess,
-  };
-});
-
-// Import code under test AFTER mocking
+// Import code under test AFTER mocking dependencies
 import {
   serveTranscodedStream,
   serveRawStream,
@@ -160,9 +105,52 @@ describe('media-handler unit tests', () => {
   let req: any;
   let res: any;
 
+  // Define spies to replace hoisted vars
+  let mockFsStat: any;
+  let mockFsReadFile: any;
+  let mockFsAccess: any;
+  let mockFsCreateReadStream: any;
+
   beforeEach(async () => {
     vi.clearAllMocks();
-    mockSpawn.mockReset(); // Reset the spy
+
+    // Reset all persistent mocks prevents cross-test state pollution
+    mockSpawn.mockReset();
+    mockGetDriveFileMetadata.mockReset();
+    mockGetDriveFileThumbnail.mockReset();
+    mockAuthorizeFilePath.mockReset();
+    mockGetThumbnailCachePath.mockReset();
+    mockCheckThumbnailCache.mockReset();
+    mockGetDriveStreamWithCache.mockReset();
+    mockGetFFmpegDuration.mockReset();
+
+    // Setup Spies
+    // Note: Since media-handler imports from fs/promises, we spy on fs.promises
+    mockFsStat = vi.spyOn(fs.promises, 'stat');
+    mockFsReadFile = vi.spyOn(fs.promises, 'readFile');
+    mockFsAccess = vi.spyOn(fs.promises, 'access');
+
+    mockFsCreateReadStream = vi.spyOn(fs, 'createReadStream');
+
+    // Default spy implementations to avoid errors
+    mockFsStat.mockResolvedValue({ size: 1000, mtime: new Date() });
+    mockFsAccess.mockResolvedValue(undefined); // Success
+    mockFsReadFile.mockResolvedValue(Buffer.from(''));
+
+    mockFsCreateReadStream.mockImplementation(() => {
+      const s = new PassThrough();
+      setTimeout(() => {
+        s.emit('open');
+        s.end(Buffer.from('fake-image'));
+      }, 0);
+      return s;
+    });
+
+    // Default mock implementation for authorizeFilePath
+    mockAuthorizeFilePath.mockResolvedValue({
+      isAllowed: true,
+      realPath: '/test/path',
+    });
 
     // Restore default getProvider behavior
     const { getProvider: actualGetProvider } = (await vi.importActual(
@@ -186,7 +174,7 @@ describe('media-handler unit tests', () => {
       }),
     };
     res = {
-      writeHead: vi.fn(() => {}), // Keep for legacy checks if any remain
+      writeHead: vi.fn(() => {}),
       end: vi.fn(() => {}),
       headersSent: false,
       on: vi.fn(),
@@ -216,7 +204,10 @@ describe('media-handler unit tests', () => {
     });
   });
 
-  // ... (Other tests: getMimeType, etc. assumed same as previous)
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   describe('getMimeType', () => {
     it('returns octet-stream for gdrive files', () => {
       expect(getMimeType('gdrive://123')).toBe('application/octet-stream');
@@ -803,6 +794,7 @@ describe('media-handler unit tests', () => {
     req.emit('close');
     expect(mockProc.kill).toHaveBeenCalledWith('SIGKILL');
   });
+
   it('handles process error', async () => {
     const mockProc = new EventEmitter() as any;
     mockProc.stdout = new PassThrough();
@@ -826,7 +818,6 @@ describe('media-handler unit tests', () => {
     );
 
     mockProc.emit('error', new Error('Process Error'));
-    // assert calling console.error? Not strictly needed for coverage, just need execution.
   });
 
   it('collects stderr data', async () => {
@@ -940,12 +931,7 @@ describe('media-handler unit tests', () => {
     it('should return data-url for small local file', async () => {
       mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
       mockFsStat.mockResolvedValue({ size: 100 });
-      // Create a mock fs module locally to force readFile or ensure readFile is mocked
-      // In this file we only mocked fs.promises.stat in the hoist but we modified the mock above to include readFile.
-      // However, we need to provide implementation for readFile.
 
-      // const fs = await import('fs/promises'); // REMOVED
-      // (fs.readFile as Mock).mockResolvedValue(Buffer.from('data')); // REMOVED
       const mockStream = {
         [Symbol.asyncIterator]: async function* () {
           yield Buffer.from('data');
@@ -999,8 +985,8 @@ describe('media-handler unit tests', () => {
       const res2 = await request(app).get(
         '/video/thumbnail?file=/test.jpg&file=/ignore.jpg',
       );
-      // Expect 500 because stream file open/read error is mapped to 500
-      expect(res2.status).toBe(500);
+      // Expect 200 because we simulate successful cache hit
+      expect(res2.status).toBe(200);
     });
 
     it('Static File Middleware normalizes Windows paths with leading slash', async () => {
