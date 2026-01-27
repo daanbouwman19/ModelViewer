@@ -2,6 +2,7 @@ import type { drive_v3 } from 'googleapis';
 import { getOAuth2Client, loadSavedCredentialsIfExist } from './google-auth.ts';
 import { Readable } from 'stream';
 import type { MediaFile, Album } from '../core/types.ts';
+import { createDrivePath } from '../core/media-utils.ts';
 
 let driveClient: drive_v3.Drive | null = null;
 
@@ -109,7 +110,7 @@ export async function listDriveFiles(folderId: string): Promise<Album> {
       return true;
     })
     .map((f) => {
-      let path = `gdrive://${f.id}`;
+      let path = createDrivePath(f.id || '');
       // If shortcut, maybe we should point to targetId?
       // Actually, for streaming, we might need the original ID or target ID depending on permission.
       // Usually target ID is better if we have access.
@@ -117,7 +118,7 @@ export async function listDriveFiles(folderId: string): Promise<Album> {
         f.mimeType === 'application/vnd.google-apps.shortcut' &&
         f.shortcutDetails?.targetId
       ) {
-        path = `gdrive://${f.shortcutDetails.targetId}`;
+        path = createDrivePath(f.shortcutDetails.targetId);
       }
       return {
         name: f.name || 'Untitled',
