@@ -200,10 +200,12 @@ describe('HlsManager', () => {
     // Simulate spawn error immediately
     mockProcess.emit('error', new Error('Spawn failed'));
 
-    // Advance timers - it should catch session disappearance or timeout if deletion failed
-    await vi.runAllTimersAsync();
+    // Advancing timers should cause the promise to resolve/reject
+    await Promise.all([
+      expect(promise).rejects.toThrow(),
+      vi.runAllTimersAsync(),
+    ]);
 
-    await expect(promise).rejects.toThrow();
     expect(consoleSpy.mock.calls[0][0]).toContain('error-spawn');
     expect(consoleSpy.mock.calls[0][1]).toBeInstanceOf(Error);
     consoleSpy.mockRestore();
@@ -231,11 +233,14 @@ describe('HlsManager', () => {
     mockProcess.emit('exit', 1, null);
     mockProcess.exitCode = 1;
 
-    await vi.runAllTimersAsync();
+    // Advancing timers should cause the promise to resolve/reject
+    await Promise.all([
+      expect(promise).rejects.toThrow(
+        'HLS process exited before playlist creation',
+      ),
+      vi.runAllTimersAsync(),
+    ]);
 
-    await expect(promise).rejects.toThrow(
-      'HLS process exited before playlist creation',
-    );
     expect(consoleSpy.mock.calls[0][0]).toContain('exited with code 1');
     consoleSpy.mockRestore();
   });
