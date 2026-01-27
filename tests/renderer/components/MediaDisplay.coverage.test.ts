@@ -172,62 +172,6 @@ describe('MediaDisplay.vue Additional Coverage', () => {
     (api.getVideoMetadata as Mock).mockResolvedValue({ duration: 100 });
   });
 
-  it('should handle metadata loading failure during transcoding (swallow error)', async () => {
-    // Mock metadata failure
-    (api.getVideoMetadata as Mock).mockRejectedValue(new Error('Meta fail'));
-
-    const wrapper = mount(MediaDisplay);
-    await flushPromises();
-
-    // Trigger transcoding
-    await (wrapper.vm as any).tryTranscoding(0);
-
-    // It should proceed without crashing, leaving duration as 0 if it was 0
-    expect((wrapper.vm as any).isTranscodingMode).toBe(true);
-    // Error is swallowed, so no error message in UI
-    expect(wrapper.text()).not.toContain('Transcoding failed');
-  });
-
-  it('should handle missing video stream generator', async () => {
-    // Mock generator failure during mount
-    (api.getVideoStreamUrlGenerator as Mock).mockRejectedValue(
-      new Error('Init fail'),
-    );
-
-    const wrapper = mount(MediaDisplay);
-    await flushPromises();
-
-    // Trigger transcoding
-    await (wrapper.vm as any).tryTranscoding(0);
-
-    // Should set error message
-    expect((wrapper.vm as any).error).toBe('Local server not available');
-    expect((wrapper.vm as any).isTranscodingLoading).toBe(false);
-  });
-
-  it('should handle general transcoding error', async () => {
-    // Mock generator to throw when called
-    const generator = vi.fn().mockImplementation(() => {
-      throw new Error('Gen fail');
-    });
-    (api.getVideoStreamUrlGenerator as Mock).mockResolvedValue(generator);
-
-    const wrapper = mount(MediaDisplay);
-    await flushPromises();
-
-    // Trigger transcoding
-    // We mock console.error to avoid noise
-    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-    await (wrapper.vm as any).tryTranscoding(0);
-
-    expect((wrapper.vm as any).isTranscodingMode).toBe(false); // Should revert or stay false?
-    // Code says: isTranscodingMode = true; try { ... } catch { isTranscodingMode = false; }
-    expect((wrapper.vm as any).isTranscodingMode).toBe(false);
-    expect(spy).toHaveBeenCalledWith('Transcoding failed', expect.any(Error));
-    spy.mockRestore();
-  });
-
   describe('Slideshow Prefetching', () => {
     it('should prefetch next image in sequence', async () => {
       // Setup: 2 items in list

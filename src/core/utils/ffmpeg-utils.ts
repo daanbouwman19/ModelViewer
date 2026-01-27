@@ -145,3 +145,47 @@ export async function getFFmpegDuration(
     throw new Error('FFmpeg execution failed');
   }
 }
+
+export function getHlsTranscodeArgs(
+  inputPath: string,
+  outputSegmentPath: string,
+  outputPlaylistPath: string,
+  segmentDuration: number,
+): string[] {
+  // -hls_time: Target segment duration
+  // -hls_list_size 0: Keep all segments in playlist (VOD style) for now.
+  // -hls_segment_filename: naming pattern for segments
+  // -f hls: HLS format
+  return [
+    '-hide_banner',
+    '-loglevel',
+    'error',
+    ...FFMPEG_INPUT_OPTIONS,
+    '-i',
+    inputPath,
+    // Base video/audio codecs for HLS output
+    '-c:v',
+    'libx264',
+    '-c:a',
+    'aac',
+    '-preset',
+    FFMPEG_TRANSCODE_PRESET,
+    '-crf',
+    FFMPEG_TRANSCODE_CRF,
+    '-pix_fmt',
+    'yuv420p',
+    '-g',
+    '48', // GOP size. ~2 seconds at 24fps. helps seeking.
+    '-sc_threshold',
+    '0',
+    '-f',
+    'hls',
+    '-hls_time',
+    segmentDuration.toString(),
+    '-hls_list_size',
+    '0', // 0 = keep all segments
+    '-hls_segment_filename',
+    outputSegmentPath,
+    outputPlaylistPath,
+  ];
+}

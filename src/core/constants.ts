@@ -266,4 +266,16 @@ export {
   RATE_LIMIT_FILE_MAX_REQUESTS,
   MAX_CONCURRENT_TRANSCODES,
   MAX_API_BATCH_SIZE,
+  HLS_SEGMENT_DURATION,
+  HLS_CACHE_DIR_NAME,
 };
+
+/**
+ * Duration of each HLS segment in seconds.
+ */
+const HLS_SEGMENT_DURATION = 6;
+
+/**
+ * Name of the directory within the cache for HLS segments.
+ */
+const HLS_CACHE_DIR_NAME = 'hls';

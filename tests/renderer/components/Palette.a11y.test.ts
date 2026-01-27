@@ -267,53 +267,6 @@ describe('Palette Accessibility Improvements', () => {
       await progressBar.trigger('keydown', { key: 'ArrowRight' });
       expect(mockVideo.currentTime).toBe(100); // Clamped to 100
     });
-
-    it('should handle keyboard navigation on progress bar in transcoding mode', async () => {
-      // Setup video media
-      mockPlayerState.currentMediaItem = {
-        name: 'video.mp4',
-        path: '/video.mp4',
-      };
-      const wrapper = mount(MediaDisplay);
-      await wrapper.vm.$nextTick();
-
-      // Enable transcoding mode
-      (wrapper.vm as any).isTranscodingMode = true;
-      (wrapper.vm as any).transcodedDuration = 100;
-      await wrapper.vm.$nextTick();
-
-      let videoPlayer = wrapper.findComponent(VideoPlayer);
-      // Force update the internal state
-      (videoPlayer.vm as any).currentVideoTime = 10;
-      // We might need to trick the component into thinking time updated if it's reactive
-      (videoPlayer.vm as any).$emit('update:video-element', {
-        currentTime: 10,
-      } as any);
-      await wrapper.vm.$nextTick();
-
-      const progressBar = wrapper.find('[data-testid="video-progress-bar"]');
-
-      // Right arrow - forward 5s from currentVideoTime=10 -> 15
-      await progressBar.trigger('keydown', { key: 'ArrowRight' });
-      await wrapper.vm.$nextTick();
-
-      // Check state changes that `tryTranscoding` performs
-      expect((wrapper.vm as any).isTranscodingLoading).toBe(true);
-      expect((wrapper.vm as any).currentTranscodeStartTime).toBe(15);
-
-      // Reset state for next assertion
-      // Reset state for next assertion
-      (wrapper.vm as any).isTranscodingLoading = false;
-      videoPlayer = wrapper.findComponent(VideoPlayer);
-      (videoPlayer.vm as any).currentVideoTime = 15;
-
-      // Left arrow - backward 5s from 15 -> 10
-      await progressBar.trigger('keydown', { key: 'ArrowLeft' });
-      await wrapper.vm.$nextTick();
-
-      expect((wrapper.vm as any).isTranscodingLoading).toBe(true);
-      expect((wrapper.vm as any).currentTranscodeStartTime).toBe(10);
-    });
   });
 
   describe('SourcesModal.vue', () => {

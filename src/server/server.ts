@@ -52,6 +52,7 @@ import {
   RATE_LIMIT_FILE_MAX_REQUESTS,
   MAX_CONCURRENT_TRANSCODES,
   MAX_API_BATCH_SIZE,
+  HLS_CACHE_DIR_NAME,
 } from '../core/constants.ts';
 import { listDirectory } from '../core/file-system.ts';
 import {
@@ -71,6 +72,9 @@ import {
 import {
   serveMetadata,
   serveTranscodedStream,
+  serveHlsMaster,
+  serveHlsPlaylist,
+  serveHlsSegment,
   serveRawStream,
   serveThumbnail,
   validateFileAccess,
@@ -80,6 +84,7 @@ import { createMediaSource } from '../core/media-source.ts';
 import ffmpegStatic from 'ffmpeg-static';
 import { createRateLimiter } from '../core/rate-limiter.ts';
 import { getGoogleAuthSuccessPage } from './auth-views.ts';
+import { HlsManager } from '../core/hls-manager.ts';
 
 // Check if we are running in dev mode or production
 const isDev = process.env.NODE_ENV !== 'production';
@@ -102,8 +107,10 @@ const WORKER_PATH = isDev
   ? path.join(__dirname, '../core/database-worker.ts')
   : path.join(__dirname, 'worker.js');
 
-const CACHE_DIR = path.join(process.cwd(), 'cache', 'thumbnails');
-const DRIVE_CACHE_DIR = path.join(process.cwd(), 'cache', 'drive');
+const CACHE_ROOT = path.join(process.cwd(), 'cache');
+const CACHE_DIR = path.join(CACHE_ROOT, 'thumbnails');
+const HLS_CACHE_DIR = path.join(CACHE_ROOT, HLS_CACHE_DIR_NAME);
+const DRIVE_CACHE_DIR = path.join(CACHE_ROOT, 'drive');
 const CERT_DIR = path.join(process.cwd(), 'certs');
 const KEY_PATH = path.join(CERT_DIR, 'server.key');
 const CERT_PATH = path.join(CERT_DIR, 'server.cert');
@@ -248,12 +255,17 @@ export async function createApp() {
     await initDatabase(DB_PATH, WORKER_PATH, workerOptions);
     await fs.mkdir(CACHE_DIR, { recursive: true });
     await fs.mkdir(DRIVE_CACHE_DIR, { recursive: true });
+    await fs.mkdir(HLS_CACHE_DIR, { recursive: true });
 
     // Initialize Drive Cache Manager
     initializeDriveCacheManager(DRIVE_CACHE_DIR);
     console.log(
       `Initialized DriveCacheManager with cache dir: ${DRIVE_CACHE_DIR}`,
     );
+
+    // Initialize HLS Manager
+    HlsManager.getInstance().setCacheDir(HLS_CACHE_DIR);
+    console.log(`Initialized HlsManager with cache dir: ${HLS_CACHE_DIR}`);
   } catch (e) {
     console.error('Failed to initialize database:', e);
     process.exit(1);
@@ -769,8 +781,31 @@ export async function createApp() {
 
   app.get('/api/thumbnail', fileLimiter, (req, res) => {
     const filePath = getQueryParam(req.query, 'file');
-    if (!filePath) return res.status(400).send('Missing file');
+    if (!filePath || typeof filePath !== 'string')
+      return res.status(400).send('Missing file');
     serveThumbnail(req, res, filePath, ffmpegStatic, CACHE_DIR);
+  });
+
+  app.get('/api/hls/master.m3u8', fileLimiter, async (req, res) => {
+    const filePath = getQueryParam(req.query, 'file');
+    if (!filePath || typeof filePath !== 'string')
+      return res.status(400).send('Missing file');
+    await serveHlsMaster(req, res, filePath as string);
+  });
+
+  app.get('/api/hls/playlist.m3u8', fileLimiter, async (req, res) => {
+    const filePath = getQueryParam(req.query, 'file');
+    if (!filePath || typeof filePath !== 'string')
+      return res.status(400).send('Missing file');
+    await serveHlsPlaylist(req, res, filePath as string);
+  });
+
+  app.get('/api/hls/:segment', fileLimiter, async (req, res) => {
+    const segment = req.params.segment;
+    const filePath = getQueryParam(req.query, 'file');
+    if (!filePath || typeof filePath !== 'string')
+      return res.status(400).send('Missing file');
+    await serveHlsSegment(req, res, filePath as string, segment as string);
   });
 
   app.get('/api/serve', fileLimiter, async (req, res) => {

@@ -324,7 +324,9 @@ describe('MediaDisplay.vue', () => {
       await videoPlayer.vm.$emit('error', new Event('error'));
 
       await flushPromises();
-      expect((wrapper.vm as any).isTranscodingMode).toBe(true);
+      await flushPromises();
+      expect((wrapper.vm as any).isTranscodingMode).toBe(false);
+      expect((wrapper.vm as any).mediaUrl).toContain('/api/hls/master.m3u8');
     });
 
     it('covers proactive transcoding for legacy formats', async () => {
@@ -332,7 +334,8 @@ describe('MediaDisplay.vue', () => {
       const wrapper = mount(MediaDisplay);
       await flushPromises();
 
-      expect((wrapper.vm as any).isTranscodingMode).toBe(true);
+      expect((wrapper.vm as any).isTranscodingMode).toBe(false);
+      expect((wrapper.vm as any).mediaUrl).toContain('/api/hls/master.m3u8');
     });
 
     it('covers handleVideoPlay and handleVideoPause effects on timer', async () => {
@@ -354,33 +357,6 @@ describe('MediaDisplay.vue', () => {
 
       await videoPlayer.vm.$emit('pause');
       expect(slideshowMock.resumeSlideshowTimer).toHaveBeenCalled();
-    });
-
-    it('covers tryTranscoding URL with query params', async () => {
-      mockPlayerState.currentMediaItem = { name: 't.mp4', path: '/t.mp4' };
-      const generator = (p: string) =>
-        `http://localhost/stream?foo=bar&path=${p}`;
-      (api.getVideoStreamUrlGenerator as Mock).mockResolvedValue(generator);
-      (api.getVideoMetadata as Mock).mockResolvedValue({ duration: 100 });
-
-      const wrapper = mount(MediaDisplay);
-      await flushPromises();
-
-      await (wrapper.vm as any).tryTranscoding(0);
-      expect((wrapper.vm as any).mediaUrl).toContain('&transcode=true');
-    });
-
-    it('covers tryTranscoding URL without query params', async () => {
-      mockPlayerState.currentMediaItem = { name: 't.mp4', path: '/t.mp4' };
-      const generator = (p: string) => `http://localhost/stream/${p}`;
-      (api.getVideoStreamUrlGenerator as Mock).mockResolvedValue(generator);
-      (api.getVideoMetadata as Mock).mockResolvedValue({ duration: 100 });
-
-      const wrapper = mount(MediaDisplay);
-      await flushPromises();
-
-      await (wrapper.vm as any).tryTranscoding(0);
-      expect((wrapper.vm as any).mediaUrl).toContain('?transcode=true');
     });
 
     it('covers handleMediaError in transcoding mode', async () => {
@@ -539,7 +515,8 @@ describe('MediaDisplay.vue', () => {
         .findAll('button')
         .find((b) => b.text().includes('Try Transcoding'));
       await btn?.trigger('click');
-      expect((wrapper.vm as any).isTranscodingMode).toBe(true);
+      expect((wrapper.vm as any).isTranscodingMode).toBe(false);
+      expect((wrapper.vm as any).mediaUrl).toContain('/api/hls/master.m3u8');
     });
 
     it('does NOT resume timer when video is paused due to navigation (loading)', async () => {
