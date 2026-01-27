@@ -69,26 +69,26 @@ describe('HlsManager DOS Protection', () => {
 
     // Mock successful process spawn
     mockSpawn.mockImplementation(() => {
-        const mockProcess = new EventEmitter() as any;
-        mockProcess.kill = vi.fn();
-        mockProcess.stdout = new EventEmitter();
-        mockProcess.stderr = new EventEmitter();
-        mockProcess.exitCode = null;
-        mockProcess.killed = false;
-        return mockProcess;
+      const mockProcess = new EventEmitter() as any;
+      mockProcess.kill = vi.fn();
+      mockProcess.stdout = new EventEmitter();
+      mockProcess.stderr = new EventEmitter();
+      mockProcess.exitCode = null;
+      mockProcess.killed = false;
+      return mockProcess;
     });
 
     // 1. Fill the slots up to the limit
     for (let i = 0; i < limit; i++) {
-        await hlsManager.ensureSession(`session-${i}`, `/path/file-${i}.mp4`);
+      await hlsManager.ensureSession(`session-${i}`, `/path/file-${i}.mp4`);
     }
 
     expect(mockSpawn).toHaveBeenCalledTimes(limit);
 
     // 2. Try to add one more
-    await expect(hlsManager.ensureSession(`session-${limit}`, `/path/file-${limit}.mp4`))
-        .rejects
-        .toThrow('Server too busy');
+    await expect(
+      hlsManager.ensureSession(`session-${limit}`, `/path/file-${limit}.mp4`),
+    ).rejects.toThrow('Server too busy');
 
     // 3. Ensure no new spawn occurred
     expect(mockSpawn).toHaveBeenCalledTimes(limit);
