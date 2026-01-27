@@ -146,7 +146,7 @@
 
                 <div
                   v-if="pathsPendingRemoval.has(dir.path)"
-                  class="flex gap-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-within:opacity-100 transition-opacity"
+                  class="flex gap-2 transition-opacity"
                 >
                   <button
                     class="px-3 py-1.5 text-xs font-semibold text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
