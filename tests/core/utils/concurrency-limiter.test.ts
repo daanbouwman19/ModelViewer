@@ -1,26 +1,65 @@
 import { describe, it, expect } from 'vitest';
 import { ConcurrencyLimiter } from '../../../src/core/utils/concurrency-limiter';
 
+// Helper to create a controlled promise
+function createDeferred() {
+  let resolve: () => void;
+  const promise = new Promise<void>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve: resolve! };
+}
+
 describe('ConcurrencyLimiter', () => {
   it('should limit concurrency', async () => {
     const maxConcurrency = 2;
     const limiter = new ConcurrencyLimiter(maxConcurrency);
     let activeCount = 0;
-    let maxActiveSeen = 0;
 
-    const task = async () => {
+    // Create deferreds to control task completion
+    const deferreds = [createDeferred(), createDeferred(), createDeferred()];
+    const taskStarted = [false, false, false];
+
+    const task = (index: number) => async () => {
+      taskStarted[index] = true;
       activeCount++;
-      maxActiveSeen = Math.max(maxActiveSeen, activeCount);
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await deferreds[index].promise;
       activeCount--;
     };
 
-    // Run 10 tasks concurrently
-    const promises = Array.from({ length: 10 }).map(() => limiter.run(task));
+    // Start 3 tasks (max is 2)
+    const p0 = limiter.run(task(0));
+    const p1 = limiter.run(task(1));
+    const p2 = limiter.run(task(2));
 
-    await Promise.all(promises);
+    // Yield to allow tasks to start
+    await new Promise((r) => setTimeout(r, 0));
 
-    expect(maxActiveSeen).toBeLessThanOrEqual(maxConcurrency);
+    // First two should be running
+    expect(activeCount).toBe(2);
+    expect(taskStarted[0]).toBe(true);
+    expect(taskStarted[1]).toBe(true);
+    // Third should be queued
+    expect(taskStarted[2]).toBe(false);
+
+    // Finish first task
+    deferreds[0].resolve();
+    await p0;
+
+    // Yield to allow queued task to start
+    await new Promise((r) => setTimeout(r, 0));
+
+    // Third should have started now
+    expect(taskStarted[2]).toBe(true);
+    // Active count should still be 2 (since index 0 finished, index 2 started)
+    expect(activeCount).toBe(2);
+
+    // Finish remaining
+    deferreds[1].resolve();
+    deferreds[2].resolve();
+
+    await Promise.all([p1, p2]);
+    expect(activeCount).toBe(0);
   });
 
   it('should process all tasks', async () => {
@@ -28,7 +67,8 @@ describe('ConcurrencyLimiter', () => {
     const results: number[] = [];
 
     const task = (id: number) => async () => {
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      // No wall-clock delay needed, just async boundary
+      await Promise.resolve();
       return id;
     };
 
