@@ -144,10 +144,28 @@
                   </label>
                 </div>
 
+                <div
+                  v-if="pathsPendingRemoval.has(dir.path)"
+                  class="flex gap-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-within:opacity-100 transition-opacity"
+                >
+                  <button
+                    class="px-3 py-1.5 text-xs font-semibold text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                    @click="cancelRemove(dir.path)"
+                  >
+                    CANCEL
+                  </button>
+                  <button
+                    class="px-3 py-1.5 text-xs font-semibold text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded-lg transition-colors"
+                    @click="confirmRemove(dir.path)"
+                  >
+                    CONFIRM
+                  </button>
+                </div>
                 <button
+                  v-else
                   class="px-3 py-1.5 text-xs font-semibold text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100 remove-button"
                   :aria-label="'Remove ' + dir.path"
-                  @click="handleRemove(dir.path)"
+                  @click="initiateRemove(dir.path)"
                 >
                   REMOVE
                 </button>
@@ -422,6 +440,7 @@ const authError = ref('');
 const driveFolderId = ref('root');
 const isAddingDrive = ref(false);
 const addDriveError = ref('');
+const pathsPendingRemoval = ref(new Set<string>());
 
 /**
  * Closes the modal.
@@ -430,6 +449,7 @@ const closeModal = () => {
   isSourcesModalVisible.value = false;
   // Reset drive state
   cancelDriveAuth();
+  pathsPendingRemoval.value.clear();
 };
 
 const cancelDriveAuth = () => {
@@ -514,17 +534,26 @@ const handleToggleActive = async (path: string, isActive: boolean) => {
   }
 };
 
+const initiateRemove = (path: string) => {
+  pathsPendingRemoval.value.add(path);
+};
+
+const cancelRemove = (path: string) => {
+  pathsPendingRemoval.value.delete(path);
+};
+
 /**
  * Removes a media directory from the application.
  * @param path - The path of the directory to remove.
  */
-const handleRemove = async (path: string) => {
+const confirmRemove = async (path: string) => {
   try {
     await api.removeMediaDirectory(path);
     const index = mediaDirectories.value.findIndex((d) => d.path === path);
     if (index !== -1) {
       mediaDirectories.value.splice(index, 1);
     }
+    pathsPendingRemoval.value.delete(path);
   } catch (error) {
     console.error('Error removing directory:', error);
   }
