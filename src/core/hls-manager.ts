@@ -2,7 +2,10 @@ import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
 import fs from 'fs/promises';
 import { getHlsTranscodeArgs } from './utils/ffmpeg-utils.ts';
-import { HLS_SEGMENT_DURATION } from './constants.ts';
+import {
+  HLS_SEGMENT_DURATION,
+  MAX_CONCURRENT_TRANSCODES,
+} from './constants.ts';
 import ffmpegStatic from 'ffmpeg-static';
 
 interface HlsSession {
@@ -57,6 +60,14 @@ export class HlsManager {
     if (this.sessions.has(sessionId)) {
       this.sessions.get(sessionId)!.lastAccess = Date.now();
       return;
+    }
+
+    // [SECURITY] Enforce concurrency limit to prevent DoS
+    if (this.sessions.size >= MAX_CONCURRENT_TRANSCODES) {
+      console.warn(
+        `[HLS] Session blocked due to concurrency limit (${this.sessions.size}/${MAX_CONCURRENT_TRANSCODES})`,
+      );
+      throw new Error('Server too busy. Please try again later.');
     }
 
     if (!this.cacheDir) {
