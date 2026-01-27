@@ -116,7 +116,6 @@ export async function handleStreamRequest(
       return await serveRawStream(req, res, source);
     }
   } catch (e: unknown) {
-    console.error('[Handler] Stream failed:', e);
     if (!res.headersSent) {
       const msg = (e as Error).message || '';
       if (msg.includes('Access denied')) {

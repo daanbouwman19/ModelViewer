@@ -18,21 +18,21 @@ const { mockHlsInstance, MockHls } = vi.hoisted(() => {
     recoverMediaError: vi.fn(),
   };
 
-  // We use a regular function as the constructor to satisfy Vitest's "function or class" requirement
-  const MockClass = function (this: any) {
+  // Wrap in vi.fn to make it a spy
+  const MockSpy = vi.fn(function (this: any) {
     return instance;
-  };
+  });
 
   // Attach static methods and properties
-  (MockClass as any).isSupported = vi.fn().mockReturnValue(false);
-  (MockClass as any).Events = { ERROR: 'hlsError' };
-  (MockClass as any).ErrorTypes = {
+  (MockSpy as any).isSupported = vi.fn().mockReturnValue(false);
+  (MockSpy as any).Events = { ERROR: 'hlsError' };
+  (MockSpy as any).ErrorTypes = {
     NETWORK_ERROR: 'networkError',
     MEDIA_ERROR: 'mediaError',
     OTHER_ERROR: 'otherError',
   };
 
-  return { mockHlsInstance: instance, MockHls: MockClass };
+  return { mockHlsInstance: instance, MockHls: MockSpy };
 });
 
 vi.mock('hls.js', () => ({
@@ -177,6 +177,78 @@ describe('VideoPlayer.vue', () => {
     expect(vm.formatTime(3665)).toBe('1:01:05');
   });
 
+  it('covers effectiveSrc and initHls reset branches', async () => {
+    ((MockHls as any).isSupported as Mock).mockReturnValue(true);
+    const wrapper = mount(VideoPlayer, {
+      props: { ...defaultProps, src: 'http://localhost/video.m3u8' },
+    });
+    await flushPromises();
+
+    // Line 112: effectiveSrc should be undefined for HLS m3u8
+    expect((wrapper.vm as any).effectiveSrc).toBeUndefined();
+
+    // Line 118: reset existing HLS instance on src change
+    await wrapper.setProps({ src: 'http://localhost/other.m3u8' });
+    expect(mockHlsInstance.destroy).toHaveBeenCalled();
+  });
+
+  it('covers null src branch in initHls', async () => {
+    mount(VideoPlayer, {
+      props: { ...defaultProps, src: null },
+    });
+    await flushPromises();
+    expect(MockHls).not.toHaveBeenCalled();
+  });
+
+  it('sets initialTime on video element correctly', async () => {
+    const wrapper = mount(VideoPlayer, {
+      props: { ...defaultProps, initialTime: 123 },
+    });
+    await flushPromises();
+    const video = wrapper.find('video').element as HTMLVideoElement;
+    expect(video.currentTime).toBe(123);
+  });
+
+  it('initHls returns early when videoElement is missing', async () => {
+    const wrapper = mount(VideoPlayer, {
+      props: { ...defaultProps, src: 'test.m3u8' },
+    });
+    // Manually nullify videoElement to test the early return branch
+    (wrapper.vm as any).videoElement = null;
+    const result = (wrapper.vm as any).initHls();
+    expect(result).toBeUndefined();
+    expect(MockHls).not.toHaveBeenCalled();
+  });
+
+  it('covers handleProgress with buffered ranges', async () => {
+    const wrapper = mount(VideoPlayer, { props: defaultProps });
+    const video = {
+      duration: 100,
+      buffered: {
+        length: 1,
+        start: () => 10,
+        end: () => 20,
+      },
+    };
+    (wrapper.vm as any).handleProgress({ target: video });
+    expect((wrapper.vm as any).bufferedRanges).toEqual([
+      { start: 10, end: 20 },
+    ]);
+  });
+
+  it('covers handleProgressBarKeydown ArrowLeft native', async () => {
+    const wrapper = mount(VideoPlayer, { props: defaultProps });
+    const video = { duration: 100, currentTime: 50 };
+    (wrapper.vm as any).videoElement = video;
+
+    const event = {
+      key: 'ArrowLeft',
+      preventDefault: vi.fn(),
+    };
+    (wrapper.vm as any).handleProgressBarKeydown(event);
+    expect(video.currentTime).toBe(45);
+  });
+
   describe('HLS Implementation Coverage', () => {
     it('initializes HLS when supported', async () => {
       ((MockHls as any).isSupported as Mock).mockReturnValue(true);
@@ -234,6 +306,135 @@ describe('VideoPlayer.vue', () => {
       // OTHER_ERROR
       errorHandler({}, { fatal: true, type: 'otherError' });
       expect(mockHlsInstance.destroy).toHaveBeenCalled();
+
+      // Non-fatal error (should hit nothing)
+      errorHandler({}, { fatal: false });
+    });
+  });
+
+  describe('Edge Case Coverage', () => {
+    it('destroys HLS on unmount', async () => {
+      ((MockHls as any).isSupported as Mock).mockReturnValue(true);
+      const wrapper = mount(VideoPlayer, {
+        props: { ...defaultProps, src: 'test.m3u8' },
+      });
+      await flushPromises();
+      wrapper.unmount();
+      expect(mockHlsInstance.destroy).toHaveBeenCalled();
+    });
+
+    it('togglePlay handles null videoElement', () => {
+      const wrapper = mount(VideoPlayer, { props: defaultProps });
+      (wrapper.vm as any).videoElement = null;
+      expect(() => (wrapper.vm as any).togglePlay()).not.toThrow();
+    });
+
+    it('togglePlay pauses when playing', () => {
+      const wrapper = mount(VideoPlayer, { props: defaultProps });
+      const video = { paused: false, pause: vi.fn() };
+      (wrapper.vm as any).videoElement = video;
+      (wrapper.vm as any).togglePlay();
+      expect(video.pause).toHaveBeenCalled();
+    });
+
+    it('togglePlay handles play() rejection', async () => {
+      const wrapper = mount(VideoPlayer, { props: defaultProps });
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      const video = {
+        paused: true,
+        play: vi.fn().mockReturnValue(Promise.reject('error')),
+      };
+      (wrapper.vm as any).videoElement = video;
+      (wrapper.vm as any).togglePlay();
+      await flushPromises();
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Error attempting to play video:'),
+        'error',
+      );
+      consoleSpy.mockRestore();
+    });
+
+    it('reset handles null videoElement', () => {
+      const wrapper = mount(VideoPlayer, { props: defaultProps });
+      (wrapper.vm as any).videoElement = null;
+      expect(() => (wrapper.vm as any).reset()).not.toThrow();
+    });
+
+    it('handleLoadedMetadata does not emit trigger-transcode if transcoding mode is true', () => {
+      const wrapper = mount(VideoPlayer, {
+        props: { ...defaultProps, isTranscodingMode: true },
+      });
+      (wrapper.vm as any).handleLoadedMetadata({
+        target: { videoWidth: 0, videoHeight: 0 },
+      });
+      expect(wrapper.emitted('trigger-transcode')).toBeFalsy();
+    });
+
+    it('handleTimeUpdate handles zero/infinite duration', () => {
+      const wrapper = mount(VideoPlayer, { props: defaultProps });
+      const vm = wrapper.vm as any;
+
+      vm.handleTimeUpdate({ target: { currentTime: 10, duration: 0 } });
+      expect(vm.videoProgress).toBe(0);
+
+      vm.handleTimeUpdate({ target: { currentTime: 10, duration: Infinity } });
+      expect(vm.videoProgress).toBe(0);
+    });
+
+    it('handleProgress returns early if no duration', () => {
+      const wrapper = mount(VideoPlayer, { props: defaultProps });
+      const vm = wrapper.vm as any;
+      vm.handleProgress({ target: { duration: 0 } });
+      expect(vm.bufferedRanges).toEqual([]);
+    });
+
+    it('handleProgressBarClick handles zero duration or missing element', () => {
+      const wrapper = mount(VideoPlayer, { props: defaultProps });
+      const vm = wrapper.vm as any;
+
+      // Native mode, zero duration
+      vm.videoElement = { duration: 0 };
+      vm.handleProgressBarClick({
+        currentTarget: {
+          getBoundingClientRect: () => ({ left: 0, width: 100 }),
+        },
+        clientX: 50,
+      });
+      // No change to currentTime
+
+      // Transcode mode, zero duration
+      wrapper.setProps({ isTranscodingMode: true, transcodedDuration: 0 });
+      vm.handleProgressBarClick({
+        currentTarget: {
+          getBoundingClientRect: () => ({ left: 0, width: 100 }),
+        },
+        clientX: 50,
+      });
+      expect(wrapper.emitted('trigger-transcode')).toBeFalsy();
+    });
+
+    it('handleProgressBarKeydown handles zero duration', () => {
+      const wrapper = mount(VideoPlayer, { props: defaultProps });
+      const vm = wrapper.vm as any;
+
+      // Native mode, zero duration
+      const video = { currentTime: 10, duration: 0 };
+      vm.videoElement = video;
+      vm.handleProgressBarKeydown({
+        key: 'ArrowRight',
+        preventDefault: vi.fn(),
+      });
+      expect(video.currentTime).toBe(10);
+
+      // Transcode mode, zero duration
+      wrapper.setProps({ isTranscodingMode: true, transcodedDuration: 0 });
+      vm.handleProgressBarKeydown({
+        key: 'ArrowRight',
+        preventDefault: vi.fn(),
+      });
+      expect(wrapper.emitted('trigger-transcode')).toBeFalsy();
     });
   });
 });

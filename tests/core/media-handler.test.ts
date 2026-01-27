@@ -1212,6 +1212,12 @@ describe('media-handler unit tests', () => {
         await serveHlsSegment(req, res, '/path/to/video.mp4', 'segment_999.ts');
         expect(res.status).toHaveBeenCalledWith(404);
       });
+
+      it('handles access denied for segments', async () => {
+        mockAuthorizeFilePath.mockResolvedValue({ isAllowed: false });
+        await serveHlsSegment(req, res, '/path/to/video.mp4', 'segment_000.ts');
+        expect(res.status).toHaveBeenCalledWith(403);
+      });
     });
   });
 });
