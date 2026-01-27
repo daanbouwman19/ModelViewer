@@ -163,13 +163,7 @@ export function getHlsTranscodeArgs(
     ...FFMPEG_INPUT_OPTIONS,
     '-i',
     inputPath,
-    ...FFMPEG_OUTPUT_OPTIONS, // Re-use standard MP4 options (h264/aac)
-    // Override some output options for HLS if needed, but the base ones set libx264/aac which is good.
-    // However, -movflags frag_keyframe+empty_moov might not be needed for HLS as it segments TS files?
-    // Actually, HLS usually uses MPEG-TS (-f hls uses .ts by default).
-    // The FFMPEG_OUTPUT_OPTIONS uses -f mp4. We need to override that.
-    // Let's manually construct args instead of reusing FFMPEG_OUTPUT_OPTIONS entirely effectively.
-    // Re-declaring key video/audio codecs:
+    // Base video/audio codecs for HLS output
     '-c:v',
     'libx264',
     '-c:a',

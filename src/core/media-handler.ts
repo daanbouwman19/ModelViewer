@@ -116,6 +116,7 @@ export async function handleStreamRequest(
       return await serveRawStream(req, res, source);
     }
   } catch (e: unknown) {
+    console.error('[Handler] Stream failed:', e);
     if (!res.headersSent) {
       const msg = (e as Error).message || '';
       if (msg.includes('Access denied')) {
@@ -292,10 +293,13 @@ export async function serveHlsMaster(
   const fileQuery = getQueryParam(req.query, 'file');
   const encodedFile = encodeURIComponent(fileQuery || '');
 
+  const bandwidth = 2000000;
+  const resolution = '1280x720';
+
   res.set('Content-Type', 'application/vnd.apple.mpegurl');
   res.send(`#EXTM3U
 #EXT-X-VERSION:3
-#EXT-X-STREAM-INF:BANDWIDTH=2000000,RESOLUTION=1280x720
+#EXT-X-STREAM-INF:BANDWIDTH=${bandwidth},RESOLUTION=${resolution}
 playlist.m3u8?file=${encodedFile}`);
 }
 
@@ -335,8 +339,10 @@ export async function serveHlsPlaylist(
     const encodedFile = encodeURIComponent(fileQuery || '');
 
     // Simple regex replace
+    // Use a more robust regex that handles potential variations in segment naming
+    const segmentRegex = /(segment_\d+\.ts)/g;
     playlistContent = playlistContent.replace(
-      /(segment_\d+\.ts)/g,
+      segmentRegex,
       `$1?file=${encodedFile}`,
     );
 

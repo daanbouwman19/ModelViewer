@@ -45,9 +45,12 @@ describe('HlsManager', () => {
     hlsManager = HlsManager.getInstance();
     hlsManager.setCacheDir(CACHE_DIR);
 
-    // Clear sessions
-    if ((hlsManager as any).sessions) {
-      (hlsManager as any).sessions.clear();
+    // Clear sessions and stop interval to prevent leakage
+    if (hlsManager) {
+      hlsManager.stopCleanupInterval();
+      if ((hlsManager as any).sessions) {
+        (hlsManager as any).sessions.clear();
+      }
     }
 
     // Default fs behavior

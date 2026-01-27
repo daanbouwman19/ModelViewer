@@ -6,10 +6,12 @@ import { HLS_SEGMENT_DURATION } from './constants.ts';
 import ffmpegStatic from 'ffmpeg-static';
 
 interface HlsSession {
-  process: ChildProcess;
+  process: ChildProcess | null;
   lastAccess: number;
   outputDir: string;
   playlistPath: string;
+  processExited?: boolean;
+  exitCode?: number | null;
 }
 
 const SESSION_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes inactivity timeout
@@ -19,9 +21,25 @@ export class HlsManager {
   private sessions: Map<string, HlsSession> = new Map();
   private cacheDir: string | null = null;
 
+  private cleanupInterval: NodeJS.Timeout | null = null;
+
   private constructor() {
-    // Cleanup interval
-    setInterval(() => this.cleanup(), 60 * 1000);
+    this.startCleanupInterval();
+  }
+
+  private startCleanupInterval() {
+    if (this.cleanupInterval) clearInterval(this.cleanupInterval);
+    this.cleanupInterval = setInterval(() => this.cleanup(), 60 * 1000);
+  }
+
+  /**
+   * Stops the cleanup interval. Useful for testing.
+   */
+  stopCleanupInterval() {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
   }
 
   static getInstance(): HlsManager {
@@ -93,10 +111,15 @@ export class HlsManager {
       if (code !== 0 && signal !== 'SIGKILL') {
         console.error(`[HLS] Session ${sessionId} exited with code ${code}`);
       }
-      // Don't remove session immediately on exit, as we need to serve the files.
-      // But we can mark it as finished or just let timeout handle it?
-      // If process finishes, files are there. We keep the session entry to know dir exists.
-      // But we can drop the process ref.
+
+      const session = this.sessions.get(sessionId);
+      if (session) {
+        // Explicitly drop process reference to help GC, but keep session metadata
+        session.process = null;
+        // Also store the exit state for waitForPlaylist to see
+        session.processExited = true;
+        session.exitCode = code;
+      }
     });
 
     this.sessions.set(sessionId, {
@@ -122,9 +145,8 @@ export class HlsManager {
       }
 
       if (
-        session.process.killed ||
-        (session.process.exitCode !== null &&
-          session.process.exitCode !== undefined)
+        session.processExited ||
+        (session.process && session.process.killed)
       ) {
         throw new Error('HLS process exited before playlist creation');
       }
