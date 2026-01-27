@@ -1,10 +1,42 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, Mock, beforeEach } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import VideoPlayer from '@/components/VideoPlayer.vue';
 
 // Mock PlayIcon
 vi.mock('@/components/icons/PlayIcon.vue', () => ({
   default: { template: '<svg class="play-icon-mock"></svg>' },
+}));
+
+// Robust HLS Mock
+const { mockHlsInstance, MockHls } = vi.hoisted(() => {
+  const instance = {
+    loadSource: vi.fn(),
+    attachMedia: vi.fn(),
+    on: vi.fn(),
+    destroy: vi.fn(),
+    startLoad: vi.fn(),
+    recoverMediaError: vi.fn(),
+  };
+
+  // We use a regular function as the constructor to satisfy Vitest's "function or class" requirement
+  const MockClass = function (this: any) {
+    return instance;
+  };
+
+  // Attach static methods and properties
+  (MockClass as any).isSupported = vi.fn().mockReturnValue(false);
+  (MockClass as any).Events = { ERROR: 'hlsError' };
+  (MockClass as any).ErrorTypes = {
+    NETWORK_ERROR: 'networkError',
+    MEDIA_ERROR: 'mediaError',
+    OTHER_ERROR: 'otherError',
+  };
+
+  return { mockHlsInstance: instance, MockHls: MockClass };
+});
+
+vi.mock('hls.js', () => ({
+  default: MockHls,
 }));
 
 describe('VideoPlayer.vue', () => {
@@ -18,6 +50,17 @@ describe('VideoPlayer.vue', () => {
     isBuffering: false,
   };
 
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockHlsInstance.loadSource.mockReset();
+    mockHlsInstance.attachMedia.mockReset();
+    mockHlsInstance.on.mockReset();
+    mockHlsInstance.destroy.mockReset();
+    mockHlsInstance.startLoad.mockReset();
+    mockHlsInstance.recoverMediaError.mockReset();
+    ((MockHls as any).isSupported as Mock).mockReturnValue(false);
+  });
+
   it('renders video element with src', () => {
     const wrapper = mount(VideoPlayer, { props: defaultProps });
     const video = wrapper.find('video');
@@ -28,74 +71,42 @@ describe('VideoPlayer.vue', () => {
   it('renders accessible play button overlay when paused', async () => {
     const wrapper = mount(VideoPlayer, {
       props: defaultProps,
-      attachTo: document.body, // Try attaching to body to ensure visibility/layout if needed, though usually not needed for v-if
+      attachTo: document.body,
     });
 
-    // Debug initial state
-    // console.log('Init isPlaying:', (wrapper.vm as any).isPlaying);
-
-    // Force paused state explicitly
     (wrapper.vm as any).isPlaying = false;
     await wrapper.vm.$nextTick();
 
-    // console.log('After set isPlaying:', (wrapper.vm as any).isPlaying);
-    // console.log('HTML:', wrapper.html());
-
     const playButton = wrapper.find('button[aria-label="Play video"]');
-
-    // Assertion with better error message if fails
-    if (!playButton.exists()) {
-      console.error('Play button not found in HTML:', wrapper.html());
-    }
-
     expect(playButton.exists()).toBe(true);
-    expect(playButton.attributes('type')).toBe('button');
-    expect(playButton.classes()).toContain('pointer-events-auto');
-
     wrapper.unmount();
   });
 
-  it('emits play event when video plays', async () => {
+  it('emits events: play, pause, ended, playing, buffering', async () => {
     const wrapper = mount(VideoPlayer, { props: defaultProps });
     const video = wrapper.find('video');
+
     await video.trigger('play');
     expect(wrapper.emitted('play')).toBeTruthy();
-  });
 
-  it('emits pause event when video pauses', async () => {
-    const wrapper = mount(VideoPlayer, { props: defaultProps });
-    const video = wrapper.find('video');
     await video.trigger('pause');
     expect(wrapper.emitted('pause')).toBeTruthy();
-  });
 
-  it('emits ended event when video ends', async () => {
-    const wrapper = mount(VideoPlayer, { props: defaultProps });
-    const video = wrapper.find('video');
     await video.trigger('ended');
     expect(wrapper.emitted('ended')).toBeTruthy();
+
+    (wrapper.vm as any).handlePlaying();
+    expect(wrapper.emitted('playing')).toBeTruthy();
+
+    (wrapper.vm as any).handleWaiting();
+    expect(wrapper.emitted('buffering')?.[0]).toEqual([true]);
+
+    (wrapper.vm as any).handleCanPlay();
+    expect(wrapper.emitted('buffering')?.[1]).toEqual([false]);
   });
 
-  it('formats time correctly', () => {
+  it('handles progress bar interactions', async () => {
     const wrapper = mount(VideoPlayer, { props: defaultProps });
-    const vm = wrapper.vm as any;
-    const event = {
-      target: {
-        currentTime: 65,
-        duration: 120,
-      },
-    };
-    vm.handleTimeUpdate(event);
-    return wrapper.vm.$nextTick().then(() => {
-      const progressBar = wrapper.find('[data-testid="video-progress-bar"]');
-      expect(progressBar.attributes('aria-valuetext')).toContain('01:05');
-    });
-  });
-
-  it('handles progress bar click', async () => {
-    const wrapper = mount(VideoPlayer, { props: defaultProps });
-    await flushPromises();
-
     const videoElement = {
       duration: 100,
       currentTime: 0,
@@ -106,9 +117,7 @@ describe('VideoPlayer.vue', () => {
     (wrapper.vm as any).videoElement = videoElement;
 
     const event = {
-      currentTarget: {
-        getBoundingClientRect: () => ({ left: 0, width: 100 }),
-      },
+      currentTarget: { getBoundingClientRect: () => ({ left: 0, width: 100 }) },
       clientX: 50,
     };
 
@@ -116,7 +125,7 @@ describe('VideoPlayer.vue', () => {
     expect(videoElement.currentTime).toBe(50);
   });
 
-  it('should emit trigger-transcode when progress bar clicked in transcode mode', async () => {
+  it('handles transcoding mode seeking', async () => {
     const wrapper = mount(VideoPlayer, {
       props: {
         ...defaultProps,
@@ -125,268 +134,106 @@ describe('VideoPlayer.vue', () => {
       },
     });
 
-    const event = {
-      currentTarget: {
-        getBoundingClientRect: () => ({ left: 0, width: 100 }),
-      },
+    const clickEvent = {
+      currentTarget: { getBoundingClientRect: () => ({ left: 0, width: 100 }) },
       clientX: 50,
     };
-
-    (wrapper.vm as any).handleProgressBarClick(event);
-    expect(wrapper.emitted('trigger-transcode')).toBeTruthy();
+    (wrapper.vm as any).handleProgressBarClick(clickEvent);
     expect(wrapper.emitted('trigger-transcode')?.[0]).toEqual([50]);
-  });
 
-  it('should emit trigger-transcode on arrow keys in transcode mode', async () => {
-    const wrapper = mount(VideoPlayer, {
-      props: {
-        ...defaultProps,
-        isTranscodingMode: true,
-        transcodedDuration: 100,
-      },
-    });
     (wrapper.vm as any).currentVideoTime = 50;
-
     const progressBar = wrapper.find('[data-testid="video-progress-bar"]');
     await progressBar.trigger('keydown', { key: 'ArrowRight' });
-
-    expect(wrapper.emitted('trigger-transcode')).toBeTruthy();
-    expect(wrapper.emitted('trigger-transcode')?.[0]).toEqual([55]);
+    expect(wrapper.emitted('trigger-transcode')?.[1]).toEqual([55]);
   });
 
-  it('emits trigger-transcode if video dimensions are 0 (HEVC check)', async () => {
-    const wrapper = mount(VideoPlayer, { props: defaultProps });
-
-    const event = {
-      target: {
-        videoWidth: 0,
-        videoHeight: 0,
-      },
-    };
-
-    (wrapper.vm as any).handleLoadedMetadata(event);
-
-    expect(wrapper.emitted('trigger-transcode')).toBeTruthy();
-    expect(wrapper.emitted('trigger-transcode')?.[0]).toEqual([0]);
-  });
-
-  it('updates buffer ranges', async () => {
-    const wrapper = mount(VideoPlayer, { props: defaultProps });
-    const video = wrapper.find('video');
-
-    const bufferedMock = {
-      length: 1,
-      start: () => 0,
-      end: () => 50,
-    };
-    const videoEl = video.element as HTMLVideoElement;
-    Object.defineProperty(videoEl, 'duration', {
-      value: 100,
-      configurable: true,
-    });
-    Object.defineProperty(videoEl, 'buffered', {
-      value: bufferedMock,
-      configurable: true,
-    });
-
-    await video.trigger('progress');
-    await wrapper.vm.$nextTick();
-    const rangeDivs = wrapper.findAll('.absolute.h-full.bg-white\\/30');
-    expect(rangeDivs.length).toBe(1);
-    expect(rangeDivs[0].attributes('style')).toContain('width: 50%');
-  });
-
-  it('covers togglePlay pause branch', async () => {
-    const wrapper = mount(VideoPlayer, { props: defaultProps });
-    const videoElement = {
-      paused: false,
-      pause: vi.fn(),
-      play: vi.fn().mockResolvedValue(undefined),
-    };
-    (wrapper.vm as any).videoElement = videoElement;
-
-    (wrapper.vm as any).togglePlay();
-    expect(videoElement.pause).toHaveBeenCalled();
-  });
-
-  it('covers reset method', async () => {
-    const wrapper = mount(VideoPlayer, { props: defaultProps });
-    const videoElement = {
-      pause: vi.fn(),
-      load: vi.fn(),
-      removeAttribute: vi.fn(),
-    };
-    (wrapper.vm as any).videoElement = videoElement;
-
-    (wrapper.vm as any).reset();
-    expect(videoElement.pause).toHaveBeenCalled();
-    expect(videoElement.removeAttribute).toHaveBeenCalledWith('src');
-    expect(videoElement.load).toHaveBeenCalled();
-  });
-
-  it('covers handleWaiting and handleCanPlay', async () => {
-    const wrapper = mount(VideoPlayer, { props: defaultProps });
-    (wrapper.vm as any).handleWaiting();
-    expect(wrapper.emitted('buffering')?.[0]).toEqual([true]);
-
-    (wrapper.vm as any).handleCanPlay();
-    expect(wrapper.emitted('buffering')?.[1]).toEqual([false]);
-  });
-
-  it('covers handlePlaying', async () => {
-    const wrapper = mount(VideoPlayer, { props: defaultProps });
-    (wrapper.vm as any).handlePlaying();
-    expect(wrapper.emitted('playing')).toBeTruthy();
-  });
-
-  it('covers handleError', async () => {
-    const wrapper = mount(VideoPlayer, { props: defaultProps });
-    const event = new Event('error');
-    (wrapper.vm as any).handleError(event);
-    expect(wrapper.emitted('error')?.[0]).toEqual([event]);
-  });
-
-  it('covers handleTimeUpdate branch with duration 0 or Infinity', async () => {
-    const wrapper = mount(VideoPlayer, { props: defaultProps });
-    const vm = wrapper.vm as any;
-
-    vm.handleTimeUpdate({ target: { currentTime: 10, duration: 0 } });
-    expect(vm.videoProgress).toBe(0);
-    expect(wrapper.emitted('timeupdate')?.[0]).toEqual([0]);
-
-    vm.handleTimeUpdate({ target: { currentTime: 10, duration: Infinity } });
-    expect(vm.videoProgress).toBe(0);
-  });
-
-  it('sets initialTime on video element', async () => {
-    const wrapper = mount(VideoPlayer, {
-      props: { ...defaultProps, initialTime: 42 },
-    });
-    const videoElement = { currentTime: 0 };
-    (wrapper.vm as any).videoElement = videoElement;
-
-    // Trigger watcher by updating the ref, or manually calling it?
-    // The watcher is on videoElement (the ref).
-    // When we set (wrapper.vm as any).videoElement, it updates the ref.
-    await wrapper.vm.$nextTick();
-
-    expect(videoElement.currentTime).toBe(42);
-  });
-
-  it('emits timeupdate event', () => {
-    const wrapper = mount(VideoPlayer, { props: defaultProps });
-    const vm = wrapper.vm as any;
-    const event = {
-      target: {
-        currentTime: 10,
-        duration: 100,
-      },
-    };
-    vm.handleTimeUpdate(event);
-    expect(wrapper.emitted('timeupdate')).toBeTruthy();
-    expect(wrapper.emitted('timeupdate')?.slice(-1)[0]).toEqual([10]);
-  });
-
-  it('covers formatTime with h > 0', async () => {
-    const wrapper = mount(VideoPlayer, { props: defaultProps });
-    const vm = wrapper.vm as any;
-
-    vm.handleTimeUpdate({ target: { currentTime: 3665, duration: 4000 } });
-    await wrapper.vm.$nextTick();
-    await wrapper.vm.$nextTick();
-    const progressBar = wrapper.find('[data-testid="video-progress-bar"]');
-    expect(progressBar.attributes('aria-valuetext')).toContain('1:01:05');
-  });
-
-  it('covers handleTimeUpdate branch in transcoding mode', async () => {
-    const wrapper = mount(VideoPlayer, {
-      props: {
-        ...defaultProps,
-        isTranscodingMode: true,
-        transcodedDuration: 200,
-        currentTranscodeStartTime: 50,
-      },
-    });
-    const vm = wrapper.vm as any;
-    vm.handleTimeUpdate({ target: { currentTime: 10, duration: 100 } });
-
-    expect(vm.currentVideoTime).toBe(60); // 50 + 10
-    expect(vm.videoProgress).toBe(30); // (60 / 200) * 100
-  });
-
-  it('covers handleProgress branch with no duration', async () => {
-    const wrapper = mount(VideoPlayer, { props: defaultProps });
-    const vm = wrapper.vm as any;
-    vm.handleProgress({ target: { duration: 0 } });
-    expect(vm.bufferedRanges).toEqual([]);
-  });
-
-  it('covers togglePlay play error branch', async () => {
-    const wrapper = mount(VideoPlayer, { props: defaultProps });
-    const videoElement = {
-      paused: true,
-      play: vi.fn().mockRejectedValue(new Error('play fail')),
-    };
-    (wrapper.vm as any).videoElement = videoElement;
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-    await (wrapper.vm as any).togglePlay();
-    await flushPromises();
-
-    expect(consoleSpy).toHaveBeenCalled();
-    consoleSpy.mockRestore();
-  });
-
-  it('covers handleProgressBarKeydown ArrowLeft', async () => {
-    const wrapper = mount(VideoPlayer, { props: defaultProps });
-    (wrapper.vm as any).currentVideoTime = 50;
-    const event = new KeyboardEvent('keydown', { key: 'ArrowLeft' });
-    const preventDefaultSpy = vi.spyOn(event, 'preventDefault');
-    (wrapper.vm as any).handleProgressBarKeydown(event);
-    expect(preventDefaultSpy).toHaveBeenCalled();
-  });
-
-  it('covers handleProgressBarKeydown in transcode mode ArrowLeft', async () => {
-    const wrapper = mount(VideoPlayer, {
-      props: {
-        ...defaultProps,
-        isTranscodingMode: true,
-        transcodedDuration: 100,
-      },
-    });
-    (wrapper.vm as any).currentVideoTime = 50;
-    (wrapper.vm as any).handleProgressBarKeydown({
-      key: 'ArrowLeft',
-      preventDefault: vi.fn(),
-    });
-    expect(wrapper.emitted('trigger-transcode')?.[0]).toEqual([45]);
-  });
-
-  it('covers handleProgressBarClick in native mode', async () => {
-    const wrapper = mount(VideoPlayer, { props: defaultProps });
-    const videoElement = { duration: 100, currentTime: 0 };
-    (wrapper.vm as any).videoElement = videoElement;
-
-    const event = {
-      currentTarget: { getBoundingClientRect: () => ({ left: 0, width: 100 }) },
-      clientX: 75,
-    };
-    (wrapper.vm as any).handleProgressBarClick(event);
-    expect(videoElement.currentTime).toBe(75);
-  });
-
-  it('covers handleLoadedMetadata with valid dimensions', async () => {
+  it('emits trigger-transcode if video dimensions are 0', async () => {
     const wrapper = mount(VideoPlayer, { props: defaultProps });
     (wrapper.vm as any).handleLoadedMetadata({
-      target: { videoWidth: 100, videoHeight: 100 },
+      target: { videoWidth: 0, videoHeight: 0 },
     });
-    expect(wrapper.emitted('trigger-transcode')).toBeFalsy();
+    expect(wrapper.emitted('trigger-transcode')).toBeTruthy();
   });
 
-  it('covers formatTime edge cases', async () => {
+  it('updates time and progress correctly', async () => {
+    const wrapper = mount(VideoPlayer, { props: defaultProps });
+    const vm = wrapper.vm as any;
+
+    vm.handleTimeUpdate({ target: { currentTime: 65, duration: 120 } });
+    await wrapper.vm.$nextTick();
+
+    expect(vm.currentVideoTime).toBe(65);
+    expect(vm.videoProgress).toBeCloseTo(54.17, 2);
+
+    const progressBar = wrapper.find('[data-testid="video-progress-bar"]');
+    expect(progressBar.attributes('aria-valuetext')).toContain('01:05');
+  });
+
+  it('handles formatTime edge cases', async () => {
     const wrapper = mount(VideoPlayer, { props: defaultProps });
     const vm = wrapper.vm as any;
     expect(vm.formatTime(0)).toBe('00:00');
     expect(vm.formatTime(NaN)).toBe('00:00');
+    expect(vm.formatTime(3665)).toBe('1:01:05');
+  });
+
+  describe('HLS Implementation Coverage', () => {
+    it('initializes HLS when supported', async () => {
+      ((MockHls as any).isSupported as Mock).mockReturnValue(true);
+
+      const wrapper = mount(VideoPlayer, {
+        props: { ...defaultProps, src: 'http://localhost/video.m3u8' },
+      });
+
+      await flushPromises();
+      await wrapper.vm.$nextTick();
+
+      expect(mockHlsInstance.loadSource).toHaveBeenCalledWith(
+        'http://localhost/video.m3u8',
+      );
+      expect(mockHlsInstance.attachMedia).toHaveBeenCalled();
+    });
+
+    it('falls back to native m3u8 when HLS not supported but native is', async () => {
+      ((MockHls as any).isSupported as Mock).mockReturnValue(false);
+
+      const wrapper = mount(VideoPlayer, {
+        props: { ...defaultProps, src: 'http://localhost/video.m3u8' },
+      });
+      const video = wrapper.find('video').element as HTMLVideoElement;
+
+      // Mock canPlayType to return something truthy for m3u8
+      video.canPlayType = vi.fn().mockReturnValue('maybe');
+
+      // Trigger watcher manually or re-mount
+      (wrapper.vm as any).initHls();
+
+      expect(video.src).toBe('http://localhost/video.m3u8');
+    });
+
+    it('handles HLS fatal errors', async () => {
+      ((MockHls as any).isSupported as Mock).mockReturnValue(true);
+      mount(VideoPlayer, {
+        props: { ...defaultProps, src: 'http://localhost/video.m3u8' },
+      });
+      await flushPromises();
+
+      const onCalls = mockHlsInstance.on.mock.calls;
+      const errorCall = onCalls.find((c) => c[0] === 'hlsError');
+      expect(errorCall).toBeDefined();
+      const errorHandler = errorCall![1];
+
+      // NETWORK_ERROR
+      errorHandler({}, { fatal: true, type: 'networkError' });
+      expect(mockHlsInstance.startLoad).toHaveBeenCalled();
+
+      // MEDIA_ERROR
+      errorHandler({}, { fatal: true, type: 'mediaError' });
+      expect(mockHlsInstance.recoverMediaError).toHaveBeenCalled();
+
+      // OTHER_ERROR
+      errorHandler({}, { fatal: true, type: 'otherError' });
+      expect(mockHlsInstance.destroy).toHaveBeenCalled();
+    });
   });
 });

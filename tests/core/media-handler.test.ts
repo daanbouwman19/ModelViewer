@@ -41,6 +41,9 @@ import {
   handleStreamRequest,
   generateFileUrl,
   createMediaApp,
+  serveHlsMaster,
+  serveHlsPlaylist,
+  serveHlsSegment,
 } from '../../src/core/media-handler';
 import { getMimeType } from '../../src/core/media-utils';
 
@@ -89,6 +92,18 @@ vi.mock('../../src/core/fs-provider-factory', async (importOriginal) => {
   };
 });
 
+const mockHlsManagerInstance = {
+  ensureSession: vi.fn(),
+  getSessionDir: vi.fn(),
+  touchSession: vi.fn(),
+};
+
+vi.mock('../../src/core/hls-manager', () => ({
+  HlsManager: {
+    getInstance: vi.fn(() => mockHlsManagerInstance),
+  },
+}));
+
 import { getProvider } from '../../src/core/fs-provider-factory';
 
 // Mock IMediaSource
@@ -111,6 +126,11 @@ describe('media-handler unit tests', () => {
   let mockFsAccess: any;
   let mockFsCreateReadStream: any;
 
+  // HLS spies
+  let mockHlsEnsureSession: any;
+  let mockHlsGetSessionDir: any;
+  let mockHlsTouchSession: any;
+
   beforeEach(async () => {
     vi.clearAllMocks();
 
@@ -122,7 +142,15 @@ describe('media-handler unit tests', () => {
     mockGetThumbnailCachePath.mockReset();
     mockCheckThumbnailCache.mockReset();
     mockGetDriveStreamWithCache.mockReset();
+    mockGetDriveStreamWithCache.mockReset();
     mockGetFFmpegDuration.mockReset();
+
+    mockHlsEnsureSession = mockHlsManagerInstance.ensureSession;
+    mockHlsGetSessionDir = mockHlsManagerInstance.getSessionDir;
+    mockHlsTouchSession = mockHlsManagerInstance.touchSession;
+    mockHlsEnsureSession.mockReset();
+    mockHlsGetSessionDir.mockReset();
+    mockHlsTouchSession.mockReset();
 
     // Setup Spies
     // Note: Since media-handler imports from fs/promises, we spy on fs.promises
@@ -1054,6 +1082,136 @@ describe('media-handler unit tests', () => {
 
       const result = await getVideoDuration('gdrive://123', 'ffmpeg');
       expect(result).toEqual({ error: 'Duration not available' });
+    });
+  });
+
+  describe('HLS Serving', () => {
+    describe('serveHlsMaster', () => {
+      it('serves master playlist with correct content', async () => {
+        req.query = { file: '/path/to/video.mp4' };
+        mockAuthorizeFilePath.mockResolvedValue({
+          isAllowed: true,
+          realPath: '/path/to/video.mp4',
+        });
+
+        await serveHlsMaster(req, res, '/path/to/video.mp4');
+
+        expect(res.set).toHaveBeenCalledWith(
+          'Content-Type',
+          'application/vnd.apple.mpegurl',
+        );
+        expect(res.send).toHaveBeenCalledWith(
+          expect.stringContaining('#EXTM3U'),
+        );
+        expect(res.send).toHaveBeenCalledWith(
+          expect.stringContaining(
+            'playlist.m3u8?file=%2Fpath%2Fto%2Fvideo.mp4',
+          ),
+        );
+      });
+
+      it('handles access denied', async () => {
+        mockAuthorizeFilePath.mockResolvedValue({ isAllowed: false });
+        await serveHlsMaster(req, res, '/path/to/video.mp4');
+        expect(res.status).toHaveBeenCalledWith(403);
+      });
+    });
+
+    describe('serveHlsPlaylist', () => {
+      it('serves playlist and ensures session', async () => {
+        req.query = { file: '/path/to/video.mp4' };
+        mockAuthorizeFilePath.mockResolvedValue({
+          isAllowed: true,
+          realPath: '/path/to/video.mp4',
+        });
+        mockHlsGetSessionDir.mockReturnValue('/tmp/hls/session123');
+        mockHlsEnsureSession.mockResolvedValue();
+        mockFsReadFile.mockResolvedValue(
+          '#EXTM3U\nsegment_000.ts\nsegment_001.ts',
+        );
+
+        await serveHlsPlaylist(req, res, '/path/to/video.mp4');
+
+        expect(mockHlsEnsureSession).toHaveBeenCalled();
+        expect(mockFsReadFile).toHaveBeenCalledWith(
+          expect.stringContaining('playlist.m3u8'),
+          'utf8',
+        );
+        // Verify rewrite
+        expect(res.send).toHaveBeenCalledWith(
+          expect.stringContaining(
+            'segment_000.ts?file=%2Fpath%2Fto%2Fvideo.mp4',
+          ),
+        );
+        expect(mockHlsTouchSession).toHaveBeenCalled();
+      });
+
+      it('handles session missing dir', async () => {
+        mockAuthorizeFilePath.mockResolvedValue({
+          isAllowed: true,
+          realPath: '/path/to/video.mp4',
+        });
+        mockHlsGetSessionDir.mockReturnValue(null); // No session dir
+
+        await serveHlsPlaylist(req, res, '/path/to/video.mp4');
+        expect(res.status).toHaveBeenCalledWith(500);
+      });
+    });
+
+    describe('serveHlsSegment', () => {
+      it('serves segment file if valid', async () => {
+        mockAuthorizeFilePath.mockResolvedValue({
+          isAllowed: true,
+          realPath: '/path/to/video.mp4',
+        });
+        mockHlsGetSessionDir.mockReturnValue('/tmp/hls/session123');
+        mockFsAccess.mockResolvedValue(); // File exists
+
+        await serveHlsSegment(req, res, '/path/to/video.mp4', 'segment_000.ts');
+
+        expect(mockHlsGetSessionDir).toHaveBeenCalled();
+        expect(res.sendFile).toHaveBeenCalledWith(
+          expect.stringContaining('segment_000.ts'),
+        );
+        expect(mockHlsTouchSession).toHaveBeenCalled();
+      });
+
+      it('returns 404 if session expired', async () => {
+        mockAuthorizeFilePath.mockResolvedValue({
+          isAllowed: true,
+          realPath: '/path/to/video.mp4',
+        });
+        mockHlsGetSessionDir.mockReturnValue(null);
+
+        await serveHlsSegment(req, res, '/path/to/video.mp4', 'segment_000.ts');
+        expect(res.status).toHaveBeenCalledWith(404);
+        expect(res.send).toHaveBeenCalledWith(
+          expect.stringContaining('Session expired'),
+        );
+      });
+
+      it('blocks invalid segment names', async () => {
+        mockAuthorizeFilePath.mockResolvedValue({
+          isAllowed: true,
+          realPath: '/path/to/video.mp4',
+        });
+        mockHlsGetSessionDir.mockReturnValue('/tmp/hls/session123');
+
+        await serveHlsSegment(req, res, '/path/to/video.mp4', '../secret.ts');
+        expect(res.status).toHaveBeenCalledWith(400);
+      });
+
+      it('returns 404 if segment file missing', async () => {
+        mockAuthorizeFilePath.mockResolvedValue({
+          isAllowed: true,
+          realPath: '/path/to/video.mp4',
+        });
+        mockHlsGetSessionDir.mockReturnValue('/tmp/hls/session123');
+        mockFsAccess.mockRejectedValue(new Error('Noent'));
+
+        await serveHlsSegment(req, res, '/path/to/video.mp4', 'segment_999.ts');
+        expect(res.status).toHaveBeenCalledWith(404);
+      });
     });
   });
 });
