@@ -400,3 +400,13 @@ export function isSensitiveDirectory(dirPath: string): boolean {
     );
   }
 }
+
+/**
+ * Checks if a filename is sensitive (should be hidden/blocked).
+ * @param filename - The name of the file.
+ * @returns True if the filename is sensitive.
+ */
+export function isSensitiveFilename(filename: string): boolean {
+  if (!filename) return false;
+  return sensitiveSubdirectoriesSet.has(filename.toLowerCase());
+}

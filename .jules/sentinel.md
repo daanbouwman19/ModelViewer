@@ -53,3 +53,9 @@
 **Vulnerability:** The HLS streaming endpoint (`/api/hls/playlist.m3u8`) allowed creating unlimited HLS transcoding sessions. Each request for a unique file initiated a new FFmpeg process via `HlsManager`, bypassing the existing `MAX_CONCURRENT_TRANSCODES` limit in `server.ts` (which only applied to direct streams).
 **Learning:** Security limits (like concurrency caps) must be enforced at the service layer (`HlsManager`) rather than just the controller layer (`server.ts`) to ensure all access paths respect the limits. Singleton managers need internal resource accounting.
 **Prevention:** Enforced `MAX_CONCURRENT_TRANSCODES` check inside `HlsManager.ensureSession()` to block excessive concurrent HLS transcoding tasks.
+
+## 2026-02-01 - Inconsistent Sensitive File Visibility
+
+**Vulnerability:** `listDirectory` in `src/core/file-system.ts` used a static copy of the sensitive files list, ignoring runtime additions (like the database file) made via `registerSensitiveFile`. This allowed sensitive files to be visible in directory listings.
+**Learning:** Security controls based on mutable blocklists must share a single source of truth. Static initialization in consumers leads to stale security rules.
+**Prevention:** Centralized the sensitive filename check in `src/core/security.ts` and updated consumers to use this shared, dynamic check.
