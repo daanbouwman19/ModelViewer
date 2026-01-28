@@ -10,6 +10,10 @@ export interface HeatmapData {
   points: number;
 }
 
+const DEFAULT_HEATMAP_POINTS = 100;
+const MIN_HEATMAP_POINTS = 1;
+const MAX_HEATMAP_POINTS = 1000;
+
 export class MediaAnalyzer {
   private static instance: MediaAnalyzer;
   private cacheDir: string | null = null;
@@ -48,8 +52,9 @@ export class MediaAnalyzer {
 
   async generateHeatmap(
     filePath: string,
-    points: number = 100,
+    points: number = DEFAULT_HEATMAP_POINTS,
   ): Promise<HeatmapData> {
+    const safePoints = this.sanitizePoints(points);
     if (!ffmpegStatic) {
       throw new Error('FFmpeg not found');
     }
@@ -62,7 +67,7 @@ export class MediaAnalyzer {
     }
 
     console.log(
-      `[MediaAnalyzer] Generating heatmap for ${filePath} with ${points} points`,
+      `[MediaAnalyzer] Generating heatmap for ${filePath} with ${safePoints} points`,
     );
 
     // Create job promise early to register it before any async operations
@@ -70,7 +75,7 @@ export class MediaAnalyzer {
     const jobPromise = new Promise<HeatmapData>(async (resolve, reject) => {
       try {
         // Check cache
-        const cachePath = this.getCachePath(filePath, points);
+        const cachePath = this.getCachePath(filePath, safePoints);
         if (cachePath) {
           try {
             const cached = await fs.readFile(cachePath, 'utf-8');
@@ -203,13 +208,13 @@ export class MediaAnalyzer {
             );
 
             // Downsample to `points`
-            const resampledAudio = this.resample(audioValues, points, -90);
-            const resampledMotion = this.resample(motionValues, points, 0);
+            const resampledAudio = this.resample(audioValues, safePoints, -90);
+            const resampledMotion = this.resample(motionValues, safePoints, 0);
 
             const result: HeatmapData = {
               audio: resampledAudio,
               motion: resampledMotion,
-              points,
+              points: safePoints,
             };
 
             // Cache result
@@ -255,12 +260,15 @@ export class MediaAnalyzer {
     targetLength: number,
     defaultValue: number,
   ): number[] {
-    if (data.length === 0) return new Array(targetLength).fill(defaultValue);
+    const safeTargetLength = this.sanitizePoints(targetLength);
+    if (data.length === 0) {
+      return new Array(safeTargetLength).fill(defaultValue);
+    }
 
     const result: number[] = [];
-    const step = data.length / targetLength;
+    const step = data.length / safeTargetLength;
 
-    for (let i = 0; i < targetLength; i++) {
+    for (let i = 0; i < safeTargetLength; i++) {
       const start = Math.floor(i * step);
       const end = Math.floor((i + 1) * step);
       const slice = data.slice(start, end);
@@ -278,5 +286,12 @@ export class MediaAnalyzer {
       }
     }
     return result;
+  }
+
+  private sanitizePoints(points: number): number {
+    if (!Number.isFinite(points)) return DEFAULT_HEATMAP_POINTS;
+    const rounded = Math.floor(points);
+    if (rounded < MIN_HEATMAP_POINTS) return MIN_HEATMAP_POINTS;
+    return Math.min(MAX_HEATMAP_POINTS, rounded);
   }
 }
