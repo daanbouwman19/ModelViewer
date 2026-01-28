@@ -265,6 +265,18 @@ export function initDatabase(dbPath: string): WorkerResult {
     statements.getSetting = db.prepare(
       'SELECT value FROM settings WHERE key = ?',
     );
+    statements.executeSmartPlaylist = db.prepare(`
+      SELECT
+        m.file_path_hash,
+        m.file_path,
+        m.duration,
+        m.rating,
+        m.created_at,
+        COALESCE(v.view_count, 0) as view_count,
+        v.last_viewed
+      FROM media_metadata m
+      LEFT JOIN media_views v ON m.file_path_hash = v.file_path_hash
+    `);
 
     // Optimized batch statements
     const placeholders = Array(SQL_BATCH_SIZE).fill('?').join(',');
@@ -565,22 +577,9 @@ export function getSetting(key: string): WorkerResult {
 export async function executeSmartPlaylist(/* criteriaJson: string */): Promise<WorkerResult> {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
-    // Bolt Optimization: Removed UNION ALL with media_views to avoid fetching "ghost" files
-    // (files with history but no longer in library/metadata).
-    // This reduces query cost significantly by avoiding a second table scan + merge.
-    const query = `
-      SELECT
-        m.file_path_hash,
-        m.file_path,
-        m.duration,
-        m.rating,
-        m.created_at,
-        COALESCE(v.view_count, 0) as view_count,
-        v.last_viewed
-      FROM media_metadata m
-      LEFT JOIN media_views v ON m.file_path_hash = v.file_path_hash
-    `;
-    const rows = db.prepare(query).all();
+    // Bolt Optimization: Use cached prepared statement to avoid re-parsing SQL
+    // Query joined with views to provide complete stats for filtering/sorting
+    const rows = statements.executeSmartPlaylist.all();
     return { success: true, data: rows };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
