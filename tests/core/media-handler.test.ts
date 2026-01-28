@@ -15,6 +15,7 @@ const {
   mockCheckThumbnailCache,
   mockGetDriveStreamWithCache,
   mockGetFFmpegDuration,
+  mockValidateFileAccess,
 } = vi.hoisted(() => ({
   mockSpawn: vi.fn(),
   mockGetDriveFileMetadata: vi.fn(),
@@ -24,6 +25,7 @@ const {
   mockCheckThumbnailCache: vi.fn(),
   mockGetDriveStreamWithCache: vi.fn(),
   mockGetFFmpegDuration: vi.fn(),
+  mockValidateFileAccess: vi.fn(),
 }));
 
 vi.mock('child_process', () => ({
@@ -59,6 +61,10 @@ vi.mock('../../src/core/drive-stream', () => ({
 
 vi.mock('../../src/core/security', () => ({
   authorizeFilePath: mockAuthorizeFilePath,
+}));
+
+vi.mock('../../src/core/access-validator', () => ({
+  validateFileAccess: mockValidateFileAccess,
 }));
 
 vi.mock('../../src/core/media-utils', async (importOriginal) => {
@@ -1355,21 +1361,49 @@ describe('media-handler unit tests', () => {
     });
   });
 
-  describe('getVideoDuration - Additional Coverage', () => {
-    it('handles provider metadata errors gracefully', async () => {
-      const mockProvider = {
-        getMetadata: vi.fn().mockRejectedValue(new Error('Provider error')),
-      };
+  describe('handleStreamRequest - Edge Case Coverage', () => {
+    it('handles tryServeDirectFile failure gracefully', async () => {
+      mockValidateFileAccess.mockResolvedValue({
+        success: true,
+        path: '/path/to/video.mp4',
+      });
 
-      vi.doMock('../../src/core/fs-provider-factory', () => ({
-        getProvider: vi.fn().mockReturnValue(mockProvider),
-      }));
+      const req = {
+        query: { file: '/path/to/video.mp4' },
+      } as any;
+      const res = {
+        sendFile: vi.fn().mockImplementation(() => {
+          throw new Error('sendFile error');
+        }),
+        status: vi.fn().mockReturnThis(),
+        send: vi.fn().mockReturnThis(),
+        headersSent: false,
+      } as any;
 
-      const result = await getVideoDuration(
-        'gdrive://file-id',
-        '/usr/bin/ffmpeg',
-      );
-      expect(result).toHaveProperty('error', 'Duration not available');
+      await handleStreamRequest(req, res, '/usr/bin/ffmpeg');
+
+      expect(res.sendFile).toHaveBeenCalled();
+    });
+
+    it('skips error response if headers already sent in handleStreamRequest', async () => {
+      mockValidateFileAccess.mockResolvedValue({
+        success: false,
+        statusCode: 403,
+        error: 'Forbidden',
+      });
+
+      const req = {
+        query: { file: '/private.mp4' },
+      } as any;
+      const res = {
+        status: vi.fn().mockReturnThis(),
+        send: vi.fn().mockReturnThis(),
+        headersSent: true,
+      } as any;
+
+      await handleStreamRequest(req, res, '/usr/bin/ffmpeg');
+
+      expect(res.status).not.toHaveBeenCalled();
     });
   });
 });
