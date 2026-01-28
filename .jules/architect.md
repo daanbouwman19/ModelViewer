@@ -46,7 +46,7 @@
 **Insight:** Logging conditional logic is an implementation detail that should be abstracted away. Inline environment checks create visual noise that makes control flow harder to follow.
 **Prevention:** Use a dedicated logger or helper functions (`safeLog`) to encapsulate environment-specific logging rules.
 
-## 2026-05-24 - Extracting HLS Playlist Logic
+## 2026-01-28 - Extracting HLS Playlist Logic
 
 **Smell:** `media-handler.ts` contained imperative string concatenation and regex replacement logic for HLS playlist generation, mixing presentation/formatting with request handling.
 **Insight:** Playlist generation and manipulation are pure string transformations. Extracting them makes the handler cleaner and allows rigorous unit testing of edge cases (like special characters in filenames) without needing to mock Express.
