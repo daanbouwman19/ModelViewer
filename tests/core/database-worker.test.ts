@@ -672,6 +672,82 @@ describe('Database Worker', () => {
     });
   });
 
+  describe('Smart playlists, settings, and pending metadata', () => {
+    beforeEach(async () => {
+      await sendMessage('init', { dbPath });
+    });
+
+    it('should create, update, list, and delete smart playlists', async () => {
+      const createResult = await sendMessage('createSmartPlaylist', {
+        name: 'My Playlist',
+        criteria: '{"rating":5}',
+      });
+      expect(createResult.success).toBe(true);
+      const createdId = (createResult.data as { id: number }).id;
+      expect(createdId).toBeDefined();
+
+      const listResult = await sendMessage('getSmartPlaylists', {});
+      expect(listResult.success).toBe(true);
+      const playlists = listResult.data as Array<{ id: number; name: string }>;
+      expect(playlists.length).toBeGreaterThan(0);
+
+      const updateResult = await sendMessage('updateSmartPlaylist', {
+        id: createdId,
+        name: 'Updated Playlist',
+        criteria: '{"rating":4}',
+      });
+      expect(updateResult.success).toBe(true);
+
+      const deleteResult = await sendMessage('deleteSmartPlaylist', {
+        id: createdId,
+      });
+      expect(deleteResult.success).toBe(true);
+    });
+
+    it('should save and retrieve settings', async () => {
+      const saveResult = await sendMessage('saveSetting', {
+        key: 'theme',
+        value: 'dark',
+      });
+      expect(saveResult.success).toBe(true);
+
+      const getResult = await sendMessage('getSetting', { key: 'theme' });
+      expect(getResult.success).toBe(true);
+      expect(getResult.data).toBe('dark');
+
+      const missingResult = await sendMessage('getSetting', {
+        key: 'missing-key',
+      });
+      expect(missingResult.success).toBe(true);
+      expect(missingResult.data).toBeNull();
+    });
+
+    it('should return recently played items', async () => {
+      const filePath = path.join(tempDir, 'recent.mp4');
+      fs.writeFileSync(filePath, 'recent data');
+
+      await sendMessage('recordMediaView', { filePath });
+
+      const recentResult = await sendMessage('getRecentlyPlayed', { limit: 5 });
+      expect(recentResult.success).toBe(true);
+      const rows = recentResult.data as Array<{ file_path: string }>;
+      expect(rows.length).toBeGreaterThan(0);
+      expect(rows[0].file_path).toBe(filePath);
+    });
+
+    it('should return pending metadata file paths', async () => {
+      const filePath = path.join(tempDir, 'pending.mp4');
+      fs.writeFileSync(filePath, 'pending');
+
+      await sendMessage('upsertMetadata', { filePath });
+
+      const pendingResult = await sendMessage('getPendingMetadata', {});
+      expect(pendingResult.success).toBe(true);
+      const pending = pendingResult.data as string[];
+      expect(pending).toContain(filePath);
+    });
+  });
+
   describe('Edge Cases', () => {
     beforeEach(async () => {
       await sendMessage('init', { dbPath });
@@ -795,6 +871,12 @@ describe('Database Worker', () => {
           expect(result.error).toBe('Database not initialized');
         },
       );
+    });
+
+    it('getPendingMetadata should return DB not ready before init', async () => {
+      const result = await sendMessage('getPendingMetadata', {});
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('DB not ready');
     });
 
     // Test operations after closing the database

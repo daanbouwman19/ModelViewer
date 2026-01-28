@@ -5,6 +5,7 @@ import type {
   SmartPlaylist,
   MediaMetadata,
   MediaLibraryItem,
+  HeatmapData,
 } from '../../core/types';
 import type { FileSystemEntry } from '../../core/file-system';
 
@@ -169,6 +170,23 @@ export class WebAdapter implements IMediaBackend {
     throw new Error('Failed to get video metadata');
   }
 
+  async getHeatmap(filePath: string, points = 100): Promise<HeatmapData> {
+    return this.request<HeatmapData>(
+      `/api/video/heatmap?file=${encodeURIComponent(filePath)}&points=${points}`,
+    );
+  }
+
+  async getHeatmapProgress(filePath: string): Promise<number | null> {
+    try {
+      const res = await this.request<{ progress: number | null }>(
+        `/api/video/heatmap/status?file=${encodeURIComponent(filePath)}`,
+      );
+      return res.progress ?? null;
+    } catch {
+      return null;
+    }
+  }
+
   async listDirectory(directoryPath: string): Promise<FileSystemEntry[]> {
     return this.request<FileSystemEntry[]>(
       `/api/fs/ls?path=${encodeURIComponent(directoryPath)}`,
@@ -254,6 +272,15 @@ export class WebAdapter implements IMediaBackend {
       method: 'PUT',
       body: JSON.stringify({ name, criteria }),
     });
+  }
+  async updateWatchedSegments(
+    _filePath: string,
+    _segmentsJson: string,
+  ): Promise<void> {
+    void _filePath;
+    void _segmentsJson;
+    // Web version doesn't support persistent watch history yet
+    return;
   }
 
   async getAllMetadataAndStats(): Promise<MediaLibraryItem[]> {

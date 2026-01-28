@@ -20,6 +20,7 @@ import { authorizeFilePath } from './security.ts';
 import { validateFileAccess } from './access-validator.ts';
 import { serveThumbnail } from './thumbnail-handler.ts';
 import { HlsManager } from './hls-manager.ts';
+import { MediaAnalyzer } from './analysis/media-analyzer.ts';
 import crypto from 'crypto';
 import fs from 'fs/promises';
 import {
@@ -406,6 +407,62 @@ export async function serveHlsSegment(
   }
 }
 
+/**
+ * Serves the Heatmap data for a media file.
+ */
+export async function serveHeatmap(
+  req: Request,
+  res: Response,
+  filePath: string,
+) {
+  const access = await validateFileAccess(filePath);
+  if (!access.success) {
+    if (!res.headersSent) res.status(access.statusCode).send(access.error);
+    return;
+  }
+  const authorizedPath = access.path;
+
+  try {
+    const pointsStr = getQueryParam(req.query, 'points');
+    const points = pointsStr ? parseInt(pointsStr, 10) : 100;
+
+    const analyzer = MediaAnalyzer.getInstance();
+    const data = await analyzer.generateHeatmap(authorizedPath, points);
+    res.json(data);
+  } catch (e) {
+    console.error('[Heatmap] Error generating heatmap:', e);
+    res.status(500).send('Heatmap generation failed');
+  }
+}
+
+/**
+ * Serves the progress of heatmap generation.
+ */
+export async function serveHeatmapProgress(
+  _req: Request,
+  res: Response,
+  filePath: string,
+) {
+  // Authorization check is lightweight here, but good practice
+  const access = await validateFileAccess(filePath);
+  if (!access.success) {
+    if (!res.headersSent) res.status(access.statusCode).send(access.error);
+    return;
+  }
+  const authorizedPath = access.path;
+
+  const analyzer = MediaAnalyzer.getInstance();
+  const progress = analyzer.getProgress(authorizedPath);
+
+  if (progress === null) {
+    // If null, job doesn't exist. It might be done or never started.
+    // We return 200 with null to avoid console 404 errors during polling.
+    res.json({ progress: null });
+  } else {
+    res.json({ progress });
+  }
+}
+
 // Re-export serveThumbnail from the new handler for compatibility/convenience
 export { serveThumbnail };
 
@@ -457,6 +514,10 @@ export async function serveStaticFile(
  */
 export function createMediaApp(options: MediaHandlerOptions) {
   const { ffmpegPath, cacheDir } = options;
+
+  // Initialize MediaAnalyzer cache dir
+  MediaAnalyzer.getInstance().setCacheDir(cacheDir);
+
   const app = express();
 
   app.use(cors());
@@ -496,6 +557,16 @@ export function createMediaApp(options: MediaHandlerOptions) {
       return;
     }
     await serveThumbnail(req, res, filePath, ffmpegPath, cacheDir);
+  });
+
+  // Heatmap Route
+  app.get(MediaRoutes.HEATMAP, fileLimiter, async (req, res) => {
+    const filePath = getQueryParam(req.query, 'file');
+    if (!filePath) {
+      res.status(400).send('Missing file parameter');
+      return;
+    }
+    await serveHeatmap(req, res, filePath);
   });
 
   // Static File Serving (Fallback)

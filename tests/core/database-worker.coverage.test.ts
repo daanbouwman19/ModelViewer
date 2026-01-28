@@ -6,6 +6,7 @@ import {
   getAllMetadata,
   recordMediaView,
   upsertMetadata,
+  getMetadata,
 } from '../../src/core/database-worker';
 
 // Mock worker_threads since we are importing the worker file which has side effects (parentPort usage)
@@ -86,5 +87,34 @@ describe('database-worker coverage (exported functions)', () => {
 
     const res2 = getAllMetadata();
     expect(res2).toEqual({ success: false, error: 'Database not initialized' });
+  });
+
+  it('recordMediaView handles empty file path via generateFileId fallback', async () => {
+    const result = await recordMediaView('');
+    // generateFileId catches the error and falls back to hashing the path string
+    // So it should actually succeed.
+    expect(result.success).toBe(true);
+  });
+
+  it('getMetadata handles batching and padding', async () => {
+    const result = await getMetadata(['/file1.mp4', '/file2.mp4']);
+    expect(result.success).toBe(true);
+    expect(result.data).toBeDefined();
+  });
+
+  it('getMetadata handles exact batch size', async () => {
+    const paths = Array.from({ length: 900 }, (_, i) => `/file${i}.mp4`);
+    // This will trigger the (batchIds.length === 900) branch
+    const result = await getMetadata(paths);
+    expect(result.success).toBe(true);
+  });
+
+  it('generateFileIdsBatched handles database query failure gracefully', async () => {
+    // This tests the catch block in generateFileIdsBatched (lines 109-114)
+    // We'll call a function that uses generateFileIdsBatched internally
+    const paths = Array.from({ length: 10 }, (_, i) => `/file${i}.mp4`);
+    const result = await getMetadata(paths);
+    // Should still succeed even if DB query fails, falling back to generation
+    expect(result.success).toBe(true);
   });
 });

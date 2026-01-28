@@ -1,10 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../src/server/server';
-import {
-  validateFileAccess,
-  serveRawStream,
-} from '../../src/core/media-handler';
+import { serveRawStream } from '../../src/core/media-handler';
+import { validateFileAccess } from '../../src/core/access-validator';
 import { createMediaSource } from '../../src/core/media-source';
 
 // Mock dependencies
@@ -21,13 +19,22 @@ vi.mock('../../src/core/database', () => ({
   setDirectoryActiveState: vi.fn(),
 }));
 vi.mock('../../src/core/media-service', () => ({}));
+vi.mock('../../src/core/analysis/media-analyzer', () => ({
+  MediaAnalyzer: {
+    getInstance: vi.fn().mockReturnValue({
+      generateHeatmap: vi.fn().mockResolvedValue({ points: 100 }),
+      setCacheDir: vi.fn(),
+    }),
+  },
+}));
+
 vi.mock('../../src/core/media-handler', async (importOriginal) => {
   const actual =
     await importOriginal<typeof import('../../src/core/media-handler')>();
   return {
     ...actual,
-    validateFileAccess: vi.fn(),
-    serveRawStream: vi.fn((req, res) => res.end()), // Fix: Ensure response is ended
+    serveRawStream: vi.fn((_req, res) => res.end()), // Fix: Ensure response is ended
+    // serveHeatmap: Use actual implementation to test its validation logic
   };
 });
 vi.mock('../../src/core/media-source', async (importOriginal) => {
@@ -60,6 +67,10 @@ vi.mock('../../src/main/google-drive-service', () => ({
   getDriveClient: vi.fn(),
   listDriveDirectory: vi.fn(),
   getDriveParent: vi.fn(),
+}));
+
+vi.mock('../../src/core/access-validator', () => ({
+  validateFileAccess: vi.fn(),
 }));
 
 // Mock process.cwd to something stable
@@ -111,6 +122,44 @@ describe('Server Endpoint Security', () => {
       expect(validateFileAccess).toHaveBeenCalledWith(filePath);
       expect(createMediaSource).toHaveBeenCalledWith(filePath);
       expect(serveRawStream).toHaveBeenCalled();
+    });
+  });
+
+  describe('GET /api/video/heatmap', () => {
+    it('should validate file access', async () => {
+      const filePath = '/unauthorized/video.mp4';
+      vi.mocked(validateFileAccess).mockResolvedValue({
+        success: false,
+        error: 'Access denied',
+        statusCode: 403,
+      });
+
+      const response = await request(app)
+        .get('/api/video/heatmap')
+        .query({ file: filePath });
+
+      expect(response.status).toBe(403);
+      expect(validateFileAccess).toHaveBeenCalledWith(filePath);
+    });
+
+    it('should serve heatmap if authorized', async () => {
+      const filePath = '/authorized/video.mp4';
+      vi.mocked(validateFileAccess).mockResolvedValue({
+        success: true,
+        path: filePath,
+      });
+
+      const response = await request(app)
+        .get('/api/video/heatmap')
+        .query({ file: filePath });
+
+      expect(response.status).toBe(200);
+      // expect(serveHeatmap).toHaveBeenCalled();
+    });
+
+    it('should return 400 if file param missing', async () => {
+      const response = await request(app).get('/api/video/heatmap');
+      expect(response.status).toBe(400);
     });
   });
 });

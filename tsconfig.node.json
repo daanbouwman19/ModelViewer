@@ -21,6 +21,8 @@
     "src/server/**/*",
     "src/core/**/*",
     "electron.vite.config.ts",
-    "tests/main/**/*"
+    "tests/main/**/*",
+    "tests/core/**/*",
+    "tests/server/**/*"
   ]
 }

@@ -6,6 +6,7 @@ import type {
   MediaMetadata,
   MediaLibraryItem,
   IpcResult,
+  HeatmapData,
 } from '../../core/types';
 import type { FileSystemEntry } from '../../core/file-system';
 
@@ -114,6 +115,14 @@ export class ElectronAdapter implements IMediaBackend {
     return { duration: res.duration };
   }
 
+  async getHeatmap(filePath: string, points?: number): Promise<HeatmapData> {
+    return this.invoke(this.bridge.getHeatmap(filePath, points));
+  }
+
+  async getHeatmapProgress(filePath: string): Promise<number | null> {
+    return this.invoke(this.bridge.getHeatmapProgress(filePath));
+  }
+
   async openInVlc(
     filePath: string,
   ): Promise<{ success: boolean; message?: string }> {
@@ -166,6 +175,14 @@ export class ElectronAdapter implements IMediaBackend {
     criteria: string,
   ): Promise<void> {
     return this.invoke(this.bridge.updateSmartPlaylist(id, name, criteria));
+  }
+  async updateWatchedSegments(
+    filePath: string,
+    segmentsJson: string,
+  ): Promise<void> {
+    return this.invoke(
+      this.bridge.updateWatchedSegments(filePath, segmentsJson),
+    );
   }
 
   async getAllMetadataAndStats(): Promise<MediaLibraryItem[]> {

@@ -24,6 +24,8 @@ const mocks = vi.hoisted(() => ({
   mockGetDriveParent: vi.fn(),
   mockValidateFileAccess: vi.fn(),
   mockCreateMediaSource: vi.fn(),
+  mockServeHeatmap: vi.fn(),
+  mockServeHeatmapProgress: vi.fn(),
 }));
 
 // Mock Dependencies
@@ -73,6 +75,8 @@ vi.mock('../../src/core/media-handler', () => ({
   serveRawStream: mocks.mockServeRawStream,
   serveStaticFile: vi.fn(),
   validateFileAccess: mocks.mockValidateFileAccess,
+  serveHeatmap: mocks.mockServeHeatmap,
+  serveHeatmapProgress: mocks.mockServeHeatmapProgress,
 }));
 
 vi.mock('../../src/main/google-auth', () => ({
@@ -109,7 +113,7 @@ describe('Server Coverage', () => {
       success: true,
       path: '/local/file',
     });
-    mocks.mockServeRawStream.mockImplementation((req, res) => {
+    mocks.mockServeRawStream.mockImplementation((_req, res) => {
       // Must send response to finish request
       res.status(200).send('mock-stream');
     });
@@ -532,6 +536,33 @@ describe('Server Coverage', () => {
       );
       const res = await request(app).get('/api/smart-playlists');
       expect(res.status).toBe(500);
+    });
+
+    it('GET /api/video/heatmap returns heatmap', async () => {
+      mocks.mockServeHeatmap.mockImplementation((_req, res) =>
+        res.status(200).send('Heatmap'),
+      );
+      const res = await request(app)
+        .get('/api/video/heatmap')
+        .query({ file: '/test.mp4' });
+      expect(res.status).toBe(200);
+      expect(res.text).toBe('Heatmap');
+    });
+
+    it('GET /api/video/heatmap returns 400 if missing file', async () => {
+      const res = await request(app).get('/api/video/heatmap');
+      expect(res.status).toBe(400);
+    });
+
+    it('GET /api/video/heatmap/status returns status', async () => {
+      mocks.mockServeHeatmapProgress.mockImplementation((_req, res) =>
+        res.status(200).send('80%'),
+      );
+      const res = await request(app)
+        .get('/api/video/heatmap/status')
+        .query({ file: '/test.mp4' });
+      expect(res.status).toBe(200);
+      expect(res.text).toBe('80%');
     });
   });
 });

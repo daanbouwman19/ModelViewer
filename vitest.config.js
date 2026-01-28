@@ -23,6 +23,8 @@ export default defineConfig({
       '.vite',
       'dist',
       'tests/e2e/**',
+      'coverage/**',
+      'cache/**',
     ],
     coverage: {
       provider: 'istanbul',

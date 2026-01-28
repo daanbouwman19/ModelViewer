@@ -41,6 +41,7 @@ export interface MediaMetadata {
   rating?: number;
   createdAt?: string; // ISO date
   status?: string; // 'pending' | 'processing' | 'success' | 'failed'
+  watchedSegments?: string; // JSON string of {start, end}[]
 }
 
 export interface MediaLibraryItem {
@@ -52,8 +53,15 @@ export interface MediaLibraryItem {
   created_at: string | null;
   view_count: number | null;
   last_viewed: string | null;
+  watched_segments?: string | null;
 }
 
 export type IpcResult<T = unknown> =
   | { success: true; data: T }
   | { success: false; error: string };
+
+export interface HeatmapData {
+  audio: number[];
+  motion: number[];
+  points: number;
+}

@@ -5,6 +5,7 @@ import type {
   MediaLibraryItem,
   MediaMetadata,
   SmartPlaylist,
+  HeatmapData,
 } from '../core/types';
 import type { FileSystemEntry } from '../core/file-system';
 
@@ -32,6 +33,14 @@ export interface IpcContract {
   [IPC_CHANNELS.GET_ALBUMS_WITH_VIEW_COUNTS]: {
     payload: [];
     response: Album[];
+  };
+  [IPC_CHANNELS.GET_HEATMAP]: {
+    payload: [string, number?];
+    response: HeatmapData;
+  };
+  [IPC_CHANNELS.GET_HEATMAP_PROGRESS]: {
+    payload: [string];
+    response: number | null;
   };
   [IPC_CHANNELS.ADD_MEDIA_DIRECTORY]: {
     payload: [string?];
@@ -103,6 +112,10 @@ export interface IpcContract {
   };
   [IPC_CHANNELS.DB_UPDATE_SMART_PLAYLIST]: {
     payload: [{ id: number; name: string; criteria: string }];
+    response: void;
+  };
+  [IPC_CHANNELS.DB_UPDATE_WATCHED_SEGMENTS]: {
+    payload: [{ filePath: string; segmentsJson: string }];
     response: void;
   };
   [IPC_CHANNELS.DB_GET_ALL_METADATA_AND_STATS]: {

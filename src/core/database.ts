@@ -321,6 +321,27 @@ async function setRating(filePath: string, rating: number): Promise<void> {
 }
 
 /**
+ * Updates watched segments for a file.
+ */
+async function updateWatchedSegments(
+  filePath: string,
+  segmentsJson: string,
+): Promise<void> {
+  try {
+    await getClient().sendMessage<void>('updateWatchedSegments', {
+      filePath,
+      segmentsJson,
+    });
+  } catch (error) {
+    console.error(
+      '[database.js] Error updating watched segments:',
+      filePath,
+      error,
+    );
+  }
+}
+
+/**
  * Retrieves metadata for a list of files.
  */
 async function getMetadata(
@@ -506,6 +527,7 @@ export {
   getSmartPlaylists,
   deleteSmartPlaylist,
   updateSmartPlaylist,
+  updateWatchedSegments,
   saveSetting,
   getSetting,
   getAllMetadataAndStats,

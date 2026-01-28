@@ -44,6 +44,7 @@ import {
   serveHlsMaster,
   serveHlsPlaylist,
   serveHlsSegment,
+  serveHeatmap,
 } from '../../src/core/media-handler';
 import { getMimeType } from '../../src/core/media-utils';
 
@@ -1218,6 +1219,202 @@ describe('media-handler unit tests', () => {
         await serveHlsSegment(req, res, '/path/to/video.mp4', 'segment_000.ts');
         expect(res.status).toHaveBeenCalledWith(403);
       });
+    });
+  });
+
+  describe('serveHeatmap', () => {
+    it('serves heatmap data on success', async () => {
+      req.query = { file: '/path/to/video.mp4', points: '50' };
+      mockAuthorizeFilePath.mockResolvedValue({
+        isAllowed: true,
+        realPath: '/path/to/video.mp4',
+      });
+      const mockAnalyzer = {
+        generateHeatmap: vi
+          .fn()
+          .mockResolvedValue({ audio: [], motion: [], points: 50 }),
+      };
+      // Mock MediaAnalyzer.getInstance
+      const { MediaAnalyzer } =
+        await import('../../src/core/analysis/media-analyzer');
+      vi.spyOn(MediaAnalyzer, 'getInstance').mockReturnValue(
+        mockAnalyzer as any,
+      );
+
+      await serveHeatmap(req, res, '/path/to/video.mp4');
+
+      expect(mockAnalyzer.generateHeatmap).toHaveBeenCalledWith(
+        '/path/to/video.mp4',
+        50,
+      );
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ points: 50 }),
+      );
+    });
+
+    it('defaults points to 100', async () => {
+      req.query = { file: '/path/to/video.mp4' }; // No points
+      mockAuthorizeFilePath.mockResolvedValue({
+        isAllowed: true,
+        realPath: '/path/to/video.mp4',
+      });
+      const mockAnalyzer = {
+        generateHeatmap: vi.fn().mockResolvedValue({}),
+      };
+      const { MediaAnalyzer } =
+        await import('../../src/core/analysis/media-analyzer');
+      vi.spyOn(MediaAnalyzer, 'getInstance').mockReturnValue(
+        mockAnalyzer as any,
+      );
+
+      await serveHeatmap(req, res, '/path/to/video.mp4');
+
+      expect(mockAnalyzer.generateHeatmap).toHaveBeenCalledWith(
+        '/path/to/video.mp4',
+        100,
+      );
+    });
+
+    it('handles access denied', async () => {
+      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: false });
+      await serveHeatmap(req, res, '/path/to/video.mp4');
+      expect(res.status).toHaveBeenCalledWith(403);
+    });
+
+    it('handles analyzer errors', async () => {
+      mockAuthorizeFilePath.mockResolvedValue({
+        isAllowed: true,
+        realPath: '/path/to/video.mp4',
+      });
+      const mockAnalyzer = {
+        generateHeatmap: vi.fn().mockRejectedValue(new Error('Analyzer Fail')),
+      };
+      const { MediaAnalyzer } =
+        await import('../../src/core/analysis/media-analyzer');
+      vi.spyOn(MediaAnalyzer, 'getInstance').mockReturnValue(
+        mockAnalyzer as any,
+      );
+
+      await serveHeatmap(req, res, '/path/to/video.mp4');
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.send).toHaveBeenCalledWith('Heatmap generation failed');
+    });
+  });
+
+  describe('serveHlsSegment - Additional Coverage', () => {
+    it('returns 404 when session has expired', async () => {
+      mockAuthorizeFilePath.mockResolvedValue({
+        isAllowed: true,
+        realPath: '/path/to/video.mp4',
+      });
+
+      const MockHlsManager = {
+        getSessionDir: vi.fn().mockReturnValue(null),
+      };
+
+      const { HlsManager } = await import('../../src/core/hls-manager');
+      vi.spyOn(HlsManager, 'getInstance').mockReturnValue(
+        MockHlsManager as any,
+      );
+
+      await serveHlsSegment(req, res, '/path/to/video.mp4', 'segment_001.ts');
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.send).toHaveBeenCalledWith(
+        'Segment not found (Session expired)',
+      );
+    });
+  });
+
+  describe('serveHlsPlaylist - Additional Coverage', () => {
+    it('handles session creation failure', async () => {
+      mockAuthorizeFilePath.mockResolvedValue({
+        isAllowed: true,
+        realPath: '/path/to/video.mp4',
+      });
+
+      const MockHlsManager = {
+        ensureSession: vi
+          .fn()
+          .mockRejectedValue(new Error('Session creation failed')),
+        getSessionDir: vi.fn().mockReturnValue(null),
+        touchSession: vi.fn(),
+      };
+
+      const { HlsManager } = await import('../../src/core/hls-manager');
+      vi.spyOn(HlsManager, 'getInstance').mockReturnValue(
+        MockHlsManager as any,
+      );
+
+      const req = {
+        query: { file: '/path/to/video.mp4' },
+      } as any;
+
+      await serveHlsPlaylist(req, res, '/path/to/video.mp4');
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.send).toHaveBeenCalledWith('HLS Generation failed');
+    });
+  });
+
+  describe('handleStreamRequest - Edge Case Coverage', () => {
+    it('handles tryServeDirectFile failure gracefully', async () => {
+      mockAuthorizeFilePath.mockResolvedValue({
+        isAllowed: true,
+        realPath: '/path/to/video.mp4',
+      });
+
+      const req = {
+        query: { file: '/path/to/video.mp4' },
+      } as any;
+      const res = {
+        sendFile: vi.fn().mockImplementation(() => {
+          throw new Error('sendFile error');
+        }),
+        status: vi.fn().mockReturnThis(),
+        send: vi.fn().mockReturnThis(),
+        headersSent: false,
+      } as any;
+
+      await handleStreamRequest(req, res, '/usr/bin/ffmpeg');
+
+      expect(res.sendFile).toHaveBeenCalled();
+    });
+
+    it('skips error response if headers already sent in handleStreamRequest', async () => {
+      mockAuthorizeFilePath.mockResolvedValue({
+        isAllowed: false,
+        message: 'Access denied.',
+      });
+
+      const req = {
+        query: { file: '/private.mp4' },
+      } as any;
+      const res = {
+        status: vi.fn().mockReturnThis(),
+        send: vi.fn().mockReturnThis(),
+        headersSent: true,
+      } as any;
+
+      await handleStreamRequest(req, res, '/usr/bin/ffmpeg');
+
+      expect(res.status).not.toHaveBeenCalled();
+    });
+
+    it('handles validateFileAccess catch block in handleStreamRequest', async () => {
+      mockAuthorizeFilePath.mockRejectedValue(new Error('Validation crash'));
+
+      const req = {
+        query: { file: '/crash.mp4' },
+      } as any;
+      const res = {
+        status: vi.fn().mockReturnThis(),
+        send: vi.fn().mockReturnThis(),
+        headersSent: false,
+      } as any;
+
+      await handleStreamRequest(req, res, '/usr/bin/ffmpeg');
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.send).toHaveBeenCalledWith('Internal server error.');
     });
   });
 });

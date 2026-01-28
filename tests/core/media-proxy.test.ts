@@ -69,7 +69,7 @@ describe('InternalMediaProxy', () => {
     it('starts server and resolves', async () => {
       const proxy = InternalMediaProxy.getInstance();
 
-      mockListen.mockImplementation((port: any, host: any, cb: any) => {
+      mockListen.mockImplementation((_port: any, host: any, cb: any) => {
         if (typeof host === 'function') host();
         else if (typeof cb === 'function') cb();
       });
@@ -95,7 +95,7 @@ describe('InternalMediaProxy', () => {
     const proxy = InternalMediaProxy.getInstance();
 
     // Setup listen callback
-    mockListen.mockImplementation((port: any, host: any, cb: any) => {
+    mockListen.mockImplementation((_port: any, host: any, cb: any) => {
       if (typeof host === 'function') host();
       else if (typeof cb === 'function') cb();
     });
@@ -321,7 +321,7 @@ describe('InternalMediaProxy', () => {
 
   it('getUrlForFile returns cached port if listening', async () => {
     const proxy = InternalMediaProxy.getInstance();
-    mockListen.mockImplementation((p, h, cb) => {
+    mockListen.mockImplementation((_p, _h, cb) => {
       if (cb) cb();
     });
 
@@ -335,7 +335,7 @@ describe('InternalMediaProxy', () => {
 
   it('start() is idempotent', async () => {
     const proxy = InternalMediaProxy.getInstance();
-    mockListen.mockImplementation((p, h, cb) => {
+    mockListen.mockImplementation((_p, _h, cb) => {
       if (cb) cb();
     });
     await proxy.start();
