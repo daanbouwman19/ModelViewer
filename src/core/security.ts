@@ -1,11 +1,11 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { getMediaDirectories } from './database.ts';
-import { isDrivePath } from './media-utils.ts';
+import { getMediaDirectories } from './database';
+import { isDrivePath } from './media-utils';
 import {
   SENSITIVE_SUBDIRECTORIES,
   WINDOWS_RESTRICTED_ROOT_PATHS,
-} from './constants.ts';
+} from './constants';
 
 export interface AuthorizationResult {
   isAllowed: boolean;
@@ -399,4 +399,14 @@ export function isSensitiveDirectory(dirPath: string): boolean {
       (r) => normalized === r || normalized.startsWith(r + '/'),
     );
   }
+}
+
+/**
+ * Checks if a filename is sensitive (should be hidden/blocked).
+ * @param filename - The name of the file.
+ * @returns True if the filename is sensitive.
+ */
+export function isSensitiveFilename(filename: string): boolean {
+  if (!filename) return false;
+  return sensitiveSubdirectoriesSet.has(filename.toLowerCase());
 }
