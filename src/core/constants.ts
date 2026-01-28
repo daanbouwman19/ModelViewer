@@ -212,13 +212,13 @@ const RATE_LIMIT_AUTH_MAX_REQUESTS = 20;
 const RATE_LIMIT_WRITE_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_WRITE_MAX_REQUESTS = 10;
 
-// Read: For metadata/albums browsing (120 req / 1 min)
+// Read: For metadata/albums browsing (600 req / 1 min)
 const RATE_LIMIT_READ_WINDOW_MS = 60 * 1000;
-const RATE_LIMIT_READ_MAX_REQUESTS = 120;
+const RATE_LIMIT_READ_MAX_REQUESTS = 600;
 
-// File/Expensive: For streaming/thumbnails/listing (300 req / 1 min)
+// File/Expensive: For streaming/thumbnails/listing (3000 req / 1 min)
 const RATE_LIMIT_FILE_WINDOW_MS = 60 * 1000;
-const RATE_LIMIT_FILE_MAX_REQUESTS = 300;
+const RATE_LIMIT_FILE_MAX_REQUESTS = 3_000;
 
 /**
  * Maximum number of concurrent transcoding streams allowed.
