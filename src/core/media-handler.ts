@@ -15,6 +15,10 @@ import { IMediaSource } from './media-source-types.ts';
 import { isDrivePath } from './media-utils.ts';
 import { getTranscodeArgs, getFFmpegDuration } from './utils/ffmpeg-utils.ts';
 import { parseHttpRange, getQueryParam } from './utils/http-utils.ts';
+import {
+  generateMasterPlaylist,
+  injectFileParamIntoPlaylist,
+} from './utils/hls-utils.ts';
 import { getProvider } from './fs-provider-factory.ts';
 import { authorizeFilePath } from './security.ts';
 import { validateFileAccess } from './access-validator.ts';
@@ -291,16 +295,12 @@ export async function serveHlsMaster(
   // Let's use the original query param 'file' to keep it simple, assuming it's what the client sent.
   // But we need to be careful.
   const fileQuery = getQueryParam(req.query, 'file');
-  const encodedFile = encodeURIComponent(fileQuery || '');
 
   const bandwidth = 2000000;
   const resolution = '1280x720';
 
   res.set('Content-Type', 'application/vnd.apple.mpegurl');
-  res.send(`#EXTM3U
-#EXT-X-VERSION:3
-#EXT-X-STREAM-INF:BANDWIDTH=${bandwidth},RESOLUTION=${resolution}
-playlist.m3u8?file=${encodedFile}`);
+  res.send(generateMasterPlaylist(bandwidth, resolution, fileQuery || ''));
 }
 
 /**
@@ -336,14 +336,10 @@ export async function serveHlsPlaylist(
     // The segments are named 'segment_000.ts'
     // We want 'segment_000.ts?file=...'
     const fileQuery = getQueryParam(req.query, 'file');
-    const encodedFile = encodeURIComponent(fileQuery || '');
 
-    // Simple regex replace
-    // Use a more robust regex that handles potential variations in segment naming
-    const segmentRegex = /(segment_\d+\.ts)/g;
-    playlistContent = playlistContent.replace(
-      segmentRegex,
-      `$1?file=${encodedFile}`,
+    playlistContent = injectFileParamIntoPlaylist(
+      playlistContent,
+      fileQuery || '',
     );
 
     res.set('Content-Type', 'application/vnd.apple.mpegurl');
