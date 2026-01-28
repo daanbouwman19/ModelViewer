@@ -43,7 +43,7 @@
         <button
           v-for="star in 5"
           :key="star"
-          class="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:rounded-sm transition-colors duration-200"
+          class="transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:rounded-sm"
           :class="
             (currentMediaItem?.rating || 0) >= star
               ? 'text-(--accent-color)'
