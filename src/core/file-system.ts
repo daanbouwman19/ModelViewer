@@ -31,11 +31,9 @@ export async function listDirectory(
     const items = await fs.readdir(directoryPath, { withFileTypes: true });
     const entries: FileSystemEntry[] = items
       // [SECURITY] Filter out hidden files/dirs and known sensitive files to prevent exposing sensitive data (e.g. .env, .git, server.key)
-      .filter((item) => {
-        if (item.name.startsWith('.')) return false;
-        if (isSensitiveFilename(item.name)) return false;
-        return true;
-      })
+      .filter(
+        (item) => !item.name.startsWith('.') && !isSensitiveFilename(item.name),
+      )
       .map((item) => ({
         name: item.name,
         path: path.join(directoryPath, item.name),
