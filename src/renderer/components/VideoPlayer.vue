@@ -132,6 +132,10 @@ const watchedSegments = ref<{ start: number; end: number }[]>([]);
 let lastTrackedTime = -1;
 let lastSegmentsUpdate = Date.now();
 const UPDATE_INTERVAL_MS = 5000; // Persist every 5s
+const SEEK_DETECTION_THRESHOLD_S = 5;
+const HEATMAP_MOTION_SCALE = 4;
+const AUDIO_NORMALIZE_OFFSET = 60;
+const AUDIO_NORMALIZE_RANGE = 60;
 
 const hls = ref<Hls | null>(null);
 
@@ -362,7 +366,7 @@ const drawHeatmap = () => {
   motionGrad.addColorStop(1, 'rgba(236, 72, 153, 0.8)'); // Pink-500
 
   data.motion.forEach((val, i) => {
-    const heightPx = Math.min(val * 4, height);
+    const heightPx = Math.min(val * HEATMAP_MOTION_SCALE, height);
     ctx.fillStyle = motionGrad;
     ctx.fillRect(i * barWidth, height - heightPx, barWidth, heightPx);
   });
@@ -373,7 +377,10 @@ const drawHeatmap = () => {
   audioGrad.addColorStop(1, 'rgba(34, 211, 238, 0.6)'); // Cyan-400
 
   data.audio.forEach((val, i) => {
-    const norm = Math.max(0, (val + 60) / 60);
+    const norm = Math.max(
+      0,
+      (val + AUDIO_NORMALIZE_OFFSET) / AUDIO_NORMALIZE_RANGE,
+    );
     const heightPx = norm * height;
     ctx.fillStyle = audioGrad;
     ctx.fillRect(i * barWidth, height - heightPx, barWidth, heightPx);
@@ -466,7 +473,7 @@ const handleTimeUpdate = (event: Event) => {
       } else {
         const delta = Math.abs(realCurrentTime - lastTrackedTime);
         // Only track if change is small (prevent jumps from marking everything as watched)
-        if (delta > 0 && delta < 5) {
+        if (delta > 0 && delta < SEEK_DETECTION_THRESHOLD_S) {
           addWatchedSegment(
             Math.min(lastTrackedTime, realCurrentTime),
             Math.max(lastTrackedTime, realCurrentTime),

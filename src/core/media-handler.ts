@@ -427,15 +427,6 @@ export async function serveHeatmap(
     const points = pointsStr ? parseInt(pointsStr, 10) : 100;
 
     const analyzer = MediaAnalyzer.getInstance();
-    // Ensure cache dir is set (it should be set during app init, but we can access it from options if needed?
-    // Actually MediaService initializes it. We assume it's initialized.)
-    // Wait, MediaHandler doesn't initialize MediaAnalyzer. MediaService should?
-    // Or we can set it here if we have cacheDir from options.
-
-    // We can't easily access cacheDir here unless we pass it or MediaAnalyzer is a singleton that was initialized elsewhere.
-    // Let's assume MediaService initializes it, or we check if it needs init.
-    // Actually, createMediaApp has cacheDir. We can set it there.
-
     const data = await analyzer.generateHeatmap(authorizedPath, points);
     res.json(data);
   } catch (e) {

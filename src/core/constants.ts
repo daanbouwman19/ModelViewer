@@ -216,7 +216,7 @@ const RATE_LIMIT_WRITE_MAX_REQUESTS = 10;
 const RATE_LIMIT_READ_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_READ_MAX_REQUESTS = 120;
 
-// File/Expensive: For streaming/thumbnails/listing (60 req / 1 min)
+// File/Expensive: For streaming/thumbnails/listing (300 req / 1 min)
 const RATE_LIMIT_FILE_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_FILE_MAX_REQUESTS = 300;
 

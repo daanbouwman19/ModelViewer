@@ -13,6 +13,7 @@ export interface HeatmapData {
 const DEFAULT_HEATMAP_POINTS = 100;
 const MIN_HEATMAP_POINTS = 1;
 const MAX_HEATMAP_POINTS = 1000;
+const ANALYZER_TIMEOUT_MS = 2 * 60 * 1000;
 
 export class MediaAnalyzer {
   private static instance: MediaAnalyzer;
@@ -108,8 +109,6 @@ export class MediaAnalyzer {
           `[MediaAnalyzer] Spawning ffmpeg with args:`,
           args.join(' '),
         );
-        const ANALYZER_TIMEOUT_MS = 120000; // 2 minutes
-
         const process = spawn(ffmpegStatic!, args, {
           windowsHide: true,
           stdio: ['ignore', 'pipe', 'pipe'],
