@@ -33,6 +33,24 @@ vi.mock('../../src/main/google-drive-service', () => ({
   getDriveFileStream: vi.fn(),
 }));
 
+function setupMockWriteStream(
+  writeStream: EventEmitter,
+  events: { ready?: boolean; finish?: boolean } = {},
+) {
+  const finalEvents = { ready: true, ...events };
+
+  vi.mocked(fs.createWriteStream).mockImplementation(() => {
+    setTimeout(() => {
+      if (finalEvents.ready) writeStream.emit('ready');
+      if (finalEvents.finish) {
+        // Emit finish in a subsequent macrotask to allow the 'ready' promise to resolve first.
+        setTimeout(() => writeStream.emit('finish'), 0);
+      }
+    }, 0);
+    return writeStream as any;
+  });
+}
+
 describe('DriveCacheManager', () => {
   let driveCacheManager: ReturnType<typeof initializeDriveCacheManager>;
   const statMock = () => fs.promises.stat as unknown as Mock;
@@ -119,14 +137,13 @@ describe('DriveCacheManager', () => {
 
     const writeStream = new EventEmitter();
     (writeStream as any).path = '/tmp/cache/partial';
-    vi.mocked(fs.createWriteStream).mockReturnValue(writeStream as any);
+    // Use helper instead of setTimeout
+    setupMockWriteStream(writeStream);
+
     const mockStream = { pipe: vi.fn(), on: vi.fn() };
     vi.mocked(driveService.getDriveFileStream).mockResolvedValue(
       mockStream as any,
     );
-
-    // Immediate resolution of startDownload promise
-    setTimeout(() => writeStream.emit('ready'), 5);
 
     await driveCacheManager.getCachedFilePath(fileId);
 
@@ -156,12 +173,9 @@ describe('DriveCacheManager', () => {
 
     const writeStream = new EventEmitter();
     (writeStream as any).path = '/tmp/cache/file';
-    vi.mocked(fs.createWriteStream).mockReturnValue(writeStream as any);
 
-    // Emit 'ready' to resolve the promise
-    setTimeout(() => writeStream.emit('ready'), 10);
-    // Emit 'finish' to clean up active download map
-    setTimeout(() => writeStream.emit('finish'), 20);
+    // Schedule ready and finish
+    setupMockWriteStream(writeStream, { ready: true, finish: true });
 
     const promise = driveCacheManager.getCachedFilePath(fileId);
     const result = await promise;
@@ -213,9 +227,10 @@ describe('DriveCacheManager', () => {
 
     const writeStream = new EventEmitter();
     (writeStream as any).close = vi.fn();
-    vi.mocked(fs.createWriteStream).mockReturnValue(writeStream as any);
 
-    setTimeout(() => writeStream.emit('ready'), 10);
+    // Use helper instead of setTimeout
+    setupMockWriteStream(writeStream);
+
     const res = await driveCacheManager.getCachedFilePath(fileId);
     expect(res.path).toBeDefined();
 
@@ -242,9 +257,8 @@ describe('DriveCacheManager', () => {
     );
 
     const writeStream = new EventEmitter();
-    vi.mocked(fs.createWriteStream).mockReturnValue(writeStream as any);
-
-    setTimeout(() => writeStream.emit('ready'), 10);
+    // Use helper instead of setTimeout
+    setupMockWriteStream(writeStream);
 
     const p1 = driveCacheManager.getCachedFilePath(fileId);
     const p2 = driveCacheManager.getCachedFilePath(fileId);
@@ -292,8 +306,8 @@ describe('DriveCacheManager', () => {
     );
 
     const writeStream = new EventEmitter();
-    vi.mocked(fs.createWriteStream).mockReturnValue(writeStream as any);
-    setTimeout(() => writeStream.emit('ready'), 0);
+    // Use helper instead of setTimeout
+    setupMockWriteStream(writeStream);
 
     await driveCacheManager.getCachedFilePath(fileId);
 

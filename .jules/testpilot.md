@@ -41,3 +41,9 @@ Implemented a callback-based interception mechanism for the `postMessage` mock. 
 **Discovery:** `tests/server/server.transcode-limit.test.ts` was using `setTimeout(100)` to wait for concurrent requests to be "in flight", and `setTimeout(500)` in the mock to simulate work. This made the test slow and flaky, relying on timing assumptions.
 
 **Strategy:** Replaced time-based waits with a controlled Promise barrier in the mock. The test now uses `vi.waitUntil` to confirm requests have started and explicitly releases them via a closure, ensuring deterministic execution regardless of system speed.
+
+## 2026-01-28 - Targeted Mocking for Stream Events
+
+**Discovery:** `tests/main/drive-cache-manager.test.ts` was using `setTimeout(..., 5)` (and other arbitrary small delays) to simulate stream events like `ready` and `finish`. This made tests rely on wall-clock time and race conditions.
+
+**Strategy:** Refactored to use a helper `setupMockWriteStream` that utilizes `mockImplementation` on `fs.createWriteStream`. This implementation schedules events using `setTimeout(..., 0)` (next macrotask), ensuring listeners are attached before events fire, while maintaining deterministic execution order without arbitrary waits.
