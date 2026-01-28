@@ -35,13 +35,15 @@ vi.mock('../../src/main/google-drive-service', () => ({
 
 function setupMockWriteStream(
   writeStream: EventEmitter,
-  events: { ready?: boolean; finish?: boolean } = { ready: true },
+  events: { ready?: boolean; finish?: boolean } = {},
 ) {
+  const finalEvents = { ready: true, ...events };
+
   vi.mocked(fs.createWriteStream).mockImplementation(() => {
     setTimeout(() => {
-      if (events.ready !== false) writeStream.emit('ready');
-      if (events.finish) {
-        // Emit finish slightly after ready to simulate completion
+      if (finalEvents.ready) writeStream.emit('ready');
+      if (finalEvents.finish) {
+        // Emit finish in a subsequent macrotask to allow the 'ready' promise to resolve first.
         setTimeout(() => writeStream.emit('finish'), 0);
       }
     }, 0);
