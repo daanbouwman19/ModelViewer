@@ -77,6 +77,8 @@ import {
   serveHlsSegment,
   serveRawStream,
   serveThumbnail,
+  serveHeatmap,
+  serveHeatmapProgress,
   validateFileAccess,
 } from '../core/media-handler.ts';
 import { getQueryParam } from '../core/utils/http-utils.ts';
@@ -85,6 +87,7 @@ import ffmpegStatic from 'ffmpeg-static';
 import { createRateLimiter } from '../core/rate-limiter.ts';
 import { getGoogleAuthSuccessPage } from './auth-views.ts';
 import { HlsManager } from '../core/hls-manager.ts';
+import { MediaAnalyzer } from '../core/analysis/media-analyzer.ts';
 
 // Check if we are running in dev mode or production
 const isDev = process.env.NODE_ENV !== 'production';
@@ -205,6 +208,9 @@ export async function createApp() {
   // [SECURITY] Limit JSON body size to 10MB to prevent DoS attacks while allowing batch metadata operations
   app.use(express.json({ limit: '10mb' }));
 
+  // [UX] Dummy favicon to stop 404 noise in browser logs
+  app.get('/favicon.ico', (_req, res) => res.status(204).end());
+
   // [SECURITY] Configure Rate Limiters
   // Auth: Strict limit (20 req / 15 min) to prevent brute force
   const authLimiter = createRateLimiter(
@@ -266,6 +272,10 @@ export async function createApp() {
     // Initialize HLS Manager
     HlsManager.getInstance().setCacheDir(HLS_CACHE_DIR);
     console.log(`Initialized HlsManager with cache dir: ${HLS_CACHE_DIR}`);
+
+    // Initialize MediaAnalyzer (Heatmaps)
+    MediaAnalyzer.getInstance().setCacheDir(CACHE_DIR);
+    console.log(`Initialized MediaAnalyzer with cache dir: ${CACHE_DIR}`);
   } catch (e) {
     console.error('Failed to initialize database:', e);
     process.exit(1);
@@ -784,6 +794,20 @@ export async function createApp() {
     if (!filePath || typeof filePath !== 'string')
       return res.status(400).send('Missing file');
     serveThumbnail(req, res, filePath, ffmpegStatic, CACHE_DIR);
+  });
+
+  app.get('/api/video/heatmap', fileLimiter, async (req, res) => {
+    const filePath = getQueryParam(req.query, 'file');
+    if (!filePath || typeof filePath !== 'string')
+      return res.status(400).send('Missing file');
+    await serveHeatmap(req, res, filePath);
+  });
+
+  app.get('/api/video/heatmap/status', fileLimiter, async (req, res) => {
+    const filePath = getQueryParam(req.query, 'file');
+    if (!filePath || typeof filePath !== 'string')
+      return res.status(400).send('Missing file');
+    await serveHeatmapProgress(req, res, filePath);
   });
 
   app.get('/api/hls/master.m3u8', fileLimiter, async (req, res) => {

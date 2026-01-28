@@ -14,6 +14,7 @@ import {
   getSmartPlaylists,
   deleteSmartPlaylist,
   updateSmartPlaylist,
+  updateWatchedSegments,
   getAllMetadataAndStats,
 } from '../../../src/main/database';
 
@@ -34,6 +35,7 @@ vi.mock('../../../src/main/database', () => ({
   getSmartPlaylists: vi.fn(),
   deleteSmartPlaylist: vi.fn(),
   updateSmartPlaylist: vi.fn(),
+  updateWatchedSegments: vi.fn(),
   getAllMetadataAndStats: vi.fn(),
 }));
 
@@ -122,6 +124,32 @@ describe('database-controller', () => {
       const handler = getHandler(IPC_CHANNELS.DB_UPDATE_SMART_PLAYLIST);
       await handler({}, { id: 1, name: 'New', criteria: '{}' });
       expect(updateSmartPlaylist).toHaveBeenCalledWith(1, 'New', '{}');
+    });
+  });
+
+  describe('DB_UPDATE_WATCHED_SEGMENTS', () => {
+    it('updates watched segments', async () => {
+      const handler = getHandler(IPC_CHANNELS.DB_UPDATE_WATCHED_SEGMENTS);
+      await handler(
+        {},
+        {
+          filePath: '/path/to/video.mp4',
+          segmentsJson: JSON.stringify([{ start: 0, end: 10 }]),
+        },
+      );
+      expect(updateWatchedSegments).toHaveBeenCalledWith(
+        '/path/to/video.mp4',
+        JSON.stringify([{ start: 0, end: 10 }]),
+      );
+    });
+
+    it('validates path for watched segments', () => {
+      const call = (handleIpc as Mock).mock.calls.find(
+        (c) => c[0] === IPC_CHANNELS.DB_UPDATE_WATCHED_SEGMENTS,
+      )!;
+      const validator = call[2].validators[0];
+      validator({ filePath: '/path/to/video.mp4' });
+      expect(validatePathAccess).toHaveBeenCalledWith('/path/to/video.mp4');
     });
   });
 

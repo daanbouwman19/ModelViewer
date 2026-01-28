@@ -3,6 +3,8 @@ export const IPC_CHANNELS = {
   RECORD_MEDIA_VIEW: 'record-media-view',
   GET_MEDIA_VIEW_COUNTS: 'get-media-view-counts',
   GET_VIDEO_METADATA: 'get-video-metadata',
+  GET_HEATMAP: 'get-heatmap',
+  GET_HEATMAP_PROGRESS: 'get-heatmap-progress',
   GET_ALBUMS_WITH_VIEW_COUNTS: 'get-albums-with-view-counts',
   ADD_MEDIA_DIRECTORY: 'add-media-directory',
   REMOVE_MEDIA_DIRECTORY: 'remove-media-directory',
@@ -23,6 +25,7 @@ export const IPC_CHANNELS = {
   DB_GET_SMART_PLAYLISTS: 'db:get-smart-playlists',
   DB_DELETE_SMART_PLAYLIST: 'db:delete-smart-playlist',
   DB_UPDATE_SMART_PLAYLIST: 'db:update-smart-playlist',
+  DB_UPDATE_WATCHED_SEGMENTS: 'db:update-watched-segments',
   DB_GET_ALL_METADATA_AND_STATS: 'db:get-all-metadata-and-stats',
   DB_GET_RECENTLY_PLAYED: 'db:get-recently-played',
 

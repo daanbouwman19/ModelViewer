@@ -21,6 +21,7 @@ import {
   extractAndSaveMetadata,
 } from '../../core/media-service';
 import { isDrivePath, getDriveId } from '../../core/media-utils';
+import { MediaAnalyzer } from '../../core/analysis/media-analyzer';
 import { getServerPort } from '../local-server';
 import { handleIpc } from '../utils/ipc-helper';
 
@@ -142,4 +143,30 @@ export function registerMediaHandlers() {
       return null;
     }
   });
+
+  handleIpc(
+    IPC_CHANNELS.GET_HEATMAP,
+    async (_event, filePath: string, points?: number) => {
+      try {
+        await validatePathAccess(filePath);
+        return MediaAnalyzer.getInstance().generateHeatmap(filePath, points);
+      } catch (err) {
+        console.error('[MediaController] Error getting heatmap:', err);
+        throw err;
+      }
+    },
+  );
+
+  handleIpc(
+    IPC_CHANNELS.GET_HEATMAP_PROGRESS,
+    async (_event, filePath: string) => {
+      try {
+        await validatePathAccess(filePath);
+        return MediaAnalyzer.getInstance().getProgress(filePath);
+      } catch (err) {
+        console.error('[MediaController] Error getting heatmap progress:', err);
+        return null;
+      }
+    },
+  );
 }

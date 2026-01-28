@@ -102,7 +102,7 @@ describe('Server Transcode Concurrency', () => {
       releaseTranscode = resolve;
     });
 
-    (serveTranscodedStream as Mock).mockImplementation(async (req, res) => {
+    (serveTranscodedStream as Mock).mockImplementation(async (_req, res) => {
       transcodeStartedCount++;
       res.write('chunk');
       await transcodeBarrier;

@@ -30,6 +30,9 @@ export const createMockElectronAPI = (): ElectronAPI => ({
   getSmartPlaylists: vi.fn().mockResolvedValue([]),
   deleteSmartPlaylist: vi.fn().mockResolvedValue(undefined),
   updateSmartPlaylist: vi.fn().mockResolvedValue(undefined),
+  updateWatchedSegments: vi
+    .fn()
+    .mockResolvedValue({ success: true, data: undefined }),
 
   getAllMetadataAndStats: vi.fn().mockResolvedValue([]),
   getRecentlyPlayed: vi.fn().mockResolvedValue([]),
@@ -39,4 +42,6 @@ export const createMockElectronAPI = (): ElectronAPI => ({
   addGoogleDriveSource: vi.fn(),
   listGoogleDriveDirectory: vi.fn().mockResolvedValue([]),
   getGoogleDriveParent: vi.fn().mockResolvedValue(null),
+  getHeatmap: vi.fn().mockResolvedValue({ audio: [], motion: [], points: 0 }),
+  getHeatmapProgress: vi.fn().mockResolvedValue({ success: true, data: 50 }),
 });

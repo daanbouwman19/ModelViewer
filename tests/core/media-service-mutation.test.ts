@@ -39,7 +39,7 @@ describe('media-service mutation', () => {
     const mockAlbum = {
       id: 'album-1',
       name: 'Test Album',
-      textures: [{ name: 'video.mp4', path: '/video.mp4', rating: 0 }],
+      textures: [{ name: 'video.mp4', path: '/video.mp4', rating: 0 } as any],
       children: [
         {
           id: 'child-1',

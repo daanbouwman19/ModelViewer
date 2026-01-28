@@ -2,6 +2,8 @@ import { describe, it, expect, vi, Mock, beforeEach } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import VideoPlayer from '@/components/VideoPlayer.vue';
 
+import { api } from '@/api';
+
 // Mock PlayIcon
 vi.mock('@/components/icons/PlayIcon.vue', () => ({
   default: { template: '<svg class="play-icon-mock"></svg>' },
@@ -37,6 +39,17 @@ const { mockHlsInstance, MockHls } = vi.hoisted(() => {
 
 vi.mock('hls.js', () => ({
   default: MockHls,
+}));
+
+vi.mock('@/api', () => ({
+  api: {
+    getHeatmap: vi.fn().mockResolvedValue({
+      points: 100,
+      audio: new Array(100).fill(0),
+      motion: new Array(100).fill(0),
+    }),
+    getHeatmapProgress: vi.fn().mockResolvedValue(50),
+  },
 }));
 
 describe('VideoPlayer.vue', () => {
@@ -435,6 +448,188 @@ describe('VideoPlayer.vue', () => {
         preventDefault: vi.fn(),
       });
       expect(wrapper.emitted('trigger-transcode')).toBeFalsy();
+    });
+  });
+
+  describe('Heatmap Coverage', () => {
+    it('fetchHeatmap returns early for blob or local src', async () => {
+      const wrapper = mount(VideoPlayer, {
+        props: { ...defaultProps, src: 'blob:test' },
+      });
+      await flushPromises();
+      expect(api.getHeatmap).not.toHaveBeenCalled();
+
+      await wrapper.setProps({ src: 'http://localhost/video.mp4' }); // no ?file=
+      await flushPromises();
+      expect(api.getHeatmap).not.toHaveBeenCalled();
+    });
+
+    it('fetchHeatmap handles API failure gracefully', async () => {
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      (api.getHeatmap as Mock).mockRejectedValueOnce(new Error('API Error'));
+
+      mount(VideoPlayer, {
+        props: {
+          ...defaultProps,
+          src: 'http://localhost/api/stream?file=/path/to/video.mp4',
+        },
+      });
+      await flushPromises();
+      expect(api.getHeatmap).toHaveBeenCalled();
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[VideoPlayer] API call failed:',
+        expect.any(Error),
+      );
+      consoleSpy.mockRestore();
+    });
+
+    it('drawHeatmap renders to canvas', async () => {
+      const wrapper = mount(VideoPlayer, {
+        props: {
+          ...defaultProps,
+          src: 'http://localhost/api/stream?file=/path/to/video.mp4',
+        },
+      });
+      await flushPromises();
+
+      const canvas = wrapper.find('canvas').element as HTMLCanvasElement;
+      const ctx = {
+        clearRect: vi.fn(),
+        fillRect: vi.fn(),
+        createLinearGradient: vi
+          .fn()
+          .mockReturnValue({ addColorStop: vi.fn() }),
+        fillStyle: '',
+      };
+
+      vi.spyOn(canvas, 'getContext').mockReturnValue(ctx as any);
+      vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({
+        width: 100,
+        height: 50,
+        top: 0,
+        left: 0,
+        right: 100,
+        bottom: 50,
+      } as DOMRect);
+
+      // Trigger draw
+      await (wrapper.vm as any).$nextTick();
+      expect(api.getHeatmap).toHaveBeenCalled();
+
+      // Ensure points are > 0 in mock or manually set heatmapData if needed
+      // Our mock returns points: 100, so it should be fine.
+
+      (wrapper.vm as any).drawHeatmap();
+
+      expect(canvas.getContext).toHaveBeenCalledWith('2d');
+      expect(ctx.clearRect).toHaveBeenCalledWith(0, 0, 100, 50);
+      expect(ctx.fillRect).toHaveBeenCalled(); // Should be called for 100 points
+    });
+
+    it('redraws heatmap when controls become visible', async () => {
+      // Start with controls hidden
+      const wrapper = mount(VideoPlayer, {
+        props: {
+          ...defaultProps,
+          src: 'http://localhost/api/stream?file=/path/to/video.mp4',
+          isControlsVisible: false,
+        },
+      });
+      await flushPromises();
+
+      // Data should be fetched but canvas not ready
+      expect(api.getHeatmap).toHaveBeenCalled();
+      expect(wrapper.find('canvas').exists()).toBe(false);
+
+      // We need to spy on the draw method or canvas context
+      // But drawHeatmap is internal. We can check if getContext is called on the NEW canvas.
+
+      // Update props to show controls
+      await wrapper.setProps({ isControlsVisible: true });
+      await wrapper.vm.$nextTick();
+
+      const canvas = wrapper.find('canvas');
+      expect(canvas.exists()).toBe(true);
+
+      const ctx = {
+        clearRect: vi.fn(),
+        fillRect: vi.fn(),
+        createLinearGradient: vi
+          .fn()
+          .mockReturnValue({ addColorStop: vi.fn() }),
+        fillStyle: '',
+      };
+
+      // Mock the canvas methods on the DOM element
+      const el = canvas.element as HTMLCanvasElement;
+      vi.spyOn(el, 'getContext').mockReturnValue(ctx as any);
+      vi.spyOn(el, 'getBoundingClientRect').mockReturnValue({
+        width: 100,
+        height: 50,
+        top: 0,
+        left: 0,
+        right: 100,
+        bottom: 50,
+      } as DOMRect);
+
+      // Wait for watch -> requestAnimationFrame -> drawHeatmap
+      // rAF needs to be handled. In test environment, rAF might be sync or require wait.
+      // But we used requestAnimationFrame in the fix.
+      // Let's trigger it manually or wait.
+      // Since jsdom doesn't auto-run rAF, we might need to mock it or stub it?
+      // vitest/jsdom usually polyfills rAF.
+
+      // Let's mock requestAnimationFrame to run immediately
+      vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+        cb(0);
+        return 0;
+      });
+
+      // We need to re-trigger the watch or simulate the flow?
+      // The watch happens when 'heatmapCanvas' el updates.
+      // In the test, setting prop -> update DOM -> ref updates -> watch runs.
+
+      // However, we added the spy AFTER the element appeared.
+      // The watch callback might have run already?
+      // Actually, wrapper.setProps awaits nextTick. DOM is updated. Watch runs.
+      // If we spy NOW, it's too late if it ran sync.
+      // BUT, rAF is async-ish.
+
+      // Strategy: we can't easily spy on the element before it exists.
+      // But we can verify side effects.
+      // Or we can mock the internal drawHeatmap if we exposed it or imply it via coverage.
+      // Let's rely on creating the element with a Mock prototype if possible? No.
+
+      // Alternative: Just call drawHeatmap manually to verify logic, and trust Vue's watch in integration.
+      // Or:
+      // We can use the fact that we mocked getContext.
+      // If we want to capture the call, we usually need to spy on prototype or similar.
+      vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+        ctx as any,
+      );
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+        width: 100,
+        height: 50,
+        top: 0,
+        left: 0,
+        right: 100,
+        bottom: 50,
+      } as DOMRect);
+
+      // Trigger visibility AGAIN to force watch (or relies on previous step having set it up?)
+      // Let's retry the toggle
+      await wrapper.setProps({ isControlsVisible: false });
+      await wrapper.vm.$nextTick();
+      await wrapper.setProps({ isControlsVisible: true });
+      await wrapper.vm.$nextTick();
+
+      // wait for rAF
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(ctx.clearRect).toHaveBeenCalled();
+      expect(ctx.fillRect).toHaveBeenCalled();
     });
   });
 });

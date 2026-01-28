@@ -53,6 +53,9 @@ export default defineConfig(({ mode }) => {
     ],
     root: '.',
     server: {
+      watch: {
+        ignored: ['**/coverage/**', '**/cache/**'],
+      },
       clearScreen: false,
       host: '0.0.0.0',
       port: 5173,

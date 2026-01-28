@@ -4,6 +4,7 @@ import type {
   SmartPlaylist,
   MediaMetadata,
   MediaLibraryItem,
+  HeatmapData,
 } from '../../core/types';
 import type { FileSystemEntry } from '../../core/file-system';
 
@@ -40,6 +41,8 @@ export interface IMediaBackend {
     (filePath: string, startTime?: number) => string
   >;
   getVideoMetadata(filePath: string): Promise<{ duration: number }>;
+  getHeatmap(filePath: string, points?: number): Promise<HeatmapData>;
+  getHeatmapProgress(filePath: string): Promise<number | null>; // Returns 0-100 or null if no job
   openInVlc(filePath: string): Promise<{ success: boolean; message?: string }>;
 
   listDirectory(path: string): Promise<FileSystemEntry[]>;
@@ -58,6 +61,7 @@ export interface IMediaBackend {
     name: string,
     criteria: string,
   ): Promise<void>;
+  updateWatchedSegments(filePath: string, segmentsJson: string): Promise<void>;
 
   getAllMetadataAndStats(): Promise<MediaLibraryItem[]>;
   getRecentlyPlayed(limit?: number): Promise<MediaLibraryItem[]>;

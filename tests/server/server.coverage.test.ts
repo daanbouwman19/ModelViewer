@@ -109,7 +109,7 @@ describe('Server Coverage', () => {
       success: true,
       path: '/local/file',
     });
-    mocks.mockServeRawStream.mockImplementation((req, res) => {
+    mocks.mockServeRawStream.mockImplementation((_req, res) => {
       // Must send response to finish request
       res.status(200).send('mock-stream');
     });

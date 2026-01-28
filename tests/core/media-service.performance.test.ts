@@ -23,7 +23,7 @@ vi.mock('../../src/core/database', () => ({
 }));
 
 vi.mock('../../src/core/media-utils', async (importOriginal) => {
-  const actual = await importOriginal();
+  const actual = (await importOriginal()) as any;
   return {
     ...actual,
     isDrivePath: (p: string) => p.startsWith('gdrive://'),
@@ -33,7 +33,7 @@ vi.mock('../../src/core/media-utils', async (importOriginal) => {
 });
 
 vi.mock('../../src/core/utils/ffmpeg-utils', async (importOriginal) => {
-  const actual = await importOriginal();
+  const actual = (await importOriginal()) as any;
   return {
     ...actual,
     getFFmpegDuration: vi.fn().mockResolvedValue(100),

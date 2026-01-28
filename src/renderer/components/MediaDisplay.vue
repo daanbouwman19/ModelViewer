@@ -144,6 +144,7 @@
             :is-transcoding-loading="isTranscodingLoading"
             :is-buffering="isBuffering"
             :initial-time="savedCurrentTime"
+            :file-path="displayedItem?.path"
             @play="handleVideoPlay"
             @pause="handleVideoPause"
             @ended="handleVideoEnded"

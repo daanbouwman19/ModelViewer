@@ -63,15 +63,36 @@
         class="video-progress-bar"
         :style="{ width: `${videoProgress}%` }"
       ></div>
+
+      <!-- Heatmap Canvas -->
+      <canvas
+        ref="heatmapCanvas"
+        class="absolute inset-0 w-full h-full pointer-events-none opacity-90 mix-blend-screen"
+      ></canvas>
     </div>
+
+    <!-- Heatmap Loading Indicator -->
+    <Transition name="fade">
+      <div
+        v-if="isHeatmapLoading"
+        class="absolute top-6 right-6 z-100 bg-black/70 text-white text-xs px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-xl pointer-events-none shadow-2xl flex items-center gap-2"
+      >
+        <div class="loader-spinner"></div>
+        <span class="font-medium tracking-wide antialiased"
+          >Analyzing Scene... {{ heatmapProgress }}%</span
+        >
+      </div>
+    </Transition>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onUnmounted, computed } from 'vue';
+import { ref, watch, onUnmounted, computed, nextTick } from 'vue';
 import PlayIcon from './icons/PlayIcon.vue';
 import { formatTime } from '../utils/timeUtils';
 import Hls from 'hls.js';
+import { api } from '../api';
+import type { HeatmapData } from '../../core/types';
 
 const props = defineProps<{
   src: string | null;
@@ -82,6 +103,7 @@ const props = defineProps<{
   isTranscodingLoading: boolean;
   isBuffering: boolean;
   initialTime?: number;
+  filePath?: string;
 }>();
 
 const emit = defineEmits<{
@@ -102,6 +124,14 @@ const videoProgress = ref(0);
 const currentVideoTime = ref(0);
 const currentVideoDuration = ref(0);
 const bufferedRanges = ref<{ start: number; end: number }[]>([]);
+const heatmapCanvas = ref<HTMLCanvasElement | null>(null);
+const heatmapData = ref<HeatmapData | null>(null);
+const isHeatmapLoading = ref(false);
+const heatmapProgress = ref(0);
+const watchedSegments = ref<{ start: number; end: number }[]>([]);
+let lastTrackedTime = -1;
+let lastSegmentsUpdate = Date.now();
+const UPDATE_INTERVAL_MS = 5000; // Persist every 5s
 
 const hls = ref<Hls | null>(null);
 
@@ -166,6 +196,99 @@ watch(videoElement, (el) => {
   initHls();
 });
 
+const fetchHeatmap = async () => {
+  let filePath: string | null = props.filePath || null;
+
+  if (
+    !filePath &&
+    props.src &&
+    !props.src.startsWith('blob:') &&
+    props.src.includes('?file=')
+  ) {
+    try {
+      const url = new URL(props.src, window.location.origin);
+      filePath = url.searchParams.get('file');
+    } catch (e) {
+      console.warn('Failed to parse heatmap file path from URL', e);
+    }
+  }
+
+  if (!filePath) return;
+
+  try {
+    console.log('[VideoPlayer] Fetching heatmap for:', filePath);
+    // Start polling for progress
+    const pollInterval = setInterval(async () => {
+      if (!isHeatmapLoading.value || heatmapData.value) {
+        clearInterval(pollInterval);
+        return;
+      }
+      try {
+        const progress = await api.getHeatmapProgress(filePath!);
+        if (progress !== null) {
+          heatmapProgress.value = progress;
+        }
+      } catch (err: unknown) {
+        const error = err as Error;
+        if (error?.message?.includes('429')) {
+          console.warn(
+            '[VideoPlayer] Rate limited during progress poll. Slowing down.',
+          );
+          // Don't clear interval, but maybe next poll will succeed.
+        } else {
+          console.warn('[VideoPlayer] Progress poll failed:', err);
+        }
+      }
+    }, 2000); // Poll slower (every 2s) to reduce request pressure
+
+    try {
+      isHeatmapLoading.value = true;
+      heatmapProgress.value = 0;
+      const data = await api.getHeatmap(filePath, 200); // 200 points
+      if (data && data.points) {
+        heatmapData.value = data;
+        nextTick(drawHeatmap);
+      }
+    } catch (innerErr) {
+      console.error('[VideoPlayer] API call failed:', innerErr);
+    } finally {
+      clearInterval(pollInterval);
+      isHeatmapLoading.value = false;
+    }
+  } catch (e) {
+    console.warn('Failed to fetch heatmap', e);
+  }
+};
+
+const loadWatchedSegments = async () => {
+  if (!props.filePath) return;
+  try {
+    const metaMap = await api.getMetadata([props.filePath]);
+    const meta = metaMap[props.filePath];
+    if (meta?.watchedSegments) {
+      const parsed = JSON.parse(meta.watchedSegments);
+      if (Array.isArray(parsed)) {
+        watchedSegments.value = parsed;
+        nextTick(drawHeatmap);
+      }
+    }
+  } catch (e) {
+    console.error('[VideoPlayer] Failed to load watched segments:', e);
+  }
+};
+
+const persistWatchedSegments = async () => {
+  if (!props.filePath || watchedSegments.value.length === 0) return;
+  try {
+    await api.updateWatchedSegments(
+      props.filePath,
+      JSON.stringify(watchedSegments.value),
+    );
+  } catch (e) {
+    console.error('[VideoPlayer] Failed to persist watched segments:', e);
+  }
+};
+
 // Watch src to reset state if needed
 watch(
   () => props.src,
@@ -174,9 +297,88 @@ watch(
     currentVideoTime.value = 0;
     currentVideoDuration.value = 0;
     bufferedRanges.value = [];
+    heatmapData.value = null; // Reset heatmap
+    watchedSegments.value = []; // Reset watched segments for new file
+    lastTrackedTime = -1;
     initHls();
+    fetchHeatmap();
+    loadWatchedSegments();
   },
+  { immediate: true },
 );
+
+onUnmounted(() => {
+  persistWatchedSegments();
+  if (hls.value) {
+    hls.value.destroy();
+  }
+});
+
+// Watch for canvas availability (e.g. when controls become visible)
+watch(heatmapCanvas, (el) => {
+  if (el && heatmapData.value) {
+    // Canvas is ready and we have data
+    requestAnimationFrame(drawHeatmap);
+  }
+});
+
+const drawHeatmap = () => {
+  const canvas = heatmapCanvas.value;
+  const data = heatmapData.value;
+  if (!canvas) return;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  const { width, height } = canvas.getBoundingClientRect();
+  if (width === 0 || height === 0) return;
+
+  canvas.width = width;
+  canvas.height = height;
+
+  ctx.clearRect(0, 0, width, height);
+
+  // 1. Draw Watched Segments (Deep Cyan Background)
+  const duration = props.isTranscodingMode
+    ? props.transcodedDuration
+    : videoElement.value?.duration || 0;
+  if (duration > 0) {
+    ctx.fillStyle = 'rgba(6, 182, 212, 0.25)';
+    watchedSegments.value.forEach((seg) => {
+      const xStart = (seg.start / duration) * width;
+      const xEnd = (seg.end / duration) * width;
+      ctx.fillRect(xStart, 0, xEnd - xStart, height);
+    });
+  }
+
+  if (!data) return;
+
+  const barWidth = width / data.points;
+
+  // 2. Draw Motion (Vivid Fuchsia/Violet Gradient) - High intensity
+  // Create a gradient for a more "liquid" feel
+  const motionGrad = ctx.createLinearGradient(0, height, 0, 0);
+  motionGrad.addColorStop(0, 'rgba(139, 92, 246, 0.4)'); // Violet-500
+  motionGrad.addColorStop(1, 'rgba(236, 72, 153, 0.8)'); // Pink-500
+
+  data.motion.forEach((val, i) => {
+    const heightPx = Math.min(val * 4, height);
+    ctx.fillStyle = motionGrad;
+    ctx.fillRect(i * barWidth, height - heightPx, barWidth, heightPx);
+  });
+
+  // 3. Draw Audio (Cyber Cyan) - Overlay
+  const audioGrad = ctx.createLinearGradient(0, height, 0, 0);
+  audioGrad.addColorStop(0, 'rgba(6, 182, 212, 0.0)'); // Transparent
+  audioGrad.addColorStop(1, 'rgba(34, 211, 238, 0.6)'); // Cyan-400
+
+  data.audio.forEach((val, i) => {
+    const norm = Math.max(0, (val + 60) / 60);
+    const heightPx = norm * height;
+    ctx.fillStyle = audioGrad;
+    ctx.fillRect(i * barWidth, height - heightPx, barWidth, heightPx);
+  });
+};
 
 const togglePlay = () => {
   if (videoElement.value) {
@@ -242,23 +444,78 @@ const handleTimeUpdate = (event: Event) => {
   const target = event.target as HTMLVideoElement;
   const { currentTime, duration } = target;
 
+  let realCurrentTime = currentTime;
+  let realDuration = duration;
+
   if (props.isTranscodingMode && props.transcodedDuration > 0) {
-    const realCurrentTime = props.currentTranscodeStartTime + currentTime;
-    videoProgress.value = (realCurrentTime / props.transcodedDuration) * 100;
+    realCurrentTime = props.currentTranscodeStartTime + currentTime;
+    realDuration = props.transcodedDuration;
+  }
+
+  // Update progress variables
+  if (realDuration > 0 && realDuration !== Infinity) {
+    videoProgress.value = (realCurrentTime / realDuration) * 100;
     currentVideoTime.value = realCurrentTime;
-    currentVideoDuration.value = props.transcodedDuration;
+    currentVideoDuration.value = realDuration;
     emit('timeupdate', realCurrentTime);
-  } else if (duration > 0 && duration !== Infinity) {
-    videoProgress.value = (currentTime / duration) * 100;
-    currentVideoTime.value = currentTime;
-    currentVideoDuration.value = duration;
-    emit('timeupdate', currentTime);
+
+    // Watch Tracking Logic: Add current segment to watchedSegments
+    if (isPlaying.value) {
+      if (lastTrackedTime === -1) {
+        lastTrackedTime = realCurrentTime;
+      } else {
+        const delta = Math.abs(realCurrentTime - lastTrackedTime);
+        // Only track if change is small (prevent jumps from marking everything as watched)
+        if (delta > 0 && delta < 5) {
+          addWatchedSegment(
+            Math.min(lastTrackedTime, realCurrentTime),
+            Math.max(lastTrackedTime, realCurrentTime),
+          );
+        }
+        lastTrackedTime = realCurrentTime;
+      }
+    }
+
+    // Periodic Persist
+    if (Date.now() - lastSegmentsUpdate > UPDATE_INTERVAL_MS) {
+      persistWatchedSegments();
+      lastSegmentsUpdate = Date.now();
+    }
   } else {
     videoProgress.value = 0;
     currentVideoTime.value = 0;
     currentVideoDuration.value = 0;
     emit('timeupdate', 0);
   }
+};
+
+/**
+ * Merges a newly watched segment into the watchedSegments list.
+ */
+const addWatchedSegment = (start: number, end: number) => {
+  const segments = [...watchedSegments.value];
+  segments.push({ start, end });
+
+  // Merge overlapping segments
+  segments.sort((a, b) => a.start - b.start);
+  const merged: { start: number; end: number }[] = [];
+  if (segments.length > 0) {
+    let current = segments[0];
+    for (let i = 1; i < segments.length; i++) {
+      if (segments[i].start <= current.end + 0.5) {
+        // Small gap tolerance
+        current.end = Math.max(current.end, segments[i].end);
+      } else {
+        merged.push(current);
+        current = segments[i];
+      }
+    }
+    merged.push(current);
+  }
+
+  watchedSegments.value = merged;
+  // Redraw heatmap to show updated watched segments
+  requestAnimationFrame(drawHeatmap);
 };
 
 const handleProgress = (event: Event) => {
@@ -338,17 +595,29 @@ defineExpose({
   bottom: 0;
   left: 0;
   right: 0;
-  height: 8px;
-  background-color: rgba(0, 0, 0, 0.3);
+  height: 20px;
+  background-color: rgba(0, 0, 0, 0.4);
   border-bottom-left-radius: 8px;
   border-bottom-right-radius: 8px;
   overflow: hidden;
+  display: flex;
+  align-items: flex-end;
 }
 
 .video-progress-bar {
   height: 100%;
   background-color: var(--accent-color);
   transition: width 0.1s linear;
+  z-index: 50;
+  box-shadow: 0 0 15px var(--accent-color);
+}
+
+.z-60 {
+  z-index: 60;
+}
+
+.z-100 {
+  z-index: 100;
 }
 
 .transition-transform-opacity {
@@ -357,5 +626,30 @@ defineExpose({
 
 .will-change-transform {
   will-change: transform, opacity;
+}
+
+.loader-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

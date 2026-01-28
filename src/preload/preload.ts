@@ -9,11 +9,12 @@ import { contextBridge, ipcRenderer } from 'electron';
 import { IPC_CHANNELS } from '../shared/ipc-channels';
 import type {
   Album,
+  MediaDirectory,
+  HeatmapData,
+  IpcResult,
   SmartPlaylist,
   MediaMetadata,
   MediaLibraryItem,
-  MediaDirectory,
-  IpcResult,
 } from '../core/types';
 
 import type { FileSystemEntry } from '../core/file-system';
@@ -54,6 +55,11 @@ export interface ElectronAPI {
   getVideoMetadata: (
     filePath: string,
   ) => Promise<IpcResult<{ duration?: number; error?: string }>>;
+  getHeatmap: (
+    filePath: string,
+    points?: number,
+  ) => Promise<IpcResult<HeatmapData>>;
+  getHeatmapProgress: (filePath: string) => Promise<IpcResult<number | null>>;
   listDirectory: (
     directoryPath: string,
   ) => Promise<IpcResult<FileSystemEntry[]>>;
@@ -78,6 +84,10 @@ export interface ElectronAPI {
     id: number,
     name: string,
     criteria: string,
+  ) => Promise<IpcResult<void>>;
+  updateWatchedSegments: (
+    filePath: string,
+    segmentsJson: string,
   ) => Promise<IpcResult<void>>;
 
   getAllMetadataAndStats: () => Promise<IpcResult<MediaLibraryItem[]>>;
@@ -142,6 +152,12 @@ const api: ElectronAPI = {
   getVideoMetadata: (filePath: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.GET_VIDEO_METADATA, filePath),
 
+  getHeatmap: (filePath: string, points?: number) =>
+    ipcRenderer.invoke(IPC_CHANNELS.GET_HEATMAP, filePath, points),
+
+  getHeatmapProgress: (filePath: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.GET_HEATMAP_PROGRESS, filePath),
+
   listDirectory: (directoryPath: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.LIST_DIRECTORY, directoryPath),
 
@@ -174,6 +190,11 @@ const api: ElectronAPI = {
       id,
       name,
       criteria,
+    }),
+  updateWatchedSegments: (filePath: string, segmentsJson: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.DB_UPDATE_WATCHED_SEGMENTS, {
+      filePath,
+      segmentsJson,
     }),
 
   getAllMetadataAndStats: () =>

@@ -39,6 +39,7 @@ describe('useLibraryStore - Recently Played', () => {
         duration: 100,
         size: 1000,
         created_at: '2022-01-01',
+        watched_segments: null,
       },
       {
         file_path: '/path/to/image.jpg',
@@ -49,6 +50,7 @@ describe('useLibraryStore - Recently Played', () => {
         duration: null,
         size: 500,
         created_at: '2022-01-01',
+        watched_segments: null,
       },
     ];
 

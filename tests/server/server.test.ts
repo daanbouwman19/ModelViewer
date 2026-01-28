@@ -30,11 +30,11 @@ vi.mock('fs/promises', () => ({
 
 // Mock media-handler to ensure it closes requests
 vi.mock('../../src/core/media-handler', () => ({
-  serveMetadata: vi.fn((req, res) => res.end()),
-  serveTranscodedStream: vi.fn((req, res) => res.end()),
-  serveRawStream: vi.fn((req, res) => res.end()),
-  serveThumbnail: vi.fn((req, res) => res.end()),
-  serveStaticFile: vi.fn((req, res) => res.end()),
+  serveMetadata: vi.fn((_req, res) => res.end()),
+  serveTranscodedStream: vi.fn((_req, res) => res.end()),
+  serveRawStream: vi.fn((_req, res) => res.end()),
+  serveThumbnail: vi.fn((_req, res) => res.end()),
+  serveStaticFile: vi.fn((_req, res) => res.end()),
   validateFileAccess: vi
     .fn()
     .mockResolvedValue({ success: true, path: '/resolved/path' }),
