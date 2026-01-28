@@ -1,11 +1,11 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { getMediaDirectories } from './database.ts';
-import { isDrivePath } from './media-utils.ts';
+import { getMediaDirectories } from './database';
+import { isDrivePath } from './media-utils';
 import {
   SENSITIVE_SUBDIRECTORIES,
   WINDOWS_RESTRICTED_ROOT_PATHS,
-} from './constants.ts';
+} from './constants';
 
 export interface AuthorizationResult {
   isAllowed: boolean;
