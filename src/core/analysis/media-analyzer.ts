@@ -35,7 +35,7 @@ export class MediaAnalyzer {
   private getCachePath(filePath: string, points: number): string | null {
     if (!this.cacheDir) return null;
     const hash = crypto
-      .createHash('md5')
+      .createHash('sha256')
       .update(filePath + points)
       .digest('hex');
     return path.join(this.cacheDir, `heatmap_${hash}.json`);
@@ -136,9 +136,9 @@ export class MediaAnalyzer {
           if (!durationSec) {
             const durMatch = str.match(/Duration: (\d+):(\d+):(\d+)\.(\d+)/);
             if (durMatch) {
-              const h = parseInt(durMatch[1]);
-              const m = parseInt(durMatch[2]);
-              const s = parseInt(durMatch[3]);
+              const h = parseInt(durMatch[1], 10);
+              const m = parseInt(durMatch[2], 10);
+              const s = parseInt(durMatch[3], 10);
               durationSec = h * 3600 + m * 60 + s;
             }
           }
@@ -147,9 +147,9 @@ export class MediaAnalyzer {
           if (durationSec > 0) {
             const timeMatch = str.match(/time=(\d+):(\d+):(\d+)\.(\d+)/);
             if (timeMatch) {
-              const h = parseInt(timeMatch[1]);
-              const m = parseInt(timeMatch[2]);
-              const s = parseInt(timeMatch[3]);
+              const h = parseInt(timeMatch[1], 10);
+              const m = parseInt(timeMatch[2], 10);
+              const s = parseInt(timeMatch[3], 10);
               const currentSec = h * 3600 + m * 60 + s;
               const progress = Math.min(
                 100,
@@ -272,8 +272,8 @@ export class MediaAnalyzer {
       const end = Math.floor((i + 1) * step);
       const slice = data.slice(start, end);
 
-      // Note: slice should always be non-empty because we check length <= targetLength above,
-      // enabling step > 1 in all cases here.
+      // Note: When downsampling, slice will have 1 or more items.
+      // When upsampling, slice can be empty, so we have a fallback.
       if (slice.length > 0) {
         const sum = slice.reduce((a, b) => a + b, 0);
         result.push(sum / slice.length);

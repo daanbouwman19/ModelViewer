@@ -136,6 +136,7 @@ const SEEK_DETECTION_THRESHOLD_S = 5;
 const HEATMAP_MOTION_SCALE = 4;
 const AUDIO_NORMALIZE_OFFSET = 60;
 const AUDIO_NORMALIZE_RANGE = 60;
+let heatmapPollInterval: ReturnType<typeof setInterval> | null = null;
 
 const hls = ref<Hls | null>(null);
 
@@ -187,6 +188,10 @@ const initHls = () => {
 };
 
 onUnmounted(() => {
+  if (heatmapPollInterval) {
+    clearInterval(heatmapPollInterval);
+    heatmapPollInterval = null;
+  }
   if (hls.value) {
     hls.value.destroy();
   }
@@ -222,9 +227,16 @@ const fetchHeatmap = async () => {
   try {
     console.log('[VideoPlayer] Fetching heatmap for:', filePath);
     // Start polling for progress
-    const pollInterval = setInterval(async () => {
+    if (heatmapPollInterval) {
+      clearInterval(heatmapPollInterval);
+      heatmapPollInterval = null;
+    }
+    heatmapPollInterval = setInterval(async () => {
       if (!isHeatmapLoading.value || heatmapData.value) {
-        clearInterval(pollInterval);
+        if (heatmapPollInterval) {
+          clearInterval(heatmapPollInterval);
+          heatmapPollInterval = null;
+        }
         return;
       }
       try {
@@ -256,7 +268,10 @@ const fetchHeatmap = async () => {
     } catch (innerErr) {
       console.error('[VideoPlayer] API call failed:', innerErr);
     } finally {
-      clearInterval(pollInterval);
+      if (heatmapPollInterval) {
+        clearInterval(heatmapPollInterval);
+        heatmapPollInterval = null;
+      }
       isHeatmapLoading.value = false;
     }
   } catch (e) {
