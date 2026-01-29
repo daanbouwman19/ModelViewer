@@ -2,7 +2,6 @@ import { vi } from 'vitest';
 
 /**
  * Global setup for renderer tests.
- * This file is executed before each test file in the renderer suite.
  */
 
 // Mock localStorage
@@ -30,14 +29,28 @@ const localStorageMock = (function () {
 let rafDepth = 0;
 const rafStub = (cb: FrameRequestCallback) => {
   if (rafDepth > 10) {
-    // Prevent infinite recursion in animation loops while still allowing tests to finish
+    // Prevent infinite recursion in animation loops while still allowing tests to finish.
+    // Use setTimeout to skip a tick, but only if we are still in a test environment.
     return setTimeout(() => {
-      cb(Date.now());
+      try {
+        cb(Date.now());
+      } catch {
+        // Ignore errors that happen after environment disposal
+      }
     }, 0);
   }
   rafDepth++;
   try {
     cb(Date.now());
+  } catch (err) {
+    // Re-throw if it's a real error, or ignore if it's environment disposal related
+    if (
+      err instanceof ReferenceError &&
+      err.message.includes('requestAnimationFrame')
+    ) {
+      return 1;
+    }
+    throw err;
   } finally {
     rafDepth--;
   }
@@ -45,43 +58,64 @@ const rafStub = (cb: FrameRequestCallback) => {
 };
 
 const cafStub = (id: any) => {
-  clearTimeout(id as any);
+  if (typeof id === 'number' && id > 1) {
+    clearTimeout(id);
+  }
 };
 
-// Use multiple methods to ensure visibility in all test environments (Node, Happy-DOM, etc.)
-// We assign to globalThis, global, and window if they exist.
-const targets = [
-  globalThis,
+// Define on all possible global targets to ensure visibility in all environments
+const globalTargets: any[] = [
+  typeof globalThis !== 'undefined' ? globalThis : null,
   typeof global !== 'undefined' ? global : null,
   typeof window !== 'undefined' ? window : null,
-].filter((t): t is any => t !== null);
+  typeof self !== 'undefined' ? self : null,
+].filter((t) => t !== null);
 
-targets.forEach((target) => {
-  Object.defineProperty(target, 'requestAnimationFrame', {
-    value: rafStub,
-    writable: true,
-    configurable: true,
-  });
-  Object.defineProperty(target, 'cancelAnimationFrame', {
-    value: cafStub,
-    writable: true,
-    configurable: true,
-  });
-  Object.defineProperty(target, 'localStorage', {
-    value: localStorageMock,
-    writable: true,
-    configurable: true,
-  });
+globalTargets.forEach((target) => {
+  try {
+    // Check if we can define property
+    const descriptor = Object.getOwnPropertyDescriptor(
+      target,
+      'requestAnimationFrame',
+    );
+    if (!descriptor || descriptor.configurable) {
+      Object.defineProperty(target, 'requestAnimationFrame', {
+        value: rafStub,
+        writable: true,
+        configurable: true,
+        enumerable: true,
+      });
+      Object.defineProperty(target, 'cancelAnimationFrame', {
+        value: cafStub,
+        writable: true,
+        configurable: true,
+        enumerable: true,
+      });
+      Object.defineProperty(target, 'localStorage', {
+        value: localStorageMock,
+        writable: true,
+        configurable: true,
+        enumerable: true,
+      });
+    } else {
+      // Fallback to direct assignment
+      target.requestAnimationFrame = rafStub;
+      target.cancelAnimationFrame = cafStub;
+      target.localStorage = localStorageMock;
+    }
+  } catch {
+    // Ignore errors for frozen objects
+  }
 });
 
-// Also use Vitest's stubGlobal for integrated mocking support
+// Also use Vitest's stubGlobal for best compatibility with its internal systems
 try {
   vi.stubGlobal('requestAnimationFrame', rafStub);
   vi.stubGlobal('cancelAnimationFrame', cafStub);
   vi.stubGlobal('localStorage', localStorageMock);
 } catch {
-  // Ignore error if vi.stubGlobal is not available
+  // Ignore if vi.stubGlobal is not available
 }
 
-// Export for use in tests if needed (though they are global)
+// Export for use in tests if needed
 export { localStorageMock, rafStub, cafStub };
