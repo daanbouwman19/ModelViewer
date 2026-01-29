@@ -59,3 +59,9 @@
 **Vulnerability:** `listDirectory` in `src/core/file-system.ts` used a static copy of the sensitive files list, ignoring runtime additions (like the database file) made via `registerSensitiveFile`. This allowed sensitive files to be visible in directory listings.
 **Learning:** Security controls based on mutable blocklists must share a single source of truth. Static initialization in consumers leads to stale security rules.
 **Prevention:** Centralized the sensitive filename check in `src/core/security.ts` and updated consumers to use this shared, dynamic check.
+
+## 2026-02-02 - Recursive Scanning of Sensitive Directories
+
+**Vulnerability:** The `media-scanner.ts` descended recursively into all subdirectories, including sensitive ones like `.ssh`, `.git`, and `node_modules`, if they were contained within an allowed media root. This could expose media files hidden in sensitive directories and waste resources.
+**Learning:** Access controls and blocklists must be enforced at every layer of recursion, not just at the entry point. Security checks in file listing APIs (`listDirectory`) do not automatically apply to internal scanning logic.
+**Prevention:** Updated `processDirectoryEntries` in `src/core/media-scanner.ts` to skip directories that start with `.` or match `isSensitiveFilename` before descending.
