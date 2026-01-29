@@ -55,6 +55,46 @@ describe('MediaAnalyzer', () => {
     });
   });
 
+  const setupMockSpawn = (
+    options: {
+      stdout?: string;
+      stderr?: string;
+      exitCode?: number;
+      delay?: number;
+      emitError?: Error;
+    } = {},
+  ) => {
+    (spawn as any).mockImplementation(() => {
+      const mockProcess = new EventEmitter();
+      (mockProcess as any).stdout = new EventEmitter();
+      (mockProcess as any).stderr = new EventEmitter();
+      (mockProcess as any).kill = vi.fn();
+
+      setTimeout(() => {
+        if (options.emitError) {
+          mockProcess.emit('error', options.emitError);
+        } else {
+          if (options.stdout) {
+            (mockProcess as any).stdout.emit(
+              'data',
+              Buffer.from(options.stdout),
+            );
+          }
+          if (options.stderr) {
+            (mockProcess as any).stderr.emit(
+              'data',
+              Buffer.from(options.stderr),
+            );
+          }
+          mockProcess.emit('close', options.exitCode ?? 0);
+        }
+      }, options.delay ?? 0);
+
+      return mockProcess;
+    });
+    return (spawn as any);
+  };
+
   it('should return cached data if available', async () => {
     const mockData: HeatmapData = {
       audio: [0.5],
@@ -72,17 +112,6 @@ describe('MediaAnalyzer', () => {
   it('should run ffmpeg and parse output if cache misses', async () => {
     (fs.readFile as any).mockRejectedValue(new Error('ENOENT'));
 
-    // Mock spawn process
-    // Mock spawn process with stdout/stderr
-    const mockStdout = new EventEmitter();
-    const mockStderr = new EventEmitter();
-    const mockProcess = new EventEmitter();
-    (mockProcess as any).stdout = mockStdout;
-    (mockProcess as any).stderr = mockStderr;
-    (spawn as any).mockReturnValue(mockProcess);
-
-    // Simulate ffmpeg output
-    // We need to simulate the lines that the analyzer parses
     const outputLines = [
       'lavfi.signalstats.YDIF=10.5',
       'lavfi.astats.Overall.RMS_level=-20.0',
@@ -90,23 +119,14 @@ describe('MediaAnalyzer', () => {
       'lavfi.astats.Overall.RMS_level=-18.0',
     ].join('\n');
 
-    const promise = analyzer.generateHeatmap('test.mp4', 2);
+    setupMockSpawn({ stdout: outputLines });
 
-    // Emit data
-    mockStdout.emit('data', Buffer.from(outputLines));
-
-    // Emit close
-    setTimeout(() => {
-      mockProcess.emit('close', 0);
-    }, 10);
-
-    const result = await promise;
+    const result = await analyzer.generateHeatmap('test.mp4', 2);
 
     expect(spawn).toHaveBeenCalled();
     expect(result.points).toBe(2);
     expect(result.motion.length).toBe(2);
     expect(result.audio.length).toBe(2);
-    // Values are resampled, but we can check existence
     expect(result.motion[0]).toBeGreaterThanOrEqual(0);
     expect(fs.writeFile).toHaveBeenCalled();
   });
@@ -114,41 +134,23 @@ describe('MediaAnalyzer', () => {
   it('should handle ffmpeg errors', async () => {
     (fs.readFile as any).mockRejectedValue(new Error('ENOENT'));
 
-    const mockStdout = new EventEmitter();
-    const mockStderr = new EventEmitter();
-    const mockProcess = new EventEmitter();
-    (mockProcess as any).stdout = mockStdout;
-    (mockProcess as any).stderr = mockStderr;
-    (spawn as any).mockReturnValue(mockProcess);
+    setupMockSpawn({ exitCode: 1 });
 
-    const promise = analyzer.generateHeatmap('error.mp4', 10);
-
-    setTimeout(() => {
-      mockProcess.emit('close', 1);
-    }, 10);
-
-    await expect(promise).rejects.toThrow(/FFmpeg process exited with code/);
+    await expect(
+      analyzer.generateHeatmap('error.mp4', 10),
+    ).rejects.toThrow(/FFmpeg process exited with code/);
   });
 
   it('should reject if caching fails (write error)', async () => {
     // Mock successful generation but write failure
-    const mockProcess = new EventEmitter();
-    (mockProcess as any).stdout = new EventEmitter();
-    (mockProcess as any).stderr = new EventEmitter();
-    (spawn as any).mockReturnValue(mockProcess);
+    setupMockSpawn({ exitCode: 0 });
 
     // Mock writeFile to throw
     (fs.writeFile as any).mockRejectedValue(new Error('Write failed'));
 
-    const promise = analyzer.generateHeatmap('file.mp4', 10);
-    setTimeout(() => {
-      // successful ffmpeg
-      (mockProcess as any).emit('close', 0);
-    }, 10);
-
     // The current implementation swallows cache errors and logs a warning
     // so it should RESOLVE, not reject.
-    const result = await promise;
+    const result = await analyzer.generateHeatmap('file.mp4', 10);
     expect(result.points).toBe(10);
     // Optionally check if warning was logged if we spied on console
   });
@@ -168,32 +170,18 @@ describe('MediaAnalyzer', () => {
     (MediaAnalyzer as any).instance = null;
     const instance = MediaAnalyzer.getInstance();
 
-    // Mock spawn to return proper mocked process since we are skipping cache
-    const mockProcess = new EventEmitter();
-    (mockProcess as any).stdout = new EventEmitter();
-    (mockProcess as any).stderr = new EventEmitter();
-    (spawn as any).mockReturnValue(mockProcess);
+    setupMockSpawn({ exitCode: 0 });
 
-    const promise = instance.generateHeatmap('file.mp4', 10);
-    setTimeout(() => (mockProcess as any).emit('close', 0), 0);
-    await promise;
+    await instance.generateHeatmap('file.mp4', 10);
 
     expect(fs.readFile).not.toHaveBeenCalled();
     expect(fs.writeFile).not.toHaveBeenCalled();
   });
 
   it('should handle resampling with empty data', async () => {
-    const mockProcess = new EventEmitter();
-    const mockStdout = new EventEmitter();
-    const mockStderr = new EventEmitter();
-    (mockProcess as any).stdout = mockStdout;
-    (mockProcess as any).stderr = mockStderr;
-    (spawn as any).mockReturnValue(mockProcess);
+    setupMockSpawn({ exitCode: 0 });
 
-    const promise = analyzer.generateHeatmap('empty.mp4', 5);
-    setTimeout(() => (mockProcess as any).emit('close', 0), 0);
-
-    const result = await promise;
+    const result = await analyzer.generateHeatmap('empty.mp4', 5);
     expect(result.points).toBe(5);
     expect(result.audio).toHaveLength(5);
     expect(result.audio.every((v) => v === -90)).toBe(true);
@@ -203,12 +191,6 @@ describe('MediaAnalyzer', () => {
   it('should handle resampling with more points than data (upsampling)', async () => {
     // Explicitly fail cache to force generation
     (fs.readFile as any).mockRejectedValue(new Error('No cache'));
-    const mockProcess = new EventEmitter();
-    const mockStdout = new EventEmitter();
-    const mockStderr = new EventEmitter();
-    (mockProcess as any).stdout = mockStdout;
-    (mockProcess as any).stderr = mockStderr;
-    (spawn as any).mockReturnValue(mockProcess);
 
     const outputLines = [
       'lavfi.signalstats.YDIF=10',
@@ -221,19 +203,11 @@ describe('MediaAnalyzer', () => {
       'lavfi.astats.Overall.RMS_level=-40',
     ].join('\n'); // 4 frames
 
+    setupMockSpawn({ stdout: outputLines });
+
     // Request 8 points from 4 frames -> upsampling (step = 0.5)
-    // i=0: [0, 0.5) -> slice [] (empty) -> falls back to 0
-    // i=1: [0.5, 1) -> slice [0] -> 10
-    // i=2: [1, 1.5) -> slice [] -> fallback to 10
-    // i=3: [1.5, 2) -> slice [1] -> 20
-    const promise = analyzer.generateHeatmap('small.mp4', 8);
+    const result = await analyzer.generateHeatmap('small.mp4', 8);
 
-    setTimeout(() => {
-      mockStdout.emit('data', Buffer.from(outputLines));
-      (mockProcess as any).emit('close', 0);
-    }, 10);
-
-    const result = await promise;
     expect(result.points).toBe(8);
     expect(result.motion).toHaveLength(8);
     // Verify fallback behavior for empty slices
@@ -245,12 +219,6 @@ describe('MediaAnalyzer', () => {
 
   it('should handle resampling with fewer points than data (downsampling)', async () => {
     (fs.readFile as any).mockRejectedValue(new Error('No cache'));
-    const mockProcess = new EventEmitter();
-    const mockStdout = new EventEmitter();
-    const mockStderr = new EventEmitter();
-    (mockProcess as any).stdout = mockStdout;
-    (mockProcess as any).stderr = mockStderr;
-    (spawn as any).mockReturnValue(mockProcess);
 
     // 4 data points, 2 requested points
     // Simplify input to ensure no parsing issues
@@ -265,15 +233,10 @@ describe('MediaAnalyzer', () => {
       'lavfi.astats.Overall.RMS_level=-40',
     ].join('\n');
 
-    const promise = analyzer.generateHeatmap('large.mp4', 2);
+    setupMockSpawn({ stdout: outputLines });
 
-    // Slight delay for async processing (fs.readFile await)
-    setTimeout(() => {
-      // Emit data AFTER init has likely finished
-      mockStdout.emit('data', Buffer.from(outputLines));
-      (mockProcess as any).emit('close', 0);
-    }, 10);
-    const result = await promise;
+    const result = await analyzer.generateHeatmap('large.mp4', 2);
+
     expect(spawn).toHaveBeenCalled();
     expect(result.points).toBe(2);
     expect(result.motion).toHaveLength(2);
@@ -284,23 +247,12 @@ describe('MediaAnalyzer', () => {
   it('should log warning if ffmpeg succeeds but stderr contains Error', async () => {
     // Mock successful execution but with "Error" in stderr
     (fs.readFile as any).mockRejectedValue(new Error('ENOENT'));
-    const mockProcess = new EventEmitter();
-    const mockStdout = new EventEmitter();
-    const mockStderr = new EventEmitter();
-    (mockProcess as any).stdout = mockStdout;
-    (mockProcess as any).stderr = mockStderr;
-    (spawn as any).mockReturnValue(mockProcess);
 
     const consoleSpy = vi.spyOn(console, 'warn');
 
-    const promise = analyzer.generateHeatmap('warning.mp4', 10);
+    setupMockSpawn({ stderr: 'Some random Error occurred\n' });
 
-    setTimeout(() => {
-      mockStderr.emit('data', Buffer.from('Some random Error occurred\n'));
-      mockProcess.emit('close', 0);
-    }, 10);
-
-    await promise;
+    await analyzer.generateHeatmap('warning.mp4', 10);
 
     expect(consoleSpy).toHaveBeenCalledWith(
       expect.stringContaining('FFmpeg succeeded but reported errors'),
@@ -309,13 +261,6 @@ describe('MediaAnalyzer', () => {
   });
 
   it('should ignore irrelevant output lines', async () => {
-    const mockProcess = new EventEmitter();
-    const mockStdout = new EventEmitter();
-    const mockStderr = new EventEmitter();
-    (mockProcess as any).stdout = mockStdout;
-    (mockProcess as any).stderr = mockStderr;
-    (spawn as any).mockReturnValue(mockProcess);
-
     const outputLines = [
       'frame:123',
       'some other info',
@@ -324,45 +269,31 @@ describe('MediaAnalyzer', () => {
       'lavfi.astats.Overall.RMS_level=-20',
     ].join('\n');
 
-    const promise = analyzer.generateHeatmap('mixed.mp4', 1);
+    setupMockSpawn({ stdout: outputLines });
 
-    setTimeout(() => {
-      mockStdout.emit('data', Buffer.from(outputLines));
-      (mockProcess as any).emit('close', 0);
-    }, 10);
-
-    const result = await promise;
+    const result = await analyzer.generateHeatmap('mixed.mp4', 1);
     expect(result.points).toBe(1);
     expect(result.motion[0]).toBe(10);
     expect(result.audio[0]).toBe(-20);
   });
 
   it('should sanitize points parameter', async () => {
-    const setupMock = () => {
-      const mp = new EventEmitter();
-      (mp as any).stdout = new EventEmitter();
-      (mp as any).stderr = new EventEmitter();
-      (spawn as any).mockReturnValue(mp);
-      return mp;
-    };
+    setupMockSpawn({ exitCode: 0 });
 
     // Test NaN
-    let mp = setupMock();
-    let p = analyzer.generateHeatmap('file1', NaN);
-    setTimeout(() => mp.emit('close', 0), 10);
-    await expect(p).resolves.toHaveProperty('points', 100);
+    await expect(
+      analyzer.generateHeatmap('file1', NaN),
+    ).resolves.toHaveProperty('points', 100);
 
     // Test Min
-    mp = setupMock();
-    p = analyzer.generateHeatmap('file2', 0);
-    setTimeout(() => mp.emit('close', 0), 10);
-    await expect(p).resolves.toHaveProperty('points', 1);
+    await expect(
+      analyzer.generateHeatmap('file2', 0),
+    ).resolves.toHaveProperty('points', 1);
 
     // Test Max
-    mp = setupMock();
-    p = analyzer.generateHeatmap('file3', 2000);
-    setTimeout(() => mp.emit('close', 0), 10);
-    await expect(p).resolves.toHaveProperty('points', 1000);
+    await expect(
+      analyzer.generateHeatmap('file3', 2000),
+    ).resolves.toHaveProperty('points', 1000);
   });
 
   it('should reject on unexpected parsing error', async () => {
@@ -372,41 +303,24 @@ describe('MediaAnalyzer', () => {
     });
 
     (fs.readFile as any).mockRejectedValue(new Error('ENOENT'));
-    const mockProcess = new EventEmitter();
-    const mockStdout = new EventEmitter();
-    const mockStderr = new EventEmitter();
-    (mockProcess as any).stdout = mockStdout;
-    (mockProcess as any).stderr = mockStderr;
-    (spawn as any).mockReturnValue(mockProcess);
 
-    const promise = analyzer.generateHeatmap('parse-error.mp4', 10);
+    setupMockSpawn({ exitCode: 0 });
 
-    setTimeout(() => {
-      mockProcess.emit('close', 0);
-    }, 10);
-
-    await expect(promise).rejects.toThrow('Forced Error');
+    await expect(
+      analyzer.generateHeatmap('parse-error.mp4', 10),
+    ).rejects.toThrow('Forced Error');
     spy.mockRestore();
   });
 
   it('should handle invalid parsing values', async () => {
-    const mockProcess = new EventEmitter();
-    const mockStdout = new EventEmitter();
-    const mockStderr = new EventEmitter();
-    (mockProcess as any).stdout = mockStdout;
-    (mockProcess as any).stderr = mockStderr;
-    (spawn as any).mockReturnValue(mockProcess);
-
     const outputLines = [
       'lavfi.signalstats.YDIF=NaN',
       'lavfi.astats.Overall.RMS_level=invalid',
     ].join('\n');
 
-    const promise = analyzer.generateHeatmap('invalid.mp4', 10);
-    mockStdout.emit('data', Buffer.from(outputLines));
-    setTimeout(() => (mockProcess as any).emit('close', 0), 0);
+    setupMockSpawn({ stdout: outputLines });
 
-    const result = await promise;
+    const result = await analyzer.generateHeatmap('invalid.mp4', 10);
     expect(result.motion.every((v) => v === 0)).toBe(true);
   });
 
@@ -474,15 +388,10 @@ describe('MediaAnalyzer', () => {
     it('joins existing job instead of creating duplicate', async () => {
       (fs.readFile as any).mockRejectedValue(new Error('ENOENT'));
 
-      const mockProcess = new EventEmitter();
-      (mockProcess as any).stdout = new EventEmitter();
-      (mockProcess as any).stderr = new EventEmitter();
-      (spawn as any).mockReturnValue(mockProcess);
+      setupMockSpawn({ exitCode: 0, delay: 10 });
 
       const promise1 = analyzer.generateHeatmap('same-file.mp4', 10);
       const promise2 = analyzer.generateHeatmap('same-file.mp4', 10);
-
-      setTimeout(() => mockProcess.emit('close', 0), 10);
 
       const [result1, result2] = await Promise.all([promise1, promise2]);
 

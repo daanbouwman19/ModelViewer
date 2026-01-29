@@ -47,3 +47,9 @@ Implemented a callback-based interception mechanism for the `postMessage` mock. 
 **Discovery:** `tests/main/drive-cache-manager.test.ts` was using `setTimeout(..., 5)` (and other arbitrary small delays) to simulate stream events like `ready` and `finish`. This made tests rely on wall-clock time and race conditions.
 
 **Strategy:** Refactored to use a helper `setupMockWriteStream` that utilizes `mockImplementation` on `fs.createWriteStream`. This implementation schedules events using `setTimeout(..., 0)` (next macrotask), ensuring listeners are attached before events fire, while maintaining deterministic execution order without arbitrary waits.
+
+## 2026-01-30 - Standardized Spawn Mocking with Event Emission
+
+**Discovery:** Tests in `tests/core/analysis/media-analyzer.test.ts` were using arbitrary `setTimeout` delays to wait for mock process events, and some tests were failing silently (parsing 0 samples) because events were emitted too early.
+
+**Strategy:** Created a `setupMockSpawn` helper that uses a mock implementation to emit events on `setTimeout(..., 0)` (next tick). This ensures listeners are attached before events fire, removes flaky sleeps from test bodies, and guarantees data is actually received and parsed.
