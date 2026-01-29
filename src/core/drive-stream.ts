@@ -1,10 +1,10 @@
 import fs from 'fs';
 import { Readable } from 'stream';
-import { getDriveCacheManager } from '../main/drive-cache-manager';
+import { getDriveCacheManager } from '../main/drive-cache-manager.ts';
 import {
   getDriveFileStream,
   getDriveFileMetadata,
-} from '../main/google-drive-service';
+} from '../main/google-drive-service.ts';
 
 /**
  * Retrieves a stream for a Drive file, utilizing local cache if available.

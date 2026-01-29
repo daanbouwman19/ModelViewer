@@ -31,11 +31,11 @@ import {
   setRating,
   getAllMetadataAndStats,
   getRecentlyPlayed,
-} from '../core/database.js';
+} from '../core/database.ts';
 import {
   getAlbumsWithViewCounts,
   getAlbumsWithViewCountsAfterScan,
-} from '../core/media-service.js';
+} from '../core/media-service.ts';
 import {
   SUPPORTED_IMAGE_EXTENSIONS,
   SUPPORTED_VIDEO_EXTENSIONS,
@@ -53,7 +53,7 @@ import {
   MAX_CONCURRENT_TRANSCODES,
   MAX_API_BATCH_SIZE,
   HLS_CACHE_DIR_NAME,
-} from '../core/constants.js';
+} from '../core/constants.ts';
 import { listDirectory } from '../core/file-system.ts';
 import {
   authorizeFilePath,

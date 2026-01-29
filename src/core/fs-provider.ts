@@ -1,5 +1,5 @@
 import { Readable } from 'stream';
-import { FileSystemEntry } from './file-system';
+import { FileSystemEntry } from './file-system.ts';
 
 export { FileSystemEntry };
 

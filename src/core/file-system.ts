@@ -3,7 +3,7 @@
  */
 import fs from 'fs/promises';
 import path from 'path';
-import { isSensitiveFilename } from './security';
+import { isSensitiveFilename } from './security.ts';
 
 export interface FileSystemEntry {
   name: string;

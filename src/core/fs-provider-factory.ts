@@ -1,6 +1,6 @@
-import { FileSystemProvider } from './fs-provider';
-import { LocalFileSystemProvider } from './providers/local-provider';
-import { GoogleDriveProvider } from './providers/drive-provider';
+import { FileSystemProvider } from './fs-provider.ts';
+import { LocalFileSystemProvider } from './providers/local-provider.ts';
+import { GoogleDriveProvider } from './providers/drive-provider.ts';
 
 const providers: FileSystemProvider[] = [
   new GoogleDriveProvider(),

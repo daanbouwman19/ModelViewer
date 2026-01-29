@@ -13,13 +13,13 @@ import {
   getSetting,
   getAllMetadata,
   getMetadata,
-} from './database.js';
-import { WorkerClient } from './worker-client';
+} from './database.ts';
+import { WorkerClient } from './worker-client.ts';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { getVideoDuration } from './media-handler.js';
-import { resolveWorkerPath } from './utils/worker-utils';
-import type { Album, MediaMetadata } from './types';
+import { getVideoDuration } from './media-handler.ts';
+import { resolveWorkerPath } from './utils/worker-utils.ts';
+import type { Album, MediaMetadata } from './types.ts';
 import fs from 'fs/promises';
 import PQueue from 'p-queue';
 import {
@@ -27,8 +27,8 @@ import {
   METADATA_BATCH_SIZE,
   SUPPORTED_VIDEO_EXTENSIONS,
   WORKER_SCAN_TIMEOUT_MS,
-} from './constants.js';
-import { isDrivePath } from './media-utils.js';
+} from './constants.ts';
+import { isDrivePath } from './media-utils.ts';
 
 /**
  * Scans active media directories for albums, caches the result in the database,

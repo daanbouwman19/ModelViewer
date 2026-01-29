@@ -1,12 +1,12 @@
 import fs from 'fs';
 
 import { Readable } from 'stream';
-import { getDriveFileMetadata } from '../main/google-drive-service';
-import { getDriveStreamWithCache } from './drive-stream';
-import { authorizeFilePath, AuthorizationResult } from './security';
-import { InternalMediaProxy } from './media-proxy';
-import { IMediaSource } from './media-source-types';
-import { getMimeType, isDrivePath, getDriveId } from './media-utils';
+import { getDriveFileMetadata } from '../main/google-drive-service.ts';
+import { getDriveStreamWithCache } from './drive-stream.ts';
+import { authorizeFilePath, AuthorizationResult } from './security.ts';
+import { InternalMediaProxy } from './media-proxy.ts';
+import { IMediaSource } from './media-source-types.ts';
+import { getMimeType, isDrivePath, getDriveId } from './media-utils.ts';
 
 export class LocalMediaSource implements IMediaSource {
   private authResult: Promise<AuthorizationResult> | undefined;
