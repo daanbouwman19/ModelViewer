@@ -40,6 +40,57 @@ export interface MediaHandlerOptions {
   cacheDir: string;
 }
 
+export class MediaHandler {
+  constructor(private config: MediaHandlerOptions) {}
+
+  async handleStreamRequest(req: Request, res: Response) {
+    return handleStreamRequest(req, res, this.config.ffmpegPath);
+  }
+
+  async serveMetadata(req: Request, res: Response, filePath: string) {
+    return serveMetadata(req, res, filePath, this.config.ffmpegPath);
+  }
+
+  async serveThumbnail(req: Request, res: Response, filePath: string) {
+    return serveThumbnail(
+      req,
+      res,
+      filePath,
+      this.config.ffmpegPath,
+      this.config.cacheDir,
+    );
+  }
+
+  async serveHeatmap(req: Request, res: Response, filePath: string) {
+    return serveHeatmap(req, res, filePath);
+  }
+
+  async serveHeatmapProgress(req: Request, res: Response, filePath: string) {
+    return serveHeatmapProgress(req, res, filePath);
+  }
+
+  async serveHlsMaster(req: Request, res: Response, filePath: string) {
+    return serveHlsMaster(req, res, filePath);
+  }
+
+  async serveHlsPlaylist(req: Request, res: Response, filePath: string) {
+    return serveHlsPlaylist(req, res, filePath);
+  }
+
+  async serveHlsSegment(
+    req: Request,
+    res: Response,
+    filePath: string,
+    segmentName: string,
+  ) {
+    return serveHlsSegment(req, res, filePath, segmentName);
+  }
+
+  async serveStaticFile(req: Request, res: Response, filePath: string) {
+    return serveStaticFile(req, res, filePath);
+  }
+}
+
 // Re-export for compatibility
 export { validateFileAccess };
 
