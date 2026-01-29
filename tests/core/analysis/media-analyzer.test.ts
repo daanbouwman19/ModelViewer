@@ -281,6 +281,33 @@ describe('MediaAnalyzer', () => {
     expect(result.motion[1]).toBe(35);
   });
 
+  it('should log warning if ffmpeg succeeds but stderr contains Error', async () => {
+    // Mock successful execution but with "Error" in stderr
+    (fs.readFile as any).mockRejectedValue(new Error('ENOENT'));
+    const mockProcess = new EventEmitter();
+    const mockStdout = new EventEmitter();
+    const mockStderr = new EventEmitter();
+    (mockProcess as any).stdout = mockStdout;
+    (mockProcess as any).stderr = mockStderr;
+    (spawn as any).mockReturnValue(mockProcess);
+
+    const consoleSpy = vi.spyOn(console, 'warn');
+
+    const promise = analyzer.generateHeatmap('warning.mp4', 10);
+
+    setTimeout(() => {
+      mockStderr.emit('data', Buffer.from('Some random Error occurred\n'));
+      mockProcess.emit('close', 0);
+    }, 10);
+
+    await promise;
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('FFmpeg succeeded but reported errors'),
+    );
+    consoleSpy.mockRestore();
+  });
+
   it('should ignore irrelevant output lines', async () => {
     const mockProcess = new EventEmitter();
     const mockStdout = new EventEmitter();
@@ -308,6 +335,30 @@ describe('MediaAnalyzer', () => {
     expect(result.points).toBe(1);
     expect(result.motion[0]).toBe(10);
     expect(result.audio[0]).toBe(-20);
+  });
+
+  it('should reject on unexpected parsing error', async () => {
+    // Spy on private method resample to force an error
+    const spy = vi.spyOn(analyzer as any, 'resample').mockImplementation(() => {
+      throw new Error('Forced Error');
+    });
+
+    (fs.readFile as any).mockRejectedValue(new Error('ENOENT'));
+    const mockProcess = new EventEmitter();
+    const mockStdout = new EventEmitter();
+    const mockStderr = new EventEmitter();
+    (mockProcess as any).stdout = mockStdout;
+    (mockProcess as any).stderr = mockStderr;
+    (spawn as any).mockReturnValue(mockProcess);
+
+    const promise = analyzer.generateHeatmap('parse-error.mp4', 10);
+
+    setTimeout(() => {
+      mockProcess.emit('close', 0);
+    }, 10);
+
+    await expect(promise).rejects.toThrow('Forced Error');
+    spy.mockRestore();
   });
 
   it('should handle invalid parsing values', async () => {

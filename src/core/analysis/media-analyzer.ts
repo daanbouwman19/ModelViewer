@@ -302,10 +302,8 @@ export class MediaAnalyzer {
         if (start < data.length) {
           result.push(data[start]);
         } else {
-          // Fallback, e.g. if floating point math boundary issue (unlikely)
-          result.push(
-            result.length > 0 ? result[result.length - 1] : defaultValue,
-          );
+          // Should be unreachable with current math, but safe fallback to default
+          result.push(defaultValue);
         }
       }
     }
