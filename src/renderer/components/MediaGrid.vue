@@ -82,7 +82,6 @@ import { useLibraryStore } from '../composables/useLibraryStore';
 import { usePlayerStore } from '../composables/usePlayerStore';
 import { useUIStore } from '../composables/useUIStore';
 import type { MediaFile } from '../../core/types';
-import { api } from '../api';
 import MediaGridItem from './MediaGridItem.vue';
 import PlaylistIcon from './icons/PlaylistIcon.vue';
 import {
