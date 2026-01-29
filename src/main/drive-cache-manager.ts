@@ -5,7 +5,7 @@ import { EventEmitter } from 'events';
 import {
   getDriveFileStream,
   getDriveFileMetadata,
-} from './google-drive-service';
+} from './google-drive-service.ts';
 
 class DriveCacheManager extends EventEmitter {
   private cacheDir: string;

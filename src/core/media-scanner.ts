@@ -14,7 +14,7 @@ import {
   DISK_SCAN_CONCURRENCY,
 } from './constants.ts';
 import { isDrivePath, getDriveId } from './media-utils.ts';
-import type { Album, MediaFile } from './types';
+import type { Album, MediaFile } from './types.ts';
 import { listDriveFiles } from '../main/google-drive-service.ts';
 import { ConcurrencyLimiter } from './utils/concurrency-limiter.ts';
 

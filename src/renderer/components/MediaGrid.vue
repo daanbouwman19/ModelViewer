@@ -69,7 +69,15 @@
  * Supports hover-to-preview for videos and click-to-play functionality.
  * Uses vue-virtual-scroller for performance on large albums.
  */
-import { ref, onMounted, onUnmounted, computed, watch, reactive } from 'vue';
+import {
+  ref,
+  onMounted,
+  onUnmounted,
+  computed,
+  watch,
+  reactive,
+  toRaw,
+} from 'vue';
 import { useLibraryStore } from '../composables/useLibraryStore';
 import { usePlayerStore } from '../composables/usePlayerStore';
 import { useUIStore } from '../composables/useUIStore';
@@ -77,6 +85,11 @@ import type { MediaFile } from '../../core/types';
 import { api } from '../api';
 import MediaGridItem from './MediaGridItem.vue';
 import PlaylistIcon from './icons/PlaylistIcon.vue';
+import {
+  GRID_BREAKPOINT_SM,
+  GRID_BREAKPOINT_LG,
+  GRID_BREAKPOINT_XL,
+} from '../../core/constants';
 
 const libraryStore = useLibraryStore();
 const playerStore = usePlayerStore();
@@ -99,9 +112,9 @@ const MIN_CONTAINER_WIDTH = 320;
 // -- Grid Dimensions Logic --
 const columnCount = computed(() => {
   const w = containerWidth.value;
-  if (w < 640) return 2; // grid-cols-2
-  if (w < 1024) return 3; // sm:grid-cols-3 and md:grid-cols-3
-  if (w < 1280) return 4; // lg:grid-cols-4
+  if (w < GRID_BREAKPOINT_SM) return 2; // grid-cols-2
+  if (w < GRID_BREAKPOINT_LG) return 3; // sm:grid-cols-3 and md:grid-cols-3
+  if (w < GRID_BREAKPOINT_XL) return 4; // lg:grid-cols-4
   return 5; // xl:grid-cols-5
 });
 
@@ -159,19 +172,22 @@ const chunkedItems = computed<GridRow[]>(() => {
 
 // Resize Observer
 let resizeObserver: ResizeObserver | null = null;
+let resizeFrame: number;
 
 const setupResizeObserver = () => {
   if (scrollerContainer.value && !resizeObserver) {
     resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        if (entry.contentBoxSize) {
-          // Use content box width to match how CSS grid calculates available space
-          containerWidth.value = Math.max(
-            MIN_CONTAINER_WIDTH,
-            entry.contentRect.width,
-          );
+      cancelAnimationFrame(resizeFrame);
+      resizeFrame = requestAnimationFrame(() => {
+        for (const entry of entries) {
+          if (entry.contentBoxSize) {
+            containerWidth.value = Math.max(
+              MIN_CONTAINER_WIDTH,
+              entry.contentRect.width,
+            );
+          }
         }
-      }
+      });
     });
     resizeObserver.observe(scrollerContainer.value);
   }
@@ -199,6 +215,9 @@ onUnmounted(() => {
     resizeObserver.disconnect();
     resizeObserver = null;
   }
+  if (resizeFrame) {
+    cancelAnimationFrame(resizeFrame);
+  }
 });
 
 /**
@@ -211,8 +230,9 @@ const handleItemClick = async (item: MediaFile, index: number) => {
   }
 
   // When clicking an item, we pass the FULL list to the player
-  // Optimization: Use slice() which is slightly faster than spread for shallow copies of large arrays
-  playerStore.state.displayedMediaFiles = allMediaFiles.value.slice();
+  // Optimization: Use toRaw() to avoid Proxy overhead when slicing large arrays.
+  // slice() creates a shallow copy, which is what we need.
+  playerStore.state.displayedMediaFiles = toRaw(allMediaFiles.value).slice();
 
   // Optimization: We now pass the index directly, avoiding an O(N) findIndex scan
   playerStore.state.currentMediaIndex = index;

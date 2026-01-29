@@ -84,6 +84,7 @@ vi.mock('@/api', () => ({
   api: {
     loadFileAsDataURL: vi.fn(),
     getVideoStreamUrlGenerator: vi.fn(),
+    getHlsUrl: vi.fn(),
     getVideoMetadata: vi.fn(),
     setRating: vi.fn(),
     openInVlc: vi.fn(),
@@ -161,6 +162,7 @@ describe('MediaDisplay.vue', () => {
     (api.getVideoStreamUrlGenerator as Mock).mockResolvedValue(
       (p: string) => `http://localhost/stream?path=${p}`,
     );
+    (api.getHlsUrl as Mock).mockResolvedValue('/api/hls/master.m3u8?file=test');
     (api.getVideoMetadata as Mock).mockResolvedValue({ duration: 100 });
   });
 
@@ -326,7 +328,10 @@ describe('MediaDisplay.vue', () => {
       await flushPromises();
       await flushPromises();
       expect((wrapper.vm as any).isTranscodingMode).toBe(false);
-      expect((wrapper.vm as any).mediaUrl).toContain('/api/hls/master.m3u8');
+      expect(api.getHlsUrl).toHaveBeenCalled();
+      expect((wrapper.vm as any).mediaUrl).toBe(
+        '/api/hls/master.m3u8?file=test',
+      );
     });
 
     it('covers proactive transcoding for legacy formats', async () => {
@@ -335,7 +340,10 @@ describe('MediaDisplay.vue', () => {
       await flushPromises();
 
       expect((wrapper.vm as any).isTranscodingMode).toBe(false);
-      expect((wrapper.vm as any).mediaUrl).toContain('/api/hls/master.m3u8');
+      expect(api.getHlsUrl).toHaveBeenCalled();
+      expect((wrapper.vm as any).mediaUrl).toBe(
+        '/api/hls/master.m3u8?file=test',
+      );
     });
 
     it('covers handleVideoPlay and handleVideoPause effects on timer', async () => {
@@ -516,7 +524,10 @@ describe('MediaDisplay.vue', () => {
         .find((b) => b.text().includes('Try Transcoding'));
       await btn?.trigger('click');
       expect((wrapper.vm as any).isTranscodingMode).toBe(false);
-      expect((wrapper.vm as any).mediaUrl).toContain('/api/hls/master.m3u8');
+      expect(api.getHlsUrl).toHaveBeenCalled();
+      expect((wrapper.vm as any).mediaUrl).toBe(
+        '/api/hls/master.m3u8?file=test',
+      );
     });
 
     it('does NOT resume timer when video is paused due to navigation (loading)', async () => {

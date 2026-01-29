@@ -156,6 +156,10 @@ export class WebAdapter implements IMediaBackend {
       `/api/stream?file=${encodeURIComponent(filePath)}&startTime=${startTime}`;
   }
 
+  async getHlsUrl(filePath: string): Promise<string> {
+    return `/api/hls/master.m3u8?file=${encodeURIComponent(filePath)}`;
+  }
+
   async openInVlc(): Promise<{ success: boolean; message?: string }> {
     return { success: false, message: 'Not supported in Web version.' };
   }

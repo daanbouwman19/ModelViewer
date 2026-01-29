@@ -129,4 +129,16 @@ describe('ElectronAdapter', () => {
       'Failed to get video metadata',
     );
   });
+
+  it('getHlsUrl returns absolute URL with port', async () => {
+    mockElectronAPI.getServerPort.mockResolvedValue({
+      success: true,
+      data: 3000,
+    });
+    const adapter = new ElectronAdapter(mockElectronAPI as any);
+    const url = await adapter.getHlsUrl('C:\\path\\to\\video.mp4');
+    expect(url).toBe(
+      'http://localhost:3000/api/hls/master.m3u8?file=C%3A%5Cpath%5Cto%5Cvideo.mp4',
+    );
+  });
 });

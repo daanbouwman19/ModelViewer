@@ -9,7 +9,7 @@ export default defineConfig({
     build: {
       sourcemap: 'hidden',
       rollupOptions: {
-        external: [/^electron(\/.*)?$/, 'better-sqlite3'],
+        external: [/^electron(\/.*)?$/, 'better-sqlite3', 'ffmpeg-static'],
         input: {
           index: resolve(__dirname, 'src/main/main.ts'),
           // database-worker must be a separate entry because Node.js Worker requires a file path

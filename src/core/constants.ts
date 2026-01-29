@@ -232,6 +232,28 @@ const MAX_CONCURRENT_TRANSCODES = 3;
  */
 const MAX_API_BATCH_SIZE = 1000;
 
+/**
+ * Duration of each HLS segment in seconds.
+ */
+const HLS_SEGMENT_DURATION = 6;
+
+/**
+ * Name of the directory within the cache for HLS segments.
+ */
+const HLS_CACHE_DIR_NAME = 'hls';
+
+/**
+ * Grid View Breakpoints (Tailwind)
+ */
+const GRID_BREAKPOINT_SM = 640;
+const GRID_BREAKPOINT_LG = 1024;
+const GRID_BREAKPOINT_XL = 1280;
+
+/**
+ * Timeout for worker scan operations (24 hours).
+ */
+const WORKER_SCAN_TIMEOUT_MS = 86400000;
+
 export {
   GDRIVE_PROTOCOL,
   MAX_DATA_URL_SIZE_MB,
@@ -268,14 +290,8 @@ export {
   MAX_API_BATCH_SIZE,
   HLS_SEGMENT_DURATION,
   HLS_CACHE_DIR_NAME,
+  GRID_BREAKPOINT_SM,
+  GRID_BREAKPOINT_LG,
+  GRID_BREAKPOINT_XL,
+  WORKER_SCAN_TIMEOUT_MS,
 };
-
-/**
- * Duration of each HLS segment in seconds.
- */
-const HLS_SEGMENT_DURATION = 6;
-
-/**
- * Name of the directory within the cache for HLS segments.
- */
-const HLS_CACHE_DIR_NAME = 'hls';

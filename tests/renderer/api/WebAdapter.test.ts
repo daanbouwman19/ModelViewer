@@ -251,5 +251,11 @@ describe('WebAdapter', () => {
       expect(windowOpenSpy).toHaveBeenCalled();
       windowOpenSpy.mockRestore();
     });
+
+    it('getHlsUrl returns relative URL', async () => {
+      const adapter = new WebAdapter();
+      const url = await adapter.getHlsUrl('/path/to/video.mp4');
+      expect(url).toBe('/api/hls/master.m3u8?file=%2Fpath%2Fto%2Fvideo.mp4');
+    });
   });
 });

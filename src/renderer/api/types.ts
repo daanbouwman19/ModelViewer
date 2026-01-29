@@ -40,6 +40,7 @@ export interface IMediaBackend {
   getVideoStreamUrlGenerator(): Promise<
     (filePath: string, startTime?: number) => string
   >;
+  getHlsUrl(filePath: string): Promise<string>;
   getVideoMetadata(filePath: string): Promise<{ duration: number }>;
   getHeatmap(filePath: string, points?: number): Promise<HeatmapData>;
   getHeatmapProgress(filePath: string): Promise<number | null>; // Returns 0-100 or null if no job
