@@ -134,7 +134,7 @@ async function processStream(
       res.status(500).send('FFmpeg binary not found');
       return;
     }
-    return await serveTranscodedStream(req, res, source, ffmpegPath, startTime);
+    return serveTranscodedStream(req, res, source, ffmpegPath, startTime);
   }
 
   return await serveRawStream(req, res, source);
