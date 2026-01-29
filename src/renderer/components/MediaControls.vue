@@ -10,11 +10,19 @@
     >
       <!-- Previous Button -->
       <button
-        :disabled="!canNavigate"
+        :disabled="!canNavigate || canGoPrevious === false"
         class="group transition-all duration-200 hover:bg-(--accent-color) disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0"
         :class="navButtonClass"
-        title="Previous media (Z)"
-        aria-label="Previous media (Z)"
+        :title="
+          !canNavigate || canGoPrevious === false
+            ? 'No previous media'
+            : 'Previous media (Z)'
+        "
+        :aria-label="
+          !canNavigate || canGoPrevious === false
+            ? 'No previous media'
+            : 'Previous media (Z)'
+        "
         @click="$emit('previous')"
       >
         <ChevronLeftIcon class="w-5 h-5 md:w-6 md:h-6" />
@@ -161,16 +169,22 @@ import { useUIStore } from '../composables/useUIStore';
 import { computed, ref, onMounted, onUnmounted } from 'vue';
 import { formatTime } from '../utils/timeUtils';
 
-const props = defineProps<{
-  currentMediaItem: MediaFile | null;
-  isPlaying: boolean;
-  canNavigate: boolean;
-  isControlsVisible: boolean;
-  isImage: boolean;
-  isVrMode?: boolean;
-  currentTime?: number;
-  duration?: number;
-}>();
+const props = withDefaults(
+  defineProps<{
+    currentMediaItem: MediaFile | null;
+    isPlaying: boolean;
+    canNavigate: boolean;
+    isControlsVisible: boolean;
+    isImage: boolean;
+    isVrMode?: boolean;
+    currentTime?: number;
+    duration?: number;
+    canGoPrevious?: boolean;
+  }>(),
+  {
+    canGoPrevious: true,
+  },
+);
 
 const { isSidebarVisible } = useUIStore();
 

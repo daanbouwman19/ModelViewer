@@ -165,6 +165,7 @@
       :current-media-item="currentMediaItem"
       :is-playing="isPlaying"
       :can-navigate="canNavigate"
+      :can-go-previous="canGoPrevious"
       :is-controls-visible="isControlsVisible"
       :is-image="isImage"
       :is-vr-mode="isVrMode"
@@ -346,6 +347,8 @@ const isImage = computed(() => {
 const canNavigate = computed(() => {
   return displayedMediaFiles.value.length > 0;
 });
+
+const canGoPrevious = computed(() => currentMediaIndex.value > 0);
 
 /**
  * Toggles fullscreen for the video element.

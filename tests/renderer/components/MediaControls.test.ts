@@ -137,7 +137,7 @@ describe('MediaControls.vue', () => {
     });
     const buttons = wrapper.findAll('button');
     const prev = buttons.find(
-      (b) => b.attributes('aria-label') === 'Previous media (Z)',
+      (b) => b.attributes('aria-label') === 'No previous media',
     );
     const next = buttons.find(
       (b) => b.attributes('aria-label') === 'Next media (X)',
