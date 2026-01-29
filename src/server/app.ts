@@ -16,7 +16,7 @@ import { registerSensitiveFile } from '../core/security.ts';
 import { initializeDriveCacheManager } from '../main/drive-cache-manager.ts';
 import { HlsManager } from '../core/hls-manager.ts';
 import { MediaAnalyzer } from '../core/analysis/media-analyzer.ts';
-import * as mediaHandlerModule from '../core/media-handler.ts';
+import { MediaHandler } from '../core/media-handler.ts';
 import { WorkerFactory } from '../core/worker-factory.ts';
 import { createRateLimiters } from './middleware/rate-limiters.ts';
 import { errorHandler } from './middleware/error-handler.ts';
@@ -124,67 +124,10 @@ export async function createApp() {
     process.exit(1);
   }
 
-  const useModuleFunctions =
-    process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
-
-  const mediaHandler =
-    !useModuleFunctions && mediaHandlerModule.MediaHandler
-      ? new mediaHandlerModule.MediaHandler({
-          ffmpegPath: ffmpegStatic,
-          cacheDir: CACHE_DIR,
-        })
-      : {
-          serveMetadata: (
-            req: express.Request,
-            res: express.Response,
-            filePath: string,
-          ) =>
-            mediaHandlerModule.serveMetadata(req, res, filePath, ffmpegStatic),
-          serveThumbnail: (
-            req: express.Request,
-            res: express.Response,
-            filePath: string,
-          ) =>
-            mediaHandlerModule.serveThumbnail(
-              req,
-              res,
-              filePath,
-              ffmpegStatic,
-              CACHE_DIR,
-            ),
-          serveHeatmap: (
-            req: express.Request,
-            res: express.Response,
-            filePath: string,
-          ) => mediaHandlerModule.serveHeatmap(req, res, filePath),
-          serveHeatmapProgress: (
-            req: express.Request,
-            res: express.Response,
-            filePath: string,
-          ) => mediaHandlerModule.serveHeatmapProgress(req, res, filePath),
-          serveHlsMaster: (
-            req: express.Request,
-            res: express.Response,
-            filePath: string,
-          ) => mediaHandlerModule.serveHlsMaster(req, res, filePath),
-          serveHlsPlaylist: (
-            req: express.Request,
-            res: express.Response,
-            filePath: string,
-          ) => mediaHandlerModule.serveHlsPlaylist(req, res, filePath),
-          serveHlsSegment: (
-            req: express.Request,
-            res: express.Response,
-            filePath: string,
-            segmentName: string,
-          ) =>
-            mediaHandlerModule.serveHlsSegment(req, res, filePath, segmentName),
-          serveStaticFile: (
-            req: express.Request,
-            res: express.Response,
-            filePath: string,
-          ) => mediaHandlerModule.serveStaticFile(req, res, filePath),
-        };
+  const mediaHandler = new MediaHandler({
+    ffmpegPath: ffmpegStatic,
+    cacheDir: CACHE_DIR,
+  });
 
   app.use(createAlbumRoutes(limiters));
   app.use(

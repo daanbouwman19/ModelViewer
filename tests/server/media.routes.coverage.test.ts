@@ -23,6 +23,17 @@ type TestAppResult = {
   transcodeState: { current: number };
 };
 
+const createMockMediaHandlerInstance = () => ({
+  serveMetadata: vi.fn((_req, res) => res.status(200).send('ok')),
+  serveThumbnail: vi.fn((_req, res) => res.status(200).send('ok')),
+  serveHeatmap: vi.fn((_req, res) => res.status(200).send('ok')),
+  serveHeatmapProgress: vi.fn((_req, res) => res.status(200).send('ok')),
+  serveHlsMaster: vi.fn((_req, res) => res.status(200).send('ok')),
+  serveHlsPlaylist: vi.fn((_req, res) => res.status(200).send('ok')),
+  serveHlsSegment: vi.fn((_req, res) => res.status(200).send('ok')),
+  serveStaticFile: vi.fn((_req, res) => res.status(200).send('ok')),
+});
+
 vi.mock('../../src/core/database', () => ({
   getAllMetadataAndStats: vi.fn(),
   getMediaViewCounts: vi.fn(),
@@ -38,6 +49,7 @@ vi.mock('../../src/core/security', () => ({
 }));
 
 vi.mock('../../src/core/media-handler', () => ({
+  MediaHandler: vi.fn(() => createMockMediaHandlerInstance()),
   serveRawStream: vi.fn(),
   serveTranscodedStream: vi.fn(),
   validateFileAccess: vi.fn(),
@@ -56,16 +68,7 @@ const createTestApp = (ffmpegPath: string | null): TestAppResult => {
   const app = express();
   app.use(express.json());
 
-  const handler = {
-    serveMetadata: vi.fn((_req, res) => res.status(200).send('ok')),
-    serveThumbnail: vi.fn((_req, res) => res.status(200).send('ok')),
-    serveHeatmap: vi.fn((_req, res) => res.status(200).send('ok')),
-    serveHeatmapProgress: vi.fn((_req, res) => res.status(200).send('ok')),
-    serveHlsMaster: vi.fn((_req, res) => res.status(200).send('ok')),
-    serveHlsPlaylist: vi.fn((_req, res) => res.status(200).send('ok')),
-    serveHlsSegment: vi.fn((_req, res) => res.status(200).send('ok')),
-    serveStaticFile: vi.fn((_req, res) => res.status(200).send('ok')),
-  };
+  const handler = new (mediaHandler.MediaHandler as any)();
 
   const transcodeState = { current: 0 };
 
@@ -78,7 +81,7 @@ const createTestApp = (ffmpegPath: string | null): TestAppResult => {
         authLimiter: createLimiter(),
         streamLimiter: createLimiter(),
       },
-      mediaHandler: handler,
+      mediaHandler: handler as any,
       transcodeState,
       ffmpegPath,
     }),

@@ -112,20 +112,10 @@ export class MediaService {
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
     const isElectron = !!process.versions['electron'];
-    let isPackaged = false;
-    if (isElectron) {
-      try {
-        const { app } = await import('electron');
-        isPackaged = app.isPackaged;
-      } catch {
-        // Fallback
-      }
-    }
 
     const { path: workerPath, options: workerOptions } =
       await WorkerFactory.getWorkerPath('scan-worker', {
         isElectron,
-        isPackaged,
         currentDirname: __dirname,
         currentUrl: import.meta.url,
       });

@@ -1,7 +1,7 @@
 /**
  * @file Media routes.
  */
-import { Router, type Request, type Response } from 'express';
+import { Router } from 'express';
 import { AppError } from '../../core/errors.ts';
 import {
   getAllMetadataAndStats,
@@ -19,6 +19,7 @@ import {
   MAX_CONCURRENT_TRANSCODES,
 } from '../../core/constants.ts';
 import {
+  MediaHandler,
   serveRawStream,
   serveTranscodedStream,
   validateFileAccess,
@@ -27,53 +28,9 @@ import { createMediaSource } from '../../core/media-source.ts';
 import type { RateLimiters } from '../middleware/rate-limiters.ts';
 import { asyncHandler } from '../middleware/async-handler.ts';
 
-interface MediaHandlerLike {
-  serveMetadata(
-    req: Request,
-    res: Response,
-    filePath: string,
-  ): Promise<void> | void;
-  serveThumbnail(
-    req: Request,
-    res: Response,
-    filePath: string,
-  ): Promise<void> | void;
-  serveHeatmap(
-    req: Request,
-    res: Response,
-    filePath: string,
-  ): Promise<void> | void;
-  serveHeatmapProgress(
-    req: Request,
-    res: Response,
-    filePath: string,
-  ): Promise<void> | void;
-  serveHlsMaster(
-    req: Request,
-    res: Response,
-    filePath: string,
-  ): Promise<void> | void;
-  serveHlsPlaylist(
-    req: Request,
-    res: Response,
-    filePath: string,
-  ): Promise<void> | void;
-  serveHlsSegment(
-    req: Request,
-    res: Response,
-    filePath: string,
-    segmentName: string,
-  ): Promise<void> | void;
-  serveStaticFile(
-    req: Request,
-    res: Response,
-    filePath: string,
-  ): Promise<void> | void;
-}
-
 export interface MediaRoutesOptions {
   limiters: RateLimiters;
-  mediaHandler: MediaHandlerLike;
+  mediaHandler: MediaHandler;
   transcodeState: { current: number };
   ffmpegPath: string | null;
 }

@@ -3,7 +3,6 @@ import { Router } from 'express';
 import request from 'supertest';
 import fs from 'fs/promises';
 import path from 'path';
-import * as mediaHandlerModule from '../../src/core/media-handler';
 import * as database from '../../src/core/database';
 
 let capturedMediaOptions: any;
@@ -51,8 +50,7 @@ vi.mock('../../src/core/analysis/media-analyzer.ts', () => ({
   },
 }));
 
-vi.mock('../../src/core/media-handler', () => ({
-  MediaHandler: vi.fn(),
+const mockMediaHandlerInstance = {
   serveMetadata: vi.fn(),
   serveThumbnail: vi.fn(),
   serveHeatmap: vi.fn(),
@@ -61,6 +59,10 @@ vi.mock('../../src/core/media-handler', () => ({
   serveHlsPlaylist: vi.fn(),
   serveHlsSegment: vi.fn(),
   serveStaticFile: vi.fn(),
+};
+
+vi.mock('../../src/core/media-handler', () => ({
+  MediaHandler: vi.fn(() => mockMediaHandlerInstance),
 }));
 
 describe('Server app additional coverage', () => {
@@ -77,7 +79,7 @@ describe('Server app additional coverage', () => {
     vi.restoreAllMocks();
   });
 
-  it('wires module-based media handler helpers', async () => {
+  it('wires media handler instance methods', async () => {
     process.env.NODE_ENV = 'test';
     process.env.VITEST = 'true';
 
@@ -97,23 +99,23 @@ describe('Server app additional coverage', () => {
     await handler.serveHlsSegment(req, res, '/file.mp4', 'segment.ts');
     await handler.serveStaticFile(req, res, '/file.mp4');
 
-    expect(mediaHandlerModule.serveHlsMaster).toHaveBeenCalledWith(
+    expect(mockMediaHandlerInstance.serveHlsMaster).toHaveBeenCalledWith(
       req,
       res,
       '/file.mp4',
     );
-    expect(mediaHandlerModule.serveHlsPlaylist).toHaveBeenCalledWith(
+    expect(mockMediaHandlerInstance.serveHlsPlaylist).toHaveBeenCalledWith(
       req,
       res,
       '/file.mp4',
     );
-    expect(mediaHandlerModule.serveHlsSegment).toHaveBeenCalledWith(
+    expect(mockMediaHandlerInstance.serveHlsSegment).toHaveBeenCalledWith(
       req,
       res,
       '/file.mp4',
       'segment.ts',
     );
-    expect(mediaHandlerModule.serveStaticFile).toHaveBeenCalledWith(
+    expect(mockMediaHandlerInstance.serveStaticFile).toHaveBeenCalledWith(
       req,
       res,
       '/file.mp4',

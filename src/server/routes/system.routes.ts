@@ -81,9 +81,7 @@ export function createSystemRoutes(limiters: RateLimiters) {
     '/api/smart-playlists/:id',
     limiters.writeLimiter,
     asyncHandler(async (req, res) => {
-      const idParam = req.params.id;
-      const idStr = Array.isArray(idParam) ? idParam[0] : idParam || '';
-      const id = parseInt(idStr, 10);
+      const id = parseInt((req.params.id as string) || '', 10);
       const { name, criteria } = req.body;
       if (isNaN(id) || !name || !criteria) {
         throw new AppError(400, 'Invalid arguments');
@@ -97,9 +95,7 @@ export function createSystemRoutes(limiters: RateLimiters) {
     '/api/smart-playlists/:id',
     limiters.writeLimiter,
     asyncHandler(async (req, res) => {
-      const idParam = req.params.id;
-      const idStr = Array.isArray(idParam) ? idParam[0] : idParam || '';
-      const id = parseInt(idStr, 10);
+      const id = parseInt((req.params.id as string) || '', 10);
       if (isNaN(id)) {
         throw new AppError(400, 'Invalid id');
       }
