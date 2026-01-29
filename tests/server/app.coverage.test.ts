@@ -99,11 +99,7 @@ describe('Server app additional coverage', () => {
     await handler.serveHlsSegment(req, res, '/file.mp4', 'segment.ts');
     await handler.serveStaticFile(req, res, '/file.mp4');
 
-    expect(handler.serveHlsMaster).toHaveBeenCalledWith(
-      req,
-      res,
-      '/file.mp4',
-    );
+    expect(handler.serveHlsMaster).toHaveBeenCalledWith(req, res, '/file.mp4');
     expect(handler.serveHlsPlaylist).toHaveBeenCalledWith(
       req,
       res,
@@ -115,11 +111,7 @@ describe('Server app additional coverage', () => {
       '/file.mp4',
       'segment.ts',
     );
-    expect(handler.serveStaticFile).toHaveBeenCalledWith(
-      req,
-      res,
-      '/file.mp4',
-    );
+    expect(handler.serveStaticFile).toHaveBeenCalledWith(req, res, '/file.mp4');
   });
 
   it('logs and exits when initialization fails', async () => {
