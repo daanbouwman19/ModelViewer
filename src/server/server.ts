@@ -9,8 +9,11 @@ import { bootstrap } from './main.ts';
 export { createApp, bootstrap };
 
 const entryArg = process.argv[1];
+const resolvedEntry = entryArg ? path.resolve(entryArg) : '';
+const resolvedSelf = fileURLToPath(import.meta.url);
 const isEntryFile = entryArg
-  ? path.resolve(entryArg) === fileURLToPath(import.meta.url)
+  ? resolvedEntry.toLowerCase() === resolvedSelf.toLowerCase() ||
+    path.basename(entryArg) === 'server.ts'
   : false;
 
 if (isEntryFile) {

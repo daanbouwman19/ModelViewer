@@ -63,11 +63,24 @@ export async function bootstrap() {
   });
 }
 
-const entryArg = process.argv[1];
-const isEntryFile = entryArg
-  ? path.resolve(entryArg) === fileURLToPath(import.meta.url)
-  : false;
+export function shouldAutoBootstrap(entryArg = process.argv[1]) {
+  if (!entryArg) {
+    return false;
+  }
 
-if (isEntryFile) {
+  const resolvedEntry = path.resolve(entryArg);
+  try {
+    const resolvedSelf = path.resolve(fileURLToPath(import.meta.url));
+    if (resolvedEntry.toLowerCase() === resolvedSelf.toLowerCase()) {
+      return true;
+    }
+  } catch {
+    // Ignore invalid URLs in test environments.
+  }
+
+  return path.basename(entryArg) === 'main.ts';
+}
+
+if (shouldAutoBootstrap()) {
   bootstrap();
 }

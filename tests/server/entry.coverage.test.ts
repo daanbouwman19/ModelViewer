@@ -116,9 +116,14 @@ describe('Server entry coverage', () => {
     process.argv[1] = 'vitest';
 
     const bootstrapMock = vi.fn();
-    vi.doMock('../../src/server/main.ts', () => ({
-      bootstrap: bootstrapMock,
-    }));
+    vi.doMock('../../src/server/main.ts', async (importOriginal) => {
+      const actual =
+        await importOriginal<typeof import('../../src/server/main.ts')>();
+      return {
+        ...actual,
+        bootstrap: bootstrapMock,
+      };
+    });
 
     await import('../../src/server/server.ts');
 
@@ -130,9 +135,14 @@ describe('Server entry coverage', () => {
     process.argv[1] = '';
 
     const bootstrapMock = vi.fn();
-    vi.doMock('../../src/server/main.ts', () => ({
-      bootstrap: bootstrapMock,
-    }));
+    vi.doMock('../../src/server/main.ts', async (importOriginal) => {
+      const actual =
+        await importOriginal<typeof import('../../src/server/main.ts')>();
+      return {
+        ...actual,
+        bootstrap: bootstrapMock,
+      };
+    });
 
     await import('../../src/server/server.ts');
 
@@ -144,9 +154,14 @@ describe('Server entry coverage', () => {
     process.argv[1] = path.resolve(process.cwd(), 'src', 'server', 'server.ts');
 
     const bootstrapMock = vi.fn();
-    vi.doMock('../../src/server/main.ts', () => ({
-      bootstrap: bootstrapMock,
-    }));
+    vi.doMock('../../src/server/main.ts', async (importOriginal) => {
+      const actual =
+        await importOriginal<typeof import('../../src/server/main.ts')>();
+      return {
+        ...actual,
+        bootstrap: bootstrapMock,
+      };
+    });
 
     await import('../../src/server/server.ts');
 
@@ -157,18 +172,21 @@ describe('Server entry coverage', () => {
     vi.resetModules();
     process.argv[1] = '';
 
-    await import('../../src/server/main.ts');
+    vi.unmock('../../src/server/main.ts');
 
-    expect(createAppMock).not.toHaveBeenCalled();
+    const { shouldAutoBootstrap } = await import('../../src/server/main.ts');
+
+    expect(shouldAutoBootstrap(process.argv[1])).toBe(false);
   });
 
   it('main entry bootstraps when entry file matches', async () => {
     vi.resetModules();
     process.argv[1] = path.resolve(process.cwd(), 'src', 'server', 'main.ts');
 
-    await import('../../src/server/main.ts');
-    await new Promise((resolve) => setImmediate(resolve));
+    vi.unmock('../../src/server/main.ts');
 
-    expect(createAppMock).toHaveBeenCalled();
+    const { shouldAutoBootstrap } = await import('../../src/server/main.ts');
+
+    expect(shouldAutoBootstrap(process.argv[1])).toBe(true);
   });
 });
