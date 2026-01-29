@@ -137,7 +137,7 @@ async function processStream(
     return serveTranscodedStream(req, res, source, ffmpegPath, startTime);
   }
 
-  return await serveRawStream(req, res, source);
+  return serveRawStream(req, res, source);
 }
 
 /**
