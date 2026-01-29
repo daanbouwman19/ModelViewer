@@ -1,6 +1,6 @@
 import { spawn } from 'child_process';
 import ffmpegStatic from 'ffmpeg-static';
-import { getFFmpegStreams } from '../utils/ffmpeg-utils.ts';
+import { getFFmpegStreams } from '../utils/ffmpeg-utils';
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';

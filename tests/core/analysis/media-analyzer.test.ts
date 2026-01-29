@@ -35,10 +35,10 @@ vi.mock('crypto', () => ({
   },
 }));
 
-vi.mock('../../../src/core/utils/ffmpeg-utils.ts', () => ({
+vi.mock('../../../src/core/utils/ffmpeg-utils', () => ({
   getFFmpegStreams: vi.fn(),
 }));
-import { getFFmpegStreams } from '../../../src/core/utils/ffmpeg-utils.ts';
+import { getFFmpegStreams } from '../../../src/core/utils/ffmpeg-utils';
 
 import { spawn } from 'child_process';
 
