@@ -35,6 +35,11 @@ vi.mock('crypto', () => ({
   },
 }));
 
+vi.mock('../../../src/core/utils/ffmpeg-utils.ts', () => ({
+  getFFmpegStreams: vi.fn(),
+}));
+import { getFFmpegStreams } from '../../../src/core/utils/ffmpeg-utils.ts';
+
 import { spawn } from 'child_process';
 
 describe('MediaAnalyzer', () => {
@@ -44,6 +49,10 @@ describe('MediaAnalyzer', () => {
     vi.resetAllMocks();
     analyzer = MediaAnalyzer.getInstance();
     analyzer.setCacheDir('/tmp/cache');
+    (getFFmpegStreams as any).mockResolvedValue({
+      hasVideo: true,
+      hasAudio: true,
+    });
   });
 
   it('should return cached data if available', async () => {
@@ -228,8 +237,8 @@ describe('MediaAnalyzer', () => {
     expect(result.points).toBe(8);
     expect(result.motion).toHaveLength(8);
     // Verify fallback behavior for empty slices
-    // First point might be 0 if slice is empty and result is empty
-    expect(result.motion[0]).toBe(0);
+    // First point uses data[0] instead of default 0
+    expect(result.motion[0]).toBe(10);
     // And verify legitimate data
     expect(result.motion).toContain(10);
   });
@@ -325,19 +334,19 @@ describe('MediaAnalyzer', () => {
   describe('resample (private)', () => {
     it('handles upsampling with empty first slice (ternary false)', () => {
       // data=[10], target=2. step=0.5
-      // i=0: slice=[] -> result empty -> push 0.
+      // i=0: slice=[] -> logic uses data[0] -> 10
       // i=1: slice=[10] -> push 10.
       const res = (analyzer as any).resample([10], 2, 0);
-      expect(res).toEqual([0, 10]);
+      expect(res).toEqual([10, 10]);
     });
 
     it('handles upsampling with empty middle slice (ternary true)', () => {
       // data=[10], target=3. step=0.33
-      // i=0: slice=[] -> result empty -> push 0
-      // i=1: slice=[] -> result=[0] -> push 0 (prev)
-      // i=2: slice=[10] -> result=[0,0] -> push 10
+      // i=0: slice=[] -> data[0] -> 10
+      // i=1: slice=[] -> data[0] -> 10
+      // i=2: slice=[10] -> data[0] -> 10 (Wait, slice is [10] so 10/1=10)
       const res = (analyzer as any).resample([10], 3, 0);
-      expect(res).toEqual([0, 0, 10]);
+      expect(res).toEqual([10, 10, 10]);
     });
 
     it('handles empty input', () => {
