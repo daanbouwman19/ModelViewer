@@ -181,16 +181,34 @@ describe('Palette Accessibility Improvements', () => {
   });
 
   describe('MediaDisplay.vue', () => {
-    it('navigation buttons should have accessible labels', () => {
+    it('navigation buttons should have accessible labels', async () => {
       const wrapper = mount(MediaDisplay);
 
-      const prevBtn = wrapper.find('button[aria-label="Previous media (Z)"]');
+      // Initially at index 0, previous button is disabled with "No previous media"
+      const prevBtnDisabled = wrapper.find(
+        'button[aria-label="No previous media"]',
+      );
       const nextBtn = wrapper.find('button[aria-label="Next media (X)"]');
 
-      expect(prevBtn.exists()).toBe(true);
+      expect(prevBtnDisabled.exists()).toBe(true);
       expect(nextBtn.exists()).toBe(true);
-      expect(prevBtn.attributes('aria-label')).toBe('Previous media (Z)');
+      expect(prevBtnDisabled.attributes('aria-label')).toBe(
+        'No previous media',
+      );
       expect(nextBtn.attributes('aria-label')).toBe('Next media (X)');
+
+      // Verify "Previous media (Z)" appears when index > 0
+      mockPlayerState.displayedMediaFiles.push({
+        name: 'test2.jpg',
+        path: '/test2.jpg',
+      });
+      mockPlayerState.currentMediaIndex = 1;
+      await wrapper.vm.$nextTick();
+
+      const prevBtnEnabled = wrapper.find(
+        'button[aria-label="Previous media (Z)"]',
+      );
+      expect(prevBtnEnabled.exists()).toBe(true);
     });
 
     it('VLC button should have accessible label', async () => {
