@@ -9,7 +9,6 @@ import * as googleAuth from '../../src/main/google-auth';
 
 import * as mediaSource from '../../src/core/media-source';
 import * as fileSystem from '../../src/core/file-system';
-import fs from 'fs/promises';
 
 // Auto-mock dependencies
 vi.mock('../../src/core/database');
@@ -34,16 +33,21 @@ vi.mock('../../src/core/security', async (importOriginal) => {
   };
 });
 
-// Mock fs/promises
+// Hoist the mock object
+const { mockFs } = vi.hoisted(() => {
+  return {
+    mockFs: {
+      mkdir: vi.fn(),
+      stat: vi.fn(),
+      realpath: vi.fn(),
+    },
+  };
+});
+
+// Mock fs/promises using the hoisted object
 vi.mock('fs/promises', () => ({
-  default: {
-    mkdir: vi.fn(),
-    stat: vi.fn(),
-    realpath: vi.fn(),
-  },
-  mkdir: vi.fn(),
-  stat: vi.fn(),
-  realpath: vi.fn(),
+  default: mockFs,
+  ...mockFs,
 }));
 
 describe('Server Coverage', () => {
@@ -71,8 +75,8 @@ describe('Server Coverage', () => {
       },
     );
 
-    vi.mocked(fs.mkdir).mockResolvedValue(undefined as any);
-    vi.mocked(fs.stat).mockResolvedValue({} as any);
+    vi.mocked(mockFs.mkdir).mockResolvedValue(undefined as any);
+    vi.mocked(mockFs.stat).mockResolvedValue({} as any);
 
     // Dynamic import to create a fresh app instance if needed
     // However, node modules are cached, so we rely on mocks being cleared.
@@ -245,9 +249,8 @@ describe('Server Coverage', () => {
       const res = await request(app)
         .get('/api/fs/parent')
         .query({ path: '/a/b' });
-      // Parent of /a/b is /a (posix) or \a (win32).
-      // We verify the structure.
-      expect(res.body).toHaveProperty('parent');
+      // Expect precise parent path
+      expect(res.body).toEqual({ parent: '/a' });
     });
 
     it('GET /api/fs/parent returns null for root', async () => {
@@ -467,7 +470,7 @@ describe('Server Coverage', () => {
 
     it('POST /api/directories handles non-existent directory', async () => {
       // Mock realpath to fail
-      vi.mocked(fs.realpath).mockRejectedValue(new Error('ENOENT'));
+      vi.mocked(mockFs.realpath).mockRejectedValue(new Error('ENOENT'));
       const res = await request(app)
         .post('/api/directories')
         .send({ path: '/non/existent' });
