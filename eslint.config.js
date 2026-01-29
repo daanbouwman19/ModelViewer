@@ -47,6 +47,7 @@ export default [
       'vue/multi-word-component-names': 'off',
       'no-console': 'off',
       '@typescript-eslint/no-explicit-any': 'error',
+      'vue/component-api-style': ['error', ['script-setup']],
     },
   },
   {

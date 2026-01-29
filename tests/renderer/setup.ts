@@ -21,3 +21,19 @@ const localStorageMock = (function () {
 })();
 
 vi.stubGlobal('localStorage', localStorageMock);
+
+// Centralize RAF stubs for tests
+let rafDepth = 0;
+vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+  if (rafDepth > 5) {
+    return setTimeout(() => cb(Date.now()), 0);
+  }
+  rafDepth++;
+  try {
+    cb(Date.now());
+  } finally {
+    rafDepth--;
+  }
+  return 1;
+});
+vi.stubGlobal('cancelAnimationFrame', () => {});

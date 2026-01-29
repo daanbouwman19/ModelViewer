@@ -13,21 +13,23 @@ import {
   getSetting,
   getAllMetadata,
   getMetadata,
-} from './database.ts';
+} from './database';
 import { type WorkerOptions } from 'worker_threads';
-import { WorkerClient } from './worker-client.ts';
+import { WorkerClient } from './worker-client';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { getVideoDuration } from './media-handler.ts';
-import type { Album, MediaMetadata } from './types.ts';
+import { getVideoDuration } from './media-handler';
+import { resolveWorkerPath } from './utils/worker-utils';
+import type { Album, MediaMetadata } from './types';
 import fs from 'fs/promises';
 import PQueue from 'p-queue';
 import {
   METADATA_EXTRACTION_CONCURRENCY,
   METADATA_BATCH_SIZE,
   SUPPORTED_VIDEO_EXTENSIONS,
-} from './constants.ts';
-import { isDrivePath } from './media-utils.ts';
+  WORKER_SCAN_TIMEOUT_MS,
+} from './constants';
+import { isDrivePath } from './media-utils';
 
 /**
  * Scans active media directories for albums, caches the result in the database,
@@ -47,40 +49,42 @@ export async function scanDiskForAlbumsAndCache(
     return [];
   }
 
-  // Determine worker path
+  // Determine worker path using shared utility
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
-  let workerPath: string | URL;
-  let workerOptions: WorkerOptions | undefined;
-  const isProduction = process.env.NODE_ENV === 'production';
   const isElectron = !!process.versions['electron'];
-
+  // In a real app we might pass isPackaged from main process or deduce it,
+  // here we stick to the existing deduction logic if possible or assume a default.
+  // The original code checked `app.isPackaged` dynamically.
+  // We can pass `false` as default for `isPackaged` if we can't easily access it without importing electron,
+  // OR we can keep the dynamic import logic ONLY for the boolean check if strictly needed.
+  // To avoid `import('electron')` here, we might just try both or rely on env vars.
+  // However, `resolveWorkerPath` was designed to handle this.
+  // Let's check `isPackaged` safely.
+  let isPackaged = false;
   if (isElectron) {
-    const { app } = await import('electron');
-    if (app.isPackaged) {
-      workerPath = path.join(__dirname, 'scan-worker.js');
-    } else {
-      workerPath = new URL('./scan-worker.js', import.meta.url);
-    }
-  } else {
-    // Web Server Environment
-    if (isProduction) {
-      // In production built server, workers are adjacent to the entry point.
-      workerPath = path.join(__dirname, 'scan-worker.js');
-    } else {
-      // Development (tsx)
-      workerPath = new URL('./scan-worker.ts', import.meta.url);
-      workerOptions = {
-        execArgv: ['--import', 'tsx/esm'],
-      };
+    try {
+      // We still need to check if packaged if we want to be 100% correct about path
+      const { app } = await import('electron');
+      isPackaged = app.isPackaged;
+    } catch {
+      // Fallback
     }
   }
+
+  const { path: workerPath, options: workerOptions } = await resolveWorkerPath(
+    isElectron,
+    isPackaged,
+    __dirname,
+    import.meta.url,
+    'scan-worker',
+  );
 
   // Run scan in a worker
   const albums = await new Promise<Album[]>(async (resolve, reject) => {
     const client = new WorkerClient(workerPath, {
-      workerOptions,
-      operationTimeout: 86400000, // 24h timeout
+      workerOptions: workerOptions as WorkerOptions,
+      operationTimeout: WORKER_SCAN_TIMEOUT_MS,
       name: 'scan-worker',
     });
 
@@ -109,16 +113,19 @@ export async function scanDiskForAlbumsAndCache(
       try {
         const cachedAlbums = await getCachedAlbums();
         if (cachedAlbums) {
-          // Helper to flatten albums to paths
-          const collectPaths = (albums: Album[], target: string[]) => {
-            for (const album of albums) {
+          // Flatten albums to paths (Iterative)
+          const stack = [...cachedAlbums];
+          while (stack.length > 0) {
+            const album = stack.pop();
+            if (album) {
               for (const texture of album.textures) {
-                target.push(texture.path);
+                previousPaths.push(texture.path);
               }
-              collectPaths(album.children, target);
+              if (album.children && album.children.length > 0) {
+                stack.push(...album.children);
+              }
             }
-          };
-          collectPaths(cachedAlbums, previousPaths);
+          }
         }
       } catch (e) {
         console.warn(
@@ -226,25 +233,34 @@ export async function getAlbumsWithViewCountsAfterScan(
 }
 
 /**
- * Recursively collects all file paths from an album tree.
+ * Collects all file paths from an album tree iteratively.
+ * This avoids stack overflow issues with deeply nested directory structures.
  */
-function collectAllFilePaths(
-  albums: Album[],
-  accumulator: string[] = [],
-): string[] {
-  for (const album of albums) {
+function collectAllFilePaths(albums: Album[]): string[] {
+  const accumulator: string[] = [];
+  const stack: Album[] = [...albums];
+
+  while (stack.length > 0) {
+    const album = stack.pop();
+    if (!album) continue;
+
     for (const texture of album.textures) {
       accumulator.push(texture.path);
     }
+
     if (album.children && album.children.length > 0) {
-      collectAllFilePaths(album.children, accumulator);
+      // Push children to stack
+      for (const child of album.children) {
+        stack.push(child);
+      }
     }
   }
+
   return accumulator;
 }
 
 /**
- * Recursively enriches albums to attach stats (view count, duration, rating).
+ * Enriches albums to attach stats (view count, duration, rating) iteratively.
  * Bolt Optimization: Mutates the albums array in-place to avoid expensive deep copying
  * of the entire library structure.
  */
@@ -253,7 +269,12 @@ function enrichAlbumsWithStats(
   viewCountsMap: { [path: string]: number },
   metadataMap: { [path: string]: MediaMetadata },
 ): Album[] {
-  for (const album of albums) {
+  const stack: Album[] = [...albums];
+
+  while (stack.length > 0) {
+    const album = stack.pop();
+    if (!album) continue;
+
     // Mutate textures in-place
     for (const texture of album.textures) {
       const metadata = metadataMap[texture.path];
@@ -265,9 +286,11 @@ function enrichAlbumsWithStats(
       texture.rating = rating;
     }
 
-    // Recursively process children
+    // Process children
     if (album.children && album.children.length > 0) {
-      enrichAlbumsWithStats(album.children, viewCountsMap, metadataMap);
+      for (const child of album.children) {
+        stack.push(child);
+      }
     } else if (!album.children) {
       // Ensure children is always an array (normalization behavior preservation)
       album.children = [];

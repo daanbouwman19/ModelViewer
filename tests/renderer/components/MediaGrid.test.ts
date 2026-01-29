@@ -172,6 +172,7 @@ describe('MediaGrid.vue', () => {
     observerCallback([
       { contentRect: { width: 1000 }, contentBoxSize: [{ inlineSize: 1000 }] },
     ]);
+    await flushPromises();
     await wrapper.vm.$nextTick();
 
     const items = wrapper.findAll('.grid-item');
@@ -207,6 +208,7 @@ describe('MediaGrid.vue', () => {
     observerCallback([
       { contentRect: { width: 1000 }, contentBoxSize: [{ inlineSize: 1000 }] },
     ]);
+    await flushPromises();
     await wrapper.vm.$nextTick();
 
     const items = wrapper.findAll('.grid-item');
@@ -241,6 +243,7 @@ describe('MediaGrid.vue', () => {
     observerCallback([
       { contentRect: { width: 1000 }, contentBoxSize: [{ inlineSize: 1000 }] },
     ]);
+    await flushPromises();
     await wrapper.vm.$nextTick();
 
     const item = wrapper.find('.grid-item');
@@ -276,6 +279,7 @@ describe('MediaGrid.vue', () => {
     observerCallback([
       { contentRect: { width: 1000 }, contentBoxSize: [{ inlineSize: 1000 }] },
     ]);
+    await flushPromises();
     await wrapper.vm.$nextTick();
 
     // Click item at index 3 (first item of second row)
@@ -319,6 +323,7 @@ describe('MediaGrid.vue', () => {
     observerCallback([
       { contentRect: { width: 1400 }, contentBoxSize: [{ inlineSize: 1400 }] },
     ]);
+    await flushPromises();
     await wrapper.vm.$nextTick();
 
     const scroller = wrapper.findComponent(RecycleScrollerStub);
@@ -354,6 +359,7 @@ describe('MediaGrid.vue', () => {
     observerCallback([
       { contentRect: { width: 1000 }, contentBoxSize: [{ inlineSize: 1000 }] },
     ]);
+    await flushPromises();
     await wrapper.vm.$nextTick();
 
     const img = wrapper.find('img');
@@ -373,6 +379,7 @@ describe('MediaGrid.vue', () => {
     observerCallback([
       { contentRect: { width: 1000 }, contentBoxSize: [{ inlineSize: 1000 }] },
     ]);
+    await flushPromises();
     await wrapper.vm.$nextTick();
 
     expect(wrapper.find('img').exists()).toBe(false);
@@ -394,6 +401,7 @@ describe('MediaGrid.vue', () => {
     observerCallback([
       { contentRect: { width: 1000 }, contentBoxSize: [{ inlineSize: 1000 }] },
     ]);
+    await flushPromises();
     await wrapper.vm.$nextTick();
 
     // Should render all grid items (placeholders), but only one image content

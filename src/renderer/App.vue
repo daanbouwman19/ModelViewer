@@ -128,7 +128,9 @@ let controlsTimeout: NodeJS.Timeout | null = null;
 
 const handleMouseMove = () => {
   // Always show controls on move
-  isControlsVisible.value = true;
+  if (!isControlsVisible.value) {
+    isControlsVisible.value = true;
+  }
 
   if (controlsTimeout) clearTimeout(controlsTimeout);
 
@@ -137,8 +139,6 @@ const handleMouseMove = () => {
     controlsTimeout = setTimeout(() => {
       // Only hide if video is playing (not paused) or if it's an image/other media
       // If mainVideoElement exists and is paused, KEEP controls visible.
-      // If it exists and playing, hide.
-      // If it doesn't exist (image), hide.
       const isVideoPaused =
         mainVideoElement.value && mainVideoElement.value.paused;
 
