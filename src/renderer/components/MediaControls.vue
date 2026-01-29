@@ -10,18 +10,12 @@
     >
       <!-- Previous Button -->
       <button
-        :disabled="!canNavigate || canGoPrevious === false"
+        :disabled="isPreviousDisabled"
         class="group transition-all duration-200 hover:bg-(--accent-color) disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0"
         :class="navButtonClass"
-        :title="
-          !canNavigate || canGoPrevious === false
-            ? 'No previous media'
-            : 'Previous media (Z)'
-        "
+        :title="isPreviousDisabled ? 'No previous media' : 'Previous media (Z)'"
         :aria-label="
-          !canNavigate || canGoPrevious === false
-            ? 'No previous media'
-            : 'Previous media (Z)'
+          isPreviousDisabled ? 'No previous media' : 'Previous media (Z)'
         "
         @click="$emit('previous')"
       >
@@ -226,6 +220,10 @@ onUnmounted(() => {
 
 // Move time to bubble if we are on mobile OR the sidebar is open
 const isNarrowView = computed(() => !isDesktop.value || isSidebarVisible.value);
+
+const isPreviousDisabled = computed(
+  () => !props.canNavigate || !props.canGoPrevious,
+);
 
 const navButtonClass = computed(() => {
   // Desktop - Large Pill (if space permits)

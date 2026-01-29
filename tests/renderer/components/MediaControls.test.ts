@@ -146,6 +146,20 @@ describe('MediaControls.vue', () => {
     expect(next?.attributes('disabled')).toBeDefined();
   });
 
+  it('should disable previous button when canGoPrevious is false', () => {
+    const wrapper = mount(MediaControls, {
+      props: { ...defaultProps, canNavigate: true, canGoPrevious: false },
+    });
+    const prevButton = wrapper.find('button[title="No previous media"]');
+    expect(prevButton.exists()).toBe(true);
+    expect(prevButton.attributes('disabled')).toBeDefined();
+    expect(prevButton.attributes('aria-label')).toBe('No previous media');
+
+    // Ensure the 'next' button is not disabled
+    const nextButton = wrapper.find('button[title="Next media (X)"]');
+    expect(nextButton.attributes('disabled')).toBeUndefined();
+  });
+
   it('should emit toggle-fullscreen when fullscreen button clicked', async () => {
     const wrapper = mount(MediaControls, {
       props: { ...defaultProps, isImage: false },
