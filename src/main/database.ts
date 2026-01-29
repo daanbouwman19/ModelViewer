@@ -5,7 +5,9 @@
 
 import path from 'path';
 import { app } from 'electron';
+import { fileURLToPath } from 'url';
 import { initDatabase as initCoreDatabase } from '../core/database';
+import { WorkerFactory } from '../core/worker-factory.ts';
 export * from '../core/database';
 
 /**
@@ -20,37 +22,23 @@ export async function initDatabase(): Promise<void> {
     'media_slideshow_stats.sqlite',
   );
 
-  let workerPath: string | URL;
   const isTest =
     process.env.NODE_ENV === 'test' || process.env.VITEST === 'true';
 
-  if (app.isPackaged) {
-    // In a packaged app, resources are inside the ASAR archive.
-    // electron-vite puts main process files in 'out/main'.
-    // We assume the worker is strictly output to 'out/main/database-worker.js'.
-    // app.getAppPath() returns the path to the app.asar file (or directory if unpacked).
-    // However, consistency depends on how electron-builder packages it.
-    // Usually, inside ASAR: /resources/app.asar/out/main/database-worker.js
-    // app.getAppPath() -> .../resources/app.asar
-    workerPath = path.join(
-      app.getAppPath(),
-      'out',
-      'main',
-      'database-worker.js',
-    );
-  } else if (isTest) {
-    // In a test environment (Vitest), resolve the path to the TS source file.
-    const pathModule = await import('path');
-    workerPath = pathModule.resolve(
-      process.cwd(),
-      'src/core/database-worker.ts',
-    );
-  } else {
-    // In development, use the URL constructor relative to the current module.
-    // electron-vite handles the bundling of the worker file.
-    // The worker is built to 'out/main/database-worker.js', same directory as this file's output.
-    workerPath = new URL('./database-worker.js', import.meta.url);
-  }
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+
+  const { path: workerPath } = await WorkerFactory.getWorkerPath(
+    'database-worker',
+    {
+      isElectron: true,
+      isPackaged: app.isPackaged,
+      isTest,
+      currentDirname: __dirname,
+      currentUrl: import.meta.url,
+      electronAppPath: app.getAppPath ? app.getAppPath() : undefined,
+    },
+  );
 
   return initCoreDatabase(dbPath, workerPath);
 }

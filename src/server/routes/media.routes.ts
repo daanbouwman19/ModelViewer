@@ -1,0 +1,381 @@
+/**
+ * @file Media routes.
+ */
+import { Router } from 'express';
+import { AppError } from '../../core/errors.ts';
+import {
+  getAllMetadataAndStats,
+  getMediaViewCounts,
+  getMetadata,
+  getRecentlyPlayed,
+  recordMediaView,
+  setRating,
+  upsertMetadata,
+} from '../../core/database.ts';
+import { authorizeFilePath } from '../../core/security.ts';
+import { getQueryParam } from '../../core/utils/http-utils.ts';
+import {
+  MAX_API_BATCH_SIZE,
+  MAX_CONCURRENT_TRANSCODES,
+} from '../../core/constants.ts';
+import {
+  MediaHandler,
+  serveRawStream,
+  serveTranscodedStream,
+  validateFileAccess,
+} from '../../core/media-handler.ts';
+import { createMediaSource } from '../../core/media-source.ts';
+import type { RateLimiters } from '../middleware/rate-limiters.ts';
+import { asyncHandler } from '../middleware/async-handler.ts';
+
+export interface MediaRoutesOptions {
+  limiters: RateLimiters;
+  mediaHandler: MediaHandler;
+  transcodeState: { current: number };
+  ffmpegPath: string | null;
+}
+
+export function createMediaRoutes({
+  limiters,
+  mediaHandler,
+  transcodeState,
+  ffmpegPath,
+}: MediaRoutesOptions) {
+  const router = Router();
+
+  router.post(
+    '/api/media/view',
+    limiters.writeLimiter,
+    asyncHandler(async (req, res) => {
+      const { filePath } = req.body;
+      if (!filePath || typeof filePath !== 'string') {
+        throw new AppError(400, 'Missing or invalid filePath');
+      }
+
+      const auth = await authorizeFilePath(filePath);
+      if (!auth.isAllowed) {
+        return res.status(403).send(auth.message || 'Access denied');
+      }
+
+      await recordMediaView(filePath);
+      res.sendStatus(200);
+    }),
+  );
+
+  router.post(
+    '/api/media/views',
+    limiters.readLimiter,
+    asyncHandler(async (req, res) => {
+      const { filePaths } = req.body;
+      if (
+        !Array.isArray(filePaths) ||
+        !filePaths.every((p) => typeof p === 'string')
+      ) {
+        return res.status(400).send('Invalid filePaths');
+      }
+
+      if (filePaths.length > MAX_API_BATCH_SIZE) {
+        return res
+          .status(400)
+          .send(`Batch size exceeds limit of ${MAX_API_BATCH_SIZE}`);
+      }
+
+      const allowedPaths: string[] = [];
+      for (const p of filePaths) {
+        const auth = await authorizeFilePath(p);
+        if (auth.isAllowed) {
+          allowedPaths.push(p);
+        }
+      }
+
+      const counts = await getMediaViewCounts(allowedPaths);
+      res.json(counts);
+    }),
+  );
+
+  router.post(
+    '/api/media/rate',
+    limiters.writeLimiter,
+    asyncHandler(async (req, res) => {
+      const { filePath, rating } = req.body;
+      if (
+        !filePath ||
+        typeof filePath !== 'string' ||
+        typeof rating !== 'number'
+      ) {
+        throw new AppError(400, 'Missing filePath or rating');
+      }
+
+      const auth = await authorizeFilePath(filePath);
+      if (!auth.isAllowed) {
+        return res.status(403).send(auth.message || 'Access denied');
+      }
+
+      await setRating(filePath, rating);
+      res.sendStatus(200);
+    }),
+  );
+
+  router.get(
+    '/api/media/all',
+    limiters.readLimiter,
+    asyncHandler(async (_req, res) => {
+      const items = await getAllMetadataAndStats();
+      res.json(items);
+    }),
+  );
+
+  router.get(
+    '/api/media/history',
+    limiters.readLimiter,
+    asyncHandler(async (req, res) => {
+      const rawLimit = parseInt(
+        getQueryParam(req.query, 'limit') as string,
+        10,
+      );
+      const limit =
+        !isNaN(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 1000) : 50;
+      const items = await getRecentlyPlayed(limit);
+      res.json(items);
+    }),
+  );
+
+  router.post(
+    '/api/media/metadata',
+    limiters.writeLimiter,
+    asyncHandler(async (req, res) => {
+      const { filePath, metadata } = req.body;
+      if (!filePath || typeof filePath !== 'string' || !metadata) {
+        return res.status(400).send('Missing or invalid arguments');
+      }
+
+      const auth = await authorizeFilePath(filePath);
+      if (!auth.isAllowed) {
+        return res.status(403).send(auth.message || 'Access denied');
+      }
+
+      await upsertMetadata(filePath, metadata);
+      res.sendStatus(200);
+    }),
+  );
+
+  router.post(
+    '/api/media/metadata/batch',
+    limiters.readLimiter,
+    asyncHandler(async (req, res) => {
+      const { filePaths } = req.body;
+      if (
+        !Array.isArray(filePaths) ||
+        !filePaths.every((p) => typeof p === 'string')
+      ) {
+        return res.status(400).send('Invalid filePaths');
+      }
+
+      if (filePaths.length > MAX_API_BATCH_SIZE) {
+        return res
+          .status(400)
+          .send(`Batch size exceeds limit of ${MAX_API_BATCH_SIZE}`);
+      }
+
+      const allowedPaths: string[] = [];
+      for (const p of filePaths) {
+        const auth = await authorizeFilePath(p);
+        if (auth.isAllowed) {
+          allowedPaths.push(p);
+        }
+      }
+
+      const result = await getMetadata(allowedPaths);
+      res.json(result);
+    }),
+  );
+
+  router.get(
+    '/api/metadata',
+    limiters.fileLimiter,
+    asyncHandler(async (req, res) => {
+      const filePath = getQueryParam(req.query, 'file');
+      if (!filePath || typeof filePath !== 'string') {
+        throw new AppError(400, 'Missing file');
+      }
+      await mediaHandler.serveMetadata(req, res, filePath);
+    }),
+  );
+
+  router.get(
+    '/api/stream',
+    limiters.streamLimiter,
+    limiters.fileLimiter,
+    asyncHandler(async (req, res) => {
+      const filePath = getQueryParam(req.query, 'file');
+      const startTime = getQueryParam(req.query, 'startTime');
+      const isTranscode = getQueryParam(req.query, 'transcode') === 'true';
+
+      if (!filePath) {
+        return res.status(400).send('Missing file');
+      }
+
+      const access = await validateFileAccess(filePath);
+      if (!access.success) {
+        if (!res.headersSent) {
+          res.status(access.statusCode).send(access.error);
+        }
+        return;
+      }
+      const authorizedPath = access.path;
+
+      const source = createMediaSource(authorizedPath);
+
+      if (isTranscode) {
+        if (transcodeState.current >= MAX_CONCURRENT_TRANSCODES) {
+          throw new AppError(503, 'Server too busy. Please try again later.');
+        }
+
+        if (!ffmpegPath) {
+          return res.status(500).send('FFmpeg not found');
+        }
+
+        transcodeState.current += 1;
+        const cleanup = () => {
+          transcodeState.current -= 1;
+          res.removeListener('finish', cleanup);
+          res.removeListener('close', cleanup);
+        };
+
+        res.on('finish', cleanup);
+        res.on('close', cleanup);
+
+        try {
+          await serveTranscodedStream(
+            req,
+            res,
+            source,
+            ffmpegPath,
+            startTime || undefined,
+          );
+        } catch (error) {
+          cleanup();
+          throw error;
+        }
+        return;
+      }
+
+      await serveRawStream(req, res, source);
+    }),
+  );
+
+  router.get(
+    '/api/thumbnail',
+    limiters.fileLimiter,
+    asyncHandler(async (req, res) => {
+      const filePath = getQueryParam(req.query, 'file');
+      if (!filePath || typeof filePath !== 'string') {
+        throw new AppError(400, 'Missing file');
+      }
+      await mediaHandler.serveThumbnail(req, res, filePath);
+    }),
+  );
+
+  router.get(
+    '/api/video/heatmap',
+    limiters.fileLimiter,
+    asyncHandler(async (req, res) => {
+      const filePath = getQueryParam(req.query, 'file');
+      if (!filePath || typeof filePath !== 'string') {
+        throw new AppError(400, 'Missing file');
+      }
+      await mediaHandler.serveHeatmap(req, res, filePath);
+    }),
+  );
+
+  router.get(
+    '/api/video/heatmap/status',
+    limiters.fileLimiter,
+    asyncHandler(async (req, res) => {
+      const filePath = getQueryParam(req.query, 'file');
+      if (!filePath || typeof filePath !== 'string') {
+        throw new AppError(400, 'Missing file');
+      }
+      await mediaHandler.serveHeatmapProgress(req, res, filePath);
+    }),
+  );
+
+  router.get(
+    '/api/hls/master.m3u8',
+    limiters.streamLimiter,
+    limiters.fileLimiter,
+    asyncHandler(async (req, res) => {
+      const filePath = getQueryParam(req.query, 'file');
+      if (!filePath || typeof filePath !== 'string') {
+        throw new AppError(400, 'Missing file');
+      }
+      await mediaHandler.serveHlsMaster(req, res, filePath);
+    }),
+  );
+
+  router.get(
+    '/api/hls/playlist.m3u8',
+    limiters.streamLimiter,
+    limiters.fileLimiter,
+    asyncHandler(async (req, res) => {
+      const filePath = getQueryParam(req.query, 'file');
+      if (!filePath || typeof filePath !== 'string') {
+        throw new AppError(400, 'Missing file');
+      }
+      await mediaHandler.serveHlsPlaylist(req, res, filePath);
+    }),
+  );
+
+  router.get(
+    '/api/hls/:segment',
+    limiters.streamLimiter,
+    limiters.fileLimiter,
+    asyncHandler(async (req, res) => {
+      const segmentParam = req.params.segment;
+      const segment = Array.isArray(segmentParam)
+        ? segmentParam[0]
+        : segmentParam;
+      const filePath = getQueryParam(req.query, 'file');
+      if (!filePath || typeof filePath !== 'string') {
+        throw new AppError(400, 'Missing file');
+      }
+      await mediaHandler.serveHlsSegment(req, res, filePath, segment);
+    }),
+  );
+
+  router.get(
+    '/api/serve',
+    limiters.streamLimiter,
+    limiters.fileLimiter,
+    asyncHandler(async (req, res) => {
+      const filePath = getQueryParam(req.query, 'path');
+      if (!filePath || typeof filePath !== 'string') {
+        throw new AppError(400, 'Missing path');
+      }
+      try {
+        const access = await validateFileAccess(filePath);
+        if (!access.success) {
+          if (!res.headersSent) {
+            res.status(access.statusCode).send(access.error);
+          }
+          return;
+        }
+        const authorizedPath = access.path;
+
+        const source = createMediaSource(authorizedPath);
+        await serveRawStream(req, res, source);
+      } catch (e: unknown) {
+        const msg = (e as Error).message || '';
+        if (!res.headersSent) {
+          if (msg.includes('Access denied')) {
+            res.status(403).send('Access denied');
+          } else {
+            res.status(500).send('Serve error');
+          }
+        }
+      }
+    }),
+  );
+
+  return router;
+}

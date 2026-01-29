@@ -29,7 +29,33 @@ vi.mock('fs/promises', () => ({
 }));
 
 // Mock media-handler to ensure it closes requests
+const { MockMediaHandler, getLastMediaHandler } = vi.hoisted(() => {
+  class MockMediaHandler {
+    static lastInstance: MockMediaHandler | undefined;
+
+    constructor() {
+      MockMediaHandler.lastInstance = this;
+    }
+
+    serveMetadata = vi.fn((_req, res) => res.end());
+    serveTranscodedStream = vi.fn((_req, res) => res.end());
+    serveRawStream = vi.fn((_req, res) => res.end());
+    serveThumbnail = vi.fn((_req, res) => res.end());
+    serveStaticFile = vi.fn((_req, res) => res.end());
+    serveHeatmap = vi.fn((_req, res) => res.end());
+    serveHeatmapProgress = vi.fn((_req, res) => res.end());
+    serveHlsMaster = vi.fn((_req, res) => res.end());
+    serveHlsPlaylist = vi.fn((_req, res) => res.end());
+    serveHlsSegment = vi.fn((_req, res) => res.end());
+  }
+
+  const getLastMediaHandler = () => MockMediaHandler.lastInstance;
+
+  return { MockMediaHandler, getLastMediaHandler };
+});
+
 vi.mock('../../src/core/media-handler', () => ({
+  MediaHandler: MockMediaHandler,
   serveMetadata: vi.fn((_req, res) => res.end()),
   serveTranscodedStream: vi.fn((_req, res) => res.end()),
   serveRawStream: vi.fn((_req, res) => res.end()),
@@ -380,7 +406,9 @@ describe('Server', () => {
   describe('Media Handler Routes', () => {
     it('GET /api/metadata should call serveMetadata', async () => {
       await request(app).get('/api/metadata').query({ file: 'test.mp4' });
-      expect(mediaHandler.serveMetadata).toHaveBeenCalled();
+      const handler = getLastMediaHandler();
+      expect(handler).toBeTruthy();
+      expect(handler!.serveMetadata).toHaveBeenCalled();
     });
     it('GET /api/metadata should 400 if missing file', async () => {
       const response = await request(app).get('/api/metadata');
@@ -405,7 +433,9 @@ describe('Server', () => {
 
     it('GET /api/thumbnail should call serveThumbnail', async () => {
       await request(app).get('/api/thumbnail').query({ file: 'test.mp4' });
-      expect(mediaHandler.serveThumbnail).toHaveBeenCalled();
+      const handler = getLastMediaHandler();
+      expect(handler).toBeTruthy();
+      expect(handler!.serveThumbnail).toHaveBeenCalled();
     });
     it('GET /api/thumbnail should 400 if missing file', async () => {
       const response = await request(app).get('/api/thumbnail');

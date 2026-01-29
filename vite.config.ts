@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => {
         ssr: true,
         lib: {
           entry: {
-            index: resolve(__dirname, 'src/server/server.ts'),
+            index: resolve(__dirname, 'src/server/main.ts'),
             worker: resolve(__dirname, 'src/core/database-worker.ts'),
             'scan-worker': resolve(__dirname, 'src/core/scan-worker.ts'),
           },
