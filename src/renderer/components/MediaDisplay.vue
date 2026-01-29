@@ -402,8 +402,7 @@ const tryTranscoding = async (startTime = 0, requestId?: number) => {
 
     // Use HLS for adaptive streaming
     const rawPath = currentMediaItem.value.path;
-    const encodedPath = encodeURIComponent(rawPath);
-    const hlsUrl = `/api/hls/master.m3u8?file=${encodedPath}`;
+    const hlsUrl = await api.getHlsUrl(rawPath);
 
     console.log('HLS URL:', hlsUrl);
     mediaUrl.value = hlsUrl;

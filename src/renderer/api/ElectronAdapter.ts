@@ -107,6 +107,11 @@ export class ElectronAdapter implements IMediaBackend {
     };
   }
 
+  async getHlsUrl(filePath: string): Promise<string> {
+    const port = await this.invoke(this.bridge.getServerPort());
+    return `http://localhost:${port}/api/hls/master.m3u8?file=${encodeURIComponent(filePath)}`;
+  }
+
   async getVideoMetadata(filePath: string): Promise<{ duration: number }> {
     const res = await this.invoke(this.bridge.getVideoMetadata(filePath));
     if (res.error || res.duration === undefined) {

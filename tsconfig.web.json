@@ -16,7 +16,9 @@
       "@/*": ["./src/renderer/*"]
     },
     "incremental": true,
-    "tsBuildInfoFile": "./node_modules/.cache/tsconfig.web.tsbuildinfo"
+    "tsBuildInfoFile": "./node_modules/.cache/tsconfig.web.tsbuildinfo",
+    "allowImportingTsExtensions": true,
+    "noEmit": true
   },
   "include": [
     "src/renderer/**/*",
