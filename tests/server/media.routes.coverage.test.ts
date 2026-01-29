@@ -76,6 +76,7 @@ const createTestApp = (ffmpegPath: string | null): TestAppResult => {
         writeLimiter: createLimiter(),
         fileLimiter: createLimiter(),
         authLimiter: createLimiter(),
+        streamLimiter: createLimiter(),
       },
       mediaHandler: handler,
       transcodeState,

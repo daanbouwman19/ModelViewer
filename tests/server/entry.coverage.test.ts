@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
+import path from 'path';
 
 const originalArgv = [...process.argv];
 const originalEnv = { ...process.env };
@@ -124,9 +125,23 @@ describe('Server entry coverage', () => {
     expect(bootstrapMock).not.toHaveBeenCalled();
   });
 
+  it('server entry does not auto-bootstrap when argv entry is missing', async () => {
+    vi.resetModules();
+    process.argv[1] = '';
+
+    const bootstrapMock = vi.fn();
+    vi.doMock('../../src/server/main.ts', () => ({
+      bootstrap: bootstrapMock,
+    }));
+
+    await import('../../src/server/server.ts');
+
+    expect(bootstrapMock).not.toHaveBeenCalled();
+  });
+
   it('server entry bootstraps when entry file matches', async () => {
     vi.resetModules();
-    process.argv[1] = 'server.ts';
+    process.argv[1] = path.resolve(process.cwd(), 'src', 'server', 'server.ts');
 
     const bootstrapMock = vi.fn();
     vi.doMock('../../src/server/main.ts', () => ({
@@ -136,5 +151,24 @@ describe('Server entry coverage', () => {
     await import('../../src/server/server.ts');
 
     expect(bootstrapMock).toHaveBeenCalled();
+  });
+
+  it('main entry does not auto-bootstrap when argv entry is missing', async () => {
+    vi.resetModules();
+    process.argv[1] = '';
+
+    await import('../../src/server/main.ts');
+
+    expect(createAppMock).not.toHaveBeenCalled();
+  });
+
+  it('main entry bootstraps when entry file matches', async () => {
+    vi.resetModules();
+    process.argv[1] = path.resolve(process.cwd(), 'src', 'server', 'main.ts');
+
+    await import('../../src/server/main.ts');
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(createAppMock).toHaveBeenCalled();
   });
 });

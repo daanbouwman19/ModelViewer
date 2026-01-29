@@ -31,6 +31,18 @@ import {
 import type { RateLimiters } from '../middleware/rate-limiters.ts';
 import { asyncHandler } from '../middleware/async-handler.ts';
 
+function validateMediaDirectoryPath(dirPath: string): void {
+  if (!path.isAbsolute(dirPath)) {
+    throw new AppError(400, 'Invalid path');
+  }
+
+  const normalized = path.normalize(dirPath);
+  const segments = normalized.split(path.sep).filter(Boolean);
+  if (segments.includes('..')) {
+    throw new AppError(400, 'Invalid path');
+  }
+}
+
 export function createSystemRoutes(limiters: RateLimiters) {
   const router = Router();
 
@@ -108,6 +120,8 @@ export function createSystemRoutes(limiters: RateLimiters) {
       if (typeof dirPath !== 'string' || dirPath.includes('\0')) {
         throw new AppError(400, 'Invalid path');
       }
+
+      validateMediaDirectoryPath(dirPath);
 
       if (isSensitiveDirectory(dirPath)) {
         console.warn(

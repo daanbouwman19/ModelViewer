@@ -18,6 +18,7 @@ export interface RateLimiters {
   writeLimiter: ReturnType<typeof createRateLimiter>;
   readLimiter: ReturnType<typeof createRateLimiter>;
   fileLimiter: ReturnType<typeof createRateLimiter>;
+  streamLimiter: ReturnType<typeof createRateLimiter>;
 }
 
 export function createRateLimiters(): RateLimiters {
@@ -45,5 +46,11 @@ export function createRateLimiters(): RateLimiters {
     'Too many requests. Please slow down.',
   );
 
-  return { authLimiter, writeLimiter, readLimiter, fileLimiter };
+  const streamLimiter = createRateLimiter(
+    RATE_LIMIT_FILE_WINDOW_MS,
+    RATE_LIMIT_FILE_MAX_REQUESTS,
+    'Too many stream requests. Please slow down.',
+  );
+
+  return { authLimiter, writeLimiter, readLimiter, fileLimiter, streamLimiter };
 }

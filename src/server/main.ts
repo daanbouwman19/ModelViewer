@@ -63,9 +63,10 @@ export async function bootstrap() {
   });
 }
 
-const isEntryFile =
-  process.argv[1] === fileURLToPath(import.meta.url) ||
-  process.argv[1].endsWith('main.ts');
+const entryArg = process.argv[1];
+const isEntryFile = entryArg
+  ? path.resolve(entryArg) === fileURLToPath(import.meta.url)
+  : false;
 
 if (isEntryFile) {
   bootstrap();

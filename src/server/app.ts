@@ -98,22 +98,12 @@ export async function createApp() {
 
   try {
     const isElectron = !!process.versions.electron;
-    let isPackaged = false;
-    if (isElectron) {
-      try {
-        const { app } = await import('electron');
-        isPackaged = app.isPackaged;
-      } catch {
-        // ignore
-      }
-    }
 
     const { path: workerPath, options: workerOptions } =
       await WorkerFactory.getWorkerPath('database-worker', {
         currentDirname: __dirname,
         currentUrl: import.meta.url,
         isElectron,
-        isPackaged,
         workerDir: path.join(__dirname, '../core'),
         serverWorkerAlias: 'worker',
       });

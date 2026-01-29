@@ -247,6 +247,7 @@ export function createMediaRoutes({
 
   router.get(
     '/api/stream',
+    limiters.streamLimiter,
     limiters.fileLimiter,
     asyncHandler(async (req, res) => {
       const filePath = getQueryParam(req.query, 'file');
@@ -344,6 +345,7 @@ export function createMediaRoutes({
 
   router.get(
     '/api/hls/master.m3u8',
+    limiters.streamLimiter,
     limiters.fileLimiter,
     asyncHandler(async (req, res) => {
       const filePath = getQueryParam(req.query, 'file');
@@ -356,6 +358,7 @@ export function createMediaRoutes({
 
   router.get(
     '/api/hls/playlist.m3u8',
+    limiters.streamLimiter,
     limiters.fileLimiter,
     asyncHandler(async (req, res) => {
       const filePath = getQueryParam(req.query, 'file');
@@ -368,6 +371,7 @@ export function createMediaRoutes({
 
   router.get(
     '/api/hls/:segment',
+    limiters.streamLimiter,
     limiters.fileLimiter,
     asyncHandler(async (req, res) => {
       const segmentParam = req.params.segment;
@@ -384,6 +388,7 @@ export function createMediaRoutes({
 
   router.get(
     '/api/serve',
+    limiters.streamLimiter,
     limiters.fileLimiter,
     asyncHandler(async (req, res) => {
       const filePath = getQueryParam(req.query, 'path');
