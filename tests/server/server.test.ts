@@ -29,8 +29,14 @@ vi.mock('fs/promises', () => ({
 }));
 
 // Mock media-handler to ensure it closes requests
-const { MockMediaHandler } = vi.hoisted(() => {
+const { MockMediaHandler, getLastMediaHandler } = vi.hoisted(() => {
+  let lastInstance: MockMediaHandler | undefined;
+
   class MockMediaHandler {
+    constructor() {
+      lastInstance = this;
+    }
+
     serveMetadata = vi.fn((_req, res) => res.end());
     serveTranscodedStream = vi.fn((_req, res) => res.end());
     serveRawStream = vi.fn((_req, res) => res.end());
@@ -43,7 +49,9 @@ const { MockMediaHandler } = vi.hoisted(() => {
     serveHlsSegment = vi.fn((_req, res) => res.end());
   }
 
-  return { MockMediaHandler };
+  const getLastMediaHandler = () => lastInstance;
+
+  return { MockMediaHandler, getLastMediaHandler };
 });
 
 vi.mock('../../src/core/media-handler', () => ({
@@ -398,7 +406,9 @@ describe('Server', () => {
   describe('Media Handler Routes', () => {
     it('GET /api/metadata should call serveMetadata', async () => {
       await request(app).get('/api/metadata').query({ file: 'test.mp4' });
-      expect(mediaHandler.serveMetadata).toHaveBeenCalled();
+      const handler = getLastMediaHandler();
+      expect(handler).toBeTruthy();
+      expect(handler!.serveMetadata).toHaveBeenCalled();
     });
     it('GET /api/metadata should 400 if missing file', async () => {
       const response = await request(app).get('/api/metadata');
@@ -423,7 +433,9 @@ describe('Server', () => {
 
     it('GET /api/thumbnail should call serveThumbnail', async () => {
       await request(app).get('/api/thumbnail').query({ file: 'test.mp4' });
-      expect(mediaHandler.serveThumbnail).toHaveBeenCalled();
+      const handler = getLastMediaHandler();
+      expect(handler).toBeTruthy();
+      expect(handler!.serveThumbnail).toHaveBeenCalled();
     });
     it('GET /api/thumbnail should 400 if missing file', async () => {
       const response = await request(app).get('/api/thumbnail');

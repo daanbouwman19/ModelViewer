@@ -17,21 +17,29 @@ vi.mock('../../src/core/file-system');
 vi.mock('../../src/main/google-drive-service');
 vi.mock('../../src/main/drive-cache-manager');
 vi.mock('../../src/core/media-source');
-const { MockMediaHandler } = vi.hoisted(() => {
+const { MockMediaHandler, getLastMediaHandler } = vi.hoisted(() => {
+  let lastInstance: MockMediaHandler | undefined;
+
   class MockMediaHandler {
-    serveMetadata = vi.fn();
-    serveTranscodedStream = vi.fn();
-    serveRawStream = vi.fn();
-    serveThumbnail = vi.fn();
-    serveStaticFile = vi.fn();
-    serveHeatmap = vi.fn();
-    serveHeatmapProgress = vi.fn();
-    serveHlsMaster = vi.fn();
-    serveHlsPlaylist = vi.fn();
-    serveHlsSegment = vi.fn();
+    constructor() {
+      lastInstance = this;
+    }
+
+    serveMetadata = vi.fn((_req, res) => res.end());
+    serveTranscodedStream = vi.fn((_req, res) => res.end());
+    serveRawStream = vi.fn((_req, res) => res.end());
+    serveThumbnail = vi.fn((_req, res) => res.end());
+    serveStaticFile = vi.fn((_req, res) => res.end());
+    serveHeatmap = vi.fn((_req, res) => res.end());
+    serveHeatmapProgress = vi.fn((_req, res) => res.end());
+    serveHlsMaster = vi.fn((_req, res) => res.end());
+    serveHlsPlaylist = vi.fn((_req, res) => res.end());
+    serveHlsSegment = vi.fn((_req, res) => res.end());
   }
 
-  return { MockMediaHandler };
+  const getLastMediaHandler = () => lastInstance;
+
+  return { MockMediaHandler, getLastMediaHandler };
 });
 
 vi.mock('../../src/core/media-handler', () => ({
@@ -537,11 +545,11 @@ describe('Server Coverage', () => {
     });
 
     it('GET /api/video/heatmap returns heatmap', async () => {
-      vi.mocked(mediaHandler.serveHeatmap).mockImplementation(
-        async (_req, res) => {
-          res.status(200).send('Heatmap');
-        },
-      );
+      const handler = getLastMediaHandler();
+      expect(handler).toBeTruthy();
+      handler!.serveHeatmap.mockImplementation(async (_req, res) => {
+        res.status(200).send('Heatmap');
+      });
       const res = await request(app)
         .get('/api/video/heatmap')
         .query({ file: '/test.mp4' });
@@ -555,11 +563,11 @@ describe('Server Coverage', () => {
     });
 
     it('GET /api/video/heatmap/status returns status', async () => {
-      vi.mocked(mediaHandler.serveHeatmapProgress).mockImplementation(
-        async (_req, res) => {
-          res.status(200).send('80%');
-        },
-      );
+      const handler = getLastMediaHandler();
+      expect(handler).toBeTruthy();
+      handler!.serveHeatmapProgress.mockImplementation(async (_req, res) => {
+        res.status(200).send('80%');
+      });
       const res = await request(app)
         .get('/api/video/heatmap/status')
         .query({ file: '/test.mp4' });
