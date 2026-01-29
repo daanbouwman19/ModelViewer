@@ -50,19 +50,19 @@ vi.mock('../../src/core/analysis/media-analyzer.ts', () => ({
   },
 }));
 
-const mockMediaHandlerInstance = {
-  serveMetadata: vi.fn(),
-  serveThumbnail: vi.fn(),
-  serveHeatmap: vi.fn(),
-  serveHeatmapProgress: vi.fn(),
-  serveHlsMaster: vi.fn(),
-  serveHlsPlaylist: vi.fn(),
-  serveHlsSegment: vi.fn(),
-  serveStaticFile: vi.fn(),
-};
+class MockMediaHandler {
+  serveMetadata = vi.fn();
+  serveThumbnail = vi.fn();
+  serveHeatmap = vi.fn();
+  serveHeatmapProgress = vi.fn();
+  serveHlsMaster = vi.fn();
+  serveHlsPlaylist = vi.fn();
+  serveHlsSegment = vi.fn();
+  serveStaticFile = vi.fn();
+}
 
 vi.mock('../../src/core/media-handler', () => ({
-  MediaHandler: vi.fn(() => mockMediaHandlerInstance),
+  MediaHandler: MockMediaHandler,
 }));
 
 describe('Server app additional coverage', () => {
@@ -99,23 +99,23 @@ describe('Server app additional coverage', () => {
     await handler.serveHlsSegment(req, res, '/file.mp4', 'segment.ts');
     await handler.serveStaticFile(req, res, '/file.mp4');
 
-    expect(mockMediaHandlerInstance.serveHlsMaster).toHaveBeenCalledWith(
+    expect(handler.serveHlsMaster).toHaveBeenCalledWith(
       req,
       res,
       '/file.mp4',
     );
-    expect(mockMediaHandlerInstance.serveHlsPlaylist).toHaveBeenCalledWith(
+    expect(handler.serveHlsPlaylist).toHaveBeenCalledWith(
       req,
       res,
       '/file.mp4',
     );
-    expect(mockMediaHandlerInstance.serveHlsSegment).toHaveBeenCalledWith(
+    expect(handler.serveHlsSegment).toHaveBeenCalledWith(
       req,
       res,
       '/file.mp4',
       'segment.ts',
     );
-    expect(mockMediaHandlerInstance.serveStaticFile).toHaveBeenCalledWith(
+    expect(handler.serveStaticFile).toHaveBeenCalledWith(
       req,
       res,
       '/file.mp4',

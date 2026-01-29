@@ -30,7 +30,27 @@ vi.mock('fs/promises', () => ({
     realpath: vi.fn((p) => Promise.resolve(p)), // Mock realpath to return input by default
   },
 }));
-vi.mock('../../src/core/media-handler');
+class MockMediaHandler {
+  serveMetadata = vi.fn();
+  serveTranscodedStream = vi.fn();
+  serveRawStream = vi.fn();
+  serveThumbnail = vi.fn();
+  serveStaticFile = vi.fn();
+  serveHeatmap = vi.fn();
+  serveHeatmapProgress = vi.fn();
+  serveHlsMaster = vi.fn();
+  serveHlsPlaylist = vi.fn();
+  serveHlsSegment = vi.fn();
+}
+
+vi.mock('../../src/core/media-handler', () => ({
+  MediaHandler: MockMediaHandler,
+  serveMetadata: vi.fn(),
+  serveTranscodedStream: vi.fn(),
+  serveRawStream: vi.fn(),
+  serveThumbnail: vi.fn(),
+  serveStaticFile: vi.fn(),
+}));
 vi.mock('../../src/main/google-auth');
 
 describe('Server Security', () => {

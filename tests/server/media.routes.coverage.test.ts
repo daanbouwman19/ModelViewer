@@ -23,16 +23,16 @@ type TestAppResult = {
   transcodeState: { current: number };
 };
 
-const createMockMediaHandlerInstance = () => ({
-  serveMetadata: vi.fn((_req, res) => res.status(200).send('ok')),
-  serveThumbnail: vi.fn((_req, res) => res.status(200).send('ok')),
-  serveHeatmap: vi.fn((_req, res) => res.status(200).send('ok')),
-  serveHeatmapProgress: vi.fn((_req, res) => res.status(200).send('ok')),
-  serveHlsMaster: vi.fn((_req, res) => res.status(200).send('ok')),
-  serveHlsPlaylist: vi.fn((_req, res) => res.status(200).send('ok')),
-  serveHlsSegment: vi.fn((_req, res) => res.status(200).send('ok')),
-  serveStaticFile: vi.fn((_req, res) => res.status(200).send('ok')),
-});
+class MockMediaHandler {
+  serveMetadata = vi.fn((_req, res) => res.status(200).send('ok'));
+  serveThumbnail = vi.fn((_req, res) => res.status(200).send('ok'));
+  serveHeatmap = vi.fn((_req, res) => res.status(200).send('ok'));
+  serveHeatmapProgress = vi.fn((_req, res) => res.status(200).send('ok'));
+  serveHlsMaster = vi.fn((_req, res) => res.status(200).send('ok'));
+  serveHlsPlaylist = vi.fn((_req, res) => res.status(200).send('ok'));
+  serveHlsSegment = vi.fn((_req, res) => res.status(200).send('ok'));
+  serveStaticFile = vi.fn((_req, res) => res.status(200).send('ok'));
+}
 
 vi.mock('../../src/core/database', () => ({
   getAllMetadataAndStats: vi.fn(),
@@ -49,7 +49,7 @@ vi.mock('../../src/core/security', () => ({
 }));
 
 vi.mock('../../src/core/media-handler', () => ({
-  MediaHandler: vi.fn(() => createMockMediaHandlerInstance()),
+  MediaHandler: MockMediaHandler,
   serveRawStream: vi.fn(),
   serveTranscodedStream: vi.fn(),
   validateFileAccess: vi.fn(),
