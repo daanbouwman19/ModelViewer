@@ -24,8 +24,9 @@ vi.stubGlobal('localStorage', localStorageMock);
 
 // Centralize RAF stubs for tests
 let rafDepth = 0;
-vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
-  if (rafDepth > 5) {
+const rafStub = (cb: FrameRequestCallback) => {
+  if (rafDepth > 10) {
+    // Prevent infinite recursion in animation loops while still allowing tests to finish
     return setTimeout(() => cb(Date.now()), 0);
   }
   rafDepth++;
@@ -35,5 +36,29 @@ vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
     rafDepth--;
   }
   return 1;
-});
-vi.stubGlobal('cancelAnimationFrame', () => {});
+};
+
+const cafStub = (id: any) => {
+  clearTimeout(id);
+};
+
+// Use multiple methods to ensure visibility in all test environments
+(globalThis as any).requestAnimationFrame = rafStub;
+(globalThis as any).cancelAnimationFrame = cafStub;
+
+// Also attach to global/window if they exist to be doubly sure
+if (typeof global !== 'undefined') {
+  (global as any).requestAnimationFrame = rafStub;
+  (global as any).cancelAnimationFrame = cafStub;
+}
+if (typeof window !== 'undefined') {
+  (window as any).requestAnimationFrame = rafStub;
+  (window as any).cancelAnimationFrame = cafStub;
+}
+
+try {
+  vi.stubGlobal('requestAnimationFrame', rafStub);
+  vi.stubGlobal('cancelAnimationFrame', cafStub);
+} catch {
+  // Ignore if vi is not available
+}

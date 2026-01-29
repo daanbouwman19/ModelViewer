@@ -14,7 +14,6 @@ import {
   getAllMetadata,
   getMetadata,
 } from './database';
-import { type WorkerOptions } from 'worker_threads';
 import { WorkerClient } from './worker-client';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -83,7 +82,7 @@ export async function scanDiskForAlbumsAndCache(
   // Run scan in a worker
   const albums = await new Promise<Album[]>(async (resolve, reject) => {
     const client = new WorkerClient(workerPath, {
-      workerOptions: workerOptions as WorkerOptions,
+      workerOptions,
       operationTimeout: WORKER_SCAN_TIMEOUT_MS,
       name: 'scan-worker',
     });
@@ -122,7 +121,10 @@ export async function scanDiskForAlbumsAndCache(
                 previousPaths.push(texture.path);
               }
               if (album.children && album.children.length > 0) {
-                stack.push(...album.children);
+                // Push children in reverse order to maintain traversal order
+                for (let i = album.children.length - 1; i >= 0; i--) {
+                  stack.push(album.children[i]);
+                }
               }
             }
           }
@@ -249,9 +251,9 @@ function collectAllFilePaths(albums: Album[]): string[] {
     }
 
     if (album.children && album.children.length > 0) {
-      // Push children to stack
-      for (const child of album.children) {
-        stack.push(child);
+      // Push children in reverse order to maintain pre-order traversal
+      for (let i = album.children.length - 1; i >= 0; i--) {
+        stack.push(album.children[i]);
       }
     }
   }
@@ -288,8 +290,9 @@ function enrichAlbumsWithStats(
 
     // Process children
     if (album.children && album.children.length > 0) {
-      for (const child of album.children) {
-        stack.push(child);
+      // Push children in reverse order to maintain pre-order traversal
+      for (let i = album.children.length - 1; i >= 0; i--) {
+        stack.push(album.children[i]);
       }
     } else if (!album.children) {
       // Ensure children is always an array (normalization behavior preservation)
