@@ -6,7 +6,7 @@ import {
   GDRIVE_PROTOCOL,
   SUPPORTED_IMAGE_EXTENSIONS_SET,
   SUPPORTED_VIDEO_EXTENSIONS_SET,
-} from './constants';
+} from './constants.ts';
 
 const KNOWN_MIME_TYPES: Record<string, string> = {
   mp4: 'video/mp4',

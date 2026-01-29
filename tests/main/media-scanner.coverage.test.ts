@@ -1,13 +1,26 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { performFullMediaScan } from '../../src/core/media-scanner';
-import fs from 'fs/promises';
 
-vi.mock('fs/promises', () => ({
-  default: {
-    access: vi.fn(),
-    readdir: vi.fn(),
-  },
-}));
+// Hoist the mock object so it can be referenced in the vi.mock factory
+const { mockFs } = vi.hoisted(() => {
+  return {
+    mockFs: {
+      access: vi.fn(),
+      readdir: vi.fn(),
+      stat: vi.fn(),
+    },
+  };
+});
+
+// Mock fs/promises using the hoisted object
+vi.mock('fs/promises', () => {
+  return {
+    default: mockFs,
+    access: mockFs.access,
+    readdir: mockFs.readdir,
+    stat: mockFs.stat,
+  };
+});
 
 describe('media-scanner coverage', () => {
   beforeEach(() => {
@@ -15,7 +28,7 @@ describe('media-scanner coverage', () => {
   });
 
   it('performFullMediaScan handles fs.access failure', async () => {
-    vi.mocked(fs.access).mockRejectedValueOnce(new Error('Access denied'));
+    mockFs.access.mockRejectedValueOnce(new Error('Access denied'));
     const results = await performFullMediaScan(['/bad/dir']);
     expect(results).toEqual([]);
   });
@@ -27,7 +40,7 @@ describe('media-scanner coverage', () => {
       .spyOn(console, 'error')
       .mockImplementation(() => {});
 
-    vi.mocked(fs.access).mockRejectedValueOnce(new Error('Access denied'));
+    mockFs.access.mockRejectedValueOnce(new Error('Access denied'));
 
     await performFullMediaScan(['/bad/dir']);
 
@@ -38,8 +51,8 @@ describe('media-scanner coverage', () => {
   });
 
   it('scanDirectoryRecursive handles fs.readdir failure', async () => {
-    vi.mocked(fs.access).mockResolvedValue(undefined); // Base access ok
-    vi.mocked(fs.readdir).mockRejectedValue(new Error('Read fail'));
+    mockFs.access.mockResolvedValue(undefined); // Base access ok
+    mockFs.readdir.mockRejectedValue(new Error('Read fail'));
 
     const results = await performFullMediaScan(['/base']);
     expect(results).toEqual([]);
@@ -52,8 +65,8 @@ describe('media-scanner coverage', () => {
       .spyOn(console, 'error')
       .mockImplementation(() => {});
 
-    vi.mocked(fs.access).mockResolvedValue(undefined);
-    vi.mocked(fs.readdir).mockRejectedValue(new Error('Read fail'));
+    mockFs.access.mockResolvedValue(undefined);
+    mockFs.readdir.mockRejectedValue(new Error('Read fail'));
 
     await performFullMediaScan(['/base']);
 
@@ -63,9 +76,9 @@ describe('media-scanner coverage', () => {
   });
 
   it('filters out null albums (empty/unsupported dirs)', async () => {
-    vi.mocked(fs.access).mockResolvedValue(undefined);
+    mockFs.access.mockResolvedValue(undefined);
     // Mock readdir to return empty or unsupported files
-    vi.mocked(fs.readdir).mockResolvedValue([
+    mockFs.readdir.mockResolvedValue([
       {
         name: 'ignored.txt',
         isFile: () => true,
@@ -82,8 +95,8 @@ describe('media-scanner coverage', () => {
     process.env.NODE_ENV = 'development';
     const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    vi.mocked(fs.access).mockResolvedValue(undefined);
-    vi.mocked(fs.readdir).mockResolvedValue([
+    mockFs.access.mockResolvedValue(undefined);
+    mockFs.readdir.mockResolvedValue([
       {
         name: 'image.jpg',
         isFile: () => true,
