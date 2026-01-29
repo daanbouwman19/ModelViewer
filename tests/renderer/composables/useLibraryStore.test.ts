@@ -9,6 +9,8 @@ vi.mock('@/api', () => ({
     getMediaDirectories: vi.fn(),
     getSupportedExtensions: vi.fn(),
     getSmartPlaylists: vi.fn(),
+    getMediaUrlGenerator: vi.fn(),
+    getThumbnailUrlGenerator: vi.fn(),
   },
 }));
 

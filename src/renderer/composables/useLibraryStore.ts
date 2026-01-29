@@ -131,21 +131,15 @@ export function useLibraryStore() {
     try {
       // Bolt Optimization: Parallelize independent fetches for better startup performance
       // and cache URL generators to avoid repeated IPC calls in components.
-      const [
-        albums,
-        directories,
-        playlists,
-        extensions,
-        mediaGen,
-        thumbGen,
-      ] = await Promise.all([
-        api.getAlbumsWithViewCounts(),
-        api.getMediaDirectories(),
-        api.getSmartPlaylists(),
-        api.getSupportedExtensions(),
-        api.getMediaUrlGenerator(),
-        api.getThumbnailUrlGenerator(),
-      ]);
+      const [albums, directories, playlists, extensions, mediaGen, thumbGen] =
+        await Promise.all([
+          api.getAlbumsWithViewCounts(),
+          api.getMediaDirectories(),
+          api.getSmartPlaylists(),
+          api.getSupportedExtensions(),
+          api.getMediaUrlGenerator(),
+          api.getThumbnailUrlGenerator(),
+        ]);
 
       state.allAlbums = albums;
       state.mediaDirectories = directories;

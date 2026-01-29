@@ -336,7 +336,6 @@ describe('MediaGrid.vue', () => {
     expect(passedItems).toHaveLength(6);
   });
 
-
   it('generates correct URLs for encoded paths', async () => {
     mockUIState.gridMediaFiles = [
       { path: '/path/with spaces/image.jpg', name: 'image.jpg' },
