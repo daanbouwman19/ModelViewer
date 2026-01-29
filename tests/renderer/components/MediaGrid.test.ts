@@ -69,6 +69,10 @@ describe('MediaGrid.vue', () => {
         images: ['.jpg', '.png'],
         videos: ['.mp4', '.webm'],
       },
+      mediaUrlGenerator: (path: string) =>
+        `http://localhost:1234/${encodeURIComponent(path)}`,
+      thumbnailUrlGenerator: (path: string) =>
+        `http://localhost:1234/thumb/${encodeURIComponent(path)}`,
       gridMediaFiles: [], // Wait, gridMediaFiles is usually a computed or state? In useAppState it was state.
       // But now, where does MediaGrid get files?
       // MediaGrid usually takes items as props or gets them from store.
@@ -332,18 +336,6 @@ describe('MediaGrid.vue', () => {
     expect(passedItems).toHaveLength(6);
   });
 
-  it('handles generator initialization error gracefully', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    (api.getMediaUrlGenerator as Mock).mockRejectedValue(new Error('Failed'));
-
-    mountGrid();
-    await flushPromises();
-
-    expect(consoleSpy).toHaveBeenCalledWith(
-      'Failed to initialize media URL generators',
-      expect.any(Error),
-    );
-  });
 
   it('generates correct URLs for encoded paths', async () => {
     mockUIState.gridMediaFiles = [

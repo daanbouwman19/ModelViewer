@@ -57,6 +57,8 @@ describe('MediaGrid.vue Coverage', () => {
       },
       imageExtensionsSet: new Set(['.jpg', '.png']),
       videoExtensionsSet: new Set(['.mp4', '.mkv']),
+      mediaUrlGenerator: (path: string) => `url://${path}`,
+      thumbnailUrlGenerator: (path: string) => `thumb://${path}`,
     });
 
     mockPlayerState = reactive({
@@ -190,7 +192,7 @@ describe('MediaGrid.vue Coverage', () => {
     const item = { name: 'vid.mp4', path: '/vid.mp4', viewCount: 0 };
     mockUIState.gridMediaFiles = [item];
     const mockThumbGen = vi.fn().mockReturnValue('thumb.jpg');
-    (api.getThumbnailUrlGenerator as any).mockResolvedValue(mockThumbGen);
+    mockLibraryState.thumbnailUrlGenerator = mockThumbGen;
 
     const wrapper = mountGrid();
     await flushPromises();
@@ -243,26 +245,9 @@ describe('MediaGrid.vue Coverage', () => {
     ).toHaveLength(1);
   });
 
-  it('handles api error gracefully', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    (api.getMediaUrlGenerator as any).mockRejectedValue(new Error('API Fail'));
-
-    mountGrid();
-    await flushPromises();
-
-    expect(consoleSpy).toHaveBeenCalledWith(
-      'Failed to initialize media URL generators',
-      expect.any(Error),
-    );
-    consoleSpy.mockRestore();
-  });
-
   it('getMediaUrl returns empty if generator not ready', async () => {
-    // Delayed promise
-    let resolveGen: any;
-    (api.getMediaUrlGenerator as any).mockReturnValue(
-      new Promise((r) => (resolveGen = r)),
-    );
+    // Simulate delayed generator availability in store
+    mockLibraryState.mediaUrlGenerator = null;
 
     mockUIState.gridMediaFiles = [{ name: 'img.jpg', path: '/img.jpg' }];
     const wrapper = mountGrid();
@@ -279,9 +264,8 @@ describe('MediaGrid.vue Coverage', () => {
     // Should be empty initially
     expect(wrapper.find('img').attributes('src')).toBe('');
 
-    resolveGen(() => 'url');
-    // We need to wait for the promise to resolve AND the watcher to run
-    await flushPromises();
+    // Update store state
+    mockLibraryState.mediaUrlGenerator = (path: string) => `thumb://${path}`;
     await nextTick();
 
     expect(wrapper.find('img').attributes('src')).toBe('thumb:///img.jpg');
