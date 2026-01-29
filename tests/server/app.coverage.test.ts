@@ -50,16 +50,20 @@ vi.mock('../../src/core/analysis/media-analyzer.ts', () => ({
   },
 }));
 
-class MockMediaHandler {
-  serveMetadata = vi.fn();
-  serveThumbnail = vi.fn();
-  serveHeatmap = vi.fn();
-  serveHeatmapProgress = vi.fn();
-  serveHlsMaster = vi.fn();
-  serveHlsPlaylist = vi.fn();
-  serveHlsSegment = vi.fn();
-  serveStaticFile = vi.fn();
-}
+const { MockMediaHandler } = vi.hoisted(() => {
+  class MockMediaHandler {
+    serveMetadata = vi.fn();
+    serveThumbnail = vi.fn();
+    serveHeatmap = vi.fn();
+    serveHeatmapProgress = vi.fn();
+    serveHlsMaster = vi.fn();
+    serveHlsPlaylist = vi.fn();
+    serveHlsSegment = vi.fn();
+    serveStaticFile = vi.fn();
+  }
+
+  return { MockMediaHandler };
+});
 
 vi.mock('../../src/core/media-handler', () => ({
   MediaHandler: MockMediaHandler,

@@ -21,18 +21,22 @@ vi.mock('fs/promises', () => ({ default: mockFs }));
 // Mock core modules
 vi.mock('../../src/core/database');
 vi.mock('../../src/core/media-service');
-class MockMediaHandler {
-  serveMetadata = vi.fn();
-  serveTranscodedStream = vi.fn();
-  serveRawStream = vi.fn();
-  serveThumbnail = vi.fn();
-  serveStaticFile = vi.fn();
-  serveHeatmap = vi.fn();
-  serveHeatmapProgress = vi.fn();
-  serveHlsMaster = vi.fn();
-  serveHlsPlaylist = vi.fn();
-  serveHlsSegment = vi.fn();
-}
+const { MockMediaHandler } = vi.hoisted(() => {
+  class MockMediaHandler {
+    serveMetadata = vi.fn();
+    serveTranscodedStream = vi.fn();
+    serveRawStream = vi.fn();
+    serveThumbnail = vi.fn();
+    serveStaticFile = vi.fn();
+    serveHeatmap = vi.fn();
+    serveHeatmapProgress = vi.fn();
+    serveHlsMaster = vi.fn();
+    serveHlsPlaylist = vi.fn();
+    serveHlsSegment = vi.fn();
+  }
+
+  return { MockMediaHandler };
+});
 
 vi.mock('../../src/core/media-handler', () => ({
   MediaHandler: MockMediaHandler,

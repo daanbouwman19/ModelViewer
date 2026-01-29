@@ -23,16 +23,20 @@ type TestAppResult = {
   transcodeState: { current: number };
 };
 
-class MockMediaHandler {
-  serveMetadata = vi.fn((_req, res) => res.status(200).send('ok'));
-  serveThumbnail = vi.fn((_req, res) => res.status(200).send('ok'));
-  serveHeatmap = vi.fn((_req, res) => res.status(200).send('ok'));
-  serveHeatmapProgress = vi.fn((_req, res) => res.status(200).send('ok'));
-  serveHlsMaster = vi.fn((_req, res) => res.status(200).send('ok'));
-  serveHlsPlaylist = vi.fn((_req, res) => res.status(200).send('ok'));
-  serveHlsSegment = vi.fn((_req, res) => res.status(200).send('ok'));
-  serveStaticFile = vi.fn((_req, res) => res.status(200).send('ok'));
-}
+const { MockMediaHandler } = vi.hoisted(() => {
+  class MockMediaHandler {
+    serveMetadata = vi.fn((_req, res) => res.status(200).send('ok'));
+    serveThumbnail = vi.fn((_req, res) => res.status(200).send('ok'));
+    serveHeatmap = vi.fn((_req, res) => res.status(200).send('ok'));
+    serveHeatmapProgress = vi.fn((_req, res) => res.status(200).send('ok'));
+    serveHlsMaster = vi.fn((_req, res) => res.status(200).send('ok'));
+    serveHlsPlaylist = vi.fn((_req, res) => res.status(200).send('ok'));
+    serveHlsSegment = vi.fn((_req, res) => res.status(200).send('ok'));
+    serveStaticFile = vi.fn((_req, res) => res.status(200).send('ok'));
+  }
+
+  return { MockMediaHandler };
+});
 
 vi.mock('../../src/core/database', () => ({
   getAllMetadataAndStats: vi.fn(),

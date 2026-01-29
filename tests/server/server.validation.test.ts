@@ -7,18 +7,22 @@ import * as security from '../../src/core/security';
 vi.mock('../../src/core/database');
 vi.mock('../../src/core/media-service');
 vi.mock('../../src/core/file-system');
-class MockMediaHandler {
-  serveMetadata = vi.fn((_req, res) => res.end());
-  serveTranscodedStream = vi.fn((_req, res) => res.end());
-  serveRawStream = vi.fn((_req, res) => res.end());
-  serveThumbnail = vi.fn((_req, res) => res.end());
-  serveStaticFile = vi.fn((_req, res) => res.end());
-  serveHeatmap = vi.fn((_req, res) => res.end());
-  serveHeatmapProgress = vi.fn((_req, res) => res.end());
-  serveHlsMaster = vi.fn((_req, res) => res.end());
-  serveHlsPlaylist = vi.fn((_req, res) => res.end());
-  serveHlsSegment = vi.fn((_req, res) => res.end());
-}
+const { MockMediaHandler } = vi.hoisted(() => {
+  class MockMediaHandler {
+    serveMetadata = vi.fn((_req, res) => res.end());
+    serveTranscodedStream = vi.fn((_req, res) => res.end());
+    serveRawStream = vi.fn((_req, res) => res.end());
+    serveThumbnail = vi.fn((_req, res) => res.end());
+    serveStaticFile = vi.fn((_req, res) => res.end());
+    serveHeatmap = vi.fn((_req, res) => res.end());
+    serveHeatmapProgress = vi.fn((_req, res) => res.end());
+    serveHlsMaster = vi.fn((_req, res) => res.end());
+    serveHlsPlaylist = vi.fn((_req, res) => res.end());
+    serveHlsSegment = vi.fn((_req, res) => res.end());
+  }
+
+  return { MockMediaHandler };
+});
 
 vi.mock('../../src/core/media-handler', () => ({
   MediaHandler: MockMediaHandler,
