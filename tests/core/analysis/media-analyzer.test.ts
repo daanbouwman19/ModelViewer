@@ -337,6 +337,34 @@ describe('MediaAnalyzer', () => {
     expect(result.audio[0]).toBe(-20);
   });
 
+  it('should sanitize points parameter', async () => {
+    const setupMock = () => {
+      const mp = new EventEmitter();
+      (mp as any).stdout = new EventEmitter();
+      (mp as any).stderr = new EventEmitter();
+      (spawn as any).mockReturnValue(mp);
+      return mp;
+    };
+
+    // Test NaN
+    let mp = setupMock();
+    let p = analyzer.generateHeatmap('file1', NaN);
+    setTimeout(() => mp.emit('close', 0), 10);
+    await expect(p).resolves.toHaveProperty('points', 100);
+
+    // Test Min
+    mp = setupMock();
+    p = analyzer.generateHeatmap('file2', 0);
+    setTimeout(() => mp.emit('close', 0), 10);
+    await expect(p).resolves.toHaveProperty('points', 1);
+
+    // Test Max
+    mp = setupMock();
+    p = analyzer.generateHeatmap('file3', 2000);
+    setTimeout(() => mp.emit('close', 0), 10);
+    await expect(p).resolves.toHaveProperty('points', 1000);
+  });
+
   it('should reject on unexpected parsing error', async () => {
     // Spy on private method resample to force an error
     const spy = vi.spyOn(analyzer as any, 'resample').mockImplementation(() => {

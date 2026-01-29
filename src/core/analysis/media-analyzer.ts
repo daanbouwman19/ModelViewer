@@ -103,17 +103,16 @@ export class MediaAnalyzer {
         const mapArgs: string[] = [];
 
         // Dynamic Filter Chain Construction
+        const videoAnalysisFilter = `[0:v]fps=1,signalstats,metadata=print:key=lavfi.signalstats.YDIF:file=-[v]`;
+        const audioAnalysisFilter = `[0:a]asetnsamples=22050,astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level:file=-[a]`;
+
         if (hasVideo) {
-          filterChains.push(
-            `[0:v]fps=1,signalstats,metadata=print:key=lavfi.signalstats.YDIF:file=-[v]`,
-          );
+          filterChains.push(videoAnalysisFilter);
           mapArgs.push('-map', '[v]');
         }
 
         if (hasAudio) {
-          filterChains.push(
-            `[0:a]asetnsamples=22050,astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level:file=-[a]`,
-          );
+          filterChains.push(audioAnalysisFilter);
           mapArgs.push('-map', '[a]');
         }
 
