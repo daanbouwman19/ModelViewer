@@ -146,6 +146,17 @@ export async function getFFmpegDuration(
   }
 }
 
+export async function getFFmpegStreams(
+  filePath: string,
+  ffmpegPath: string,
+): Promise<{ hasVideo: boolean; hasAudio: boolean }> {
+  const { stderr } = await runFFmpeg(ffmpegPath, ['-i', filePath]);
+  // FFmpeg typically outputs stream info to stderr
+  const hasVideo = /Stream #\d+:\d+(?:.*): Video:/.test(stderr);
+  const hasAudio = /Stream #\d+:\d+(?:.*): Audio:/.test(stderr);
+  return { hasVideo, hasAudio };
+}
+
 export function getHlsTranscodeArgs(
   inputPath: string,
   outputSegmentPath: string,

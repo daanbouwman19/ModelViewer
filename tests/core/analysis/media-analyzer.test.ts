@@ -35,6 +35,11 @@ vi.mock('crypto', () => ({
   },
 }));
 
+vi.mock('../../../src/core/utils/ffmpeg-utils', () => ({
+  getFFmpegStreams: vi.fn(),
+}));
+import { getFFmpegStreams } from '../../../src/core/utils/ffmpeg-utils';
+
 import { spawn } from 'child_process';
 
 describe('MediaAnalyzer', () => {
@@ -44,6 +49,10 @@ describe('MediaAnalyzer', () => {
     vi.resetAllMocks();
     analyzer = MediaAnalyzer.getInstance();
     analyzer.setCacheDir('/tmp/cache');
+    (getFFmpegStreams as any).mockResolvedValue({
+      hasVideo: true,
+      hasAudio: true,
+    });
   });
 
   it('should return cached data if available', async () => {
@@ -228,8 +237,8 @@ describe('MediaAnalyzer', () => {
     expect(result.points).toBe(8);
     expect(result.motion).toHaveLength(8);
     // Verify fallback behavior for empty slices
-    // First point might be 0 if slice is empty and result is empty
-    expect(result.motion[0]).toBe(0);
+    // First point uses data[0] instead of default 0
+    expect(result.motion[0]).toBe(10);
     // And verify legitimate data
     expect(result.motion).toContain(10);
   });
@@ -272,6 +281,33 @@ describe('MediaAnalyzer', () => {
     expect(result.motion[1]).toBe(35);
   });
 
+  it('should log warning if ffmpeg succeeds but stderr contains Error', async () => {
+    // Mock successful execution but with "Error" in stderr
+    (fs.readFile as any).mockRejectedValue(new Error('ENOENT'));
+    const mockProcess = new EventEmitter();
+    const mockStdout = new EventEmitter();
+    const mockStderr = new EventEmitter();
+    (mockProcess as any).stdout = mockStdout;
+    (mockProcess as any).stderr = mockStderr;
+    (spawn as any).mockReturnValue(mockProcess);
+
+    const consoleSpy = vi.spyOn(console, 'warn');
+
+    const promise = analyzer.generateHeatmap('warning.mp4', 10);
+
+    setTimeout(() => {
+      mockStderr.emit('data', Buffer.from('Some random Error occurred\n'));
+      mockProcess.emit('close', 0);
+    }, 10);
+
+    await promise;
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('FFmpeg succeeded but reported errors'),
+    );
+    consoleSpy.mockRestore();
+  });
+
   it('should ignore irrelevant output lines', async () => {
     const mockProcess = new EventEmitter();
     const mockStdout = new EventEmitter();
@@ -301,6 +337,58 @@ describe('MediaAnalyzer', () => {
     expect(result.audio[0]).toBe(-20);
   });
 
+  it('should sanitize points parameter', async () => {
+    const setupMock = () => {
+      const mp = new EventEmitter();
+      (mp as any).stdout = new EventEmitter();
+      (mp as any).stderr = new EventEmitter();
+      (spawn as any).mockReturnValue(mp);
+      return mp;
+    };
+
+    // Test NaN
+    let mp = setupMock();
+    let p = analyzer.generateHeatmap('file1', NaN);
+    setTimeout(() => mp.emit('close', 0), 10);
+    await expect(p).resolves.toHaveProperty('points', 100);
+
+    // Test Min
+    mp = setupMock();
+    p = analyzer.generateHeatmap('file2', 0);
+    setTimeout(() => mp.emit('close', 0), 10);
+    await expect(p).resolves.toHaveProperty('points', 1);
+
+    // Test Max
+    mp = setupMock();
+    p = analyzer.generateHeatmap('file3', 2000);
+    setTimeout(() => mp.emit('close', 0), 10);
+    await expect(p).resolves.toHaveProperty('points', 1000);
+  });
+
+  it('should reject on unexpected parsing error', async () => {
+    // Spy on private method resample to force an error
+    const spy = vi.spyOn(analyzer as any, 'resample').mockImplementation(() => {
+      throw new Error('Forced Error');
+    });
+
+    (fs.readFile as any).mockRejectedValue(new Error('ENOENT'));
+    const mockProcess = new EventEmitter();
+    const mockStdout = new EventEmitter();
+    const mockStderr = new EventEmitter();
+    (mockProcess as any).stdout = mockStdout;
+    (mockProcess as any).stderr = mockStderr;
+    (spawn as any).mockReturnValue(mockProcess);
+
+    const promise = analyzer.generateHeatmap('parse-error.mp4', 10);
+
+    setTimeout(() => {
+      mockProcess.emit('close', 0);
+    }, 10);
+
+    await expect(promise).rejects.toThrow('Forced Error');
+    spy.mockRestore();
+  });
+
   it('should handle invalid parsing values', async () => {
     const mockProcess = new EventEmitter();
     const mockStdout = new EventEmitter();
@@ -325,19 +413,19 @@ describe('MediaAnalyzer', () => {
   describe('resample (private)', () => {
     it('handles upsampling with empty first slice (ternary false)', () => {
       // data=[10], target=2. step=0.5
-      // i=0: slice=[] -> result empty -> push 0.
+      // i=0: slice=[] -> logic uses data[0] -> 10
       // i=1: slice=[10] -> push 10.
       const res = (analyzer as any).resample([10], 2, 0);
-      expect(res).toEqual([0, 10]);
+      expect(res).toEqual([10, 10]);
     });
 
     it('handles upsampling with empty middle slice (ternary true)', () => {
       // data=[10], target=3. step=0.33
-      // i=0: slice=[] -> result empty -> push 0
-      // i=1: slice=[] -> result=[0] -> push 0 (prev)
-      // i=2: slice=[10] -> result=[0,0] -> push 10
+      // i=0: slice=[] -> data[0] -> 10
+      // i=1: slice=[] -> data[0] -> 10
+      // i=2: slice=[10] -> data[0] -> 10 (Wait, slice is [10] so 10/1=10)
       const res = (analyzer as any).resample([10], 3, 0);
-      expect(res).toEqual([0, 0, 10]);
+      expect(res).toEqual([10, 10, 10]);
     });
 
     it('handles empty input', () => {

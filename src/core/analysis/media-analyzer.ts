@@ -1,5 +1,6 @@
 import { spawn } from 'child_process';
 import ffmpegStatic from 'ffmpeg-static';
+import { getFFmpegStreams } from '../utils/ffmpeg-utils';
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
@@ -87,28 +88,44 @@ export class MediaAnalyzer {
           }
         }
 
-        // Optimization:
-        // 1. [0:v]fps=1:  Analyze 1 video frame per second.
-        // 2. [0:a]asetnsamples=22050: Analyze ~0.5s audio chunks (assuming 44.1kHz).
-        // This reduces processing load and output volume significantly while maintaining enough resolution for a heatmap.
-        const args = [
-          '-i',
+        // Check for streams
+        const { hasVideo, hasAudio } = await getFFmpegStreams(
           filePath,
+          ffmpegStatic!,
+        );
+
+        if (!hasVideo && !hasAudio) {
+          throw new Error('No video or audio streams found');
+        }
+
+        const inputs = ['-i', filePath];
+        const filterChains: string[] = [];
+        const mapArgs: string[] = [];
+
+        // Dynamic Filter Chain Construction
+        const videoAnalysisFilter = `[0:v]fps=1,signalstats,metadata=print:key=lavfi.signalstats.YDIF:file=-[v]`;
+        const audioAnalysisFilter = `[0:a]asetnsamples=22050,astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level:file=-[a]`;
+
+        if (hasVideo) {
+          filterChains.push(videoAnalysisFilter);
+          mapArgs.push('-map', '[v]');
+        }
+
+        if (hasAudio) {
+          filterChains.push(audioAnalysisFilter);
+          mapArgs.push('-map', '[a]');
+        }
+
+        const args = [
+          ...inputs,
           '-filter_complex',
-          `[0:v]fps=1,signalstats,metadata=print:key=lavfi.signalstats.YDIF:file=-[v];[0:a]asetnsamples=22050,astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level:file=-[a]`,
-          '-map',
-          '[v]',
-          '-map',
-          '[a]',
+          filterChains.join(';'),
+          ...mapArgs,
           '-f',
           'null',
           '-',
         ];
 
-        console.log(
-          `[MediaAnalyzer] Spawning ffmpeg with args:`,
-          args.join(' '),
-        );
         const process = spawn(ffmpegStatic!, args, {
           windowsHide: true,
           stdio: ['ignore', 'pipe', 'pipe'],
@@ -273,15 +290,20 @@ export class MediaAnalyzer {
       const slice = data.slice(start, end);
 
       // Note: When downsampling, slice will have 1 or more items.
-      // When upsampling, slice can be empty, so we have a fallback.
+      // When upsampling, slice can be empty.
       if (slice.length > 0) {
         const sum = slice.reduce((a, b) => a + b, 0);
         result.push(sum / slice.length);
       } else {
-        // Fallback for theoretical gaps (rounding errors?)
-        result.push(
-          result.length > 0 ? result[result.length - 1] : defaultValue,
-        );
+        // Updated Up-sampling Logic:
+        // If slice is empty (start == end), we are zooming in on a single point.
+        // Use data[start] if available, otherwise fallback.
+        if (start < data.length) {
+          result.push(data[start]);
+        } else {
+          // Should be unreachable with current math, but safe fallback to default
+          result.push(defaultValue);
+        }
       }
     }
     return result;
