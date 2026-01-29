@@ -60,7 +60,7 @@
 **Learning:** Security controls based on mutable blocklists must share a single source of truth. Static initialization in consumers leads to stale security rules.
 **Prevention:** Centralized the sensitive filename check in `src/core/security.ts` and updated consumers to use this shared, dynamic check.
 
-## 2026-02-02 - Recursive Scanning of Sensitive Directories
+## 2026-01-29 - Recursive Scanning of Sensitive Directories
 
 **Vulnerability:** The `media-scanner.ts` descended recursively into all subdirectories, including sensitive ones like `.ssh`, `.git`, and `node_modules`, if they were contained within an allowed media root. This could expose media files hidden in sensitive directories and waste resources.
 **Learning:** Access controls and blocklists must be enforced at every layer of recursion, not just at the entry point. Security checks in file listing APIs (`listDirectory`) do not automatically apply to internal scanning logic.
