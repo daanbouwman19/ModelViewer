@@ -18,11 +18,11 @@ vi.mock('../../src/main/google-drive-service');
 vi.mock('../../src/main/drive-cache-manager');
 vi.mock('../../src/core/media-source');
 const { MockMediaHandler, getLastMediaHandler } = vi.hoisted(() => {
-  let lastInstance: MockMediaHandler | undefined;
-
   class MockMediaHandler {
+    static lastInstance: MockMediaHandler | undefined;
+
     constructor() {
-      lastInstance = this;
+      MockMediaHandler.lastInstance = this;
     }
 
     serveMetadata = vi.fn((_req, res) => res.end());
@@ -37,7 +37,7 @@ const { MockMediaHandler, getLastMediaHandler } = vi.hoisted(() => {
     serveHlsSegment = vi.fn((_req, res) => res.end());
   }
 
-  const getLastMediaHandler = () => lastInstance;
+  const getLastMediaHandler = () => MockMediaHandler.lastInstance;
 
   return { MockMediaHandler, getLastMediaHandler };
 });
