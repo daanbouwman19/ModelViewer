@@ -1,16 +1,23 @@
-import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock fs/promises
-vi.mock('fs/promises', () => {
+const { mockFs } = vi.hoisted(() => {
   return {
-    default: {
-      readdir: vi.fn(),
+    mockFs: {
       access: vi.fn(),
+      readdir: vi.fn(),
     },
   };
 });
 
-import fs from 'fs/promises';
+vi.mock('fs/promises', () => {
+  return {
+    default: mockFs,
+    access: mockFs.access,
+    readdir: mockFs.readdir,
+  };
+});
+
 import { performFullMediaScan } from '../../src/core/media-scanner';
 
 describe('Media Scanner Error Handling', () => {
@@ -26,7 +33,7 @@ describe('Media Scanner Error Handling', () => {
     const badDir = '/bad/dir';
     const goodDir = '/good/dir';
 
-    (fs.access as unknown as Mock).mockImplementation(async (path: any) => {
+    mockFs.access.mockImplementation(async (path: any) => {
       if (path === badDir) {
         throw new Error('Permission denied');
       }
@@ -34,42 +41,32 @@ describe('Media Scanner Error Handling', () => {
     });
 
     // Mock readdir for the good directory to return empty, so we don't need deeper mocking
-    (fs.readdir as unknown as Mock).mockResolvedValue([]);
+    mockFs.readdir.mockResolvedValue([]);
 
     const result = await performFullMediaScan([badDir, goodDir]);
 
     // Should not throw, should return empty array because goodDir is empty and badDir failed
     expect(result).toEqual([]);
-    expect(fs.access).toHaveBeenCalledTimes(2);
-    expect(fs.access).toHaveBeenCalledWith(badDir);
-    expect(fs.access).toHaveBeenCalledWith(goodDir);
+    expect(mockFs.access).toHaveBeenCalledTimes(2);
+    expect(mockFs.access).toHaveBeenCalledWith(badDir);
+    expect(mockFs.access).toHaveBeenCalledWith(goodDir);
   });
 
   it('should handle readdir errors gracefully inside scanDirectoryRecursive', async () => {
     const baseDir = '/base/dir';
 
-    (fs.access as unknown as Mock).mockResolvedValue(undefined);
-    (fs.readdir as unknown as Mock).mockRejectedValue(
-      new Error('Read failure'),
-    );
+    mockFs.access.mockResolvedValue(undefined);
+    mockFs.readdir.mockRejectedValue(new Error('Read failure'));
 
     const result = await performFullMediaScan([baseDir]);
 
     expect(result).toEqual([]);
-    expect(fs.readdir).toHaveBeenCalledWith(baseDir, { withFileTypes: true });
+    expect(mockFs.readdir).toHaveBeenCalledWith(baseDir, {
+      withFileTypes: true,
+    });
   });
 
   it('should handle errors during the entire scan process gracefully', async () => {
-    // Simulate a catastrophic failure where map fails or something unexpected
-    // Actually, Promise.all behavior with async map: if one promise rejects, Promise.all rejects immediately.
-    // But performFullMediaScan wraps the inner logic in try/catch?
-    // No, performFullMediaScan has a try/catch block around the whole Promise.all.
-
-    // Let's try to make fs.access throw something that isn't caught by the inner try/catch?
-    // The inner try/catch catches EVERYTHING from the async function.
-
-    // Let's verify the outer try/catch block in performFullMediaScan
-    // We can mock Promise.all to throw
     const promiseAllSpy = vi
       .spyOn(Promise, 'all')
       .mockRejectedValue(new Error('Catastrophic failure'));

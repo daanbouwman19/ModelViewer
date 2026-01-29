@@ -1,14 +1,25 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as mediaScanner from '../../src/core/media-scanner';
-import fs from 'fs/promises';
+
 import path from 'path';
 
 // Mock fs/promises
+// Mock fs/promises using vi.hoisted for stability
+const { mockFs } = vi.hoisted(() => {
+  return {
+    mockFs: {
+      access: vi.fn(),
+      readdir: vi.fn(),
+      stat: vi.fn(),
+    },
+  };
+});
+
 vi.mock('fs/promises', () => ({
-  default: {
-    readdir: vi.fn(),
-    access: vi.fn(),
-  },
+  default: mockFs,
+  access: mockFs.access,
+  readdir: mockFs.readdir,
+  stat: mockFs.stat,
 }));
 
 // Mock google-drive-service
@@ -40,14 +51,15 @@ describe('MediaScanner', () => {
       { name: 'deep.png', isDirectory: () => false, isFile: () => true },
     ];
 
-    vi.mocked(fs.readdir).mockImplementation(async (dirPath) => {
+    // Use mockFs
+    mockFs.readdir.mockImplementation(async (dirPath: any) => {
       // Normalize path separator for comparison
       if (dirPath === rootDir) return rootDirents as any;
       if (dirPath === subDir) return subDirents as any;
       return [];
     });
 
-    vi.mocked(fs.access).mockResolvedValue(undefined);
+    mockFs.access.mockResolvedValue(undefined);
 
     const result = await mediaScanner.performFullMediaScan([rootDir]);
 
@@ -72,8 +84,8 @@ describe('MediaScanner', () => {
 
   it('handles empty directories (should return empty array if no media)', async () => {
     const rootDir = path.join(path.sep, 'empty');
-    vi.mocked(fs.readdir).mockResolvedValue([]);
-    vi.mocked(fs.access).mockResolvedValue(undefined);
+    mockFs.readdir.mockResolvedValue([]);
+    mockFs.access.mockResolvedValue(undefined);
 
     const result = await mediaScanner.performFullMediaScan([rootDir]);
     // performFullMediaScan filters null albums, and scanDirectoryRecursive returns null if empty
