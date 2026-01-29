@@ -4,7 +4,7 @@
  */
 
 import { type WorkerOptions } from 'worker_threads';
-import { FILE_INDEX_CACHE_KEY } from './constants';
+import { FILE_INDEX_CACHE_KEY } from './constants.js';
 import type {
   Album,
   MediaDirectory,

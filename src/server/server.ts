@@ -31,11 +31,11 @@ import {
   setRating,
   getAllMetadataAndStats,
   getRecentlyPlayed,
-} from '../core/database.ts';
+} from '../core/database.js';
 import {
   getAlbumsWithViewCounts,
   getAlbumsWithViewCountsAfterScan,
-} from '../core/media-service.ts';
+} from '../core/media-service.js';
 import {
   SUPPORTED_IMAGE_EXTENSIONS,
   SUPPORTED_VIDEO_EXTENSIONS,
@@ -53,7 +53,7 @@ import {
   MAX_CONCURRENT_TRANSCODES,
   MAX_API_BATCH_SIZE,
   HLS_CACHE_DIR_NAME,
-} from '../core/constants.ts';
+} from '../core/constants.js';
 import { listDirectory } from '../core/file-system.ts';
 import {
   authorizeFilePath,
@@ -252,7 +252,7 @@ export async function createApp() {
 
   const workerOptions = isDev
     ? {
-        execArgv: ['--import', 'tsx/esm'],
+        execArgv: ['--import', 'tsx'],
       }
     : undefined;
 

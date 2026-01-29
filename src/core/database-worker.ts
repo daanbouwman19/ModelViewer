@@ -10,13 +10,13 @@ import Database from 'better-sqlite3';
 import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
-import { isDrivePath, getDriveId } from './media-utils.ts';
+import { isDrivePath, getDriveId } from './media-utils.js';
 import {
   initializeSchema,
   migrateMediaDirectories,
   migrateMediaMetadata,
   createIndexes,
-} from './database-schema.ts';
+} from './database-schema.js';
 
 /**
  * The database instance for this worker thread.
