@@ -44,7 +44,7 @@ export async function resolveWorkerPath(
       // Development (tsx)
       workerPath = new URL(`./${workerName}.ts`, currentUrl);
       workerOptions = {
-        execArgv: ['--import', 'tsx/esm'],
+        execArgv: ['--import', 'tsx'],
       };
     }
   }
