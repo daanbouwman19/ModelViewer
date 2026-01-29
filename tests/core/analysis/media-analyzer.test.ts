@@ -141,7 +141,7 @@ describe('MediaAnalyzer', () => {
     );
   });
 
-  it('should resolve even if caching fails (write error)', async () => {
+  it('should reject if caching fails (write error)', async () => {
     // Mock successful generation but write failure
     setupMockSpawn({ exitCode: 0 });
 
