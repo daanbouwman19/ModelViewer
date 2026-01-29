@@ -410,3 +410,14 @@ export function isSensitiveFilename(filename: string): boolean {
   if (!filename) return false;
   return sensitiveSubdirectoriesSet.has(filename.toLowerCase());
 }
+
+/**
+ * Checks if a directory should be ignored during scanning or listing.
+ * Includes hidden directories (starting with .) and sensitive directories.
+ * @param name - The name of the directory (not the full path).
+ * @returns True if the directory should be ignored.
+ */
+export function isIgnoredDirectory(name: string): boolean {
+  if (!name) return true;
+  return name.startsWith('.') || isSensitiveFilename(name);
+}

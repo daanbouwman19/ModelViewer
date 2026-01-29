@@ -13,6 +13,7 @@ import {
   ALL_SUPPORTED_EXTENSIONS_SET,
   DISK_SCAN_CONCURRENCY,
 } from './constants.ts';
+import { isIgnoredDirectory } from './security.ts';
 import { isDrivePath, getDriveId } from './media-utils.ts';
 import type { Album, MediaFile } from './types.ts';
 import { listDriveFiles } from '../main/google-drive-service.ts';
@@ -79,6 +80,9 @@ function processDirectoryEntries(
 
   for (const item of items) {
     if (item.isDirectory()) {
+      if (isIgnoredDirectory(item.name)) {
+        continue;
+      }
       const fullPath = path.join(directoryPath, item.name);
       childrenPromises.push(scanDirectoryRecursive(fullPath, knownPaths));
     } else {
