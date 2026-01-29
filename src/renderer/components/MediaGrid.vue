@@ -82,7 +82,6 @@ import { useLibraryStore } from '../composables/useLibraryStore';
 import { usePlayerStore } from '../composables/usePlayerStore';
 import { useUIStore } from '../composables/useUIStore';
 import type { MediaFile } from '../../core/types';
-import { api } from '../api';
 import MediaGridItem from './MediaGridItem.vue';
 import PlaylistIcon from './icons/PlaylistIcon.vue';
 import {
@@ -95,7 +94,12 @@ const libraryStore = useLibraryStore();
 const playerStore = usePlayerStore();
 const uiStore = useUIStore();
 
-const { imageExtensionsSet, videoExtensionsSet } = libraryStore;
+const {
+  imageExtensionsSet,
+  videoExtensionsSet,
+  mediaUrlGenerator,
+  thumbnailUrlGenerator,
+} = libraryStore;
 
 // Reactive reference to the full list from state
 const allMediaFiles = computed(() => uiStore.state.gridMediaFiles);
@@ -148,9 +152,6 @@ const gridStyle = computed(() => ({
   height: `${itemWidth.value}px`,
 }));
 
-const mediaUrlGenerator = ref<((path: string) => string) | null>(null);
-const thumbnailUrlGenerator = ref<((path: string) => string) | null>(null);
-
 const failedImagePaths = reactive(new Set<string>());
 
 // Chunk items into rows for the scroller
@@ -193,14 +194,7 @@ const setupResizeObserver = () => {
   }
 };
 
-onMounted(async () => {
-  try {
-    mediaUrlGenerator.value = await api.getMediaUrlGenerator();
-    thumbnailUrlGenerator.value = await api.getThumbnailUrlGenerator();
-  } catch (e) {
-    console.error('Failed to initialize media URL generators', e);
-  }
-
+onMounted(() => {
   // Initial setup attempt
   setupResizeObserver();
 });

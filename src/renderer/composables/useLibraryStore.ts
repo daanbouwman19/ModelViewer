@@ -17,6 +17,8 @@ interface LibraryState {
   albumsSelectedForSlideshow: { [albumName: string]: boolean };
   globalMediaPoolForSelection: MediaFile[];
   totalMediaInPool: number;
+  mediaUrlGenerator: ((path: string) => string) | null;
+  thumbnailUrlGenerator: ((path: string) => string) | null;
 }
 
 const state = reactive<LibraryState>({
@@ -29,6 +31,8 @@ const state = reactive<LibraryState>({
   albumsSelectedForSlideshow: {},
   globalMediaPoolForSelection: [],
   totalMediaInPool: 0,
+  mediaUrlGenerator: null,
+  thumbnailUrlGenerator: null,
 });
 
 // Computed sets for O(1) extension lookups
@@ -125,10 +129,24 @@ export function useLibraryStore() {
 
   const loadInitialData = async () => {
     try {
-      state.allAlbums = await api.getAlbumsWithViewCounts();
-      state.mediaDirectories = await api.getMediaDirectories();
-      state.smartPlaylists = await api.getSmartPlaylists();
-      state.supportedExtensions = await api.getSupportedExtensions();
+      // Bolt Optimization: Parallelize independent fetches for better startup performance
+      // and cache URL generators to avoid repeated IPC calls in components.
+      const [albums, directories, playlists, extensions, mediaGen, thumbGen] =
+        await Promise.all([
+          api.getAlbumsWithViewCounts(),
+          api.getMediaDirectories(),
+          api.getSmartPlaylists(),
+          api.getSupportedExtensions(),
+          api.getMediaUrlGenerator(),
+          api.getThumbnailUrlGenerator(),
+        ]);
+
+      state.allAlbums = albums;
+      state.mediaDirectories = directories;
+      state.smartPlaylists = playlists;
+      state.supportedExtensions = extensions;
+      state.mediaUrlGenerator = mediaGen;
+      state.thumbnailUrlGenerator = thumbGen;
 
       const savedSelection = localStorage.getItem('albumSelection');
       if (savedSelection) {
