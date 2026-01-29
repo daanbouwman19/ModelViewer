@@ -13,11 +13,11 @@ import {
   getSetting,
   getAllMetadata,
   getMetadata,
-} from './database';
+} from './database.js';
 import { WorkerClient } from './worker-client';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { getVideoDuration } from './media-handler';
+import { getVideoDuration } from './media-handler.js';
 import { resolveWorkerPath } from './utils/worker-utils';
 import type { Album, MediaMetadata } from './types';
 import fs from 'fs/promises';
@@ -27,8 +27,8 @@ import {
   METADATA_BATCH_SIZE,
   SUPPORTED_VIDEO_EXTENSIONS,
   WORKER_SCAN_TIMEOUT_MS,
-} from './constants';
-import { isDrivePath } from './media-utils';
+} from './constants.js';
+import { isDrivePath } from './media-utils.js';
 
 /**
  * Scans active media directories for albums, caches the result in the database,

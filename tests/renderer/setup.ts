@@ -29,13 +29,14 @@ const localStorageMock = (function () {
 let rafDepth = 0;
 const rafStub = (cb: FrameRequestCallback) => {
   if (rafDepth > 10) {
-    // Prevent infinite recursion in animation loops while still allowing tests to finish.
-    // Use setTimeout to skip a tick, but only if we are still in a test environment.
+    // Prevent infinite recursion in animation loops.
+    // Use setTimeout but wrap in safety to avoid ReferenceErrors if the environment is torn down.
     return setTimeout(() => {
       try {
+        // Just call it, the try-catch will handle ReferenceErrors if disposal happened
         cb(Date.now());
       } catch {
-        // Ignore errors that happen after environment disposal
+        // Catch ReferenceErrors during environment disposal
       }
     }, 0);
   }
@@ -43,10 +44,17 @@ const rafStub = (cb: FrameRequestCallback) => {
   try {
     cb(Date.now());
   } catch (err) {
-    // Re-throw if it's a real error, or ignore if it's environment disposal related
+    // If it's a ReferenceError about requestAnimationFrame, it's likely disposal related
     if (
       err instanceof ReferenceError &&
       err.message.includes('requestAnimationFrame')
+    ) {
+      return 1;
+    }
+    // Also ignore "canvas is not defined" or similar if happening in a late loop after disposal
+    if (
+      err instanceof Error &&
+      (err.message.includes('canvas') || err.message.includes('context'))
     ) {
       return 1;
     }

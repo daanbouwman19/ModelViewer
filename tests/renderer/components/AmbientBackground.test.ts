@@ -101,6 +101,7 @@ describe('AmbientBackground.vue', () => {
     expect(ctx?.drawImage).toHaveBeenCalled();
 
     window.Image = originalImage;
+    wrapper.unmount();
   });
 
   it('starts video loop when video', async () => {
@@ -156,6 +157,7 @@ describe('AmbientBackground.vue', () => {
     const ctx = canvas.getContext('2d');
     // Should NOT draw
     expect(ctx?.drawImage).not.toHaveBeenCalled();
+    wrapper.unmount();
   });
 
   it('video loop swallows drawImage errors', async () => {
