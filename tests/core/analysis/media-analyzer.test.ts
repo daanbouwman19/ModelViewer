@@ -92,7 +92,7 @@ describe('MediaAnalyzer', () => {
 
       return mockProcess;
     });
-    return (spawn as any);
+    return spawn as any;
   };
 
   it('should return cached data if available', async () => {
@@ -136,9 +136,9 @@ describe('MediaAnalyzer', () => {
 
     setupMockSpawn({ exitCode: 1 });
 
-    await expect(
-      analyzer.generateHeatmap('error.mp4', 10),
-    ).rejects.toThrow(/FFmpeg process exited with code/);
+    await expect(analyzer.generateHeatmap('error.mp4', 10)).rejects.toThrow(
+      /FFmpeg process exited with code/,
+    );
   });
 
   it('should reject if caching fails (write error)', async () => {
@@ -286,9 +286,10 @@ describe('MediaAnalyzer', () => {
     ).resolves.toHaveProperty('points', 100);
 
     // Test Min
-    await expect(
-      analyzer.generateHeatmap('file2', 0),
-    ).resolves.toHaveProperty('points', 1);
+    await expect(analyzer.generateHeatmap('file2', 0)).resolves.toHaveProperty(
+      'points',
+      1,
+    );
 
     // Test Max
     await expect(
