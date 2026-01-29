@@ -45,3 +45,9 @@
 **Smell:** `media-scanner.ts` was polluted with repetitive `if (process.env.NODE_ENV !== 'test')` checks around every log statement, burying the actual scanning logic.
 **Insight:** Logging conditional logic is an implementation detail that should be abstracted away. Inline environment checks create visual noise that makes control flow harder to follow.
 **Prevention:** Use a dedicated logger or helper functions (`safeLog`) to encapsulate environment-specific logging rules.
+
+## 2026-01-29 - Extracting Stream Processing Logic
+
+**Smell:** `handleStreamRequest` in `media-handler.ts` had deep nesting and mixed concerns (authorization vs streaming strategy), making the flow hard to follow.
+**Insight:** Separating the "decision" phase (checking authorization, optimizing for direct file) from the "action" phase (streaming via Ffmpeg or raw) clarifies the intent and reduces complexity.
+**Prevention:** When a handler function performs multiple distinct steps (validate, authorize, optimize, execute), try to extract the "execute" phase into a separate function to keep the high-level flow linear.

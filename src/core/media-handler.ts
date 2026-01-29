@@ -114,6 +114,33 @@ function tryServeDirectFile(res: Response, filePath: string): boolean {
 }
 
 /**
+ * Processes the stream by creating a media source and choosing the appropriate streaming method.
+ */
+async function processStream(
+  req: Request,
+  res: Response,
+  authorizedPath: string,
+  options: {
+    isTranscodeForced: boolean;
+    ffmpegPath: string | null;
+    startTime: string | undefined;
+  },
+) {
+  const { isTranscodeForced, ffmpegPath, startTime } = options;
+  const source = createMediaSource(authorizedPath);
+
+  if (isTranscodeForced) {
+    if (!ffmpegPath) {
+      res.status(500).send('FFmpeg binary not found');
+      return;
+    }
+    return await serveTranscodedStream(req, res, source, ffmpegPath, startTime);
+  }
+
+  return await serveRawStream(req, res, source);
+}
+
+/**
  * Handles video stream requests (raw or transcoded).
  */
 export async function handleStreamRequest(
@@ -130,8 +157,7 @@ export async function handleStreamRequest(
   }
 
   try {
-    // 1. Authorization Check (Unified)
-    // Always validate access first, regardless of transcode or direct play
+    // 1. Authorization Check
     const access = await validateFileAccess(filePath);
     if (!access.success) {
       if (!res.headersSent) res.status(access.statusCode).send(access.error);
@@ -140,33 +166,16 @@ export async function handleStreamRequest(
     const authorizedPath = access.path;
 
     // 2. Direct File Optimization
-    // If not transcoding and it's a local file, try sendFile for better performance/range support
-    if (!isTranscodeForced) {
-      if (tryServeDirectFile(res, authorizedPath)) return;
+    if (!isTranscodeForced && tryServeDirectFile(res, authorizedPath)) {
+      return;
     }
 
     // 3. Fallback / Transcoding Logic
-    // If we are here, either:
-    // a) Transcoding is forced
-    // b) It is a GDrive file
-    // c) Local sendFile failed (fallback to manual stream)
-    const source = createMediaSource(authorizedPath);
-
-    if (isTranscodeForced) {
-      if (!ffmpegPath) {
-        res.status(500).send('FFmpeg binary not found');
-        return;
-      }
-      return await serveTranscodedStream(
-        req,
-        res,
-        source,
-        ffmpegPath,
-        startTime,
-      );
-    } else {
-      return await serveRawStream(req, res, source);
-    }
+    await processStream(req, res, authorizedPath, {
+      isTranscodeForced,
+      ffmpegPath,
+      startTime,
+    });
   } catch (e: unknown) {
     console.error('[Handler] Stream failed:', e);
     if (!res.headersSent) {
@@ -177,7 +186,6 @@ export async function handleStreamRequest(
         res.status(500).send('Error initializing source');
       }
     }
-    return;
   }
 }
 
