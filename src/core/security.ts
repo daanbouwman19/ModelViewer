@@ -261,10 +261,17 @@ export async function validatePathAgainstDir(
  */
 function hasSensitiveSegments(relativePath: string): boolean {
   const segments = relativePath.split(path.sep);
-  return segments.some(
-    (segment) =>
-      sensitiveSubdirectoriesSet.has(segment.toLowerCase()) ||
-      segment.toLowerCase().startsWith('.env'),
+  return segments.some(isHiddenOrSensitive);
+}
+
+/**
+ * Checks if a path segment is hidden (starts with .) or sensitive.
+ */
+function isHiddenOrSensitive(segment: string): boolean {
+  if (!segment) return false;
+  return (
+    segment.startsWith('.') ||
+    sensitiveSubdirectoriesSet.has(segment.toLowerCase())
   );
 }
 
@@ -345,7 +352,7 @@ export function isRestrictedPath(dirPath: string): boolean {
   // We use the same list, but check if the *target* directory itself is sensitive
   // or if we are trying to list inside it.
   // Note: listing /home/user is fine, listing /home/user/.ssh is not.
-  if (segments.some((s) => sensitiveSubdirectoriesSet.has(s.toLowerCase()))) {
+  if (segments.some(isHiddenOrSensitive)) {
     return true;
   }
 
@@ -379,7 +386,7 @@ export function isSensitiveDirectory(dirPath: string): boolean {
 
   // Check against sensitive subdirectories (e.g. .ssh, .env)
   // This prevents adding a sensitive directory (like ~/.ssh) as a media root
-  if (segments.some((s) => sensitiveSubdirectoriesSet.has(s.toLowerCase()))) {
+  if (segments.some(isHiddenOrSensitive)) {
     return true;
   }
 
