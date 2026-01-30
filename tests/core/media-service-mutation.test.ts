@@ -70,7 +70,9 @@ describe('media-service mutation', () => {
     // 2. Execute
     // This calls scanDiskForAlbumsAndCache -> WorkerClient -> returns mockAlbum
     // Then calls enrichAlbumsWithStats (which we want to test)
-    const result = await getAlbumsWithViewCountsAfterScan('ffmpeg');
+    // We do NOT pass 'ffmpeg' to avoid triggering background metadata extraction,
+    // which is not relevant for this test and causes noise due to incomplete mocks.
+    const result = await getAlbumsWithViewCountsAfterScan();
 
     // 3. Verify
     // Check Referential Equality: The result array should contain the SAME album object we mocked.
