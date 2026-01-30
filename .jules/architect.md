@@ -51,3 +51,9 @@
 **Smell:** `handleStreamRequest` in `media-handler.ts` had deep nesting and mixed concerns (authorization vs streaming strategy), making the flow hard to follow.
 **Insight:** Separating the "decision" phase (checking authorization, optimizing for direct file) from the "action" phase (streaming via Ffmpeg or raw) clarifies the intent and reduces complexity.
 **Prevention:** When a handler function performs multiple distinct steps (validate, authorize, optimize, execute), try to extract the "execute" phase into a separate function to keep the high-level flow linear.
+
+## 2026-01-30 - Extracting Environment Logging
+
+**Smell:** Multiple files (`media-scanner.ts`, `database.ts`, `worker-client.ts`) contained repetitive `if (process.env.NODE_ENV !== 'test')` checks around console logging, creating visual noise and duplication.
+**Insight:** Centralizing this logic into a simple `logger` utility reduces clutter and ensures consistent behavior across the application, making the core business logic easier to read.
+**Prevention:** Use the `safeLog`, `safeWarn`, and `safeError` helpers from `core/utils/logger.ts` instead of manual environment checks when logging.

@@ -3,6 +3,7 @@
  */
 
 import { Worker, type WorkerOptions } from 'worker_threads';
+import { safeLog } from './utils/logger.ts';
 
 interface WorkerResponse<T = unknown> {
   id: number;
@@ -118,9 +119,7 @@ export class WorkerClient {
         );
       }
 
-      if (process.env.NODE_ENV !== 'test') {
-        console.log(`[${this.name}] Worker initialized successfully.`);
-      }
+      safeLog(`[${this.name}] Worker initialized successfully.`);
     } catch (error) {
       console.error(
         `[${this.name}] CRITICAL ERROR: Failed to initialize worker:`,

@@ -4,6 +4,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { isSensitiveFilename } from './security.ts';
+import { safeError } from './utils/logger.ts';
 
 export interface FileSystemEntry {
   name: string;
@@ -50,13 +51,11 @@ export async function listDirectory(
 
     return entries;
   } catch (error) {
-    if (process.env.NODE_ENV !== 'test') {
-      console.error(
-        '[file-system.ts] Error listing directory %s:',
-        directoryPath,
-        error,
-      );
-    }
+    safeError(
+      '[file-system.ts] Error listing directory %s:',
+      directoryPath,
+      error,
+    );
     throw error;
   }
 }
