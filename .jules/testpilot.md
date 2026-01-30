@@ -40,7 +40,7 @@ Implemented a callback-based interception mechanism for the `postMessage` mock. 
 
 **Discovery:** `tests/server/server.transcode-limit.test.ts` was using `setTimeout(100)` to wait for concurrent requests to be "in flight", and `setTimeout(500)` in the mock to simulate work. This made the test slow and flaky, relying on timing assumptions.
 
-**Strategy:** Replaced time-based waits with a controlled Promise barrier in the mock. The test now uses `vi.waitUntil` to confirm requests have started and explicitly releases them via a closure, ensuring deterministic execution regardless of system speed.
+**Strategy:** Replaced time-based waits with a controlled Promise barrier in the mock. The test now uses `vi.waitUntil` to confirm requests have started and explicitly releases them via a closure, ensuring deterministic execution and eliminating arbitrary sleeps.
 
 ## 2026-01-28 - Targeted Mocking for Stream Events
 
@@ -53,3 +53,9 @@ Implemented a callback-based interception mechanism for the `postMessage` mock. 
 **Discovery:** Tests in `tests/core/analysis/media-analyzer.test.ts` were using arbitrary `setTimeout` delays to wait for mock process events, and some tests were failing silently (parsing 0 samples) because events were emitted too early.
 
 **Strategy:** Created a `setupMockSpawn` helper that uses a mock implementation to emit events on `setTimeout(..., 0)` (next tick). This ensures listeners are attached before events fire, removes flaky sleeps from test bodies, and guarantees data is actually received and parsed.
+
+## 2026-01-31 - Avoiding Unnecessary Background Tasks in Tests
+
+**Discovery:** `tests/core/media-service-mutation.test.ts` was triggering a background metadata extraction task by passing a generic `'ffmpeg'` string to the function under test. This caused spurious error logs ("No 'getMetadata' export", "ENOENT") because the test environment lacked full filesystem mocks for that background path.
+
+**Strategy:** Modified the test to call `getAlbumsWithViewCountsAfterScan()` without arguments, effectively disabling the irrelevant background task. This silenced the noise and focused the test on its actual goal (verifying in-place album mutation).
