@@ -268,7 +268,6 @@ function hasSensitiveSegments(relativePath: string): boolean {
  * Checks if a path segment is hidden (starts with .) or sensitive.
  */
 function isHiddenOrSensitive(segment: string): boolean {
-  if (!segment) return false;
   return (
     segment.startsWith('.') ||
     sensitiveSubdirectoriesSet.has(segment.toLowerCase())
