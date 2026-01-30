@@ -32,7 +32,6 @@ export default defineConfig(({ mode }) => {
             'cors',
             'ffmpeg-static',
             'dotenv',
-            'hls.js',
           ],
         },
         minify: 'terser',
