@@ -144,28 +144,23 @@ async function generateFileIdsBatched(
  * Checks media_metadata first, then media_views, then falls back to generation (fs.stat).
  */
 async function getExistingIdOrGenerate(filePath: string): Promise<string> {
-  // 1. Check media_metadata
-  try {
-    const row = statements.getFileIdFromMetadata.get(filePath) as
-      | { file_path_hash: string }
-      | undefined;
-    if (row) {
-      return row.file_path_hash;
-    }
-  } catch {
-    // Ignore DB errors
-  }
+  const statementsToTry = [
+    statements.getFileIdFromMetadata,
+    statements.getFileIdByPath,
+  ];
 
-  // 2. Check media_views
-  try {
-    const row = statements.getFileIdByPath.get(filePath) as
-      | { file_path_hash: string }
-      | undefined;
-    if (row) {
-      return row.file_path_hash;
+  for (const stmt of statementsToTry) {
+    try {
+      const row = stmt.get(filePath) as { file_path_hash: string } | undefined;
+      if (row) {
+        return row.file_path_hash;
+      }
+    } catch (error) {
+      console.warn(
+        `[worker] DB error while checking for existing file ID for ${filePath}:`,
+        error,
+      );
     }
-  } catch {
-    // Ignore DB errors
   }
 
   // 3. Generate (fs.stat)
