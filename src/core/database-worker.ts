@@ -139,6 +139,34 @@ async function generateFileIdsBatched(
   return pathIdMap;
 }
 
+/**
+ * Helper to get an existing file ID from the database or generate one if not found.
+ * Checks media_metadata first, then media_views, then falls back to generation (fs.stat).
+ */
+async function getExistingIdOrGenerate(filePath: string): Promise<string> {
+  const statementsToTry = [
+    statements.getFileIdFromMetadata,
+    statements.getFileIdByPath,
+  ];
+
+  for (const stmt of statementsToTry) {
+    try {
+      const row = stmt.get(filePath) as { file_path_hash: string } | undefined;
+      if (row) {
+        return row.file_path_hash;
+      }
+    } catch (error) {
+      console.warn(
+        `[worker] DB error while checking for existing file ID for ${filePath}:`,
+        error,
+      );
+    }
+  }
+
+  // 3. Generate (fs.stat)
+  return generateFileId(filePath);
+}
+
 // Core Worker Functions
 
 /**
@@ -189,6 +217,9 @@ export function initDatabase(dbPath: string): WorkerResult {
     );
     statements.getFileIdByPath = db.prepare(
       `SELECT file_path_hash FROM media_views WHERE file_path = ?`,
+    );
+    statements.getFileIdFromMetadata = db.prepare(
+      `SELECT file_path_hash FROM media_metadata WHERE file_path = ?`,
     );
     statements.cacheAlbum = db.prepare(
       `INSERT OR REPLACE INTO app_cache (cache_key, cache_value, last_updated) VALUES (?, ?, ?)`,
@@ -358,7 +389,7 @@ export async function setRating(
 ): Promise<WorkerResult> {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
-    const fileId = await generateFileId(filePath);
+    const fileId = await getExistingIdOrGenerate(filePath);
     statements.updateRating.run(fileId, rating);
     return { success: true };
   } catch (error: unknown) {
@@ -375,7 +406,7 @@ export async function updateWatchedSegments(
 ): Promise<WorkerResult> {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
-    const fileId = await generateFileId(filePath);
+    const fileId = await getExistingIdOrGenerate(filePath);
     statements.updateWatchedSegments.run(fileId, segmentsJson);
     return { success: true };
   } catch (error: unknown) {
@@ -623,23 +654,7 @@ export async function recordMediaView(filePath: string): Promise<WorkerResult> {
   if (!db) return { success: false, error: 'Database not initialized' };
 
   try {
-    // Optimization: Try to get existing ID from DB to avoid fs.stat
-    let fileId: string | undefined;
-
-    try {
-      const row = statements.getFileIdByPath.get(filePath) as
-        | { file_path_hash: string }
-        | undefined;
-      if (row) {
-        fileId = row.file_path_hash;
-      }
-    } catch {
-      // Ignore DB read errors, fall back to generation
-    }
-
-    if (!fileId) {
-      fileId = await generateFileId(filePath);
-    }
+    const fileId = await getExistingIdOrGenerate(filePath);
 
     const now = new Date().toISOString();
 
