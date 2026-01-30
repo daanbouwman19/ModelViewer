@@ -38,6 +38,24 @@ describe('MediaGridItem.vue', () => {
     expect(button.attributes('aria-label')).toBe('View test.jpg, Image');
   });
 
+  it('renders correct aria-label for single star rating', () => {
+    const item = {
+      path: 'test.jpg',
+      name: 'test.jpg',
+      rating: 1,
+      duration: 0,
+    };
+    const wrapper = mount(MediaGridItem, {
+      props: {
+        ...defaultProps,
+        item,
+      },
+    });
+
+    const button = wrapper.find('button');
+    expect(button.attributes('aria-label')).toBe('View test.jpg, Image, Rated 1 star');
+  });
+
   it('renders correct aria-label for image with rating', () => {
     const item = {
       path: 'test.jpg',

@@ -37,5 +37,5 @@ export const formatDurationForA11y = (seconds: number): string => {
   if (m > 0) parts.push(`${m} minute${m === 1 ? '' : 's'}`);
   if (s > 0) parts.push(`${s} second${s === 1 ? '' : 's'}`);
 
-  return parts.join(' ');
+  return parts.length > 0 ? parts.join(' ') : '0 seconds';
 };

@@ -40,6 +40,10 @@ describe('timeUtils', () => {
       expect(formatDurationForA11y(NaN)).toBe('0 seconds');
     });
 
+    it('formats fractional seconds between 0 and 1 as 0 seconds', () => {
+      expect(formatDurationForA11y(0.5)).toBe('0 seconds');
+    });
+
     it('formats seconds only', () => {
       expect(formatDurationForA11y(30)).toBe('30 seconds');
       expect(formatDurationForA11y(1)).toBe('1 second');

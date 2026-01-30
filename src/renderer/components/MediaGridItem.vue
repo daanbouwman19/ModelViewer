@@ -142,7 +142,9 @@ const ariaLabel = computed(() => {
   }
 
   if (props.item.rating) {
-    parts.push(`Rated ${props.item.rating} stars`);
+    parts.push(
+      `Rated ${props.item.rating} star${props.item.rating === 1 ? '' : 's'}`,
+    );
   }
 
   return parts.join(', ');
