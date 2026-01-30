@@ -5,6 +5,7 @@
 
 import { type WorkerOptions } from 'worker_threads';
 import { FILE_INDEX_CACHE_KEY } from './constants.ts';
+import { safeWarn } from './utils/logger.ts';
 import type {
   Album,
   MediaDirectory,
@@ -66,11 +67,9 @@ async function recordMediaView(filePath: string): Promise<void> {
   try {
     await getClient().sendMessage<void>('recordMediaView', { filePath });
   } catch (error: unknown) {
-    if (process.env.NODE_ENV !== 'test') {
-      console.warn(
-        `[database.js] Error recording media view: ${(error as Error).message}`,
-      );
-    }
+    safeWarn(
+      `[database.js] Error recording media view: ${(error as Error).message}`,
+    );
   }
 }
 
@@ -139,11 +138,9 @@ async function getCachedAlbums(): Promise<Album[] | null> {
       cacheKey: FILE_INDEX_CACHE_KEY,
     });
   } catch (error: unknown) {
-    if (process.env.NODE_ENV !== 'test') {
-      console.warn(
-        `[database.js] Error getting cached albums: ${(error as Error).message}`,
-      );
-    }
+    safeWarn(
+      `[database.js] Error getting cached albums: ${(error as Error).message}`,
+    );
     return null;
   }
 }
@@ -158,9 +155,7 @@ async function closeDatabase(): Promise<void> {
     try {
       await dbWorkerClient.sendMessage<void>('close');
     } catch (error) {
-      if (process.env.NODE_ENV !== 'test') {
-        console.warn('[database.js] Warning during worker shutdown:', error);
-      }
+      safeWarn('[database.js] Warning during worker shutdown:', error);
     } finally {
       await dbWorkerClient.terminate();
       dbWorkerClient = null;

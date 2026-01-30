@@ -18,28 +18,11 @@ import { isDrivePath, getDriveId } from './media-utils.ts';
 import type { Album, MediaFile } from './types.ts';
 import { listDriveFiles } from '../main/google-drive-service.ts';
 import { ConcurrencyLimiter } from './utils/concurrency-limiter.ts';
+import { safeLog, safeError } from './utils/logger.ts';
 
 // Limit concurrent file system scans to avoid EMFILE errors
 // Note: This limit applies only to the `readdir` call itself, not the whole recursion.
 const scanLimiter = new ConcurrencyLimiter(DISK_SCAN_CONCURRENCY);
-
-/**
- * Logs a message only if not in test environment.
- */
-function safeLog(message: string, ...args: unknown[]) {
-  if (process.env.NODE_ENV !== 'test') {
-    console.log(message, ...args);
-  }
-}
-
-/**
- * Logs an error only if not in test environment.
- */
-function safeError(message: string, ...args: unknown[]) {
-  if (process.env.NODE_ENV !== 'test') {
-    console.error(message, ...args);
-  }
-}
 
 /**
  * Processes a single file entry from a directory scan.
