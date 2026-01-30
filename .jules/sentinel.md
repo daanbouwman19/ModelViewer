@@ -65,3 +65,9 @@
 **Vulnerability:** The `media-scanner.ts` descended recursively into all subdirectories, including sensitive ones like `.ssh`, `.git`, and `node_modules`, if they were contained within an allowed media root. This could expose media files hidden in sensitive directories and waste resources.
 **Learning:** Access controls and blocklists must be enforced at every layer of recursion, not just at the entry point. Security checks in file listing APIs (`listDirectory`) do not automatically apply to internal scanning logic.
 **Prevention:** Updated `processDirectoryEntries` in `src/core/media-scanner.ts` to skip directories that start with `.` or match `isSensitiveFilename` before descending.
+
+## 2026-01-30 - Hidden Directory Traversal
+
+**Vulnerability:** The application allowed listing and accessing files within arbitrary hidden directories (e.g., .vscode, .config) because the security check only blocked a specific list of sensitive filenames.
+**Learning:** Blacklisting sensitive directories is insufficient. Hidden directories (starting with .) should be treated as sensitive by default in a media application context.
+**Prevention:** Block all path segments starting with '.' in security validation logic.
