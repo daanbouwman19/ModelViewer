@@ -54,7 +54,7 @@ Implemented a callback-based interception mechanism for the `postMessage` mock. 
 
 **Strategy:** Created a `setupMockSpawn` helper that uses a mock implementation to emit events on `setTimeout(..., 0)` (next tick). This ensures listeners are attached before events fire, removes flaky sleeps from test bodies, and guarantees data is actually received and parsed.
 
-## 2026-01-31 - Avoiding Unnecessary Background Tasks in Tests
+## 2026-01-30 - Avoiding Unnecessary Background Tasks in Tests
 
 **Discovery:** `tests/core/media-service-mutation.test.ts` was triggering a background metadata extraction task by passing a generic `'ffmpeg'` string to the function under test. This caused spurious error logs ("No 'getMetadata' export", "ENOENT") because the test environment lacked full filesystem mocks for that background path.
 
