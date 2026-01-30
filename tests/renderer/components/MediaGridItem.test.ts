@@ -53,7 +53,9 @@ describe('MediaGridItem.vue', () => {
     });
 
     const button = wrapper.find('button');
-    expect(button.attributes('aria-label')).toBe('View test.jpg, Image, Rated 1 star');
+    expect(button.attributes('aria-label')).toBe(
+      'View test.jpg, Image, Rated 1 star',
+    );
   });
 
   it('renders correct aria-label for image with rating', () => {
