@@ -25,15 +25,7 @@ export default defineConfig(({ mode }) => {
           output: {
             entryFileNames: '[name].js',
           },
-          external: [
-            /^node:/,
-            'better-sqlite3',
-            'express',
-            'cors',
-            'ffmpeg-static',
-            'dotenv',
-            'hls.js',
-          ],
+          external: [/^node:/, 'better-sqlite3', 'ffmpeg-static'],
         },
         minify: 'terser',
         sourcemap: 'hidden',
