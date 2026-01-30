@@ -100,3 +100,8 @@
 
 **Learning:** Users can accidentally remove media sources if the action is immediate.
 **Action:** Implemented a two-step confirmation (Remove -> Confirm/Cancel) inline to prevent data loss or unwanted re-indexing without being intrusive.
+
+## 2026-01-30 - [Detailed Grid Item Accessibility]
+
+**Learning:** In a grid of media items, a simple "View [Name]" label is insufficient for screen reader users to make informed decisions. They need to know the media type (Image/Video), duration (if video), and rating without opening the item.
+**Action:** Construct detailed `aria-label`s for grid items that include Type, Duration, and Rating (e.g., "View [Name], Video, 3 minutes 20 seconds, Rated 4 stars"). Use a reusable helper for friendly duration formatting.

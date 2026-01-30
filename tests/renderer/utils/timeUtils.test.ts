@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { formatTime } from '../../../src/renderer/utils/timeUtils';
+import {
+  formatTime,
+  formatDurationForA11y,
+} from '../../../src/renderer/utils/timeUtils';
 
 describe('timeUtils', () => {
   describe('formatTime', () => {
@@ -27,6 +30,33 @@ describe('timeUtils', () => {
     it('handles decimal seconds by flooring', () => {
       // The implementation uses Math.floor, so 60.9 should be 01:00
       expect(formatTime(60.9)).toBe('01:00');
+    });
+  });
+
+  describe('formatDurationForA11y', () => {
+    it('formats 0 or invalid seconds', () => {
+      expect(formatDurationForA11y(0)).toBe('0 seconds');
+      expect(formatDurationForA11y(-10)).toBe('0 seconds');
+      expect(formatDurationForA11y(NaN)).toBe('0 seconds');
+    });
+
+    it('formats fractional seconds between 0 and 1 as 0 seconds', () => {
+      expect(formatDurationForA11y(0.5)).toBe('0 seconds');
+    });
+
+    it('formats seconds only', () => {
+      expect(formatDurationForA11y(30)).toBe('30 seconds');
+      expect(formatDurationForA11y(1)).toBe('1 second');
+    });
+
+    it('formats minutes and seconds', () => {
+      expect(formatDurationForA11y(65)).toBe('1 minute 5 seconds');
+      expect(formatDurationForA11y(120)).toBe('2 minutes');
+    });
+
+    it('formats hours, minutes, and seconds', () => {
+      expect(formatDurationForA11y(3665)).toBe('1 hour 1 minute 5 seconds');
+      expect(formatDurationForA11y(7200)).toBe('2 hours');
     });
   });
 });

@@ -2,7 +2,7 @@
   <button
     type="button"
     class="relative group grid-item cursor-pointer w-full h-full text-left bg-transparent border-0 p-0 block focus:outline-none focus:ring-2 focus:ring-pink-500 rounded overflow-hidden"
-    :aria-label="`View ${displayName}`"
+    :aria-label="ariaLabel"
     :title="displayName"
     @click="$emit('click', item)"
   >
@@ -84,7 +84,7 @@ import {
   isMediaFileImage,
   isMediaFileVideo,
 } from '../utils/mediaUtils';
-import { formatTime } from '../utils/timeUtils';
+import { formatTime, formatDurationForA11y } from '../utils/timeUtils';
 
 const props = defineProps<{
   item: MediaFile;
@@ -128,6 +128,27 @@ const posterUrl = computed(() => {
 });
 
 const displayName = computed(() => getDisplayName(props.item));
+
+const ariaLabel = computed(() => {
+  const parts = [`View ${displayName.value}`];
+
+  if (isVideo.value) {
+    parts.push('Video');
+    if (props.item.duration) {
+      parts.push(formatDurationForA11y(props.item.duration));
+    }
+  } else if (isImage.value) {
+    parts.push('Image');
+  }
+
+  if (props.item.rating) {
+    parts.push(
+      `Rated ${props.item.rating} star${props.item.rating === 1 ? '' : 's'}`,
+    );
+  }
+
+  return parts.join(', ');
+});
 
 const hasFailed = computed(() => props.failedImagePaths.has(props.item.path));
 
