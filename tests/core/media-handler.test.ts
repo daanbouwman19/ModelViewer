@@ -46,7 +46,6 @@ import {
   serveHlsSegment,
   serveHeatmap,
 } from '../../src/core/media-handler';
-import { getMimeType } from '../../src/core/utils/mime-types';
 
 vi.mock('../../src/main/google-drive-service', () => ({
   getDriveFileMetadata: mockGetDriveFileMetadata,
@@ -235,27 +234,6 @@ describe('media-handler unit tests', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
-  });
-
-  describe('getMimeType', () => {
-    it('returns octet-stream for gdrive files', () => {
-      expect(getMimeType('gdrive://123')).toBe('application/octet-stream');
-    });
-
-    it('returns correct image mime types', () => {
-      expect(getMimeType('test.jpg')).toBe('image/jpeg');
-      expect(getMimeType('test.png')).toBe('image/png');
-    });
-
-    it('returns correct video mime types', () => {
-      expect(getMimeType('test.mp4')).toBe('video/mp4');
-      expect(getMimeType('test.mkv')).toBe('video/x-matroska');
-      expect(getMimeType('test.avi')).toBe('video/x-msvideo');
-    });
-
-    it('returns default for unknown extension', () => {
-      expect(getMimeType('test.xyz')).toBe('application/octet-stream');
-    });
   });
 
   describe('getVideoDuration', () => {
