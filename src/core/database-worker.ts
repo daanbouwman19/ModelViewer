@@ -326,10 +326,26 @@ export function initDatabase(dbPath: string): WorkerResult {
       `SELECT file_path, view_count FROM media_views`,
     );
     statements.getMetadataBatch = db.prepare(
-      `SELECT * FROM media_metadata WHERE file_path_hash IN (${placeholders})`,
+      `SELECT
+        file_path,
+        duration,
+        size,
+        created_at as createdAt,
+        rating,
+        extraction_status as status,
+        watched_segments as watchedSegments
+       FROM media_metadata WHERE file_path_hash IN (${placeholders})`,
     );
+    // Optimization: Select only necessary columns and alias them to match MediaMetadata interface
     statements.getAllMetadata = db.prepare(
-      `SELECT * FROM media_metadata WHERE file_path IS NOT NULL`,
+      `SELECT
+        file_path,
+        duration,
+        size,
+        created_at as createdAt,
+        rating,
+        extraction_status as status
+       FROM media_metadata WHERE file_path IS NOT NULL`,
     );
 
     statements.getFileIdsByPathsBatch = db.prepare(

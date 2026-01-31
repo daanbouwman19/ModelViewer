@@ -667,7 +667,7 @@ describe('Database Worker', () => {
         filePaths: [filePath],
       });
       const meta = (getRes.data as any)[filePath];
-      expect(meta.extraction_status).toBe('completed');
+      expect(meta.status).toBe('completed');
       expect(meta.size).toBe(1024);
     });
   });
