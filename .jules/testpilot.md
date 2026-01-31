@@ -59,3 +59,9 @@ Implemented a callback-based interception mechanism for the `postMessage` mock. 
 **Discovery:** `tests/core/media-service-mutation.test.ts` was triggering a background metadata extraction task by passing a generic `'ffmpeg'` string to the function under test. This caused spurious error logs ("No 'getMetadata' export", "ENOENT") because the test environment lacked full filesystem mocks for that background path.
 
 **Strategy:** Modified the test to call `getAlbumsWithViewCountsAfterScan()` without arguments, effectively disabling the irrelevant background task. This silenced the noise and focused the test on its actual goal (verifying in-place album mutation).
+
+## 2026-01-31 - Deterministic Background Task Testing
+
+**Discovery:** `tests/core/media-service.test.ts` was using `setTimeout(10)` to wait for an unawaited background promise (metadata extraction) to fail and log an error. This introduced potential race conditions and unnecessary delays.
+
+**Strategy:** Replaced `setTimeout` with `vi.waitFor`. This utility repeatedly asserts the expectation until it passes or times out, ensuring the test waits exactly as long as needed for the background task to complete its side effect (logging to console), making the test deterministic and robust.

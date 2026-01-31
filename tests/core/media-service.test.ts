@@ -377,13 +377,12 @@ describe('media-service', () => {
 
       // This is background async work, we still need to wait for it.
       // But we can avoid setTimeout by using a smarter approach if possible.
-      // For now, since it runs *after* the main promise resolves and is unawaited by the main function,
-      // we do need to wait for the microtasks or a small delay.
-      await new Promise((resolve) => setTimeout(resolve, 10));
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Background metadata extraction failed'),
-        expect.any(Error),
-      );
+      await vi.waitFor(() => {
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Background metadata extraction failed'),
+          expect.any(Error),
+        );
+      });
       consoleErrorSpy.mockRestore();
     });
   });
