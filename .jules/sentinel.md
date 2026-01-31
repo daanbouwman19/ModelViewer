@@ -72,7 +72,7 @@
 **Learning:** Blacklisting sensitive directories is insufficient. Hidden directories (starting with .) should be treated as sensitive by default in a media application context.
 **Prevention:** Block all path segments starting with '.' in security validation logic.
 
-## 2026-02-05 - Unbounded Path Length DoS
+## 2026-01-31 - Unbounded Path Length DoS
 
 **Vulnerability:** The `authorizeFilePath` function lacked input length validation, allowing attackers to submit excessively long paths (e.g., 10MB strings). This could lead to CPU exhaustion or ReDoS when processing regexes or filesystem operations on these inputs.
 **Learning:** Security validation must occur before any complex processing. Input constraints (like length limits) should be enforced as early as possible, especially for inputs that are used in system calls or regex matching.
