@@ -51,7 +51,10 @@
               ? 'text-(--accent-color)'
               : 'text-white/30 hover:text-white/70'
           "
-          :aria-label="`Rate ${star} ${star === 1 ? 'star' : 'stars'}`"
+          :aria-label="`Rate ${star} ${star === 1 ? 'star' : 'stars'}${
+            (currentMediaItem?.rating || 0) === star ? ', current rating' : ''
+          }`"
+          :aria-pressed="(currentMediaItem?.rating || 0) === star"
           :title="`Rate ${star} ${star === 1 ? 'star' : 'stars'}`"
           @click="$emit('set-rating', star)"
         >
@@ -92,6 +95,7 @@
         }"
         title="Toggle VR Mode (180°)"
         aria-label="Toggle VR Mode"
+        :aria-pressed="isVrMode"
         @click="$emit('toggle-vr')"
       >
         <VRIcon class="w-5 h-5 md:w-6 md:h-6" />
