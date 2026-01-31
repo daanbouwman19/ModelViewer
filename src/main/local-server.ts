@@ -5,7 +5,7 @@
 import http from 'http';
 import { AddressInfo } from 'net';
 import { createMediaApp } from '../core/media-handler';
-import { getMimeType as coreGetMimeType } from '../core/media-utils';
+import { getMimeType as coreGetMimeType } from '../core/utils/mime-types';
 
 /**
  * Holds the singleton instance of the HTTP server.

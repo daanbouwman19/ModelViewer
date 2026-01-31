@@ -3,7 +3,6 @@ import {
   isDrivePath,
   getDriveId,
   createDrivePath,
-  getMimeType,
   getThumbnailCachePath,
   checkThumbnailCache,
 } from '../../src/core/media-utils';
@@ -40,30 +39,6 @@ describe('media-utils unit tests', () => {
 
     it('createDrivePath creates correct path', () => {
       expect(createDrivePath('123')).toBe('gdrive://123');
-    });
-  });
-
-  describe('getMimeType', () => {
-    it('returns octet-stream for drive paths', () => {
-      expect(getMimeType('gdrive://123')).toBe('application/octet-stream');
-    });
-
-    it('returns correct mime type for supported images', () => {
-      expect(getMimeType('test.jpg')).toBe('image/jpeg');
-      expect(getMimeType('test.jpeg')).toBe('image/jpeg');
-    });
-
-    it('returns correct mime type for supported videos', () => {
-      expect(getMimeType('test.mp4')).toBe('video/mp4');
-      expect(getMimeType('test.mkv')).toBe('video/x-matroska');
-    });
-
-    it('returns octet-stream for unknown extensions', () => {
-      expect(getMimeType('test.unknown')).toBe('application/octet-stream');
-    });
-
-    it('handles mixed case extensions', () => {
-      expect(getMimeType('test.MP4')).toBe('video/mp4');
     });
   });
 

@@ -4,7 +4,8 @@ import path from 'path';
 import { Readable } from 'stream';
 import { FileSystemProvider, FileMetadata } from '../fs-provider';
 import { FileSystemEntry, listDirectory } from '../file-system';
-import { getMimeType, isDrivePath } from '../media-utils';
+import { isDrivePath } from '../media-utils';
+import { getMimeType } from '../utils/mime-types';
 
 export class LocalFileSystemProvider implements FileSystemProvider {
   canHandle(filePath: string): boolean {

@@ -57,3 +57,9 @@
 **Smell:** Multiple files (`media-scanner.ts`, `database.ts`, `worker-client.ts`) contained repetitive `if (process.env.NODE_ENV !== 'test')` checks around console logging, creating visual noise and duplication.
 **Insight:** Centralizing this logic into a simple `logger` utility reduces clutter and ensures consistent behavior across the application, making the core business logic easier to read.
 **Prevention:** Use the `safeLog`, `safeWarn`, and `safeError` helpers from `core/utils/logger.ts` instead of manual environment checks when logging.
+
+## 2026-01-31 - Extracting MIME Type Logic
+
+**Smell:** `media-utils.ts` was becoming a "Kitchen Sink" for unrelated utility functions (Google Drive paths, MIME types, thumbnail caching).
+**Insight:** MIME type determination is a specific domain concern that shouldn't be mixed with platform-specific path handling or caching logic. Separating it clarifies dependencies and makes it easier to extend supported types.
+**Prevention:** When a utility file starts accumulating functions for different domains (e.g. "Path utils" vs "Format utils"), split them into dedicated files.

@@ -46,7 +46,7 @@ import {
   serveHlsSegment,
   serveHeatmap,
 } from '../../src/core/media-handler';
-import { getMimeType } from '../../src/core/media-utils';
+import { getMimeType } from '../../src/core/utils/mime-types';
 
 vi.mock('../../src/main/google-drive-service', () => ({
   getDriveFileMetadata: mockGetDriveFileMetadata,
