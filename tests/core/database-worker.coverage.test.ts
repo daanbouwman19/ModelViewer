@@ -68,12 +68,12 @@ describe('database-worker coverage (exported functions)', () => {
     const data = result.data as any;
 
     expect(data['/vid1.mp4']).toMatchObject({
-      file_path: '/vid1.mp4',
+      filePath: '/vid1.mp4',
       duration: 100,
       size: 5000,
     });
     expect(data['/vid2.mp4']).toMatchObject({
-      file_path: '/vid2.mp4',
+      filePath: '/vid2.mp4',
       rating: 5,
     });
   });
