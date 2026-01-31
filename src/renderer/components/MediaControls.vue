@@ -51,10 +51,9 @@
               ? 'text-(--accent-color)'
               : 'text-white/30 hover:text-white/70'
           "
-          :aria-label="
-            `Rate ${star} ${star === 1 ? 'star' : 'stars'}` +
-            ((currentMediaItem?.rating || 0) === star ? ', current rating' : '')
-          "
+          :aria-label="`Rate ${star} ${star === 1 ? 'star' : 'stars'}${
+            (currentMediaItem?.rating || 0) === star ? ', current rating' : ''
+          }`"
           :aria-pressed="(currentMediaItem?.rating || 0) === star"
           :title="`Rate ${star} ${star === 1 ? 'star' : 'stars'}`"
           @click="$emit('set-rating', star)"

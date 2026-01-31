@@ -106,7 +106,7 @@
 **Learning:** In a grid of media items, a simple "View [Name]" label is insufficient for screen reader users to make informed decisions. They need to know the media type (Image/Video), duration (if video), and rating without opening the item.
 **Action:** Construct detailed `aria-label`s for grid items that include Type, Duration, and Rating (e.g., "View [Name], Video, 3 minutes 20 seconds, Rated 4 stars"). Use a reusable helper for friendly duration formatting.
 
-## 2026-02-17 - [Accessible Toggle Buttons]
+## 2026-01-31 - [Accessible Toggle Buttons]
 
 **Learning:** Buttons that toggle a state (like VR Mode) but aren't checkboxes often lack state communication, leaving screen reader users guessing if the mode is on or off.
 **Action:** Always add `aria-pressed` (bound to the boolean state) to toggle buttons to explicitly communicate their active state.
