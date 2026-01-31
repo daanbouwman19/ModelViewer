@@ -254,6 +254,12 @@ const GRID_BREAKPOINT_XL = 1280;
  */
 const WORKER_SCAN_TIMEOUT_MS = 86400000;
 
+/**
+ * Maximum length of a file path to process.
+ * Used to prevent potential DoS or ReDoS with extremely long paths.
+ */
+const MAX_PATH_LENGTH = 4096;
+
 export {
   GDRIVE_PROTOCOL,
   MAX_DATA_URL_SIZE_MB,
@@ -294,4 +300,5 @@ export {
   GRID_BREAKPOINT_LG,
   GRID_BREAKPOINT_XL,
   WORKER_SCAN_TIMEOUT_MS,
+  MAX_PATH_LENGTH,
 };

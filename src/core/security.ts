@@ -5,6 +5,7 @@ import { isDrivePath } from './media-utils.ts';
 import {
   SENSITIVE_SUBDIRECTORIES,
   WINDOWS_RESTRICTED_ROOT_PATHS,
+  MAX_PATH_LENGTH,
 } from './constants.ts';
 
 export interface AuthorizationResult {
@@ -124,6 +125,12 @@ function validateInput(filePath: string): AuthorizationResult | null {
   ) {
     return { isAllowed: false, message: 'Invalid file path' };
   }
+
+  if (filePath.length > MAX_PATH_LENGTH) {
+    console.warn(`[Security] Rejected overly long file path (${filePath.length} chars)`);
+    return { isAllowed: false, message: 'Invalid file path (too long)' };
+  }
+
   return null;
 }
 
