@@ -6,7 +6,8 @@ import { getDriveStreamWithCache } from './drive-stream.ts';
 import { authorizeFilePath, AuthorizationResult } from './security.ts';
 import { InternalMediaProxy } from './media-proxy.ts';
 import { IMediaSource } from './media-source-types.ts';
-import { getMimeType, isDrivePath, getDriveId } from './media-utils.ts';
+import { isDrivePath, getDriveId } from './media-utils.ts';
+import { getMimeType } from './utils/mime-types.ts';
 
 export class LocalMediaSource implements IMediaSource {
   private authResult: Promise<AuthorizationResult> | undefined;

@@ -12,6 +12,7 @@ import request from 'supertest';
 import { createApp } from '../../src/server/server.ts';
 import * as security from '../../src/core/security.ts';
 import * as mediaUtils from '../../src/core/media-utils.ts';
+import * as mimeTypes from '../../src/core/utils/mime-types.ts';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
@@ -20,6 +21,7 @@ import os from 'os';
 vi.mock('../../src/core/database.ts');
 vi.mock('../../src/core/security.ts');
 vi.mock('../../src/core/media-utils.ts');
+vi.mock('../../src/core/utils/mime-types.ts');
 
 vi.mock('../../src/core/media-service.ts', () => ({
   getAlbumsWithViewCounts: vi.fn(),
@@ -60,7 +62,7 @@ describe('Server Security: Thumbnail IDOR Protection', () => {
     // But since we mocked the module, we must mock the return value.
     (mediaUtils.checkThumbnailCache as any).mockResolvedValue(false);
     (mediaUtils.isDrivePath as any).mockReturnValue(false);
-    (mediaUtils.getMimeType as any).mockReturnValue('image/jpeg');
+    (mimeTypes.getMimeType as any).mockReturnValue('image/jpeg');
     // Ensure getQueryParam behaves correctly if used by server or handler
     (mediaUtils as any).getQueryParam = vi
       .fn()

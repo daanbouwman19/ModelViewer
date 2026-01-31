@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { LocalFileSystemProvider } from '../../../src/core/providers/local-provider';
 import { listDirectory } from '../../../src/core/file-system';
-import { getMimeType, isDrivePath } from '../../../src/core/media-utils';
+import { isDrivePath } from '../../../src/core/media-utils';
+import { getMimeType } from '../../../src/core/utils/mime-types';
 import fs from 'fs';
 import fsPromises from 'fs/promises';
 import path from 'path';
@@ -12,8 +13,11 @@ vi.mock('../../../src/core/file-system', () => ({
 }));
 
 vi.mock('../../../src/core/media-utils', () => ({
-  getMimeType: vi.fn(),
   isDrivePath: vi.fn(),
+}));
+
+vi.mock('../../../src/core/utils/mime-types', () => ({
+  getMimeType: vi.fn(),
 }));
 
 // REMOVED vi.mock('fs') and vi.mock('fs/promises')

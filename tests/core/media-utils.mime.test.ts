@@ -3,8 +3,8 @@ import {
   isDrivePath,
   getDriveId,
   createDrivePath,
-  getMimeType,
 } from '../../src/core/media-utils';
+import { getMimeType } from '../../src/core/utils/mime-types';
 import { GDRIVE_PROTOCOL } from '../../src/core/constants';
 
 describe('media-utils MIME and Drive Path tests', () => {
