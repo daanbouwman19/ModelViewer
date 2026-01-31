@@ -127,7 +127,9 @@ function validateInput(filePath: string): AuthorizationResult | null {
   }
 
   if (filePath.length > MAX_PATH_LENGTH) {
-    console.warn(`[Security] Rejected overly long file path (${filePath.length} chars)`);
+    console.warn(
+      `[Security] Rejected overly long file path (${filePath.length} chars)`,
+    );
     return { isAllowed: false, message: 'Invalid file path (too long)' };
   }
 
