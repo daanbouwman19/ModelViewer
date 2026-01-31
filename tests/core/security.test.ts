@@ -8,6 +8,7 @@ import {
 import path from 'path';
 import fs from 'fs/promises';
 import * as database from '../../src/core/database';
+import { MAX_PATH_LENGTH } from '../../src/core/constants';
 
 vi.mock('fs/promises', () => {
   return {
@@ -139,6 +140,18 @@ describe('authorizeFilePath Security', () => {
     const resultSsh = await authorizeFilePath('id_rsa');
     expect(resultSsh.isAllowed).toBe(false);
     expect(resultSsh.message).toBe('Access to sensitive file denied');
+  });
+
+  it('rejects overly long file paths (DoS prevention)', async () => {
+    const longPath = 'a'.repeat(MAX_PATH_LENGTH + 1);
+    const result = await authorizeFilePath(longPath);
+    expect(result.isAllowed).toBe(false);
+    expect(result.message).toBe('Invalid file path (too long)');
+
+    // Path within limit should proceed to other checks (e.g. access denied)
+    const okPath = 'a'.repeat(MAX_PATH_LENGTH);
+    const resultOk = await authorizeFilePath(okPath);
+    expect(resultOk.message).not.toBe('Invalid file path (too long)');
   });
 });
 
