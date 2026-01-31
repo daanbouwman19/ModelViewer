@@ -1,7 +1,9 @@
-
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import Database from 'better-sqlite3';
-import { initializeSchema, migrateMediaMetadata } from '../../src/core/database-schema';
+import {
+  initializeSchema,
+  migrateMediaMetadata,
+} from '../../src/core/database-schema';
 
 describe('Database Schema vs Application Types', () => {
   let db: Database.Database;
@@ -22,26 +24,42 @@ describe('Database Schema vs Application Types', () => {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    insertStmt.run('hash1', '/path/to/file.mp4', 120, 1024, '2023-01-01T00:00:00.000Z', 5, 'success', null);
+    insertStmt.run(
+      'hash1',
+      '/path/to/file.mp4',
+      120,
+      1024,
+      '2023-01-01T00:00:00.000Z',
+      5,
+      'success',
+      null,
+    );
 
     // This query simulates the fix we are applying in database-worker.ts
-    const row = db.prepare(`
+    const row = db
+      .prepare(
+        `
       SELECT
-        file_path,
+        file_path as filePath,
         duration,
         size,
         created_at as createdAt,
         rating,
-        extraction_status as status
+        extraction_status as status,
+        watched_segments as watchedSegments
       FROM media_metadata WHERE file_path = ?
-    `).get('/path/to/file.mp4') as any;
-
-    console.log('Row keys:', Object.keys(row));
+    `,
+      )
+      .get('/path/to/file.mp4') as any;
 
     expect(row).toHaveProperty('createdAt');
     expect(row).not.toHaveProperty('created_at');
     expect(row).toHaveProperty('status');
     expect(row).not.toHaveProperty('extraction_status');
+    expect(row).toHaveProperty('filePath');
+    expect(row).not.toHaveProperty('file_path');
+    expect(row).toHaveProperty('watchedSegments');
+    expect(row).not.toHaveProperty('watched_segments');
     expect(row.createdAt).toBe('2023-01-01T00:00:00.000Z');
     expect(row.status).toBe('success');
   });

@@ -327,7 +327,7 @@ export function initDatabase(dbPath: string): WorkerResult {
     );
     statements.getMetadataBatch = db.prepare(
       `SELECT
-        file_path,
+        file_path as filePath,
         duration,
         size,
         created_at as createdAt,
@@ -339,12 +339,13 @@ export function initDatabase(dbPath: string): WorkerResult {
     // Optimization: Select only necessary columns and alias them to match MediaMetadata interface
     statements.getAllMetadata = db.prepare(
       `SELECT
-        file_path,
+        file_path as filePath,
         duration,
         size,
         created_at as createdAt,
         rating,
-        extraction_status as status
+        extraction_status as status,
+        watched_segments as watchedSegments
        FROM media_metadata WHERE file_path IS NOT NULL`,
     );
 
@@ -478,14 +479,14 @@ export function getAllMetadata(): WorkerResult {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
     const rows = statements.getAllMetadata.all() as {
-      file_path: string;
+      filePath: string;
       [key: string]: unknown;
     }[];
 
     const metadataMap: { [key: string]: unknown } = {};
     for (const row of rows) {
-      if (row.file_path) {
-        metadataMap[row.file_path] = row;
+      if (row.filePath) {
+        metadataMap[row.filePath] = row;
       }
     }
 
@@ -514,11 +515,11 @@ export async function getMetadata(filePaths: string[]): Promise<WorkerResult> {
       const batchIds = allFileIds.slice(i, i + SQL_BATCH_SIZE);
       if (batchIds.length === 0) continue;
 
-      let rows: { file_path: string; [key: string]: unknown }[];
+      let rows: { filePath: string; [key: string]: unknown }[];
 
       if (batchIds.length === SQL_BATCH_SIZE) {
         rows = statements.getMetadataBatch.all(...batchIds) as {
-          file_path: string;
+          filePath: string;
           [key: string]: unknown;
         }[];
       } else {
@@ -527,14 +528,14 @@ export async function getMetadata(filePaths: string[]): Promise<WorkerResult> {
           args[k] = batchIds[k];
         }
         rows = statements.getMetadataBatch.all(...args) as {
-          file_path: string;
+          filePath: string;
           [key: string]: unknown;
         }[];
       }
 
       for (const row of rows) {
-        if (row && row.file_path) {
-          metadataMap[row.file_path] = row;
+        if (row && row.filePath) {
+          metadataMap[row.filePath] = row;
         }
       }
     }
