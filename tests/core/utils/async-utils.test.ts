@@ -61,7 +61,7 @@ describe('async-utils', () => {
       expect(shouldRetry).toHaveBeenCalledWith(new Error('fail'));
     });
 
-    it('should pass correct delays to onRetry', async () => {
+    it('should pass correct retriesRemaining and delay to onRetry', async () => {
       const fn = vi.fn().mockRejectedValue(new Error('fail'));
       const onRetry = vi.fn();
 
@@ -74,7 +74,9 @@ describe('async-utils', () => {
         });
       } catch {}
 
+      // First retry: 2 retries remaining, delay 100
       expect(onRetry).toHaveBeenNthCalledWith(1, expect.anything(), 2, 100);
+      // Second retry: 1 retry remaining, delay 200
       expect(onRetry).toHaveBeenNthCalledWith(2, expect.anything(), 1, 200);
     });
   });

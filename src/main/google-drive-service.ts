@@ -9,10 +9,11 @@ const DRIVE_RETRY_OPTIONS = {
   shouldRetry: (error: unknown) => {
     const err = error as { code?: number };
     return (
-      err.code === 429 || (!!err.code && err.code >= 500 && err.code < 600)
+      err.code === 429 ||
+      (typeof err.code === 'number' && err.code >= 500 && err.code < 600)
     );
   },
-  onRetry: (error: unknown, _attempt: number, delay: number) => {
+  onRetry: (error: unknown, _retriesRemaining: number, delay: number) => {
     const err = error as { code?: number };
     console.warn(
       `[GoogleDrive] Rate limited or server error (${err.code}). Retrying in ${delay}ms...`,

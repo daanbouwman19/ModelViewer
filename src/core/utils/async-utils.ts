@@ -10,8 +10,13 @@ export interface RetryOptions {
   factor?: number;
   /** Predicate to determine if an error should trigger a retry. Default: always true */
   shouldRetry?: (error: unknown) => boolean;
-  /** Callback executed before retrying. */
-  onRetry?: (error: unknown, attempt: number, delay: number) => void;
+  /**
+   * Callback executed before retrying.
+   * @param error The error that caused the retry.
+   * @param retriesRemaining The number of retries remaining.
+   * @param delay The delay (ms) before the next attempt.
+   */
+  onRetry?: (error: unknown, retriesRemaining: number, delay: number) => void;
 }
 
 /**
