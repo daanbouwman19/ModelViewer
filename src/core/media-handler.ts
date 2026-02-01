@@ -654,12 +654,10 @@ export async function generateFileUrl(
     const { serverPort, preferHttp } = options;
     const provider = getProvider(filePath);
 
-    // [SECURITY] Check access for local files
-    if (!isDrivePath(filePath)) {
-      const auth = await authorizeFilePath(filePath);
-      if (!auth.isAllowed)
-        return { type: 'error', message: auth.message || 'Access denied' };
-    }
+    // [SECURITY] Check access for all files (local and drive)
+    const auth = await authorizeFilePath(filePath);
+    if (!auth.isAllowed)
+      return { type: 'error', message: auth.message || 'Access denied' };
 
     const meta = await provider.getMetadata(filePath);
     const isLarge = meta.size > DATA_URL_THRESHOLD_MB * 1024 * 1024;
