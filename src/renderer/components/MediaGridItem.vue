@@ -26,22 +26,34 @@
           />
         </svg>
       </div>
+      <div
+        v-if="isLoading && !hasFailed"
+        class="absolute inset-0 bg-gray-800 animate-pulse rounded z-10"
+      ></div>
       <img
-        v-else
+        v-if="!hasFailed"
         :src="mediaUrl"
         alt=""
-        class="h-full w-full object-cover rounded"
+        class="h-full w-full object-cover rounded transition-opacity duration-300"
+        :class="{ 'opacity-0': isLoading }"
         loading="lazy"
+        @load="isLoading = false"
         @error="handleImageError"
       />
     </template>
     <template v-else-if="isVideo">
       <!-- Bolt Optimization: Use img for video thumbnails to save memory/CPU -->
+      <div
+        v-if="isLoading && posterUrl && !posterFailed"
+        class="absolute inset-0 bg-gray-800 animate-pulse rounded z-10"
+      ></div>
       <img
         v-if="posterUrl && !posterFailed"
         :src="posterUrl"
-        class="h-full w-full object-cover rounded block"
+        class="h-full w-full object-cover rounded block transition-opacity duration-300"
+        :class="{ 'opacity-0': isLoading }"
         loading="lazy"
+        @load="isLoading = false"
         @error="handlePosterError"
       />
       <video
@@ -170,9 +182,11 @@ const handleImageError = (event: Event) => {
 };
 
 const posterFailed = ref(false);
+const isLoading = ref(true);
 
 const handlePosterError = () => {
   posterFailed.value = true;
+  isLoading.value = false; // Stop loading if poster fails so video can show
 };
 
 // Reset posterFailed when item changes (RecycleScroller reuse)
@@ -180,6 +194,7 @@ watch(
   () => props.item.path,
   () => {
     posterFailed.value = false;
+    isLoading.value = true;
   },
 );
 </script>
