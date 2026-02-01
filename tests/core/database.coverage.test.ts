@@ -84,15 +84,29 @@ describe('Database Core Coverage', () => {
   it('sendMessageToWorker handles timeout', async () => {
     await initTestDb();
 
-    // Set short timeout
-    database.setOperationTimeout(100);
+    vi.useFakeTimers();
+    try {
+      // Set timeout
+      const timeoutMs = 5000;
+      database.setOperationTimeout(timeoutMs);
 
-    // Call an operation but don't reply from worker
-    // use addMediaDirectory which throws
-    const opPromise = database.addMediaDirectory('test');
+      // Call an operation but don't reply from worker
+      // use addMediaDirectory which throws
+      const opPromise = database.addMediaDirectory('test');
 
-    // Wait for timeout
-    await expect(opPromise).rejects.toThrow('Worker operation timed out');
+      // Attach handler before advancing time to avoid unhandled rejection warning
+      const expectPromise = expect(opPromise).rejects.toThrow(
+        'Worker operation timed out',
+      );
+
+      // Advance time
+      await vi.advanceTimersByTimeAsync(timeoutMs + 100);
+
+      // Wait for timeout
+      await expectPromise;
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('sendMessageToWorker handles worker postMessage exception', async () => {
