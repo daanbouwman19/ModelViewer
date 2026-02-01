@@ -6,6 +6,12 @@
     :title="displayName"
     @click="$emit('click', item)"
   >
+    <!-- Skeleton Loader -->
+    <div
+      v-if="showSkeleton"
+      class="absolute inset-0 bg-gray-800 animate-pulse rounded z-10"
+    ></div>
+
     <template v-if="isImage">
       <div
         v-if="hasFailed"
@@ -26,10 +32,6 @@
           />
         </svg>
       </div>
-      <div
-        v-if="isLoading && !hasFailed"
-        class="absolute inset-0 bg-gray-800 animate-pulse rounded z-10"
-      ></div>
       <img
         v-if="!hasFailed"
         :src="mediaUrl"
@@ -43,10 +45,6 @@
     </template>
     <template v-else-if="isVideo">
       <!-- Bolt Optimization: Use img for video thumbnails to save memory/CPU -->
-      <div
-        v-if="isLoading && posterUrl && !posterFailed"
-        class="absolute inset-0 bg-gray-800 animate-pulse rounded z-10"
-      ></div>
       <img
         v-if="posterUrl && !posterFailed"
         :src="posterUrl"
@@ -163,6 +161,17 @@ const ariaLabel = computed(() => {
 });
 
 const hasFailed = computed(() => props.failedImagePaths.has(props.item.path));
+
+const showSkeleton = computed(() => {
+  if (!isLoading.value) return false;
+  if (isImage.value) {
+    return !hasFailed.value;
+  }
+  if (isVideo.value) {
+    return !!posterUrl.value && !posterFailed.value;
+  }
+  return false;
+});
 
 const handleImageError = (event: Event) => {
   if (!props.mediaUrlGenerator || hasFailed.value) return;
