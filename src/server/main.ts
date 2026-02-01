@@ -46,17 +46,17 @@ export async function bootstrap() {
 
   const app = await createApp();
   const host = process.env.HOST || DEFAULT_SERVER_HOST;
-  let port = process.env.PORT
-    ? parseInt(process.env.PORT, 10)
-    : DEFAULT_SERVER_PORT;
+  let port = DEFAULT_SERVER_PORT;
 
-  if (isNaN(port) || port <= 0) {
-    if (process.env.PORT) {
+  if (process.env.PORT) {
+    const parsedPort = parseInt(process.env.PORT, 10);
+    if (!isNaN(parsedPort) && parsedPort > 0 && parsedPort <= 65535) {
+      port = parsedPort;
+    } else {
       console.warn(
         `Invalid PORT "${process.env.PORT}". Falling back to default: ${DEFAULT_SERVER_PORT}`,
       );
     }
-    port = DEFAULT_SERVER_PORT;
   }
 
   const credentials = {
