@@ -46,6 +46,18 @@ export async function bootstrap() {
 
   const app = await createApp();
   const host = process.env.HOST || DEFAULT_SERVER_HOST;
+  let port = process.env.PORT
+    ? parseInt(process.env.PORT, 10)
+    : DEFAULT_SERVER_PORT;
+
+  if (isNaN(port) || port <= 0) {
+    if (process.env.PORT) {
+      console.warn(
+        `Invalid PORT "${process.env.PORT}". Falling back to default: ${DEFAULT_SERVER_PORT}`,
+      );
+    }
+    port = DEFAULT_SERVER_PORT;
+  }
 
   const credentials = {
     key: await fs.readFile(KEY_PATH),
@@ -55,8 +67,8 @@ export async function bootstrap() {
   const server = https.createServer(credentials, app);
   server.setTimeout(30000);
 
-  server.listen(DEFAULT_SERVER_PORT, host, () => {
-    console.log(`Server running at https://${host}:${DEFAULT_SERVER_PORT}`);
+  server.listen(port, host, () => {
+    console.log(`Server running at https://${host}:${port}`);
     console.log(
       `Environment: ${process.env.NODE_ENV !== 'production' ? 'Development' : 'Production'}`,
     );

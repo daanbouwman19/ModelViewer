@@ -81,6 +81,42 @@ describe('Server entry coverage', () => {
     expect(serverMock.listen).toHaveBeenCalled();
   });
 
+  it('bootstrap respects PORT environment variable', async () => {
+    vi.resetModules();
+    process.argv[1] = 'vitest';
+    process.env.PORT = '4000';
+
+    const { bootstrap } = await import('../../src/server/main.ts');
+
+    await bootstrap();
+
+    expect(serverMock.listen).toHaveBeenCalledWith(
+      4000,
+      expect.any(String),
+      expect.any(Function),
+    );
+  });
+
+  it('bootstrap uses default port when PORT is invalid', async () => {
+    vi.resetModules();
+    process.argv[1] = 'vitest';
+    process.env.PORT = 'invalid';
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const { bootstrap } = await import('../../src/server/main.ts');
+
+    await bootstrap();
+
+    expect(serverMock.listen).toHaveBeenCalledWith(
+      3000, // DEFAULT_SERVER_PORT
+      expect.any(String),
+      expect.any(Function),
+    );
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Invalid PORT'),
+    );
+  });
+
   it('bootstrap generates certificates when missing', async () => {
     vi.resetModules();
     process.argv[1] = 'vitest';
