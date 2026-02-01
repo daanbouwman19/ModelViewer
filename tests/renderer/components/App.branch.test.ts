@@ -71,6 +71,7 @@ describe('App.vue', () => {
       gridMediaFiles: [],
       supportedExtensions: { images: [], videos: [] },
       isSidebarVisible: true,
+      isControlsVisible: true,
     });
 
     (useLibraryStore as Mock).mockReturnValue({

@@ -403,6 +403,13 @@ const drawHeatmap = () => {
 };
 
 const togglePlay = () => {
+  // If controls are hidden, the first click should only show them.
+  // The play/pause action is prevented, and the click event is allowed to bubble up
+  // to the parent component (App.vue), which handles showing the controls.
+  if (!props.isControlsVisible) {
+    return;
+  }
+
   if (videoElement.value) {
     if (videoElement.value.paused) {
       videoElement.value.play?.()?.catch((error) => {

@@ -4,7 +4,7 @@
 
     <!-- Main Content Layer -->
     <main
-      class="relative z-10 grow flex flex-col md:flex-row p-4 md:p-6 gap-4 md:gap-6 overflow-hidden h-screen transition-all duration-300 ease-in-out"
+      class="relative z-10 grow flex flex-col md:flex-row p-4 md:p-6 gap-4 md:gap-6 overflow-hidden h-[100dvh] transition-all duration-300 ease-in-out"
     >
       <!-- Sidebar (Collapsible/Floating) -->
       <!-- Mobile: Fixed Overlay, Desktop: Static Sidebar with Width Transition -->
@@ -24,6 +24,8 @@
         }"
         data-testid="main-content-area"
         @mousemove="handleMouseMove"
+        @touchstart="handleInteraction"
+        @click="handleInteraction"
         @mouseleave="handleMouseLeave"
       >
         <!-- Gradient Overlay (Player Mode Only) -->
@@ -126,8 +128,8 @@ const isShortcutsModalOpen = ref(false);
 
 let controlsTimeout: NodeJS.Timeout | null = null;
 
-const handleMouseMove = () => {
-  // Always show controls on move
+const handleInteraction = () => {
+  // Show controls on any interaction (touch, click, mouse move)
   if (!isControlsVisible.value) {
     isControlsVisible.value = true;
   }
@@ -137,8 +139,7 @@ const handleMouseMove = () => {
   // Only auto-hide if in player mode
   if (viewMode.value === 'player') {
     controlsTimeout = setTimeout(() => {
-      // Only hide if video is playing (not paused) or if it's an image/other media
-      // If mainVideoElement exists and is paused, KEEP controls visible.
+      // Only hide if video is playing (not paused)
       const isVideoPaused =
         mainVideoElement.value && mainVideoElement.value.paused;
 
@@ -147,6 +148,10 @@ const handleMouseMove = () => {
       }
     }, CONTROLS_HIDE_TIMEOUT_MS);
   }
+};
+
+const handleMouseMove = () => {
+  handleInteraction();
 };
 
 const handleMouseLeave = () => {
