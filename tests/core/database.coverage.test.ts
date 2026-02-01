@@ -87,7 +87,7 @@ describe('Database Core Coverage', () => {
     vi.useFakeTimers();
     try {
       // Set timeout
-      const timeoutMs = 5000;
+      const timeoutMs = 100;
       database.setOperationTimeout(timeoutMs);
 
       // Call an operation but don't reply from worker
@@ -96,7 +96,7 @@ describe('Database Core Coverage', () => {
 
       // Attach handler before advancing time to avoid unhandled rejection warning
       const expectPromise = expect(opPromise).rejects.toThrow(
-        'Worker operation timed out',
+        'Worker operation timed out: addMediaDirectory',
       );
 
       // Advance time
