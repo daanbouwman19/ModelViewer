@@ -403,16 +403,10 @@ const drawHeatmap = () => {
 };
 
 const togglePlay = () => {
-  // If controls are hidden, just show them and do NOT toggle play.
-  // We check the prop passed from parent (App -> MediaDisplay -> VideoPlayer)
-  // Actually, VideoPlayer receives `isControlsVisible` as a prop.
+  // If controls are hidden, the first click should only show them.
+  // The play/pause action is prevented, and the click event is allowed to bubble up
+  // to the parent component (App.vue), which handles showing the controls.
   if (!props.isControlsVisible) {
-    // We emit an event or rely on the parent's click handler (App.vue) to show controls.
-    // However, since this click handler stops propagation (or if it doesn't), the parent might catch it.
-    // But usually click on video element *is* the trigger.
-    // Let's check App.vue's handleInteraction.
-    // If we click here, we want to allow the App.vue handler to run (bubbling).
-    // But we want to PREVENT the play toggle if controls were hidden.
     return;
   }
 
