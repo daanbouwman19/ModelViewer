@@ -181,6 +181,8 @@ const props = withDefaults(
   }>(),
   {
     canGoPrevious: true,
+    currentTime: 0,
+    duration: 0,
   },
 );
 
@@ -263,6 +265,7 @@ const containerPaddingStyle = computed(() => {
   return {
     paddingLeft: `max(${basePadding}, env(safe-area-inset-left))`,
     paddingRight: `max(${basePadding}, env(safe-area-inset-right))`,
+    paddingBottom: `max(1.5rem, env(safe-area-inset-bottom))`,
   };
 });
 
