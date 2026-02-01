@@ -63,3 +63,9 @@
 **Smell:** `media-utils.ts` was becoming a "Kitchen Sink" for unrelated utility functions (Google Drive paths, MIME types, thumbnail caching).
 **Insight:** MIME type determination is a specific domain concern that shouldn't be mixed with platform-specific path handling or caching logic. Separating it clarifies dependencies and makes it easier to extend supported types.
 **Prevention:** When a utility file starts accumulating functions for different domains (e.g. "Path utils" vs "Format utils"), split them into dedicated files.
+
+## 2026-02-01 - Extracting Generic Retry Logic
+
+**Smell:** `google-drive-service.ts` implemented its own generic exponential backoff mechanism (`callWithRetry`) for handling API rate limits.
+**Insight:** Retry logic with exponential backoff is a fundamental distributed systems pattern, not specific to Google Drive. Embedding it in a specific service reduces reusability and hardcodes the "retry policy" into the business logic.
+**Prevention:** Move generic flow control patterns (like retries, rate limiters, circuit breakers) into `core/utils/` so they can be tested independently and reused across different services (e.g., Database, HTTP clients).

@@ -3,6 +3,23 @@ import { getOAuth2Client, loadSavedCredentialsIfExist } from './google-auth.ts';
 import { Readable } from 'stream';
 import type { MediaFile, Album } from '../core/types.ts';
 import { createDrivePath } from '../core/media-utils.ts';
+import { callWithRetry } from '../core/utils/async-utils.ts';
+
+const DRIVE_RETRY_OPTIONS = {
+  shouldRetry: (error: unknown) => {
+    const err = error as { code?: number };
+    return (
+      err.code === 429 ||
+      (typeof err.code === 'number' && err.code >= 500 && err.code < 600)
+    );
+  },
+  onRetry: (error: unknown, _retriesRemaining: number, delay: number) => {
+    const err = error as { code?: number };
+    console.warn(
+      `[GoogleDrive] Rate limited or server error (${err.code}). Retrying in ${delay}ms...`,
+    );
+  },
+};
 
 let driveClient: drive_v3.Drive | null = null;
 
@@ -40,32 +57,6 @@ function validateFolderId(folderId: string): void {
 }
 
 /**
- * Executes a function with exponential backoff for 429 and 5xx errors.
- */
-async function callWithRetry<T>(
-  fn: () => Promise<T>,
-  retries = 3,
-  delay = 1000,
-): Promise<T> {
-  try {
-    return await fn();
-  } catch (error: unknown) {
-    const err = error as { code?: number; message?: string };
-    if (
-      retries > 0 &&
-      (err.code === 429 || (err.code && err.code >= 500 && err.code < 600))
-    ) {
-      console.warn(
-        `[GoogleDrive] Rate limited or server error (${err.code}). Retrying in ${delay}ms...`,
-      );
-      await new Promise((resolve) => setTimeout(resolve, delay));
-      return callWithRetry(fn, retries - 1, delay * 2);
-    }
-    throw error;
-  }
-}
-
-/**
  * Lists files in a specific Google Drive folder.
  * Currently implements a flat list mapped to an Album structure for simplicity in the MVP.
  * For recursive structures, we might need a more complex traversal.
@@ -80,16 +71,18 @@ export async function listDriveFiles(folderId: string): Promise<Album> {
   let pageToken: string | undefined = undefined;
 
   do {
-    const res: { data: drive_v3.Schema$FileList } = await callWithRetry(() =>
-      drive.files.list({
-        q,
-        fields:
-          'nextPageToken, files(id, name, mimeType, size, createdTime, shortcutDetails)',
-        pageSize: 1000,
-        pageToken,
-        supportsAllDrives: true,
-        includeItemsFromAllDrives: true,
-      }),
+    const res: { data: drive_v3.Schema$FileList } = await callWithRetry(
+      () =>
+        drive.files.list({
+          q,
+          fields:
+            'nextPageToken, files(id, name, mimeType, size, createdTime, shortcutDetails)',
+          pageSize: 1000,
+          pageToken,
+          supportsAllDrives: true,
+          includeItemsFromAllDrives: true,
+        }),
+      DRIVE_RETRY_OPTIONS,
     );
     if (res.data.files) {
       allFiles = allFiles.concat(res.data.files);
@@ -133,14 +126,16 @@ export async function listDriveFiles(folderId: string): Promise<Album> {
   // Let's try to find subfolders too to build the tree.
   // We need to include shortcuts to folders too.
   const folderQ = `'${folderId}' in parents and (mimeType = 'application/vnd.google-apps.folder' or mimeType = 'application/vnd.google-apps.shortcut') and trashed = false`;
-  const folderRes = await callWithRetry(() =>
-    drive.files.list({
-      q: folderQ,
-      fields: 'files(id, name, mimeType, shortcutDetails)',
-      pageSize: 100,
-      supportsAllDrives: true,
-      includeItemsFromAllDrives: true,
-    }),
+  const folderRes = await callWithRetry(
+    () =>
+      drive.files.list({
+        q: folderQ,
+        fields: 'files(id, name, mimeType, shortcutDetails)',
+        pageSize: 100,
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true,
+      }),
+    DRIVE_RETRY_OPTIONS,
   );
 
   const subfolders = folderRes.data.files || [];
@@ -192,15 +187,17 @@ export async function listDriveDirectory(
 
   const q = `'${queryId}' in parents and trashed = false`;
   try {
-    const res = await callWithRetry(() =>
-      drive.files.list({
-        q,
-        fields: 'files(id, name, mimeType, shortcutDetails)',
-        pageSize: 100, // Pagination? For browsing we probably want more but let's start with 100
-        orderBy: 'folder,name',
-        supportsAllDrives: true,
-        includeItemsFromAllDrives: true,
-      }),
+    const res = await callWithRetry(
+      () =>
+        drive.files.list({
+          q,
+          fields: 'files(id, name, mimeType, shortcutDetails)',
+          pageSize: 100, // Pagination? For browsing we probably want more but let's start with 100
+          orderBy: 'folder,name',
+          supportsAllDrives: true,
+          includeItemsFromAllDrives: true,
+        }),
+      DRIVE_RETRY_OPTIONS,
     );
 
     const files = res.data.files || [];
@@ -247,12 +244,14 @@ export async function getDriveParent(folderId: string): Promise<string | null> {
 
   const drive = await getDriveClient();
   try {
-    const res = await callWithRetry(() =>
-      drive.files.get({
-        fileId: folderId,
-        fields: 'parents',
-        supportsAllDrives: true,
-      }),
+    const res = await callWithRetry(
+      () =>
+        drive.files.get({
+          fileId: folderId,
+          fields: 'parents',
+          supportsAllDrives: true,
+        }),
+      DRIVE_RETRY_OPTIONS,
     );
 
     if (res.data.parents && res.data.parents.length > 0) {
@@ -277,11 +276,13 @@ export async function getDriveFileStream(
     headers['Range'] = `bytes=${start}-${end}`;
   }
 
-  const res = await callWithRetry(() =>
-    drive.files.get(
-      { fileId, alt: 'media', acknowledgeAbuse: true },
-      { responseType: 'stream', headers },
-    ),
+  const res = await callWithRetry(
+    () =>
+      drive.files.get(
+        { fileId, alt: 'media', acknowledgeAbuse: true },
+        { responseType: 'stream', headers },
+      ),
+    DRIVE_RETRY_OPTIONS,
   );
 
   if (res.data) {
@@ -303,12 +304,14 @@ export async function getDriveFileMetadata(
   fileId: string,
 ): Promise<drive_v3.Schema$File> {
   const drive = await getDriveClient();
-  const res = await callWithRetry(() =>
-    drive.files.get({
-      fileId,
-      fields: 'id, name, mimeType, size, createdTime, videoMediaMetadata',
-      supportsAllDrives: true,
-    }),
+  const res = await callWithRetry(
+    () =>
+      drive.files.get({
+        fileId,
+        fields: 'id, name, mimeType, size, createdTime, videoMediaMetadata',
+        supportsAllDrives: true,
+      }),
+    DRIVE_RETRY_OPTIONS,
   );
   return res.data;
 }
@@ -330,12 +333,14 @@ export async function getDriveFileThumbnail(fileId: string): Promise<Readable> {
   // Note: thumbnailLink often allows unauthenticated access if the file is public,
   // but for private files, we need to pass the token.
 
-  const meta = await callWithRetry(() =>
-    drive.files.get({
-      fileId,
-      fields: 'thumbnailLink, mimeType',
-      supportsAllDrives: true,
-    }),
+  const meta = await callWithRetry(
+    () =>
+      drive.files.get({
+        fileId,
+        fields: 'thumbnailLink, mimeType',
+        supportsAllDrives: true,
+      }),
+    DRIVE_RETRY_OPTIONS,
   );
 
   if (meta.data.thumbnailLink) {
