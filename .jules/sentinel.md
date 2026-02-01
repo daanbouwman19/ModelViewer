@@ -78,7 +78,7 @@
 **Learning:** Security validation must occur before any complex processing. Input constraints (like length limits) should be enforced as early as possible, especially for inputs that are used in system calls or regex matching.
 **Prevention:** Enforced a `MAX_PATH_LENGTH` of 4096 characters in `validateInput`, rejecting oversized inputs immediately before they reach filesystem layers.
 
-## 2026-02-02 - Drive File Authorization Bypass
+## 2026-02-01 - Drive File Authorization Bypass
 
 **Vulnerability:** The `generateFileUrl` function in `media-handler.ts` bypassed the `authorizeFilePath` security check for paths starting with the Google Drive protocol (`gdrive://`). This allowed unauthorized access to Google Drive files if the attacker knew the file ID, bypassing the restriction that only imported media should be accessible.
 **Learning:** Security checks should be uniform and not contain exceptions for specific protocols or file types unless explicitly justified and secured. Helper functions like `generateFileUrl` that are exposed to IPC/API must enforce the same security boundaries as direct API endpoints.

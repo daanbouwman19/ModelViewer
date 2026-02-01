@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { generateFileUrl } from '../../src/core/media-handler';
 import * as security from '../../src/core/security';
 import * as providerFactory from '../../src/core/fs-provider-factory';
-import * as mediaUtils from '../../src/core/media-utils';
 
 vi.mock('../../src/core/security');
 vi.mock('../../src/core/fs-provider-factory');
@@ -15,9 +14,6 @@ describe('generateFileUrl Security Check', () => {
 
   it('should call authorizeFilePath for drive paths', async () => {
     const filePath = 'gdrive://unauthorized-file-id';
-
-    // Mock isDrivePath to return true
-    vi.mocked(mediaUtils.isDrivePath).mockReturnValue(true);
 
     // Mock authorizeFilePath to return false (access denied)
     vi.mocked(security.authorizeFilePath).mockResolvedValue({
