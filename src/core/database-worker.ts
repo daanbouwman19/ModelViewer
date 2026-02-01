@@ -518,17 +518,18 @@ export function getAllMetadataStats(): WorkerResult {
       rating?: number;
     }[];
 
-    const metadataMap: {
-      [key: string]: { duration?: number; rating?: number };
-    } = {};
-    for (const row of rows) {
-      if (row.filePath) {
-        metadataMap[row.filePath] = {
-          duration: row.duration,
-          rating: row.rating,
-        };
-      }
-    }
+    const metadataMap = rows.reduce(
+      (acc, row) => {
+        if (row.filePath) {
+          acc[row.filePath] = {
+            duration: row.duration,
+            rating: row.rating,
+          };
+        }
+        return acc;
+      },
+      {} as Record<string, { duration?: number; rating?: number }>,
+    );
 
     return { success: true, data: metadataMap };
   } catch (error: unknown) {
