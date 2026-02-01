@@ -249,7 +249,7 @@ export class MediaService {
 
     const [viewCountsMap, metadataMap] = await Promise.all([
       this.mediaRepo.getAllMediaViewCounts(),
-      this.mediaRepo.getAllMetadata(),
+      this.mediaRepo.getAllMetadataStats(),
     ]);
 
     return enrichAlbumsWithStats(albums, viewCountsMap, metadataMap);
@@ -267,7 +267,7 @@ export class MediaService {
 
     const [viewCountsMap, metadataMap] = await Promise.all([
       this.mediaRepo.getAllMediaViewCounts(),
-      this.mediaRepo.getAllMetadata(),
+      this.mediaRepo.getAllMetadataStats(),
     ]);
 
     return enrichAlbumsWithStats(albums, viewCountsMap, metadataMap);

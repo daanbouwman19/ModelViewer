@@ -96,6 +96,23 @@ async function getMediaViewCounts(
 }
 
 /**
+ * Retrieves metadata stats (duration, rating) for all files.
+ * Optimized for album enrichment.
+ */
+async function getAllMetadataStats(): Promise<{
+  [path: string]: MediaMetadata;
+}> {
+  try {
+    return await getClient().sendMessage<{ [path: string]: MediaMetadata }>(
+      'getAllMetadataStats',
+    );
+  } catch (error) {
+    console.error('[database.js] Error getting all metadata stats:', error);
+    return {};
+  }
+}
+
+/**
  * Retrieves view counts for all media files.
  * @returns A promise that resolves to a map of file paths to their view counts. Returns an empty object on error.
  */
@@ -518,6 +535,7 @@ export {
   setRating,
   getMetadata,
   getAllMetadata,
+  getAllMetadataStats,
   createSmartPlaylist,
   getSmartPlaylists,
   deleteSmartPlaylist,

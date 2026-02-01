@@ -6,6 +6,7 @@ import * as database from '../../src/core/database';
 // Mock dependencies
 vi.mock('../../src/core/database', () => ({
   getAllMetadata: vi.fn(),
+  getAllMetadataStats: vi.fn(),
   getAllMediaViewCounts: vi.fn(),
   cacheAlbums: vi.fn(),
   getMediaDirectories: vi.fn(),
@@ -63,7 +64,7 @@ describe('media-service mutation', () => {
     vi.mocked(database.getAllMediaViewCounts).mockResolvedValue({
       '/video.mp4': 5,
     });
-    vi.mocked(database.getAllMetadata).mockResolvedValue({
+    vi.mocked(database.getAllMetadataStats).mockResolvedValue({
       '/video.mp4': { duration: 120, rating: 4 },
     });
 
