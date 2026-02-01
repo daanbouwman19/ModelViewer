@@ -110,3 +110,8 @@
 
 **Learning:** Buttons that toggle a state (like VR Mode) but aren't checkboxes often lack state communication, leaving screen reader users guessing if the mode is on or off.
 **Action:** Always add `aria-pressed` (bound to the boolean state) to toggle buttons to explicitly communicate their active state.
+
+## 2026-02-01 - RecycleScroller & Component Reuse
+
+**Learning:** Components inside `vue-virtual-scroller` (`RecycleScroller`) are reused and props update, but local state does not reset automatically.
+**Action:** When adding local state (like `isLoading`) to grid items, you MUST watch props (e.g., `item.path`) to reset the state manually.

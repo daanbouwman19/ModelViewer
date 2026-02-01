@@ -6,6 +6,12 @@
     :title="displayName"
     @click="$emit('click', item)"
   >
+    <!-- Skeleton Loader -->
+    <div
+      v-if="showSkeleton"
+      class="absolute inset-0 bg-gray-800 animate-pulse rounded z-10"
+    ></div>
+
     <template v-if="isImage">
       <div
         v-if="hasFailed"
@@ -27,11 +33,13 @@
         </svg>
       </div>
       <img
-        v-else
+        v-if="!hasFailed"
         :src="mediaUrl"
         alt=""
-        class="h-full w-full object-cover rounded"
+        class="h-full w-full object-cover rounded transition-opacity duration-300"
+        :class="{ 'opacity-0': isLoading }"
         loading="lazy"
+        @load="isLoading = false"
         @error="handleImageError"
       />
     </template>
@@ -40,8 +48,10 @@
       <img
         v-if="posterUrl && !posterFailed"
         :src="posterUrl"
-        class="h-full w-full object-cover rounded block"
+        class="h-full w-full object-cover rounded block transition-opacity duration-300"
+        :class="{ 'opacity-0': isLoading }"
         loading="lazy"
+        @load="isLoading = false"
         @error="handlePosterError"
       />
       <video
@@ -152,6 +162,17 @@ const ariaLabel = computed(() => {
 
 const hasFailed = computed(() => props.failedImagePaths.has(props.item.path));
 
+const showSkeleton = computed(() => {
+  if (!isLoading.value) return false;
+  if (isImage.value) {
+    return !hasFailed.value;
+  }
+  if (isVideo.value) {
+    return !!posterUrl.value && !posterFailed.value;
+  }
+  return false;
+});
+
 const handleImageError = (event: Event) => {
   if (!props.mediaUrlGenerator || hasFailed.value) return;
 
@@ -170,9 +191,11 @@ const handleImageError = (event: Event) => {
 };
 
 const posterFailed = ref(false);
+const isLoading = ref(true);
 
 const handlePosterError = () => {
   posterFailed.value = true;
+  isLoading.value = false; // Stop loading if poster fails so video can show
 };
 
 // Reset posterFailed when item changes (RecycleScroller reuse)
@@ -180,6 +203,7 @@ watch(
   () => props.item.path,
   () => {
     posterFailed.value = false;
+    isLoading.value = true;
   },
 );
 </script>
