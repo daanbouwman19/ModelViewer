@@ -5,6 +5,7 @@ import {
   cacheAlbums,
   getAllMediaViewCounts,
   getAllMetadata,
+  getAllMetadataStats,
   getCachedAlbums,
   getMediaDirectories,
   getMetadata,
@@ -33,6 +34,10 @@ export class MediaRepository {
 
   async getAllMetadata() {
     return getAllMetadata();
+  }
+
+  async getAllMetadataStats() {
+    return getAllMetadataStats();
   }
 
   async getMetadata(filePaths: string[]) {

@@ -349,6 +349,15 @@ export function initDatabase(dbPath: string): WorkerResult {
        FROM media_metadata WHERE file_path IS NOT NULL`,
     );
 
+    // Optimized query for album enrichment (skips heavy JSON/text fields)
+    statements.getAllMetadataStats = db.prepare(
+      `SELECT
+        file_path as filePath,
+        duration,
+        rating
+       FROM media_metadata WHERE file_path IS NOT NULL`,
+    );
+
     statements.getFileIdsByPathsBatch = db.prepare(
       `SELECT file_path, file_path_hash FROM media_metadata WHERE file_path IN (${placeholders})`,
     );
@@ -487,6 +496,37 @@ export function getAllMetadata(): WorkerResult {
     for (const row of rows) {
       if (row.filePath) {
         metadataMap[row.filePath] = row;
+      }
+    }
+
+    return { success: true, data: metadataMap };
+  } catch (error: unknown) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+/**
+ * Retrieves metadata stats (duration, rating) for all files.
+ * Optimized for album enrichment to avoid fetching unused heavy columns.
+ */
+export function getAllMetadataStats(): WorkerResult {
+  if (!db) return { success: false, error: 'Database not initialized' };
+  try {
+    const rows = statements.getAllMetadataStats.all() as {
+      filePath: string;
+      duration?: number;
+      rating?: number;
+    }[];
+
+    const metadataMap: {
+      [key: string]: { duration?: number; rating?: number };
+    } = {};
+    for (const row of rows) {
+      if (row.filePath) {
+        metadataMap[row.filePath] = {
+          duration: row.duration,
+          rating: row.rating,
+        };
       }
     }
 
@@ -1008,6 +1048,9 @@ if (parentPort) {
           break;
         case 'getAllMetadata':
           result = getAllMetadata();
+          break;
+        case 'getAllMetadataStats':
+          result = getAllMetadataStats();
           break;
         case 'getMetadata':
           result = await getMetadata(payload.filePaths);

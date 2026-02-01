@@ -14,6 +14,7 @@ vi.mock('../../src/core/database', () => ({
   getCachedAlbums: vi.fn(),
   getAllMediaViewCounts: vi.fn(),
   getAllMetadata: vi.fn(),
+  getAllMetadataStats: vi.fn(),
   getPendingMetadata: vi.fn(),
   bulkUpsertMetadata: vi.fn(),
   getMetadata: vi.fn().mockResolvedValue({}),
@@ -65,6 +66,7 @@ describe('media-service recursion', () => {
     // Default mocks
     vi.mocked(database.getMetadata).mockResolvedValue({});
     vi.mocked(database.getAllMetadata).mockResolvedValue({});
+    vi.mocked(database.getAllMetadataStats).mockResolvedValue({});
 
     sharedState.lastWorker = null;
     sharedState.postMessageCallback = null;
@@ -96,7 +98,7 @@ describe('media-service recursion', () => {
       vi.mocked(database.getAllMediaViewCounts).mockResolvedValue({
         '/child/file.mp4': 42,
       });
-      vi.mocked(database.getAllMetadata).mockResolvedValue({
+      vi.mocked(database.getAllMetadataStats).mockResolvedValue({
         '/child/file.mp4': { duration: 120, status: 'success' } as any,
       });
 

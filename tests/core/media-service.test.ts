@@ -19,6 +19,7 @@ vi.mock('../../src/core/database', () => ({
   getCachedAlbums: vi.fn(),
   getAllMediaViewCounts: vi.fn(),
   getAllMetadata: vi.fn(),
+  getAllMetadataStats: vi.fn(),
   getPendingMetadata: vi.fn(),
   bulkUpsertMetadata: vi.fn(),
   getMetadata: vi.fn().mockResolvedValue({}),
@@ -92,6 +93,7 @@ describe('media-service', () => {
     vi.unstubAllGlobals(); // Ensure globals are clean from previous tests
     vi.mocked(database.getMetadata).mockResolvedValue({});
     vi.mocked(database.getAllMetadata).mockResolvedValue({});
+    vi.mocked(database.getAllMetadataStats).mockResolvedValue({});
 
     // Explicitly ensure process.versions.electron is undefined to match "web" env by default
     // We cannot easily delete from existing process.versions if we don't stub the whole process.
@@ -436,7 +438,7 @@ describe('media-service', () => {
       vi.mocked(database.getAllMediaViewCounts).mockResolvedValue({
         '/v1.mp4': 5,
       });
-      vi.mocked(database.getAllMetadata).mockResolvedValue({});
+      vi.mocked(database.getAllMetadataStats).mockResolvedValue({});
       const albums = [{ id: 1, textures: [{ path: '/v1.mp4' }] }];
 
       let msgId: string | undefined;
@@ -508,7 +510,7 @@ describe('media-service', () => {
       vi.mocked(database.getAllMediaViewCounts).mockResolvedValue({
         '/v1.mp4': 10,
       });
-      vi.mocked(database.getAllMetadata).mockResolvedValue({});
+      vi.mocked(database.getAllMetadataStats).mockResolvedValue({});
       const result = await getAlbumsWithViewCounts();
       expect(result[0].textures[0].viewCount).toBe(10);
     });

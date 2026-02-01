@@ -588,6 +588,34 @@ describe('Database Worker', () => {
       expect(result.data).toBeDefined();
     });
 
+    it('should handle getAllMetadataStats message and return only stats', async () => {
+      const filePath = path.join(tempDir, 'stats.mp4');
+      fs.writeFileSync(filePath, 'dummy');
+      // Insert full metadata
+      await sendMessage('upsertMetadata', {
+        filePath,
+        duration: 100,
+        size: 5000,
+        rating: 3,
+        status: 'success',
+        watchedSegments: '[]',
+      });
+
+      const result = await sendMessage('getAllMetadataStats', {});
+      expect(result.success).toBe(true);
+      const data = result.data as Record<string, any>;
+      const item = data[filePath];
+
+      expect(item).toBeDefined();
+      expect(item.duration).toBe(100);
+      expect(item.rating).toBe(3);
+
+      // Verify heavy fields are NOT returned
+      expect(item.size).toBeUndefined();
+      expect(item.watchedSegments).toBeUndefined();
+      expect(item.status).toBeUndefined();
+    });
+
     it('should handle executeSmartPlaylist message', async () => {
       const result = await sendMessage('executeSmartPlaylist', {
         criteria: '{}',
