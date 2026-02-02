@@ -9,7 +9,6 @@ import { useSlideshow } from '@/composables/useSlideshow';
 import { api } from '@/api';
 
 // Mock the composables
-// Mock the composables
 vi.mock('@/composables/useLibraryStore');
 vi.mock('@/composables/usePlayerStore');
 vi.mock('@/composables/useUIStore');
@@ -104,6 +103,6 @@ describe('MediaDisplay.vue Layout', () => {
 
     expect(classes).toContain('w-full');
     expect(classes).toContain('bg-linear-to-t');
-    expect(classes).toContain('from-black/80');
+    expect(classes).toContain('from-black/90');
   });
 });

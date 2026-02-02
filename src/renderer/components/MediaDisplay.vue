@@ -161,6 +161,7 @@
 
     <!-- Media Controls -->
     <MediaControls
+      ref="mediaControlsRef"
       class="floating-controls"
       :current-media-item="currentMediaItem"
       :is-playing="isPlaying"
@@ -178,6 +179,9 @@
       @set-rating="setRating"
       @toggle-vr="toggleVrMode"
       @toggle-fullscreen="toggleFullscreen"
+      @seek="handleSeek"
+      @scrub-start="handleScrubStart"
+      @scrub-end="handleScrubEnd"
     />
   </div>
 </template>
@@ -501,9 +505,85 @@ const loadMediaUrl = async () => {
   }
 };
 
+// Watched Segments Logic
+const lastTrackedTime = ref(-1);
+const lastSegmentsUpdate = ref(Date.now());
+const SEEK_DETECTION_THRESHOLD_S = 5;
+const UPDATE_INTERVAL_MS = 5000;
+const mediaControlsRef = ref<InstanceType<typeof MediaControls> | null>(null);
+
 const handleTimeUpdate = (time: number) => {
   savedCurrentTime.value = time;
+
+  if (!isPlaying.value || !currentMediaItem.value || !mediaControlsRef.value)
+    return;
+
+  const realCurrentTime = time;
+
+  // Watch Tracking Logic
+  if (lastTrackedTime.value === -1) {
+    lastTrackedTime.value = realCurrentTime;
+  } else {
+    const delta = Math.abs(realCurrentTime - lastTrackedTime.value);
+    if (delta > 0 && delta < SEEK_DETECTION_THRESHOLD_S) {
+      addWatchedSegment(
+        Math.min(lastTrackedTime.value, realCurrentTime),
+        Math.max(lastTrackedTime.value, realCurrentTime),
+      );
+    }
+    lastTrackedTime.value = realCurrentTime;
+  }
+
+  // Periodic Persist
+  if (Date.now() - lastSegmentsUpdate.value > UPDATE_INTERVAL_MS) {
+    persistWatchedSegments();
+    lastSegmentsUpdate.value = Date.now();
+  }
 };
+
+const addWatchedSegment = (start: number, end: number) => {
+  if (!mediaControlsRef.value) return;
+  const segments = [...mediaControlsRef.value.watchedSegments];
+  segments.push({ start, end });
+
+  // Merge overlapping
+  segments.sort((a, b) => a.start - b.start);
+  const merged: { start: number; end: number }[] = [];
+  if (segments.length > 0) {
+    let current = segments[0];
+    for (let i = 1; i < segments.length; i++) {
+      if (segments[i].start <= current.end + 0.5) {
+        current.end = Math.max(current.end, segments[i].end);
+      } else {
+        merged.push(current);
+        current = segments[i];
+      }
+    }
+    merged.push(current);
+  }
+
+  mediaControlsRef.value.watchedSegments = merged;
+};
+
+const persistWatchedSegments = async () => {
+  if (!currentMediaItem.value || !mediaControlsRef.value) return;
+  try {
+    await api.updateWatchedSegments(
+      currentMediaItem.value.path,
+      JSON.stringify(mediaControlsRef.value.watchedSegments),
+    );
+  } catch (e) {
+    console.error('Failed to persist segments', e);
+  }
+};
+
+onUnmounted(() => {
+  persistWatchedSegments();
+});
+
+watch(currentMediaItem, () => {
+  lastTrackedTime.value = -1;
+});
 
 /**
  * Toggles VR mode.
@@ -770,6 +850,26 @@ defineExpose({
   tryTranscoding,
   togglePlay,
 });
+
+/**
+ * Handles seeking from the progress bar.
+ */
+const handleSeek = (time: number) => {
+  if (isTranscodingMode.value) {
+    tryTranscoding(time);
+  } else if (videoElement.value) {
+    videoElement.value.currentTime = time;
+  }
+};
+
+const handleScrubStart = () => {
+  // Optional: Pause while scrubbing?
+  // if (isPlaying.value) togglePlay();
+};
+
+const handleScrubEnd = () => {
+  // Optional: Resume if paused?
+};
 </script>
 
 <style scoped>

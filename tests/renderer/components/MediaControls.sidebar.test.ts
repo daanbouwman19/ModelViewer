@@ -149,11 +149,16 @@ describe('MediaControls.vue Responsiveness', () => {
     triggerResize(800);
     await wrapper.vm.$nextTick();
 
-    const stars = wrapper.findAll('button[aria-label*="Rate"]');
-    expect(stars.length).toBe(0); // Should remain hidden on mobile
+    // When isDesktop is false, Teleport is active.
+    // The content is moved to body. wrapper.find() might not see it depending on VTU version/setup.
+    // We check document.body directly for the class.
 
-    // Time shows if width > threshold (450).
-    const timeDisplay = wrapper.find('.font-mono');
-    expect(timeDisplay.exists()).toBe(true);
+    // Stars should be hidden
+    const stars = document.body.querySelectorAll('button[aria-label*="Rate"]');
+    expect(stars.length).toBe(0);
+
+    // Time should be visible
+    const timeDisplay = document.body.querySelector('.font-mono');
+    expect(timeDisplay).not.toBeNull();
   });
 });

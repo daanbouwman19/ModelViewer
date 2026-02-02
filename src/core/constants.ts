@@ -243,6 +243,11 @@ const HLS_SEGMENT_DURATION = 6;
 const HLS_CACHE_DIR_NAME = 'hls';
 
 /**
+ * Name of the directory within the cache for heatmaps.
+ */
+const HEATMAP_CACHE_DIR_NAME = 'heatmaps';
+
+/**
  * Grid View Breakpoints (Tailwind)
  */
 const GRID_BREAKPOINT_SM = 640;
@@ -296,6 +301,7 @@ export {
   MAX_API_BATCH_SIZE,
   HLS_SEGMENT_DURATION,
   HLS_CACHE_DIR_NAME,
+  HEATMAP_CACHE_DIR_NAME,
   GRID_BREAKPOINT_SM,
   GRID_BREAKPOINT_LG,
   GRID_BREAKPOINT_XL,

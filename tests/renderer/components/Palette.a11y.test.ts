@@ -11,7 +11,7 @@ import {
 import { mount } from '@vue/test-utils';
 import { reactive, toRefs } from 'vue';
 import MediaDisplay from '@/components/MediaDisplay.vue';
-import VideoPlayer from '@/components/VideoPlayer.vue';
+
 import SourcesModal from '@/components/SourcesModal.vue';
 import AlbumTree from '@/components/AlbumTree.vue';
 import { useLibraryStore } from '@/composables/useLibraryStore';
@@ -256,34 +256,64 @@ describe('Palette Accessibility Improvements', () => {
       };
       const wrapper = mount(MediaDisplay);
       await wrapper.vm.$nextTick();
+      await wrapper.vm.$nextTick(); // Wait for video player mount
 
-      // Mock video element
-      const mockVideo = { currentTime: 10, duration: 100 };
-      (wrapper.vm as any).videoElement = mockVideo;
+      const videoWrapper = wrapper.find('video');
+      expect(videoWrapper.exists()).toBe(true);
+      const videoEl = videoWrapper.element as HTMLVideoElement;
 
-      // Also inject into VideoPlayer component directly
-      const videoPlayer = wrapper.findComponent(VideoPlayer);
-      (videoPlayer.vm as any).videoElement = mockVideo;
+      // Mock duration and currentTime on the real element
+      let currentTimeVal = 10;
+      Object.defineProperty(videoEl, 'duration', {
+        value: 100,
+        writable: true,
+      });
+      Object.defineProperty(videoEl, 'currentTime', {
+        get: () => currentTimeVal,
+        set: (v) => {
+          currentTimeVal = v;
+        },
+        configurable: true,
+      });
+
+      // Update internal state to match video time
+      (wrapper.vm as any).savedCurrentTime = 10;
+      await wrapper.vm.$nextTick();
+
+      // Ensure propagation
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Ensure MediaDisplay sees the element (it should via normal flow, but let's be safe)
+      // (wrapper.vm as any).handleVideoElementUpdate(videoEl);
+      // ^ Should typically be handled by @update:video-element
 
       const progressBar = wrapper.find('[data-testid="video-progress-bar"]');
 
       // Right arrow - forward 5s
       await progressBar.trigger('keydown', { key: 'ArrowRight' });
-      expect(mockVideo.currentTime).toBe(15);
+      expect(currentTimeVal).toBe(15);
+
+      // Simulate time update
+      (wrapper.vm as any).savedCurrentTime = 15;
+      await wrapper.vm.$nextTick();
 
       // Left arrow - backward 5s
       await progressBar.trigger('keydown', { key: 'ArrowLeft' });
-      expect(mockVideo.currentTime).toBe(10); // Back to 10
+      expect(currentTimeVal).toBe(10); // Back to 10
 
       // Boundary check - min
-      mockVideo.currentTime = 2;
+      currentTimeVal = 2;
+      (wrapper.vm as any).savedCurrentTime = 2; // Sync state needed for ProgressBar to know start point
+      await wrapper.vm.$nextTick();
       await progressBar.trigger('keydown', { key: 'ArrowLeft' });
-      expect(mockVideo.currentTime).toBe(0); // Clamped to 0
+      expect(currentTimeVal).toBe(0); // Clamped to 0
 
       // Boundary check - max
-      mockVideo.currentTime = 98;
+      currentTimeVal = 98;
+      (wrapper.vm as any).savedCurrentTime = 98;
+      await wrapper.vm.$nextTick();
       await progressBar.trigger('keydown', { key: 'ArrowRight' });
-      expect(mockVideo.currentTime).toBe(100); // Clamped to 100
+      expect(currentTimeVal).toBe(100); // Clamped to 100
     });
   });
 

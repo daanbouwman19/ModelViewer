@@ -4,7 +4,7 @@
 
     <!-- Main Content Layer -->
     <main
-      class="relative z-10 grow flex flex-col md:flex-row p-4 md:p-6 gap-4 md:gap-6 overflow-hidden h-[100dvh] transition-all duration-300 ease-in-out"
+      class="relative z-10 grow flex flex-col md:flex-row p-0 md:p-6 gap-0 md:gap-6 overflow-hidden h-[100dvh] transition-all duration-300 ease-in-out"
     >
       <!-- Sidebar (Collapsible/Floating) -->
       <!-- Mobile: Fixed Overlay, Desktop: Static Sidebar with Width Transition -->
@@ -20,7 +20,7 @@
       <div
         class="grow flex flex-col h-full relative w-full min-w-0"
         :class="{
-          'glass-panel rounded-xl overflow-hidden': viewMode === 'player',
+          'glass-panel md:rounded-xl overflow-hidden': viewMode === 'player',
         }"
         data-testid="main-content-area"
         @mousemove="handleMouseMove"
@@ -34,7 +34,7 @@
         <div
           class="absolute top-0 left-0 w-full flex justify-between items-center p-3 transition-opacity duration-500 ease-in-out z-40 pointer-events-none"
           :class="[
-            viewMode === 'player' ? '' : 'glass-panel rounded-lg',
+            viewMode === 'player' ? '' : 'glass-panel md:rounded-lg',
             {
               'opacity-0': !isControlsVisible && viewMode === 'player',
             },
@@ -72,9 +72,9 @@
         <!-- Media Display -->
         <MediaGrid
           v-if="viewMode === 'grid'"
-          class="grow glass-panel rounded-xl overflow-hidden"
+          class="grow glass-panel md:rounded-xl overflow-hidden"
         />
-        <MediaDisplay v-else class="grow rounded-xl overflow-hidden" />
+        <MediaDisplay v-else class="grow md:rounded-xl overflow-hidden" />
       </div>
     </main>
 

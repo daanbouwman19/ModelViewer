@@ -11,7 +11,10 @@ import fs from 'fs/promises';
 import crypto from 'crypto';
 import ffmpegStatic from 'ffmpeg-static';
 import { initDatabase } from '../core/database.ts';
-import { HLS_CACHE_DIR_NAME } from '../core/constants.ts';
+import {
+  HLS_CACHE_DIR_NAME,
+  HEATMAP_CACHE_DIR_NAME,
+} from '../core/constants.ts';
 import { registerSensitiveFile } from '../core/security.ts';
 import { initializeDriveCacheManager } from '../main/drive-cache-manager.ts';
 import { HlsManager } from '../core/hls-manager.ts';
@@ -114,11 +117,15 @@ export async function createApp() {
     await fs.mkdir(DRIVE_CACHE_DIR, { recursive: true });
     await fs.mkdir(HLS_CACHE_DIR, { recursive: true });
 
+    // Dedicated Heatmaps Directory
+    const HEATMAP_DIR = path.join(CACHE_ROOT, HEATMAP_CACHE_DIR_NAME);
+    await fs.mkdir(HEATMAP_DIR, { recursive: true });
+
     initializeDriveCacheManager(DRIVE_CACHE_DIR);
 
     HlsManager.getInstance().setCacheDir(HLS_CACHE_DIR);
 
-    MediaAnalyzer.getInstance().setCacheDir(CACHE_DIR);
+    MediaAnalyzer.getInstance().setCacheDir(HEATMAP_DIR);
   } catch (e) {
     console.error('Failed to initialize database:', e);
     process.exit(1);
