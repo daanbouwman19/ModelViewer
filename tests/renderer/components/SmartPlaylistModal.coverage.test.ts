@@ -159,23 +159,28 @@ describe('SmartPlaylistModal Coverage', () => {
   });
 
   it('watcher resets form when modal closes', async () => {
-    mockUIState.isSmartPlaylistModalVisible = true;
-    const wrapper = mount(SmartPlaylistModal);
-    await wrapper.vm.$nextTick();
+    vi.useFakeTimers();
+    try {
+      mockUIState.isSmartPlaylistModalVisible = true;
+      const wrapper = mount(SmartPlaylistModal);
+      await wrapper.vm.$nextTick();
 
-    // Set some values
-    await wrapper.find('input[type="text"]').setValue('Test Name');
-    (wrapper.vm as any).minRating = 5;
+      // Set some values
+      await wrapper.find('input[type="text"]').setValue('Test Name');
+      (wrapper.vm as any).minRating = 5;
 
-    // Close modal
-    mockUIState.isSmartPlaylistModalVisible = false;
-    await wrapper.vm.$nextTick();
+      // Close modal
+      mockUIState.isSmartPlaylistModalVisible = false;
+      await wrapper.vm.$nextTick();
 
-    // Wait for setTimeout to execute
-    await new Promise((resolve) => setTimeout(resolve, 350));
+      // Wait for setTimeout to execute
+      vi.advanceTimersByTime(350);
 
-    expect((wrapper.vm as any).name).toBe('');
-    expect((wrapper.vm as any).minRating).toBe(0);
+      expect((wrapper.vm as any).name).toBe('');
+      expect((wrapper.vm as any).minRating).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('isEditing computed returns true when playlistToEdit exists', async () => {
