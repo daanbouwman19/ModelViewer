@@ -20,7 +20,7 @@ export class MediaAnalyzer {
   private static instance: MediaAnalyzer;
   private cacheDir: string | null = null;
 
-  private constructor() {}
+  private constructor() { }
 
   static getInstance(): MediaAnalyzer {
     if (!MediaAnalyzer.instance) {
@@ -101,17 +101,17 @@ export class MediaAnalyzer {
   private async processQueue() {
     if (this.isProcessing) return; // Busy
 
-    const nextWork = this.jobQueue.shift();
-    if (!nextWork) return;
-
     this.isProcessing = true;
 
     try {
-      await nextWork();
+      while (this.jobQueue.length > 0) {
+        const nextWork = this.jobQueue.shift();
+        if (nextWork) {
+          await nextWork();
+        }
+      }
     } finally {
       this.isProcessing = false;
-      // Process next item immediately
-      this.processQueue();
     }
   }
 

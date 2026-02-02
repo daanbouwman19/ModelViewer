@@ -55,7 +55,7 @@ describe('VideoPlayer.vue', () => {
   const defaultProps = {
     src: 'http://localhost/test.mp4',
     isTranscodingMode: false,
-
+    isControlsVisible: true,
     transcodedDuration: 0,
     currentTranscodeStartTime: 0,
     isTranscodingLoading: false,
@@ -155,7 +155,7 @@ describe('VideoPlayer.vue', () => {
     video.pause = vi.fn();
     Object.defineProperty(video, 'paused', { value: true, writable: true });
 
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
 
     // Trigger click to play
     await wrapper.find('video').trigger('click');

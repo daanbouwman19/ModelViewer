@@ -43,6 +43,7 @@ import Hls from 'hls.js';
 const props = defineProps<{
   src: string | null;
   isTranscodingMode: boolean;
+  isControlsVisible: boolean;
   transcodedDuration: number;
   currentTranscodeStartTime: number;
   isTranscodingLoading: boolean;
