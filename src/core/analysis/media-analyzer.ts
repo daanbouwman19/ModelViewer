@@ -20,7 +20,7 @@ export class MediaAnalyzer {
   private static instance: MediaAnalyzer;
   private cacheDir: string | null = null;
 
-  private constructor() { }
+  private constructor() {}
 
   static getInstance(): MediaAnalyzer {
     if (!MediaAnalyzer.instance) {

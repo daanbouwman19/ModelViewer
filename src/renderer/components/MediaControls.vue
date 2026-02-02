@@ -389,9 +389,9 @@ const fetchHeatmap = async () => {
           if (progress !== null) {
             heatmapProgress.value = progress;
           }
-          } catch (err) {
-            console.warn('[MediaControls] Progress poll failed', err);
-          }
+        } catch (err) {
+          console.warn('[MediaControls] Progress poll failed', err);
+        }
       }, 2000);
 
       isHeatmapLoading.value = true;
