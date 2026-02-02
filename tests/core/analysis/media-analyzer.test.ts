@@ -38,7 +38,12 @@ vi.mock('crypto', () => ({
 vi.mock('../../../src/core/utils/ffmpeg-utils', () => ({
   getFFmpegStreams: vi.fn(),
 }));
+vi.mock('../../../src/core/media-source', () => ({
+  createMediaSource: vi.fn(),
+}));
+
 import { getFFmpegStreams } from '../../../src/core/utils/ffmpeg-utils';
+import { createMediaSource } from '../../../src/core/media-source';
 
 import { spawn } from 'child_process';
 
@@ -53,6 +58,9 @@ describe('MediaAnalyzer', () => {
       hasVideo: true,
       hasAudio: true,
     });
+    (createMediaSource as any).mockImplementation((path: string) => ({
+      getFFmpegInput: vi.fn().mockResolvedValue(path),
+    }));
   });
 
   const setupMockSpawn = (

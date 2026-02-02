@@ -2,6 +2,7 @@ import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
 import fs from 'fs/promises';
 import { getHlsTranscodeArgs } from './utils/ffmpeg-utils.ts';
+import { createMediaSource } from './media-source.ts';
 import {
   HLS_SEGMENT_DURATION,
   MAX_CONCURRENT_TRANSCODES,
@@ -84,30 +85,15 @@ export class HlsManager {
     const segmentPath = path.join(outputDir, 'segment_%03d.ts');
     const playlistPath = path.join(outputDir, 'playlist.m3u8');
 
+    const source = createMediaSource(filePath);
+    const inputPath = await source.getFFmpegInput();
+
     const args = getHlsTranscodeArgs(
-      filePath,
+      inputPath,
       segmentPath,
       playlistPath,
       HLS_SEGMENT_DURATION,
     );
-
-    // If starting from a specific time, add -ss before -i in getHlsTranscodeArgs??
-    // Wait, getHlsTranscodeArgs currently puts -i inside it.
-    // I need to update getHlsTranscodeArgs to support seeking if I want to support resume.
-    // However, for HLS, we usually start from 0 and let the player seek?
-    // Or we handle seeking by starting a NEW session from that timestamp?
-    // For now, let's assume we start from 0. The player requests segments.
-    // If the user seeks, the player might just request the corresponding segment if it exists in the playlist.
-    // But if we transcode on demand, we make a VOD playlist.
-    // Generating the WHOLE file as HLS takes time.
-    // Usually on-the-fly HLS is tricky for seeking if you haven't generated segments yet.
-    // Ffmpeg will generate segments as fast as it can.
-    // For VOD, we usually let it run.
-
-    // NOTE: For seeking far ahead, we might need to kill session and start a new one from offset?
-    // hls.js usually handles VOD by reading the full playlist.
-    // If we generate a full VOD playlist, ffmpeg needs to scan the whole file? passed '-hls_list_size 0'.
-    // Yes.
 
     console.log(`[HLS] Starting session ${sessionId} for ${filePath}`);
     const proc = spawn(ffmpegStatic, args);
