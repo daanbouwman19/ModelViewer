@@ -64,8 +64,11 @@ describe('MediaAnalyzer Robustness', () => {
     analyzer = MediaAnalyzer.getInstance();
     analyzer.setCacheDir('/tmp/cache');
     (fs.readFile as any).mockRejectedValue(new Error('ENOENT')); // Cache miss
-    (createMediaSource as any).mockImplementation((path: string) => ({
+    vi.mocked(createMediaSource).mockImplementation((path: string) => ({
       getFFmpegInput: vi.fn().mockResolvedValue(path),
+      getStream: vi.fn(),
+      getMimeType: vi.fn(),
+      getSize: vi.fn(),
     }));
   });
 

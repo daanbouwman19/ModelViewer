@@ -58,8 +58,11 @@ describe('MediaAnalyzer', () => {
       hasVideo: true,
       hasAudio: true,
     });
-    (createMediaSource as any).mockImplementation((path: string) => ({
+    vi.mocked(createMediaSource).mockImplementation((path: string) => ({
       getFFmpegInput: vi.fn().mockResolvedValue(path),
+      getStream: vi.fn(),
+      getMimeType: vi.fn(),
+      getSize: vi.fn(),
     }));
   });
 
