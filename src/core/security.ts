@@ -3,10 +3,12 @@ import path from 'path';
 import { getMediaDirectories } from './database.ts';
 import { MediaDirectory } from './types.ts';
 import { isDrivePath } from './media-utils.ts';
+import { ConcurrencyLimiter } from './utils/concurrency-limiter.ts';
 import {
   SENSITIVE_SUBDIRECTORIES,
   WINDOWS_RESTRICTED_ROOT_PATHS,
   MAX_PATH_LENGTH,
+  DISK_SCAN_CONCURRENCY,
 } from './constants.ts';
 
 export interface AuthorizationResult {
@@ -91,11 +93,15 @@ export async function filterAuthorizedPaths(
   filePaths: string[],
 ): Promise<string[]> {
   const mediaDirectories = await getMediaDirectories();
+  const limiter = new ConcurrencyLimiter(DISK_SCAN_CONCURRENCY);
+
   const results = await Promise.all(
-    filePaths.map(async (p) => {
-      const auth = await authorizeFilePath(p, mediaDirectories);
-      return auth.isAllowed ? p : null;
-    }),
+    filePaths.map((p) =>
+      limiter.run(async () => {
+        const auth = await authorizeFilePath(p, mediaDirectories);
+        return auth.isAllowed ? p : null;
+      }),
+    ),
   );
   return results.filter((p): p is string => p !== null);
 }
