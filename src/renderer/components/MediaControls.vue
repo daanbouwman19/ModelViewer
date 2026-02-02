@@ -1,156 +1,197 @@
 <template>
-  <div
-    class="absolute bottom-0 left-0 w-full flex flex-col items-center pointer-events-none z-50"
-  >
+  <Teleport to="body" :disabled="isDesktop">
     <div
-      ref="controlsBarRef"
-      class="controls-bar w-full flex flex-nowrap justify-center items-center transition-transform-opacity duration-500 ease-in-out will-change-transform bg-linear-to-t from-black/80 to-transparent pt-12 pb-6 pointer-events-auto"
-      :class="[gapClass, { 'translate-y-full opacity-0': !isControlsVisible }]"
-      :style="containerPaddingStyle"
+      v-bind="$attrs"
+      class="fixed md:absolute bottom-0 left-0 w-full flex flex-col items-center pointer-events-none z-[100]"
     >
-      <!-- Previous Button -->
-      <button
-        :disabled="isPreviousDisabled"
-        class="group transition-all duration-200 hover:bg-(--accent-color) disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0"
-        :class="navButtonClass"
-        :title="isPreviousDisabled ? 'No previous media' : 'Previous media (Z)'"
-        :aria-label="
-          isPreviousDisabled ? 'No previous media' : 'Previous media (Z)'
-        "
-        @click="$emit('previous')"
-      >
-        <ChevronLeftIcon class="w-5 h-5 md:w-6 md:h-6" />
-      </button>
-
-      <!-- Next Button -->
-      <button
-        :disabled="!canNavigate"
-        class="group transition-all duration-200 hover:bg-(--accent-color) disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0"
-        :class="navButtonClass"
-        title="Next media (X)"
-        aria-label="Next media (X)"
-        @click="$emit('next')"
-      >
-        <ChevronRightIcon class="w-5 h-5 md:w-6 md:h-6" />
-      </button>
-
-      <!-- Separator for Rating -->
       <div
-        v-if="!isImage && currentMediaItem && showStars"
-        class="w-px h-6 md:h-8 bg-white/10 mx-0.5 md:mx-2 shrink-0"
-      ></div>
+        ref="controlsBarRef"
+        class="controls-bar w-full flex flex-col justify-end items-center transition-transform-opacity duration-500 ease-in-out will-change-transform bg-linear-to-t from-black/90 via-black/60 to-transparent pt-12 pb-6 pointer-events-auto"
+        :class="[{ 'translate-y-full opacity-0': !isControlsVisible }]"
+        :style="containerPaddingStyle"
+      >
+        <!-- Progress Bar -->
+        <div class="w-full mb-4 px-2 md:px-0 max-w-screen-xl mx-auto">
+          <ProgressBar
+            :current-time="currentTime"
+            :duration="duration"
+            :heatmap="heatmapData"
+            :watched-segments="watchedSegments"
+            @seek="$emit('seek', $event)"
+            @scrub-start="$emit('scrub-start')"
+            @scrub-end="$emit('scrub-end')"
+          />
+        </div>
 
-      <!-- Rating -->
-      <div v-if="currentMediaItem && showStars" class="flex gap-0.5">
-        <button
-          v-for="star in 5"
-          :key="star"
-          class="transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:rounded-sm"
-          :class="
-            (currentMediaItem?.rating || 0) >= star
-              ? 'text-(--accent-color)'
-              : 'text-white/30 hover:text-white/70'
-          "
-          :aria-label="`Rate ${star} ${star === 1 ? 'star' : 'stars'}${
-            (currentMediaItem?.rating || 0) === star ? ', current rating' : ''
-          }`"
-          :aria-pressed="(currentMediaItem?.rating || 0) === star"
-          :title="`Rate ${star} ${star === 1 ? 'star' : 'stars'}`"
-          @click="$emit('set-rating', star)"
+        <!-- Heatmap Loading Indicator -->
+        <Transition name="fade">
+          <div
+            v-if="isHeatmapLoading"
+            class="flex absolute top-[-60px] right-4 z-50 bg-black/70 text-white text-xs px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-xl pointer-events-none shadow-2xl items-center gap-2"
+          >
+            <div class="loader-spinner"></div>
+            <span class="font-medium tracking-wide antialiased"
+              >Analyzing Scene... {{ heatmapProgress }}%</span
+            >
+          </div>
+        </Transition>
+
+        <!-- Buttons Row -->
+        <div
+          class="flex flex-nowrap justify-center items-center w-full"
+          :class="gapClass"
         >
-          <StarIcon class="w-4 h-4 md:w-5 md:h-5" />
-        </button>
+          <!-- Previous Button -->
+          <button
+            :disabled="isPreviousDisabled"
+            class="group transition-all duration-200 hover:bg-(--accent-color) disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0"
+            :class="navButtonClass"
+            :title="
+              isPreviousDisabled ? 'No previous media' : 'Previous media (Z)'
+            "
+            :aria-label="
+              isPreviousDisabled ? 'No previous media' : 'Previous media (Z)'
+            "
+            @click="$emit('previous')"
+          >
+            <ChevronLeftIcon class="w-5 h-5 md:w-6 md:h-6" />
+          </button>
+
+          <!-- Next Button -->
+          <button
+            :disabled="!canNavigate"
+            class="group transition-all duration-200 hover:bg-(--accent-color) disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0"
+            :class="navButtonClass"
+            title="Next media (X)"
+            aria-label="Next media (X)"
+            @click="$emit('next')"
+          >
+            <ChevronRightIcon class="w-5 h-5 md:w-6 md:h-6" />
+          </button>
+
+          <!-- Separator for Rating -->
+          <div
+            v-if="!isImage && currentMediaItem && showStars"
+            class="w-px h-6 md:h-8 bg-white/10 mx-0.5 md:mx-2 shrink-0"
+          ></div>
+
+          <!-- Rating -->
+          <div v-if="currentMediaItem && showStars" class="flex gap-0.5">
+            <button
+              v-for="star in 5"
+              :key="star"
+              class="transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:rounded-sm"
+              :class="
+                (currentMediaItem?.rating || 0) >= star
+                  ? 'text-(--accent-color)'
+                  : 'text-white/30 hover:text-white/70'
+              "
+              :aria-label="`Rate ${star} ${star === 1 ? 'star' : 'stars'}${
+                (currentMediaItem?.rating || 0) === star
+                  ? ', current rating'
+                  : ''
+              }`"
+              :aria-pressed="(currentMediaItem?.rating || 0) === star"
+              :title="`Rate ${star} ${star === 1 ? 'star' : 'stars'}`"
+              @click="$emit('set-rating', star)"
+            >
+              <StarIcon class="w-4 h-4 md:w-5 md:h-5" />
+            </button>
+          </div>
+
+          <!-- Separator for Controls -->
+          <div
+            v-if="currentMediaItem && showStars"
+            class="w-px h-6 md:h-8 bg-white/10 mx-0.5 md:mx-2 shrink-0 hidden sm:block"
+          ></div>
+
+          <!-- Play/Pause -->
+          <button
+            v-if="!isImage && currentMediaItem"
+            class="play-pause-button p-1.5 md:p-2 rounded-full text-white transition-all duration-200 hover:bg-(--accent-color) focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0"
+            :aria-label="
+              isPlaying ? 'Pause video (Space)' : 'Play video (Space)'
+            "
+            :title="isPlaying ? 'Pause video (Space)' : 'Play video (Space)'"
+            @click="$emit('toggle-play')"
+          >
+            <PauseIcon v-if="isPlaying" class="w-5 h-5 md:w-6 md:h-6" />
+            <PlayIcon v-else class="w-5 h-5 md:w-6 md:h-6" />
+          </button>
+
+          <!-- Separator -->
+          <div
+            v-if="!isImage && currentMediaItem && !isNarrowView"
+            class="w-px h-6 md:h-8 bg-white/10 mx-0.5 md:mx-2 shrink-0"
+          ></div>
+
+          <!-- VR Mode -->
+          <button
+            v-if="!isImage && currentMediaItem"
+            class="p-1.5 md:p-2 rounded-full text-white transition-all duration-200 hover:bg-(--accent-color) focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0 hidden sm:block"
+            :class="{
+              'bg-(--accent-color)': isVrMode,
+            }"
+            title="Toggle VR Mode (180°)"
+            aria-label="Toggle VR Mode"
+            :aria-pressed="isVrMode"
+            @click="$emit('toggle-vr')"
+          >
+            <VRIcon class="w-5 h-5 md:w-6 md:h-6" />
+          </button>
+
+          <!-- Separator -->
+          <div
+            v-if="!isImage && currentMediaItem"
+            class="w-px h-6 md:h-8 bg-white/10 mx-0.5 md:mx-2 shrink-0 hidden sm:block"
+          ></div>
+
+          <!-- VLC -->
+          <button
+            v-if="!isImage && currentMediaItem"
+            class="vlc-button p-1.5 md:p-2 rounded-full text-white transition-all duration-200 hover:bg-(--accent-color) focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0 hidden sm:block"
+            title="Open in VLC"
+            aria-label="Open in VLC"
+            @click="$emit('open-in-vlc')"
+          >
+            <VlcIcon class="w-5 h-5 md:w-6 md:h-6" />
+          </button>
+
+          <!-- Separator -->
+          <div
+            v-if="!isImage && currentMediaItem"
+            class="w-px h-6 md:h-8 bg-white/10 mx-0.5 md:mx-2 shrink-0 hidden sm:block"
+          ></div>
+
+          <!-- Time Display In-Pill (Desktop/Tablet) -->
+          <div
+            v-if="!isImage && currentMediaItem && showTime"
+            class="text-[10px] md:text-xs font-mono text-white/80 min-w-[60px] md:min-w-[80px] text-center"
+          >
+            {{ formattedTime }}
+          </div>
+
+          <!-- Separator -->
+          <div
+            v-if="!isImage && currentMediaItem"
+            class="w-px h-6 md:h-8 bg-white/10 mx-0.5 md:mx-2 shrink-0 hidden sm:block"
+            :class="{ 'hidden!': isNarrowView }"
+          ></div>
+
+          <!-- Fullscreen -->
+          <button
+            v-if="!isImage && currentMediaItem"
+            class="p-1.5 md:p-2 rounded-full text-white transition-all duration-200 hover:bg-(--accent-color) focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0"
+            title="Toggle Fullscreen"
+            aria-label="Toggle Fullscreen"
+            @click="$emit('toggle-fullscreen')"
+          >
+            <ExpandIcon class="w-5 h-5 md:w-6 md:h-6" />
+          </button>
+        </div>
       </div>
-
-      <!-- Separator for Controls -->
-      <div
-        v-if="currentMediaItem && showStars"
-        class="w-px h-6 md:h-8 bg-white/10 mx-0.5 md:mx-2 shrink-0 hidden sm:block"
-      ></div>
-
-      <!-- Play/Pause -->
-      <button
-        v-if="!isImage && currentMediaItem"
-        class="play-pause-button p-1.5 md:p-2 rounded-full text-white transition-all duration-200 hover:bg-(--accent-color) focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0"
-        :aria-label="isPlaying ? 'Pause video (Space)' : 'Play video (Space)'"
-        :title="isPlaying ? 'Pause video (Space)' : 'Play video (Space)'"
-        @click="$emit('toggle-play')"
-      >
-        <PauseIcon v-if="isPlaying" class="w-5 h-5 md:w-6 md:h-6" />
-        <PlayIcon v-else class="w-5 h-5 md:w-6 md:h-6" />
-      </button>
-
-      <!-- Separator -->
-      <div
-        v-if="!isImage && currentMediaItem && !isNarrowView"
-        class="w-px h-6 md:h-8 bg-white/10 mx-0.5 md:mx-2 shrink-0"
-      ></div>
-
-      <!-- VR Mode -->
-      <button
-        v-if="!isImage && currentMediaItem"
-        class="p-1.5 md:p-2 rounded-full text-white transition-all duration-200 hover:bg-(--accent-color) focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0 hidden sm:block"
-        :class="{
-          'bg-(--accent-color)': isVrMode,
-        }"
-        title="Toggle VR Mode (180°)"
-        aria-label="Toggle VR Mode"
-        :aria-pressed="isVrMode"
-        @click="$emit('toggle-vr')"
-      >
-        <VRIcon class="w-5 h-5 md:w-6 md:h-6" />
-      </button>
-
-      <!-- Separator -->
-      <div
-        v-if="!isImage && currentMediaItem"
-        class="w-px h-6 md:h-8 bg-white/10 mx-0.5 md:mx-2 shrink-0 hidden sm:block"
-      ></div>
-
-      <!-- VLC -->
-      <button
-        v-if="!isImage && currentMediaItem"
-        class="vlc-button p-1.5 md:p-2 rounded-full text-white transition-all duration-200 hover:bg-(--accent-color) focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0 hidden sm:block"
-        title="Open in VLC"
-        aria-label="Open in VLC"
-        @click="$emit('open-in-vlc')"
-      >
-        <VlcIcon class="w-5 h-5 md:w-6 md:h-6" />
-      </button>
-
-      <!-- Separator -->
-      <div
-        v-if="!isImage && currentMediaItem"
-        class="w-px h-6 md:h-8 bg-white/10 mx-0.5 md:mx-2 shrink-0 hidden sm:block"
-      ></div>
-
-      <!-- Time Display In-Pill (Desktop/Tablet) -->
-      <div
-        v-if="!isImage && currentMediaItem && showTime"
-        class="text-[10px] md:text-xs font-mono text-white/80 min-w-[60px] md:min-w-[80px] text-center"
-      >
-        {{ formattedTime }}
-      </div>
-
-      <!-- Separator -->
-      <div
-        v-if="!isImage && currentMediaItem"
-        class="w-px h-6 md:h-8 bg-white/10 mx-0.5 md:mx-2 shrink-0 hidden sm:block"
-        :class="{ 'hidden!': isNarrowView }"
-      ></div>
-
-      <!-- Fullscreen -->
-      <button
-        v-if="!isImage && currentMediaItem"
-        class="p-1.5 md:p-2 rounded-full text-white transition-all duration-200 hover:bg-(--accent-color) focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0"
-        title="Toggle Fullscreen"
-        aria-label="Toggle Fullscreen"
-        @click="$emit('toggle-fullscreen')"
-      >
-        <ExpandIcon class="w-5 h-5 md:w-6 md:h-6" />
-      </button>
     </div>
-  </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -162,10 +203,16 @@ import PlayIcon from './icons/PlayIcon.vue';
 import PauseIcon from './icons/PauseIcon.vue';
 import ExpandIcon from './icons/ExpandIcon.vue';
 import StarIcon from './icons/StarIcon.vue';
-import type { MediaFile } from '../../core/types';
+import ProgressBar from './ProgressBar.vue';
+import type { MediaFile, HeatmapData } from '../../core/types';
 import { useUIStore } from '../composables/useUIStore';
-import { computed, ref, onMounted, onUnmounted } from 'vue';
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue';
 import { formatTime } from '../utils/timeUtils';
+import { api } from '../api';
+
+defineOptions({
+  inheritAttrs: false,
+});
 
 const props = withDefaults(
   defineProps<{
@@ -260,12 +307,13 @@ const gapClass = computed(() => {
 
 // Container Padding Style based on Orientation + Safe Area
 const containerPaddingStyle = computed(() => {
-  // Landscape -> 48px, Portrait -> 24px
-  const basePadding = isLandscape.value ? '3rem' : '1.5rem';
+  // Landscape -> 48px, Portrait -> 24px + extra for navbar safe area
+  // Increased base padding to avoid clipping with gesture bar
+  const basePadding = isLandscape.value ? '3rem' : '2.5rem';
   return {
     paddingLeft: `max(${basePadding}, env(safe-area-inset-left))`,
     paddingRight: `max(${basePadding}, env(safe-area-inset-right))`,
-    paddingBottom: `max(1.5rem, env(safe-area-inset-bottom))`,
+    paddingBottom: `calc(max(1.5rem, env(safe-area-inset-bottom)) + 12px)`, // Extra 12px for safety
   };
 });
 
@@ -295,6 +343,95 @@ const formattedTime = computed(() => {
   return `${current} / ${total}`;
 });
 
+const heatmapData = ref<HeatmapData | null>(null);
+const watchedSegments = ref<{ start: number; end: number }[]>([]);
+const isHeatmapLoading = ref(false);
+const heatmapProgress = ref(0);
+let heatmapPollInterval: ReturnType<typeof setInterval> | null = null;
+let fetchTimeout: ReturnType<typeof setTimeout> | null = null;
+
+const fetchHeatmap = async () => {
+  if (!props.currentMediaItem) {
+    heatmapData.value = null;
+    watchedSegments.value = [];
+    isHeatmapLoading.value = false;
+    return;
+  }
+
+  const filePath = props.currentMediaItem.path;
+
+  // Clear previous polling
+  if (heatmapPollInterval) {
+    clearInterval(heatmapPollInterval);
+    heatmapPollInterval = null;
+  }
+
+  // Clear previous pending fetch
+  if (fetchTimeout) {
+    clearTimeout(fetchTimeout);
+    fetchTimeout = null;
+  }
+
+  // Debounce: Wait 1 second before starting heavy analysis
+  fetchTimeout = setTimeout(async () => {
+    try {
+      // Start Polling for Progress
+      heatmapPollInterval = setInterval(async () => {
+        if (!isHeatmapLoading.value || heatmapData.value) {
+          if (heatmapPollInterval) {
+            clearInterval(heatmapPollInterval);
+            heatmapPollInterval = null;
+          }
+          return;
+        }
+        try {
+          const progress = await api.getHeatmapProgress(filePath);
+          if (progress !== null) {
+            heatmapProgress.value = progress;
+          }
+        } catch {
+          // console.warn('Progress poll failed', err);
+        }
+      }, 2000);
+
+      isHeatmapLoading.value = true;
+      heatmapProgress.value = 0;
+
+      // Load heatmap
+      // Request fewer points for smoother look (e.g. 100)
+      const result = await api.getHeatmap(filePath, 100);
+      heatmapData.value = result;
+
+      // Load watched segments
+      const metaMap = await api.getMetadata([filePath]);
+      const meta = metaMap[filePath];
+      if (meta?.watchedSegments) {
+        const parsed = JSON.parse(meta.watchedSegments);
+        if (Array.isArray(parsed)) {
+          watchedSegments.value = parsed;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to fetch heatmap/metadata', e);
+      // Even if it fails, we should stop loading
+      heatmapData.value = null;
+    } finally {
+      isHeatmapLoading.value = false;
+      if (heatmapPollInterval) {
+        clearInterval(heatmapPollInterval);
+        heatmapPollInterval = null;
+      }
+    }
+  }, 1000);
+};
+
+onUnmounted(() => {
+  if (heatmapPollInterval) clearInterval(heatmapPollInterval);
+  if (fetchTimeout) clearTimeout(fetchTimeout);
+});
+
+watch(() => props.currentMediaItem, fetchHeatmap, { immediate: true });
+
 defineEmits<{
   (e: 'previous'): void;
   (e: 'next'): void;
@@ -303,7 +440,29 @@ defineEmits<{
   (e: 'set-rating', star: number): void;
   (e: 'toggle-vr'): void;
   (e: 'toggle-fullscreen'): void;
+  (e: 'seek', time: number): void;
+  (e: 'scrub-start'): void;
+  (e: 'scrub-end'): void;
 }>();
+
+defineExpose({
+  watchedSegments,
+});
 </script>
 
-<style scoped></style>
+<style scoped>
+.loader-spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+</style>

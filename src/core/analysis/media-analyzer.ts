@@ -52,29 +52,84 @@ export class MediaAnalyzer {
     return job ? job.progress : null;
   }
 
+  private isProcessing = false;
+  private jobQueue: Array<() => Promise<void>> = [];
+
   async generateHeatmap(
     filePath: string,
     points: number = DEFAULT_HEATMAP_POINTS,
+  ): Promise<HeatmapData> {
+    const existingJob = this.activeJobs.get(filePath);
+    if (existingJob) {
+      // Return existing promise if already queued or running
+      return existingJob.promise;
+    }
+
+    // Create a deferred promise to return immediately
+    let deferredResolve: (
+      value: HeatmapData | PromiseLike<HeatmapData>,
+    ) => void;
+    let deferredReject: (reason?: unknown) => void;
+
+    const jobPromise = new Promise<HeatmapData>((resolve, reject) => {
+      deferredResolve = resolve;
+      deferredReject = reject;
+    });
+
+    // Register job immediately as 0% progress
+    this.activeJobs.set(filePath, { promise: jobPromise, progress: 0 });
+
+    const work = async () => {
+      try {
+        const result = await this.executeHeatmapGeneration(filePath, points);
+        deferredResolve!(result);
+      } catch (e) {
+        deferredReject!(e);
+      } finally {
+        // Cleanup after completion/failure
+        this.activeJobs.delete(filePath);
+      }
+    };
+
+    // Add to queue and trigger processing
+    this.jobQueue.push(work);
+    this.processQueue();
+
+    return jobPromise;
+  }
+
+  private async processQueue() {
+    if (this.isProcessing) return; // Busy
+
+    const nextWork = this.jobQueue.shift();
+    if (!nextWork) return;
+
+    this.isProcessing = true;
+
+    try {
+      await nextWork();
+    } finally {
+      this.isProcessing = false;
+      // Process next item immediately
+      this.processQueue();
+    }
+  }
+
+  // Renamed the original logic to this method
+  private async executeHeatmapGeneration(
+    filePath: string,
+    points: number,
   ): Promise<HeatmapData> {
     const safePoints = this.sanitizePoints(points);
     if (!ffmpegStatic) {
       throw new Error('FFmpeg not found');
     }
 
-    // Check duplicate jobs
-    const existingJob = this.activeJobs.get(filePath);
-    if (existingJob) {
-      console.log(`[MediaAnalyzer] Joining existing job for ${filePath}`);
-      return existingJob.promise;
-    }
-
     console.log(
       `[MediaAnalyzer] Generating heatmap for ${filePath} with ${safePoints} points`,
     );
 
-    // Create job promise early to register it before any async operations
-    // This prevents race conditions where two concurrent calls both pass the duplicate check
-    const jobPromise = new Promise<HeatmapData>(async (resolve, reject) => {
+    return new Promise<HeatmapData>(async (resolve, reject) => {
       try {
         // Check cache
         const cachePath = this.getCachePath(filePath, safePoints);
@@ -103,7 +158,8 @@ export class MediaAnalyzer {
         const mapArgs: string[] = [];
 
         // Dynamic Filter Chain Construction
-        const videoAnalysisFilter = `[0:v]fps=1,signalstats,metadata=print:key=lavfi.signalstats.YDIF:file=-[v]`;
+        // Optimize: Scale down to 320px width to speed up signalstats (YDIF calculation)
+        const videoAnalysisFilter = `[0:v]fps=1,scale=320:-2,signalstats,metadata=print:key=lavfi.signalstats.YDIF:file=-[v]`;
         const audioAnalysisFilter = `[0:a]asetnsamples=22050,astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level:file=-[a]`;
 
         if (hasVideo) {
@@ -140,6 +196,7 @@ export class MediaAnalyzer {
         let output = '';
         let errorOutput = '';
         let durationSec = 0;
+        let stderrBuffer = '';
 
         process.stdout.on('data', (data) => {
           output += data.toString();
@@ -148,35 +205,42 @@ export class MediaAnalyzer {
         process.stderr.on('data', (data) => {
           const str = data.toString();
           errorOutput += str;
+          stderrBuffer += str;
 
-          // Parse Duration if not yet found
-          if (!durationSec) {
-            const durMatch = str.match(/Duration: (\d+):(\d+):(\d+)\.(\d+)/);
-            if (durMatch) {
-              const h = parseInt(durMatch[1], 10);
-              const m = parseInt(durMatch[2], 10);
-              const s = parseInt(durMatch[3], 10);
-              durationSec = h * 3600 + m * 60 + s;
+          const lines = stderrBuffer.split(/[\r\n]+/);
+          // Keep the last partial line (or empty string if ends with newline) in buffer
+          stderrBuffer = lines.pop() || '';
+
+          for (const line of lines) {
+            // Parse Duration if not yet found
+            if (!durationSec) {
+              const durMatch = line.match(/Duration: (\d+):(\d+):(\d+)\.(\d+)/);
+              if (durMatch) {
+                const h = parseInt(durMatch[1], 10);
+                const m = parseInt(durMatch[2], 10);
+                const s = parseInt(durMatch[3], 10);
+                durationSec = h * 3600 + m * 60 + s;
+              }
             }
-          }
 
-          // Parse Progress
-          if (durationSec > 0) {
-            const timeMatch = str.match(/time=(\d+):(\d+):(\d+)\.(\d+)/);
-            if (timeMatch) {
-              const h = parseInt(timeMatch[1], 10);
-              const m = parseInt(timeMatch[2], 10);
-              const s = parseInt(timeMatch[3], 10);
-              const currentSec = h * 3600 + m * 60 + s;
-              const progress = Math.min(
-                100,
-                Math.round((currentSec / durationSec) * 100),
-              );
+            // Parse Progress
+            if (durationSec > 0) {
+              const timeMatch = line.match(/time=(\d+):(\d+):(\d+)\.(\d+)/);
+              if (timeMatch) {
+                const h = parseInt(timeMatch[1], 10);
+                const m = parseInt(timeMatch[2], 10);
+                const s = parseInt(timeMatch[3], 10);
+                const currentSec = h * 3600 + m * 60 + s;
+                const progress = Math.min(
+                  100,
+                  Math.round((currentSec / durationSec) * 100),
+                );
 
-              // Update progress in map
-              const job = this.activeJobs.get(filePath);
-              if (job) {
-                job.progress = progress;
+                // Update progress in map
+                const job = this.activeJobs.get(filePath);
+                if (job) {
+                  job.progress = progress;
+                }
               }
             }
           }
@@ -208,15 +272,34 @@ export class MediaAnalyzer {
             const motionValues: number[] = [];
             const audioValues: number[] = [];
 
+            // Regex for more robust parsing
+            // Matches: lavfi.signalstats.YDIF=1.234 or lavfi.signalstats.YDIF= 1.234
+            const ydifRegex = /lavfi\.signalstats\.YDIF\s*=\s*([0-9\.]+)/;
+            const audioRegex =
+              /lavfi\.astats\.Overall\.RMS_level\s*=\s*([0-9\.\-]+)/;
+
             const lines = output.split('\n');
             for (const line of lines) {
-              if (line.includes('lavfi.signalstats.YDIF')) {
-                const val = parseFloat(line.split('=')[1]);
+              const ydifMatch = line.match(ydifRegex);
+              if (ydifMatch) {
+                const val = parseFloat(ydifMatch[1]);
                 if (!isNaN(val)) motionValues.push(val);
-              } else if (line.includes('lavfi.astats.Overall.RMS_level')) {
-                const val = parseFloat(line.split('=')[1]);
+              }
+
+              const audioMatch = line.match(audioRegex);
+              if (audioMatch) {
+                const val = parseFloat(audioMatch[1]);
                 if (!isNaN(val)) audioValues.push(val);
               }
+            }
+
+            if (motionValues.length === 0 || audioValues.length === 0) {
+              console.warn(
+                `[MediaAnalyzer] Warning: Zero samples found for ${filePath}`,
+              );
+              console.warn(
+                `[MediaAnalyzer] Output sample (last 5 lines): ${lines.slice(-5).join('\n')}`,
+              );
             }
 
             console.log(
@@ -254,20 +337,6 @@ export class MediaAnalyzer {
         reject(e);
       }
     });
-
-    // Store in active jobs IMMEDIATELY to prevent race conditions
-    this.activeJobs.set(filePath, { promise: jobPromise, progress: 0 });
-
-    // Remove from active jobs when done
-    jobPromise
-      .finally(() => {
-        this.activeJobs.delete(filePath);
-      })
-      .catch(() => {
-        // Ignore rejection in this side-effect chain; it's handled by the returned promise
-      });
-
-    return jobPromise;
   }
 
   // Simple bucket average resampling
