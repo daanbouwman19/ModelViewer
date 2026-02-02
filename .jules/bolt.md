@@ -42,3 +42,8 @@
 
 **Learning:** Recursively deep copying large tree structures (like album hierarchies) using `.map()` creates excessive object allocations and GC pressure, especially during high-frequency updates like view count refreshes.
 **Action:** Refactored `mapAlbumsWithStats` to mutate the album tree in-place, reducing memory churn by ~50% and improving responsiveness for large libraries.
+
+## 2026-02-19 - [Selecting Unused Heavy Columns]
+
+**Learning:** Selecting `watched_segments` (potentially large JSON) in `getAllMetadataAndStats` causes unnecessary memory usage and IPC serialization overhead when loading the library, as these fields are not used by the grid view.
+**Action:** Updated `executeSmartPlaylist` query to exclude `watched_segments`, reducing payload size for large libraries.

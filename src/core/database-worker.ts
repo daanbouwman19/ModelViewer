@@ -310,7 +310,6 @@ export function initDatabase(dbPath: string): WorkerResult {
         m.duration,
         m.rating,
         m.created_at,
-        m.watched_segments,
         COALESCE(v.view_count, 0) as view_count,
         v.last_viewed
       FROM media_metadata m
