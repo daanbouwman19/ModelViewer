@@ -48,7 +48,12 @@ vi.mock('../../../src/core/utils/ffmpeg-utils.ts', () => ({
   getFFmpegStreams: vi.fn(),
 }));
 
+vi.mock('../../../src/core/media-source', () => ({
+  createMediaSource: vi.fn(),
+}));
+
 import { getFFmpegStreams } from '../../../src/core/utils/ffmpeg-utils.ts';
+import { createMediaSource } from '../../../src/core/media-source';
 
 describe('MediaAnalyzer Robustness', () => {
   let analyzer: MediaAnalyzer;
@@ -59,6 +64,12 @@ describe('MediaAnalyzer Robustness', () => {
     analyzer = MediaAnalyzer.getInstance();
     analyzer.setCacheDir('/tmp/cache');
     (fs.readFile as any).mockRejectedValue(new Error('ENOENT')); // Cache miss
+    vi.mocked(createMediaSource).mockImplementation((path: string) => ({
+      getFFmpegInput: vi.fn().mockResolvedValue(path),
+      getStream: vi.fn(),
+      getMimeType: vi.fn(),
+      getSize: vi.fn(),
+    }));
   });
 
   it('should handle missing audio stream gracefully', async () => {

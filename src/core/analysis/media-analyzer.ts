@@ -1,6 +1,7 @@
 import { spawn } from 'child_process';
 import ffmpegStatic from 'ffmpeg-static';
 import { getFFmpegStreams } from '../utils/ffmpeg-utils';
+import { createMediaSource } from '../media-source.ts';
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
@@ -143,9 +144,13 @@ export class MediaAnalyzer {
           }
         }
 
-        // Check for streams
+        // Resolve input path handling gdrive:// etc
+        const source = createMediaSource(filePath);
+        const inputPath = await source.getFFmpegInput();
+
+        // Check for streams using resolved path
         const { hasVideo, hasAudio } = await getFFmpegStreams(
-          filePath,
+          inputPath,
           ffmpegStatic!,
         );
 
@@ -153,7 +158,7 @@ export class MediaAnalyzer {
           throw new Error('No video or audio streams found');
         }
 
-        const inputs = ['-i', filePath];
+        const inputs = ['-i', inputPath];
         const filterChains: string[] = [];
         const mapArgs: string[] = [];
 

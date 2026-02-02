@@ -35,6 +35,12 @@ vi.mock('ffmpeg-static', () => ({
   default: '/usr/bin/ffmpeg',
 }));
 
+vi.mock('../../src/core/media-source.ts', () => ({
+  createMediaSource: vi.fn(),
+}));
+
+import { createMediaSource } from '../../src/core/media-source.ts';
+
 describe('HlsManager DOS Protection', () => {
   const CACHE_DIR = '/tmp/hls';
   let hlsManager: HlsManager;
@@ -58,6 +64,13 @@ describe('HlsManager DOS Protection', () => {
     mockFsAccess.mockResolvedValue(undefined); // File exists
     mockFsMkdir.mockResolvedValue(undefined);
     mockFsRm.mockResolvedValue(undefined);
+
+    vi.mocked(createMediaSource).mockImplementation((path: string) => ({
+      getFFmpegInput: vi.fn().mockResolvedValue(path),
+      getStream: vi.fn(),
+      getMimeType: vi.fn(),
+      getSize: vi.fn(),
+    }));
   });
 
   afterEach(() => {

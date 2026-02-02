@@ -1,38 +1,46 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { HlsManager } from '../../src/core/hls-manager.ts';
 import EventEmitter from 'events';
+import { spawn } from 'child_process';
+import fs from 'fs/promises';
+import { createMediaSource } from '../../src/core/media-source.ts';
 
-const { mockSpawn, mockFsMkdir, mockFsAccess, mockFsRm, mockFsReadFile } =
-  vi.hoisted(() => ({
-    mockSpawn: vi.fn(),
-    mockFsMkdir: vi.fn(),
-    mockFsAccess: vi.fn(),
-    mockFsRm: vi.fn(),
-    mockFsReadFile: vi.fn(),
-  }));
-
-vi.mock('child_process', () => ({
-  spawn: mockSpawn,
-  default: { spawn: mockSpawn },
+vi.mock('../../src/core/media-source.ts', () => ({
+  createMediaSource: vi.fn(),
 }));
 
-vi.mock('fs/promises', () => ({
-  default: {
-    mkdir: mockFsMkdir,
-    access: mockFsAccess,
-    rm: mockFsRm,
-    readFile: mockFsReadFile,
-  },
-  mkdir: mockFsMkdir,
-  access: mockFsAccess,
-  rm: mockFsRm,
-  readFile: mockFsReadFile,
-  constants: { F_OK: 0 },
-}));
+vi.mock('child_process', () => {
+  const spawn = vi.fn();
+  return {
+    spawn,
+    default: { spawn },
+  };
+});
+
+vi.mock('fs/promises', () => {
+  const mkdir = vi.fn();
+  const access = vi.fn();
+  const rm = vi.fn();
+  const readFile = vi.fn();
+  return {
+    default: { mkdir, access, rm, readFile },
+    mkdir,
+    access,
+    rm,
+    readFile,
+    constants: { F_OK: 0 },
+  };
+});
 
 vi.mock('ffmpeg-static', () => ({
   default: '/usr/bin/ffmpeg',
 }));
+
+const mockSpawn = vi.mocked(spawn);
+const mockCreateMediaSource = vi.mocked(createMediaSource);
+const mockFsMkdir = vi.mocked(fs.mkdir);
+const mockFsAccess = vi.mocked(fs.access);
+const mockFsRm = vi.mocked(fs.rm);
 
 describe('HlsManager', () => {
   const CACHE_DIR = '/tmp/hls';
@@ -57,6 +65,14 @@ describe('HlsManager', () => {
     mockFsAccess.mockResolvedValue(undefined); // File exists
     mockFsMkdir.mockResolvedValue(undefined);
     mockFsRm.mockResolvedValue(undefined);
+
+    // Default media source mock
+    mockCreateMediaSource.mockImplementation((filePath: string) => ({
+      getFFmpegInput: vi.fn().mockResolvedValue(filePath),
+      getStream: vi.fn(),
+      getMimeType: vi.fn(),
+      getSize: vi.fn(),
+    }));
   });
 
   afterEach(() => {
@@ -198,7 +214,10 @@ describe('HlsManager', () => {
     const promise = hlsManager.ensureSession(sessionId, '/path');
 
     // Give it a tick to reach the spawn call and register listeners
-    await Promise.resolve();
+    let retries = 0;
+    while (mockSpawn.mock.calls.length === 0 && retries++ < 50) {
+      await Promise.resolve();
+    }
 
     // Simulate spawn error immediately
     mockProcess.emit('error', new Error('Spawn failed'));
@@ -230,7 +249,10 @@ describe('HlsManager', () => {
     const promise = hlsManager.ensureSession(sessionId, '/path');
 
     // Give it a tick to reach the spawn call and register listeners
-    await Promise.resolve();
+    let retries = 0;
+    while (mockSpawn.mock.calls.length === 0 && retries++ < 50) {
+      await Promise.resolve();
+    }
 
     // Simulate non-zero exit
     mockProcess.emit('exit', 1, null);
