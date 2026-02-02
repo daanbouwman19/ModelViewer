@@ -330,9 +330,9 @@ const initThree = () => {
   const material = new THREE.MeshBasicMaterial({ map: videoTexture });
   const mesh = new THREE.Mesh(geometry, material);
 
-  // Rotate mesh to align correctly (adjust as needed based on source format)
-  // Usually 180 videos are centered at -Z, so we might need -90 rotation on Y if it starts at 0
-  mesh.rotation.y = -Math.PI / 2;
+  // The SphereGeometry (0 to PI) is already centered at -Z (Front) relative to the camera
+  // so no rotation is needed.
+  mesh.rotation.y = 0;
 
   scene.add(mesh);
 
