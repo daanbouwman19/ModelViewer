@@ -142,11 +142,15 @@ describe('authorizeFilePath Security', () => {
     expect(resultSsh.message).toBe('Access to sensitive file denied');
 
     // System & User Data
-    const resultAppData = await authorizeFilePath('AppData/Local/Google/Chrome/User Data/Default/Login Data');
+    const resultAppData = await authorizeFilePath(
+      'AppData/Local/Google/Chrome/User Data/Default/Login Data',
+    );
     expect(resultAppData.isAllowed).toBe(false);
     expect(resultAppData.message).toBe('Access to sensitive file denied');
 
-    const resultLibrary = await authorizeFilePath('Library/Keychains/login.keychain');
+    const resultLibrary = await authorizeFilePath(
+      'Library/Keychains/login.keychain',
+    );
     expect(resultLibrary.isAllowed).toBe(false);
     expect(resultLibrary.message).toBe('Access to sensitive file denied');
 
