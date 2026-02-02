@@ -12,7 +12,10 @@ import {
   setRating,
   upsertMetadata,
 } from '../../core/database.ts';
-import { authorizeFilePath } from '../../core/security.ts';
+import {
+  authorizeFilePath,
+  filterAuthorizedPaths,
+} from '../../core/security.ts';
 import { getQueryParam } from '../../core/utils/http-utils.ts';
 import {
   MAX_API_BATCH_SIZE,
@@ -80,13 +83,7 @@ export function createMediaRoutes({
           .send(`Batch size exceeds limit of ${MAX_API_BATCH_SIZE}`);
       }
 
-      const allowedPaths: string[] = [];
-      for (const p of filePaths) {
-        const auth = await authorizeFilePath(p);
-        if (auth.isAllowed) {
-          allowedPaths.push(p);
-        }
-      }
+      const allowedPaths = await filterAuthorizedPaths(filePaths);
 
       const counts = await getMediaViewCounts(allowedPaths);
       res.json(counts);
@@ -177,13 +174,7 @@ export function createMediaRoutes({
           .send(`Batch size exceeds limit of ${MAX_API_BATCH_SIZE}`);
       }
 
-      const allowedPaths: string[] = [];
-      for (const p of filePaths) {
-        const auth = await authorizeFilePath(p);
-        if (auth.isAllowed) {
-          allowedPaths.push(p);
-        }
-      }
+      const allowedPaths = await filterAuthorizedPaths(filePaths);
 
       const result = await getMetadata(allowedPaths);
       res.json(result);

@@ -65,6 +65,7 @@ vi.mock('../../src/core/security', async (importOriginal) => {
   return {
     ...actual,
     authorizeFilePath: vi.fn(),
+    filterAuthorizedPaths: vi.fn(async (paths) => paths),
     isRestrictedPath: vi.fn(),
     isSensitiveDirectory: vi.fn(),
     registerSensitiveFile: vi.fn(),
@@ -159,11 +160,9 @@ describe('Server Coverage', () => {
     });
 
     it('POST /api/media/views filters unauthorized paths', async () => {
-      vi.mocked(security.authorizeFilePath).mockImplementation(
-        async (p: string) => {
-          return { isAllowed: p === '/allowed.mp4', realPath: p };
-        },
-      );
+      vi.mocked(security.filterAuthorizedPaths).mockResolvedValue([
+        '/allowed.mp4',
+      ]);
       vi.mocked(database.getMediaViewCounts).mockResolvedValue({});
 
       const res = await request(app)
