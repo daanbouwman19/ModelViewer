@@ -174,7 +174,7 @@ describe('SmartPlaylistModal Coverage', () => {
       await wrapper.vm.$nextTick();
 
       // Wait for setTimeout to execute
-      vi.advanceTimersByTime(350);
+      vi.advanceTimersByTime(300);
 
       expect((wrapper.vm as any).name).toBe('');
       expect((wrapper.vm as any).minRating).toBe(0);

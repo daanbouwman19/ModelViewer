@@ -143,6 +143,16 @@ const SENSITIVE_SUBDIRECTORIES = new Set([
   'server.key',
   'server.crt',
   'server.cert',
+  // System & User Data
+  'appdata', // Windows user data (Cookies, Passwords, etc.)
+  'library', // macOS user data (Keychains, Mail, etc.)
+  'ntuser.dat', // Windows Registry Hive
+  'ntuser.dat.log1',
+  'ntuser.dat.log2',
+  'autorun.inf',
+  'boot.ini',
+  'bootmgr',
+  'bootsect.bak',
 ]);
 
 /**

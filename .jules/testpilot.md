@@ -69,4 +69,5 @@ Implemented a callback-based interception mechanism for the `postMessage` mock. 
 ## 2025-02-18 - Fix flaky SmartPlaylistModal test
 
 **Discovery:** Found a test `tests/renderer/components/SmartPlaylistModal.coverage.test.ts` that was waiting for a real 350ms timeout using `setTimeout`. This is slow and potentially flaky.
-**Strategy:** Replaced `await new Promise((resolve) => setTimeout(resolve, 350))` with Vitest's `vi.useFakeTimers()` and `vi.advanceTimersByTime(350)` to simulate the delay instantly and reliably. Wrapped in `try...finally` to ensure `vi.useRealTimers()` is always called.
+
+**Strategy:** Replaced `await new Promise((resolve) => setTimeout(resolve, 350))` with Vitest's `vi.useFakeTimers()` and `vi.advanceTimersByTime(300)` to simulate the delay instantly and reliably. Wrapped in `try...finally` to ensure `vi.useRealTimers()` is always called.
