@@ -1,6 +1,6 @@
 import { spawn } from 'child_process';
 import ffmpegStatic from 'ffmpeg-static';
-import { getFFmpegStreams } from '../utils/ffmpeg-utils';
+import { getFFmpegStreams, runFFmpeg } from '../utils/ffmpeg-utils';
 import { createMediaSource } from '../media-source.ts';
 import fs from 'fs/promises';
 import path from 'path';
@@ -155,6 +155,18 @@ export class MediaAnalyzer {
         );
 
         if (!hasVideo && !hasAudio) {
+          console.error(`[MediaAnalyzer] No streams found for ${filePath}`);
+          // Re-run probe to capture stderr for debugging
+          try {
+            const { stderr } = await runFFmpeg(ffmpegStatic!, [
+              '-i',
+              inputPath,
+            ]);
+            console.error(`[MediaAnalyzer] Probe stderr: ${stderr}`);
+          } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : String(e);
+            console.error(`[MediaAnalyzer] Probe stderr (from error): ${msg}`);
+          }
           throw new Error('No video or audio streams found');
         }
 
