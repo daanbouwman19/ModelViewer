@@ -352,7 +352,7 @@ describe('VideoPlayer.vue', () => {
     // Manually pause as 'ended' usually comes with a pause state change in real DOM,
     // but here we just trigger events.
     // The overlay appears if !isPlaying.
-    (wrapper.vm as any).isPlaying = false;
+    await video.trigger('pause');
     await nextTick();
 
     const replayButton = wrapper.find('button[aria-label="Replay video"]');
