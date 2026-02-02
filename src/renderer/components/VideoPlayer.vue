@@ -15,10 +15,11 @@
       @loadedmetadata="handleLoadedMetadata"
       @waiting="handleWaiting"
       @canplay="handleCanPlay"
+      @seeking="handleSeeking"
       @click="togglePlay"
     />
 
-    <!-- Pause Overlay -->
+    <!-- Pause/Replay Overlay -->
     <div
       v-if="!isPlaying && !isTranscodingLoading && !isBuffering"
       class="absolute inset-0 flex items-center justify-center z-10 pointer-events-none"
@@ -26,10 +27,11 @@
       <button
         type="button"
         class="bg-black/40 p-4 rounded-full backdrop-blur-sm pointer-events-auto hover:bg-(--accent-color)/80 transition-colors focus:outline-none focus:ring-2 focus:ring-white/50"
-        aria-label="Play video"
+        :aria-label="isEnded ? 'Replay video' : 'Play video'"
         @click="togglePlay"
       >
-        <PlayIcon class="w-12 h-12 text-white" />
+        <RefreshIcon v-if="isEnded" class="w-12 h-12 text-white" />
+        <PlayIcon v-else class="w-12 h-12 text-white" />
       </button>
     </div>
   </div>
@@ -38,6 +40,7 @@
 <script setup lang="ts">
 import { ref, watch, onUnmounted, computed } from 'vue';
 import PlayIcon from './icons/PlayIcon.vue';
+import RefreshIcon from './icons/RefreshIcon.vue';
 import Hls from 'hls.js';
 
 const props = defineProps<{
@@ -65,6 +68,7 @@ const emit = defineEmits<{
 
 const videoElement = ref<HTMLVideoElement | null>(null);
 const isPlaying = ref(false);
+const isEnded = ref(false);
 
 const hls = ref<Hls | null>(null);
 
@@ -167,6 +171,7 @@ const reset = () => {
 
 const handlePlay = () => {
   isPlaying.value = true;
+  isEnded.value = false;
   emit('play');
 };
 
@@ -176,7 +181,14 @@ const handlePause = () => {
 };
 
 const handleEnded = () => {
+  isEnded.value = true;
   emit('ended');
+};
+
+const handleSeeking = () => {
+  // If user scrubs, they likely want to resume play or see a specific frame,
+  // so we clear the 'ended' state to show the normal play button if paused.
+  isEnded.value = false;
 };
 
 const handleError = (e: Event) => {

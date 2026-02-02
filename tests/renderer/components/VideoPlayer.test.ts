@@ -8,6 +8,14 @@ vi.mock('@/components/icons/PlayIcon.vue', () => ({
   default: { template: '<svg class="play-icon-mock"></svg>' },
 }));
 
+// Mock RefreshIcon
+vi.mock('@/components/icons/RefreshIcon.vue', () => ({
+  default: {
+    template: '<svg class="refresh-icon-mock"></svg>',
+    name: 'RefreshIcon',
+  },
+}));
+
 // Robust HLS Mock
 const { mockHlsInstance, MockHls } = vi.hoisted(() => {
   const instance = {
@@ -327,5 +335,34 @@ describe('VideoPlayer.vue', () => {
 
     (wrapper.vm as any).handleCanPlay();
     expect(wrapper.emitted('buffering')?.[1]).toEqual([false]);
+  });
+
+  it('shows replay icon and updates aria-label when video ends', async () => {
+    const wrapper = mount(VideoPlayer, { props: defaultProps });
+    const video = wrapper.find('video');
+
+    // Simulate play start
+    await video.trigger('play');
+    expect((wrapper.vm as any).isEnded).toBe(false);
+
+    // Simulate video end
+    await video.trigger('ended');
+    expect((wrapper.vm as any).isEnded).toBe(true);
+
+    // Manually pause as 'ended' usually comes with a pause state change in real DOM,
+    // but here we just trigger events.
+    // The overlay appears if !isPlaying.
+    await video.trigger('pause');
+    await nextTick();
+
+    const replayButton = wrapper.find('button[aria-label="Replay video"]');
+    expect(replayButton.exists()).toBe(true);
+    expect(wrapper.findComponent({ name: 'RefreshIcon' }).exists()).toBe(true);
+
+    // Seek should reset it
+    await video.trigger('seeking');
+    expect((wrapper.vm as any).isEnded).toBe(false);
+    await nextTick();
+    expect(wrapper.find('button[aria-label="Play video"]').exists()).toBe(true);
   });
 });
