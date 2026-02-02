@@ -145,6 +145,14 @@ describe('authorizeFilePath Security', () => {
     expect(result.realPath).toBe('gdrive://fileId123');
   });
 
+  it('allows access to gdrive:// paths even when they do not match the exact root', async () => {
+    // This test ensures that if 'gdrive://' is an allowed root, specific file IDs like 'gdrive://12345' are allowed
+    // even though path.relative might treat them weirdly if not handled correctly.
+    const result = await authorizeFilePath('gdrive://some-other-id');
+    expect(result.isAllowed).toBe(true);
+    expect(result.realPath).toBe('gdrive://some-other-id');
+  });
+
   it('allows access to valid local files within allowed directories', async () => {
     const result = await authorizeFilePath('video.mp4');
     expect(result.isAllowed).toBe(true);
