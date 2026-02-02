@@ -84,7 +84,7 @@
 **Learning:** Security checks should be uniform and not contain exceptions for specific protocols or file types unless explicitly justified and secured. Helper functions like `generateFileUrl` that are exposed to IPC/API must enforce the same security boundaries as direct API endpoints.
 **Prevention:** Removed the conditional check that skipped authorization for drive paths. Now `authorizeFilePath` is called for all files, which internally delegates to `authorizeVirtualPath` for protocol-specific validation against the allowed media library.
 
-## 2026-02-14 - Critical User Data Protection
+## 2026-02-02 - Critical User Data Protection
 
 **Vulnerability:** The application's sensitive file blocklist (`SENSITIVE_SUBDIRECTORIES`) missed critical user data directories on Windows (`AppData`) and macOS (`Library`), as well as Windows registry hives (`NTUSER.DAT`). This left potential exposure of browser cookies, passwords, and system configurations if a user added their home directory as a media source.
 **Learning:** Default blocklists must account for OS-specific user data structures. "Hidden" files (starting with `.`) are not the only sensitive targets; major OSes use non-hidden folders like `AppData` and `Library` for sensitive data storage.
