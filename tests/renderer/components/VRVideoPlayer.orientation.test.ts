@@ -43,7 +43,7 @@ vi.mock('three', () => {
   const MeshBasicMaterial = vi.fn();
   const Mesh = vi.fn(function () {
     return {
-      rotation: { y: 0 },
+      rotation: { y: -1 }, // Start with a non-zero value to ensure the component sets it.
     };
   });
 
