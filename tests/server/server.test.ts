@@ -18,6 +18,7 @@ vi.mock('../../src/core/security', async (importOriginal) => {
   return {
     ...actual,
     authorizeFilePath: vi.fn(),
+    filterAuthorizedPaths: vi.fn(async (paths) => paths),
   };
 });
 vi.mock('fs/promises', () => ({

@@ -1,11 +1,14 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { getMediaDirectories } from './database.ts';
+import { MediaDirectory } from './types.ts';
 import { isDrivePath } from './media-utils.ts';
+import { ConcurrencyLimiter } from './utils/concurrency-limiter.ts';
 import {
   SENSITIVE_SUBDIRECTORIES,
   WINDOWS_RESTRICTED_ROOT_PATHS,
   MAX_PATH_LENGTH,
+  DISK_SCAN_CONCURRENCY,
 } from './constants.ts';
 
 export interface AuthorizationResult {
@@ -82,14 +85,36 @@ export async function loadSecurityConfig(configPath: string): Promise<void> {
  * @param filePath - The path to validate.
  * @returns Authorization result containing allowed status, resolved path, or error/denied message.
  */
+/**
+ * Filters a list of file paths, returning only those authorized.
+ * Fetches media directories once to optimize performance.
+ */
+export async function filterAuthorizedPaths(
+  filePaths: string[],
+): Promise<string[]> {
+  const mediaDirectories = await getMediaDirectories();
+  const limiter = new ConcurrencyLimiter(DISK_SCAN_CONCURRENCY);
+
+  const results = await Promise.all(
+    filePaths.map((p) =>
+      limiter.run(async () => {
+        const auth = await authorizeFilePath(p, mediaDirectories);
+        return auth.isAllowed ? p : null;
+      }),
+    ),
+  );
+  return results.filter((p): p is string => p !== null);
+}
+
 export async function authorizeFilePath(
   filePath: string,
+  mediaDirectories?: MediaDirectory[],
 ): Promise<AuthorizationResult> {
   const inputResult = validateInput(filePath);
   if (inputResult) return inputResult;
 
-  const mediaDirectories = await getMediaDirectories();
-  const allowedPaths = mediaDirectories.map((d) => d.path);
+  const dirs = mediaDirectories || (await getMediaDirectories());
+  const allowedPaths = dirs.map((d) => d.path);
 
   if (isDrivePath(filePath)) {
     return (

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   authorizeFilePath,
+  filterAuthorizedPaths,
   escapeHtml,
   isRestrictedPath,
   isSensitiveDirectory,
@@ -19,6 +20,47 @@ vi.mock('fs/promises', () => {
   };
 });
 vi.mock('../../src/core/database');
+
+describe('filterAuthorizedPaths Security', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(database.getMediaDirectories).mockResolvedValue([
+      {
+        path: '/allowed',
+        type: 'local',
+        id: '1',
+        name: 'Allowed',
+        isActive: true,
+      },
+      {
+        path: 'gdrive://',
+        type: 'google_drive',
+        id: '2',
+        name: 'Google Drive',
+        isActive: true,
+      },
+    ]);
+    (vi.mocked(fs.realpath) as any).mockImplementation(async (p: string) => p);
+  });
+
+  it('filters out unauthorized paths', async () => {
+    const inputs = [
+      '/allowed/file1.mp4',
+      '/forbidden/file2.mp4',
+      'gdrive://valid',
+      '/allowed/../secret',
+    ];
+
+    const result = await filterAuthorizedPaths(inputs);
+
+    expect(result).toEqual(['/allowed/file1.mp4', 'gdrive://valid']);
+  });
+
+  it('calls getMediaDirectories only once', async () => {
+    await filterAuthorizedPaths(['/allowed/1', '/allowed/2']);
+    expect(database.getMediaDirectories).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe('authorizeFilePath Security', () => {
   beforeEach(() => {

@@ -33,6 +33,9 @@ describe('Server Security: Metadata & Rating Protection', () => {
       isAllowed: true,
       realPath: '/mock/path',
     });
+    (security.filterAuthorizedPaths as any).mockImplementation(
+      async (paths: string[]) => paths,
+    );
     (security.isRestrictedPath as any).mockReturnValue(false);
     (security.isSensitiveDirectory as any).mockReturnValue(false);
   });
@@ -97,12 +100,7 @@ describe('Server Security: Metadata & Rating Protection', () => {
 
   it('should FILTER batch metadata retrieval for unauthorized files', async () => {
     // 1 allowed, 1 denied
-    (security.authorizeFilePath as any).mockImplementation(
-      async (p: string) => {
-        if (p === '/allowed.mp4') return { isAllowed: true, realPath: p };
-        return { isAllowed: false, message: 'Access denied' };
-      },
-    );
+    (security.filterAuthorizedPaths as any).mockResolvedValue(['/allowed.mp4']);
 
     const response = await request(app)
       .post('/api/media/metadata/batch')

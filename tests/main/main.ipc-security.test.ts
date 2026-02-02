@@ -59,6 +59,7 @@ vi.mock('../../src/main/database', () => ({
 // Mock security module
 vi.mock('../../src/core/security', () => ({
   authorizeFilePath: vi.fn(),
+  filterAuthorizedPaths: vi.fn(),
 }));
 
 vi.mock('electron-log/main.js', () => ({
@@ -147,12 +148,10 @@ describe('main.js IPC Security', () => {
   it('should filter unauthorized paths in get-media-view-counts', async () => {
     const paths = ['/media/allowed.mp4', '/etc/passwd', 'gdrive://123'];
     const security = await import('../../src/core/security');
-    (security.authorizeFilePath as unknown as Mock).mockImplementation(
-      async (p) => {
-        if (p === '/media/allowed.mp4') return { isAllowed: true };
-        return { isAllowed: false };
-      },
-    );
+    (security.filterAuthorizedPaths as unknown as Mock).mockResolvedValue([
+      '/media/allowed.mp4',
+      'gdrive://123',
+    ]);
 
     const db = await import('../../src/main/database');
     const handler = handlers['get-media-view-counts'];

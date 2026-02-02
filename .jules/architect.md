@@ -69,3 +69,9 @@
 **Smell:** `google-drive-service.ts` implemented its own generic exponential backoff mechanism (`callWithRetry`) for handling API rate limits.
 **Insight:** Retry logic with exponential backoff is a fundamental distributed systems pattern, not specific to Google Drive. Embedding it in a specific service reduces reusability and hardcodes the "retry policy" into the business logic.
 **Prevention:** Move generic flow control patterns (like retries, rate limiters, circuit breakers) into `core/utils/` so they can be tested independently and reused across different services (e.g., Database, HTTP clients).
+
+## 2026-02-02 - Extracting Batch Authorization
+
+**Smell:** `media.routes.ts` contained a loop calling `authorizeFilePath` for each file, causing N+1 database calls to fetch media directories.
+**Insight:** Centralizing the loop into `filterAuthorizedPaths` allows fetching media directories once and reusing them, significantly improving performance for batch operations (from O(N*DB) to O(1*DB + N)).
+**Prevention:** When processing lists of items that require configuration/context to validate, fetch the context once and pass it down, or create a batch validation helper.
