@@ -71,3 +71,9 @@ Implemented a callback-based interception mechanism for the `postMessage` mock. 
 **Discovery:** Found a test `tests/renderer/components/SmartPlaylistModal.coverage.test.ts` that was waiting for a real 350ms timeout using `setTimeout`. This is slow and potentially flaky.
 
 **Strategy:** Replaced `await new Promise((resolve) => setTimeout(resolve, 350))` with Vitest's `vi.useFakeTimers()` and `vi.advanceTimersByTime(300)` to simulate the delay instantly and reliably. Wrapped in `try...finally` to ensure `vi.useRealTimers()` is always called.
+
+## 2026-02-03 - Fix flaky AmbientBackground test
+
+**Discovery:** `tests/renderer/components/AmbientBackground.test.ts` was using multiple real `setTimeout` delays to wait for image loading and video frames, causing flakiness and slowness.
+
+**Strategy:** Enabled Vitest's Fake Timers (`vi.useFakeTimers()`) and replaced `setTimeout` waits with `vi.advanceTimersByTime()`. This allows precise control over time-dependent logic like image `onload` and `requestAnimationFrame` loops, making the test deterministic and instant.
