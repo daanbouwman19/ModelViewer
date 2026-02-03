@@ -310,10 +310,7 @@ function hasSensitiveSegments(relativePath: string): boolean {
  * Checks if a path segment is hidden (starts with .) or sensitive.
  */
 function isHiddenOrSensitive(segment: string): boolean {
-  return (
-    segment.startsWith('.') ||
-    sensitiveSubdirectoriesSet.has(segment.toLowerCase())
-  );
+  return segment.startsWith('.') || isSensitiveFilename(segment);
 }
 
 /**
@@ -456,7 +453,61 @@ export function isSensitiveDirectory(dirPath: string): boolean {
  */
 export function isSensitiveFilename(filename: string): boolean {
   if (!filename) return false;
-  return sensitiveSubdirectoriesSet.has(filename.toLowerCase());
+  const lower = filename.toLowerCase();
+
+  if (sensitiveSubdirectoriesSet.has(lower)) {
+    return true;
+  }
+
+  // [SECURITY] Block sensitive file variations (e.g. backups, old versions)
+
+  // 1. SSH Private Keys (block variations unless public key)
+  const sshKeys = ['id_rsa', 'id_dsa', 'id_ecdsa', 'id_ed25519'];
+  if (sshKeys.some((k) => lower.startsWith(k)) && !lower.endsWith('.pub')) {
+    return true;
+  }
+
+  // 2. Generic Sensitive Prefixes (block all variations)
+  // This covers configs, credentials, history files, etc.
+  const sensitivePrefixes = [
+    // Server Certs
+    'server.key',
+    'server.crt',
+    'server.cert',
+    // Docker
+    'dockerfile',
+    'docker-compose',
+    // Package Managers
+    'package.json',
+    'package-lock.json',
+    'yarn.lock',
+    'pnpm-lock.yaml',
+    'bun.lockb',
+    '.npmrc',
+    // Env & Auth
+    '.env',
+    '.htpasswd',
+    '.netrc',
+    // Shell History & Config
+    '.bash_history',
+    '.zsh_history',
+    '.sh_history',
+    '.bashrc',
+    '.zshrc',
+    '.profile',
+    '.bash_profile',
+    // System
+    'autorun.inf',
+    'boot.ini',
+    'bootmgr',
+    'ntuser.dat',
+  ];
+
+  if (sensitivePrefixes.some((p) => lower.startsWith(p))) {
+    return true;
+  }
+
+  return false;
 }
 
 /**

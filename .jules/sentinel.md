@@ -89,3 +89,9 @@
 **Vulnerability:** The application's sensitive file blocklist (`SENSITIVE_SUBDIRECTORIES`) missed critical user data directories on Windows (`AppData`) and macOS (`Library`), as well as Windows registry hives (`NTUSER.DAT`). This left potential exposure of browser cookies, passwords, and system configurations if a user added their home directory as a media source.
 **Learning:** Default blocklists must account for OS-specific user data structures. "Hidden" files (starting with `.`) are not the only sensitive targets; major OSes use non-hidden folders like `AppData` and `Library` for sensitive data storage.
 **Prevention:** Expanded `SENSITIVE_SUBDIRECTORIES` to explicitly block `AppData`, `Library`, `NTUSER.DAT`, `Autorun.inf`, and boot configuration files.
+
+## 2026-02-03 - Inconsistent Sensitive File Detection
+
+**Vulnerability:** The `isHiddenOrSensitive` check accessed the `sensitiveSubdirectoriesSet` directly, bypassing the enhanced logic in `isSensitiveFilename`. This caused files like `id_rsa.bak` (which were not in the set but were caught by `isSensitiveFilename`) to be allowed if they didn't start with a dot.
+**Learning:** Duplicate security logic leads to bypasses. When logic is enhanced in one place (`isSensitiveFilename`), all consumers must use that function instead of re-implementing the check or accessing underlying data structures directly.
+**Prevention:** Refactored `isHiddenOrSensitive` to call `isSensitiveFilename`, ensuring consistent enforcement of all sensitivity rules including prefix/suffix checks.
