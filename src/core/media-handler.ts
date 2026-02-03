@@ -709,7 +709,7 @@ export async function generateFileUrl(
     }
 
     const mimeType = meta.mimeType || 'application/octet-stream';
-    return await createDataUrl(filePath, provider, mimeType);
+    return createDataUrl(filePath, provider, mimeType);
   } catch (error: unknown) {
     console.error(
       `[media-handler] Error processing ${filePath} in generateFileUrl:`,
