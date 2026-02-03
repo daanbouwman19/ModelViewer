@@ -15,7 +15,7 @@ vi.mock('../../src/renderer/api', () => ({
     getHeatmapProgress: vi.fn(),
     getHeatmap: vi.fn(),
     getMetadata: vi.fn(),
-  }
+  },
 }));
 
 describe('MediaControls', () => {
@@ -26,14 +26,14 @@ describe('MediaControls', () => {
     const wrapper = mount(MediaControls, {
       props: {
         currentMediaItem: {
-            id: '1',
-            path: '/path/to/video.mp4',
-            name: 'video.mp4',
-            type: 'video',
-            isDirectory: false,
-            birthtime: new Date(),
-            mtime: new Date(),
-            size: 1000
+          id: '1',
+          path: '/path/to/video.mp4',
+          name: 'video.mp4',
+          type: 'video',
+          isDirectory: false,
+          birthtime: new Date(),
+          mtime: new Date(),
+          size: 1000,
         },
         isPlaying: false,
         canNavigate: true,
@@ -54,8 +54,8 @@ describe('MediaControls', () => {
           ProgressBar: true,
           // Render content of Teleport in place
           Teleport: {
-            template: '<div><slot /></div>'
-          }
+            template: '<div><slot /></div>',
+          },
         },
       },
     });
@@ -78,14 +78,14 @@ describe('MediaControls', () => {
     const wrapper = mount(MediaControls, {
       props: {
         currentMediaItem: {
-            id: '1',
-            path: '/path/to/video.mp4',
-            name: 'video.mp4',
-            type: 'video',
-            isDirectory: false,
-            birthtime: new Date(),
-            mtime: new Date(),
-            size: 1000
+          id: '1',
+          path: '/path/to/video.mp4',
+          name: 'video.mp4',
+          type: 'video',
+          isDirectory: false,
+          birthtime: new Date(),
+          mtime: new Date(),
+          size: 1000,
         },
         isPlaying: false,
         canNavigate: true,
@@ -105,8 +105,8 @@ describe('MediaControls', () => {
           StarIcon: true,
           ProgressBar: true,
           Teleport: {
-            template: '<div><slot /></div>'
-          }
+            template: '<div><slot /></div>',
+          },
         },
       },
     });
