@@ -50,5 +50,5 @@
 
 ## 2026-03-01 - [Worker IPC Cache Invalidation]
 
-**Learning:** Caching worker results (like media directories) in the main thread significantly reduces IPC overhead for high-frequency checks. However, a race condition occurs if the cache is invalidated *after* the async write operation completes; concurrent reads during the write will return stale data.
-**Action:** Always invalidate the cache *before* awaiting the worker operation. This forces concurrent reads to queue behind the write operation in the worker, ensuring consistency.
+**Learning:** Caching worker results (like media directories) in the main thread significantly reduces IPC overhead for high-frequency checks. However, a race condition occurs if the cache is invalidated _after_ the async write operation completes; concurrent reads during the write will return stale data.
+**Action:** Always invalidate the cache _before_ awaiting the worker operation. This forces concurrent reads to queue behind the write operation in the worker, ensuring consistency.
