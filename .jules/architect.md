@@ -75,3 +75,9 @@
 **Smell:** `media.routes.ts` contained a loop calling `authorizeFilePath` for each file, causing N+1 database calls to fetch media directories.
 **Insight:** Centralizing the loop into `filterAuthorizedPaths` allows fetching media directories once and reusing them, significantly improving performance for batch operations (from O(N*DB) to O(1*DB + N)).
 **Prevention:** When processing lists of items that require configuration/context to validate, fetch the context once and pass it down, or create a batch validation helper.
+
+## 2026-02-03 - Extracting URL Generation Strategies
+
+**Smell:** `generateFileUrl` mixed HTTP and Data URL generation logic with a complex boolean decision tree and inline magic numbers.
+**Insight:** URL generation strategies (HTTP vs Data) are distinct operations. Separating them clarifies the "decision" phase from the "generation" phase, making the high-level policy (size limits) explicit and readable.
+**Prevention:** When a function computes a result using one of several strategies based on criteria, extract each strategy into a dedicated helper function and keep the main function focused on the selection logic.

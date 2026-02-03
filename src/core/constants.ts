@@ -21,6 +21,11 @@ const MAX_DATA_URL_SIZE_MB: number = 50;
 const DATA_URL_THRESHOLD_MB: number = 1;
 
 /**
+ * Threshold for switching to HTTP serving in bytes.
+ */
+const DATA_URL_THRESHOLD_BYTES: number = DATA_URL_THRESHOLD_MB * 1024 * 1024;
+
+/**
  * The key used for storing and retrieving the file index cache
  * in the application's SQLite database.
  */
@@ -279,6 +284,7 @@ export {
   GDRIVE_PROTOCOL,
   MAX_DATA_URL_SIZE_MB,
   DATA_URL_THRESHOLD_MB,
+  DATA_URL_THRESHOLD_BYTES,
   FILE_INDEX_CACHE_KEY,
   SUPPORTED_IMAGE_EXTENSIONS,
   SUPPORTED_VIDEO_EXTENSIONS,
