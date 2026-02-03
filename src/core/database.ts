@@ -21,6 +21,11 @@ import { WorkerClient } from './worker-client.ts';
 let dbWorkerClient: WorkerClient | null = null;
 
 /**
+ * Cache for media directories to avoid frequent IPC calls.
+ */
+let cachedMediaDirectories: MediaDirectory[] | null = null;
+
+/**
  * Initializes the database by creating and managing a worker thread.
  * If an existing worker is present, it will be terminated and a new one started.
  * @param userDbPath - Absolute path to the SQLite database file.
@@ -37,6 +42,7 @@ async function initDatabase(
   if (dbWorkerClient) {
     await dbWorkerClient.terminate();
   }
+  cachedMediaDirectories = null;
 
   dbWorkerClient = new WorkerClient(workerScriptPath, {
     workerOptions,
@@ -207,6 +213,7 @@ async function addMediaDirectory(
       },
 ): Promise<void> {
   try {
+    cachedMediaDirectories = null;
     const payload =
       typeof directory === 'string' ? { path: directory } : directory;
 
@@ -227,11 +234,15 @@ async function addMediaDirectory(
  * @returns A promise that resolves to a list of all media directory objects. Returns an empty array on error.
  */
 async function getMediaDirectories(): Promise<MediaDirectory[]> {
+  if (cachedMediaDirectories) {
+    return [...cachedMediaDirectories];
+  }
   try {
     const directories = await getClient().sendMessage<MediaDirectory[]>(
       'getMediaDirectories',
     );
-    return directories || [];
+    cachedMediaDirectories = directories || [];
+    return [...cachedMediaDirectories];
   } catch (error) {
     console.error('[database.js] Error getting media directories:', error);
     return [];
@@ -246,6 +257,7 @@ async function getMediaDirectories(): Promise<MediaDirectory[]> {
  */
 async function removeMediaDirectory(directoryPath: string): Promise<void> {
   try {
+    cachedMediaDirectories = null;
     await getClient().sendMessage<void>('removeMediaDirectory', {
       directoryPath,
     });
@@ -271,6 +283,7 @@ async function setDirectoryActiveState(
   isActive: boolean,
 ): Promise<void> {
   try {
+    cachedMediaDirectories = null;
     await getClient().sendMessage<void>('setDirectoryActiveState', {
       directoryPath,
       isActive,

@@ -47,3 +47,8 @@
 
 **Learning:** Selecting `watched_segments` (potentially large JSON) in `getAllMetadataAndStats` causes unnecessary memory usage and IPC serialization overhead when loading the library, as these fields are not used by the grid view.
 **Action:** Updated `executeSmartPlaylist` query to exclude `watched_segments`, reducing payload size for large libraries.
+
+## 2026-02-03 - [Worker IPC Cache Invalidation]
+
+**Learning:** Caching worker results (like media directories) in the main thread significantly reduces IPC overhead for high-frequency checks. However, a race condition occurs if the cache is invalidated _after_ the async write operation completes; concurrent reads during the write will return stale data.
+**Action:** Always invalidate the cache _before_ awaiting the worker operation. This forces concurrent reads to queue behind the write operation in the worker, ensuring consistency.
