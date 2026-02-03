@@ -72,7 +72,7 @@ Implemented a callback-based interception mechanism for the `postMessage` mock. 
 
 **Strategy:** Replaced `await new Promise((resolve) => setTimeout(resolve, 350))` with Vitest's `vi.useFakeTimers()` and `vi.advanceTimersByTime(300)` to simulate the delay instantly and reliably. Wrapped in `try...finally` to ensure `vi.useRealTimers()` is always called.
 
-## 2025-02-19 - Fix flaky AmbientBackground test
+## 2026-02-03 - Fix flaky AmbientBackground test
 
 **Discovery:** `tests/renderer/components/AmbientBackground.test.ts` was using multiple real `setTimeout` delays to wait for image loading and video frames, causing flakiness and slowness.
 

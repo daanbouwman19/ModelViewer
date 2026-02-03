@@ -120,8 +120,6 @@ describe('AmbientBackground.vue', () => {
     const canvas = wrapper.find('canvas').element as HTMLCanvasElement;
     const ctx = canvas.getContext('2d');
 
-    vi.advanceTimersByTime(50);
-
     expect(ctx?.drawImage).toHaveBeenCalled();
     wrapper.unmount();
   });
