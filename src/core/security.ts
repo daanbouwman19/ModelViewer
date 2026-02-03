@@ -310,10 +310,7 @@ function hasSensitiveSegments(relativePath: string): boolean {
  * Checks if a path segment is hidden (starts with .) or sensitive.
  */
 function isHiddenOrSensitive(segment: string): boolean {
-  return (
-    segment.startsWith('.') ||
-    sensitiveSubdirectoriesSet.has(segment.toLowerCase())
-  );
+  return segment.startsWith('.') || isSensitiveFilename(segment);
 }
 
 /**
@@ -456,7 +453,24 @@ export function isSensitiveDirectory(dirPath: string): boolean {
  */
 export function isSensitiveFilename(filename: string): boolean {
   if (!filename) return false;
-  return sensitiveSubdirectoriesSet.has(filename.toLowerCase());
+  const lower = filename.toLowerCase();
+
+  if (sensitiveSubdirectoriesSet.has(lower)) {
+    return true;
+  }
+
+  // [SECURITY] Block sensitive file variations (e.g. backups, old versions)
+  // 1. Private keys (id_rsa, id_rsa.bak) - allow .pub
+  if (lower.startsWith('id_rsa') && !lower.endsWith('.pub')) {
+    return true;
+  }
+
+  // 2. Server keys (server.key, server.key.bak)
+  if (lower.startsWith('server.key')) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
