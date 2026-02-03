@@ -96,9 +96,13 @@
         </p>
         <button
           class="glass-button px-6 py-3 flex items-center gap-2"
+          :class="{ 'opacity-70 cursor-wait': isOpeningVlc }"
+          :disabled="isOpeningVlc"
           @click="openInVlc"
         >
-          <VlcIcon /> Open in VLC
+          <SpinnerIcon v-if="isOpeningVlc" class="animate-spin w-5 h-5" />
+          <VlcIcon v-else />
+          {{ isOpeningVlc ? 'Opening...' : 'Open in VLC' }}
         </button>
         <button
           v-if="!isTranscodingMode"
@@ -170,6 +174,7 @@
       :is-controls-visible="isControlsVisible"
       :is-image="isImage"
       :is-vr-mode="isVrMode"
+      :is-opening-vlc="isOpeningVlc"
       :current-time="currentVideoTime"
       :duration="transcodedDuration || videoElement?.duration || 0"
       @previous="handlePrevious"
@@ -199,6 +204,7 @@ import { useUIStore } from '../composables/useUIStore';
 import { useSlideshow } from '../composables/useSlideshow';
 import { api } from '../api';
 import VlcIcon from './icons/VlcIcon.vue';
+import SpinnerIcon from './icons/SpinnerIcon.vue';
 import PlaylistIcon from './icons/PlaylistIcon.vue';
 import TranscodingStatus from './TranscodingStatus.vue';
 import MediaControls from './MediaControls.vue';
@@ -273,6 +279,7 @@ const transcodedDuration = ref(0);
 const currentTranscodeStartTime = ref(0);
 const isVrMode = ref(false); // [NEW]
 const savedCurrentTime = ref(0); // [NEW] Sync time between players
+const isOpeningVlc = ref(false);
 
 // Use global controls visibility state
 const { isControlsVisible, isSourcesModalVisible } = uiStore;
@@ -827,14 +834,21 @@ const handleBuffering = (buffering: boolean) => {
  */
 const openInVlc = async () => {
   if (!currentMediaItem.value) return;
+  if (isOpeningVlc.value) return;
+
+  isOpeningVlc.value = true;
 
   if (videoElement.value) {
     videoElement.value.pause();
   }
 
-  const result = await api.openInVlc(currentMediaItem.value.path);
-  if (!result.success) {
-    error.value = result.message || 'Failed to open in VLC.';
+  try {
+    const result = await api.openInVlc(currentMediaItem.value.path);
+    if (!result.success) {
+      error.value = result.message || 'Failed to open in VLC.';
+    }
+  } finally {
+    isOpeningVlc.value = false;
   }
 };
 

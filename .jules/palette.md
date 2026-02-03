@@ -115,3 +115,8 @@
 
 **Learning:** Components inside `vue-virtual-scroller` (`RecycleScroller`) are reused and props update, but local state does not reset automatically.
 **Action:** When adding local state (like `isLoading`) to grid items, you MUST watch props (e.g., `item.path`) to reset the state manually.
+
+## 2026-02-03 - [Feedback for External Actions]
+
+**Learning:** Users lack feedback when triggering external applications (like VLC), creating uncertainty about whether the action was registered.
+**Action:** Always wrap async external triggers with a loading state (spinner/disabled button) to prevent rage-clicks and provide reassurance.

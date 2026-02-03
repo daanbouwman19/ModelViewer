@@ -150,11 +150,17 @@
           <button
             v-if="!isImage && currentMediaItem"
             class="vlc-button p-1.5 md:p-2 rounded-full text-white transition-all duration-200 hover:bg-(--accent-color) focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0 hidden sm:block"
-            title="Open in VLC"
-            aria-label="Open in VLC"
+            :class="{ 'opacity-50 cursor-wait': isOpeningVlc }"
+            :disabled="isOpeningVlc"
+            :title="isOpeningVlc ? 'Opening VLC...' : 'Open in VLC'"
+            :aria-label="isOpeningVlc ? 'Opening VLC...' : 'Open in VLC'"
             @click="$emit('open-in-vlc')"
           >
-            <VlcIcon class="w-5 h-5 md:w-6 md:h-6" />
+            <SpinnerIcon
+              v-if="isOpeningVlc"
+              class="animate-spin w-5 h-5 md:w-6 md:h-6"
+            />
+            <VlcIcon v-else class="w-5 h-5 md:w-6 md:h-6" />
           </button>
 
           <!-- Separator -->
@@ -196,6 +202,7 @@
 
 <script setup lang="ts">
 import VlcIcon from './icons/VlcIcon.vue';
+import SpinnerIcon from './icons/SpinnerIcon.vue';
 import VRIcon from './icons/VRIcon.vue';
 import ChevronLeftIcon from './icons/ChevronLeftIcon.vue';
 import ChevronRightIcon from './icons/ChevronRightIcon.vue';
@@ -225,11 +232,13 @@ const props = withDefaults(
     currentTime?: number;
     duration?: number;
     canGoPrevious?: boolean;
+    isOpeningVlc?: boolean;
   }>(),
   {
     canGoPrevious: true,
     currentTime: 0,
     duration: 0,
+    isOpeningVlc: false,
   },
 );
 
