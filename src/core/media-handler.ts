@@ -15,6 +15,7 @@ import { IMediaSource } from './media-source-types.ts';
 import { isDrivePath } from './media-utils.ts';
 import { getTranscodeArgs, getFFmpegDuration } from './utils/ffmpeg-utils.ts';
 import { parseHttpRange, getQueryParam } from './utils/http-utils.ts';
+import { FileSystemProvider } from './fs-provider.ts';
 import { getProvider } from './fs-provider-factory.ts';
 import { authorizeFilePath } from './security.ts';
 import { validateFileAccess } from './access-validator.ts';
@@ -24,7 +25,7 @@ import { MediaAnalyzer } from './analysis/media-analyzer.ts';
 import crypto from 'crypto';
 import fs from 'fs/promises';
 import {
-  DATA_URL_THRESHOLD_MB,
+  DATA_URL_THRESHOLD_BYTES,
   RATE_LIMIT_FILE_WINDOW_MS,
   RATE_LIMIT_FILE_MAX_REQUESTS,
 } from './constants.ts';
@@ -644,6 +645,47 @@ export function createMediaApp(options: MediaHandlerOptions) {
 }
 
 /**
+ * Helper: Creates an HTTP URL result.
+ */
+function createHttpUrl(
+  filePath: string,
+  serverPort: number,
+  isLarge: boolean,
+): GenerateUrlResult {
+  if (serverPort === 0) {
+    return {
+      type: 'error',
+      message: isLarge
+        ? 'Local server not ready to stream large file.'
+        : 'Local server not ready to stream file.',
+    };
+  }
+  const encodedPath = encodeURIComponent(filePath);
+  return {
+    type: 'http-url',
+    url: `http://localhost:${serverPort}${MediaRoutes.STREAM}?file=${encodedPath}`,
+  };
+}
+
+/**
+ * Helper: Creates a Data URL result by reading the file stream.
+ */
+async function createDataUrl(
+  filePath: string,
+  provider: FileSystemProvider,
+  mimeType: string,
+): Promise<GenerateUrlResult> {
+  const result = await provider.getStream(filePath);
+  const chunks: Buffer[] = [];
+  for await (const chunk of result.stream) {
+    chunks.push(Buffer.from(chunk));
+  }
+  const buffer = Buffer.concat(chunks);
+  const dataURL = `data:${mimeType};base64,${buffer.toString('base64')}`;
+  return { type: 'data-url', url: dataURL };
+}
+
+/**
  * Generates a URL (Data URL or HTTP URL) for loading a file.
  */
 export async function generateFileUrl(
@@ -660,33 +702,14 @@ export async function generateFileUrl(
       return { type: 'error', message: auth.message || 'Access denied' };
 
     const meta = await provider.getMetadata(filePath);
-    const isLarge = meta.size > DATA_URL_THRESHOLD_MB * 1024 * 1024;
+    const isLarge = meta.size > DATA_URL_THRESHOLD_BYTES;
 
     if (preferHttp || isLarge) {
-      if (serverPort === 0) {
-        return {
-          type: 'error',
-          message: isLarge
-            ? 'Local server not ready to stream large file.'
-            : 'Local server not ready to stream file.',
-        };
-      }
-      const encodedPath = encodeURIComponent(filePath);
-      return {
-        type: 'http-url',
-        url: `http://localhost:${serverPort}${MediaRoutes.STREAM}?file=${encodedPath}`,
-      };
+      return createHttpUrl(filePath, serverPort, isLarge);
     }
 
-    const result = await provider.getStream(filePath);
-    const chunks: Buffer[] = [];
-    for await (const chunk of result.stream) {
-      chunks.push(Buffer.from(chunk));
-    }
-    const buffer = Buffer.concat(chunks);
     const mimeType = meta.mimeType || 'application/octet-stream';
-    const dataURL = `data:${mimeType};base64,${buffer.toString('base64')}`;
-    return { type: 'data-url', url: dataURL };
+    return await createDataUrl(filePath, provider, mimeType);
   } catch (error: unknown) {
     console.error(
       `[media-handler] Error processing ${filePath} in generateFileUrl:`,
