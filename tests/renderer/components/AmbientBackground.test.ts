@@ -23,6 +23,7 @@ describe('AmbientBackground.vue', () => {
   let mockLibraryState: any;
 
   beforeEach(() => {
+    vi.useFakeTimers();
     vi.clearAllMocks();
     mockPlayerState = reactive({
       currentMediaItem: null,
@@ -58,6 +59,7 @@ describe('AmbientBackground.vue', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -93,7 +95,7 @@ describe('AmbientBackground.vue', () => {
     expect(api.loadFileAsDataURL).toHaveBeenCalledWith('/test/image.jpg');
 
     // Wait for onload timeout
-    await new Promise((r) => setTimeout(r, 20));
+    vi.advanceTimersByTime(20);
 
     // Verify drawImage called
     const canvas = wrapper.find('canvas').element as HTMLCanvasElement;
@@ -113,12 +115,12 @@ describe('AmbientBackground.vue', () => {
     await flushPromises();
 
     // Force a frame
-    await new Promise((r) => setTimeout(r, 50));
+    vi.advanceTimersByTime(50);
 
     const canvas = wrapper.find('canvas').element as HTMLCanvasElement;
     const ctx = canvas.getContext('2d');
 
-    await new Promise((r) => setTimeout(r, 50));
+    vi.advanceTimersByTime(50);
 
     expect(ctx?.drawImage).toHaveBeenCalled();
     wrapper.unmount();
@@ -151,7 +153,7 @@ describe('AmbientBackground.vue', () => {
     await flushPromises();
 
     // Trigger rAF manually if possible or wait
-    await new Promise((r) => setTimeout(r, 50));
+    vi.advanceTimersByTime(50);
 
     const canvas = wrapper.find('canvas').element as HTMLCanvasElement;
     const ctx = canvas.getContext('2d');
@@ -178,7 +180,7 @@ describe('AmbientBackground.vue', () => {
     });
 
     await flushPromises();
-    await new Promise((r) => setTimeout(r, 20));
+    vi.advanceTimersByTime(20);
 
     // Should not crash (no unhandled rejection catchable easily here, but execution continues)
     expect(ctx?.drawImage).toHaveBeenCalled();
