@@ -173,7 +173,7 @@ describe('MediaDisplay.vue - VLC Integration', () => {
 
     try {
       await vm.openInVlc();
-    } catch (e) {
+    } catch {
       // Expected
     }
 
