@@ -8,7 +8,7 @@ import fs from 'fs/promises';
 import {
   isSensitiveDirectory,
   isRestrictedPath,
-} from '../../../src/core/security';
+} from '../../../src/core/utils/sensitive-paths';
 
 vi.mock('../../../src/main/utils/ipc-helper', () => ({
   handleIpc: vi.fn(),
@@ -46,7 +46,7 @@ vi.mock('fs/promises', () => ({
 }));
 
 // Mock security module
-vi.mock('../../../src/core/security', () => ({
+vi.mock('../../../src/core/utils/sensitive-paths', () => ({
   isSensitiveDirectory: vi.fn(),
   isRestrictedPath: vi.fn(),
 }));

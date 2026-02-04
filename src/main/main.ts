@@ -14,7 +14,10 @@ import fs from 'fs/promises';
 log.initialize();
 
 import { initDatabase, closeDatabase } from './database';
-import { loadSecurityConfig, registerSensitiveFile } from '../core/security';
+import {
+  loadSecurityConfig,
+  registerSensitiveFile,
+} from '../core/utils/sensitive-paths';
 import {
   startLocalServer,
   stopLocalServer,

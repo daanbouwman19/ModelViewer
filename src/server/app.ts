@@ -15,7 +15,7 @@ import {
   HLS_CACHE_DIR_NAME,
   HEATMAP_CACHE_DIR_NAME,
 } from '../core/constants.ts';
-import { registerSensitiveFile } from '../core/security.ts';
+import { registerSensitiveFile } from '../core/utils/sensitive-paths.ts';
 import { initializeDriveCacheManager } from '../main/drive-cache-manager.ts';
 import { HlsManager } from '../core/hls-manager.ts';
 import { MediaAnalyzer } from '../core/analysis/media-analyzer.ts';

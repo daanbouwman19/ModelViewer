@@ -3,10 +3,12 @@ import request from 'supertest';
 import { createApp } from '../../src/server/server.ts';
 import * as database from '../../src/core/database.ts';
 import * as security from '../../src/core/security.ts';
+import * as sensitivePaths from '../../src/core/utils/sensitive-paths.ts';
 
 // Mock dependencies
 vi.mock('../../src/core/database.ts');
 vi.mock('../../src/core/security.ts');
+vi.mock('../../src/core/utils/sensitive-paths.ts');
 vi.mock('../../src/core/media-service.ts', () => ({
   getAlbumsWithViewCounts: vi.fn(),
   getAlbumsWithViewCountsAfterScan: vi.fn(),
@@ -36,8 +38,8 @@ describe('Server Security: Metadata & Rating Protection', () => {
     (security.filterAuthorizedPaths as any).mockImplementation(
       async (paths: string[]) => paths,
     );
-    (security.isRestrictedPath as any).mockReturnValue(false);
-    (security.isSensitiveDirectory as any).mockReturnValue(false);
+    (sensitivePaths.isRestrictedPath as any).mockReturnValue(false);
+    (sensitivePaths.isSensitiveDirectory as any).mockReturnValue(false);
   });
 
   it('should allow rating media if file is authorized', async () => {

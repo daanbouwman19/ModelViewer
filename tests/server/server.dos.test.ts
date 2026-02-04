@@ -45,9 +45,13 @@ vi.mock('../../src/core/security', async (importOriginal) => {
   return {
     ...actual,
     authorizeFilePath: vi.fn().mockResolvedValue({ isAllowed: true }),
-    isSensitiveDirectory: vi.fn().mockReturnValue(false),
   };
 });
+vi.mock('../../src/core/utils/sensitive-paths', () => ({
+  isSensitiveDirectory: vi.fn().mockReturnValue(false),
+  isRestrictedPath: vi.fn().mockReturnValue(false),
+  registerSensitiveFile: vi.fn(),
+}));
 
 describe('Server DoS Protection', () => {
   let app: any;

@@ -11,6 +11,7 @@ import {
 import request from 'supertest';
 import { createApp } from '../../src/server/server.ts';
 import * as security from '../../src/core/security.ts';
+import * as sensitivePaths from '../../src/core/utils/sensitive-paths.ts';
 import * as mediaUtils from '../../src/core/media-utils.ts';
 import * as mimeTypes from '../../src/core/utils/mime-types.ts';
 import fs from 'fs';
@@ -20,6 +21,7 @@ import os from 'os';
 // Mock dependencies
 vi.mock('../../src/core/database.ts');
 vi.mock('../../src/core/security.ts');
+vi.mock('../../src/core/utils/sensitive-paths.ts');
 vi.mock('../../src/core/media-utils.ts');
 vi.mock('../../src/core/utils/mime-types.ts');
 
@@ -53,8 +55,8 @@ describe('Server Security: Thumbnail IDOR Protection', () => {
       isAllowed: true,
       realPath: '/mock/path',
     });
-    (security.isRestrictedPath as any).mockReturnValue(false);
-    (security.isSensitiveDirectory as any).mockReturnValue(false);
+    (sensitivePaths.isRestrictedPath as any).mockReturnValue(false);
+    (sensitivePaths.isSensitiveDirectory as any).mockReturnValue(false);
 
     // Media Utils mocks
     (mediaUtils.getThumbnailCachePath as any).mockReturnValue(tempCacheFile);

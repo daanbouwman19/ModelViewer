@@ -3,6 +3,7 @@ import request from 'supertest';
 import * as database from '../../src/core/database';
 import * as mediaService from '../../src/core/media-service';
 import * as security from '../../src/core/security';
+import * as sensitivePaths from '../../src/core/utils/sensitive-paths';
 import * as googleDriveService from '../../src/main/google-drive-service';
 import * as mediaHandler from '../../src/core/media-handler';
 import * as googleAuth from '../../src/main/google-auth';
@@ -66,6 +67,14 @@ vi.mock('../../src/core/security', async (importOriginal) => {
     ...actual,
     authorizeFilePath: vi.fn(),
     filterAuthorizedPaths: vi.fn(async (paths) => paths),
+  };
+});
+
+vi.mock('../../src/core/utils/sensitive-paths', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../../src/core/utils/sensitive-paths')>();
+  return {
+    ...actual,
     isRestrictedPath: vi.fn(),
     isSensitiveDirectory: vi.fn(),
     registerSensitiveFile: vi.fn(),
@@ -100,8 +109,8 @@ describe('Server Coverage', () => {
       isAllowed: true,
       realPath: '/local/file',
     });
-    vi.mocked(security.isRestrictedPath).mockReturnValue(false);
-    vi.mocked(security.isSensitiveDirectory).mockReturnValue(false);
+    vi.mocked(sensitivePaths.isRestrictedPath).mockReturnValue(false);
+    vi.mocked(sensitivePaths.isSensitiveDirectory).mockReturnValue(false);
 
     vi.mocked(mediaHandler.validateFileAccess).mockResolvedValue({
       success: true,
@@ -498,7 +507,7 @@ describe('Server Coverage', () => {
     });
 
     it('POST /api/directories handles sensitive path', async () => {
-      vi.mocked(security.isSensitiveDirectory).mockReturnValueOnce(true);
+      vi.mocked(sensitivePaths.isSensitiveDirectory).mockReturnValueOnce(true);
       const res = await request(app)
         .post('/api/directories')
         .send({ path: '/etc' });
@@ -515,7 +524,7 @@ describe('Server Coverage', () => {
     });
 
     it('GET /api/fs/ls handles restricted path', async () => {
-      vi.mocked(security.isRestrictedPath).mockReturnValueOnce(true);
+      vi.mocked(sensitivePaths.isRestrictedPath).mockReturnValueOnce(true);
       const res = await request(app).get('/api/fs/ls').query({ path: '/root' });
       expect(res.status).toBe(403);
     });
