@@ -8,19 +8,7 @@ import {
   WINDOWS_RESTRICTED_ROOT_PATHS,
 } from '../constants.ts';
 import { safeLog, safeWarn } from './logger.ts';
-
-interface ErrnoException extends Error {
-  errno?: number;
-  code?: string;
-  path?: string;
-  syscall?: string;
-}
-
-function isErrnoException(error: unknown): error is ErrnoException {
-  return (
-    error instanceof Error && typeof (error as ErrnoException).code === 'string'
-  );
-}
+import { isErrnoException } from './error-utils.ts';
 
 // Mutable set of sensitive directories, initialized with defaults.
 // Ensure all initial values are lowercase for case-insensitive checks.
@@ -46,6 +34,8 @@ export async function loadSecurityConfig(configPath: string): Promise<void> {
     const content = await fs.readFile(configPath, 'utf-8');
     const config = JSON.parse(content);
     if (
+      config &&
+      typeof config === 'object' &&
       Array.isArray(config.sensitiveSubdirectories) &&
       config.sensitiveSubdirectories.every(
         (i: unknown) => typeof i === 'string',
@@ -127,8 +117,16 @@ export function isSensitiveFilename(filename: string): boolean {
   if (!filename) return false;
   const lower = filename.toLowerCase();
 
+  // Check exact match first
   if (sensitiveSubdirectoriesSet.has(lower)) {
     return true;
+  }
+
+  // Also block variations of the sensitive directories (e.g. .ssh.bak, .env.local)
+  for (const sensitiveDir of sensitiveSubdirectoriesSet) {
+    if (lower.startsWith(sensitiveDir + '.')) {
+      return true;
+    }
   }
 
   // [SECURITY] Block sensitive file variations (e.g. backups, old versions)
@@ -193,7 +191,9 @@ export function isHiddenOrSensitive(segment: string): boolean {
  * Checks if a relative path contains sensitive segments.
  */
 export function hasSensitiveSegments(relativePath: string): boolean {
-  const segments = relativePath.split(path.sep);
+  // Normalize separators to handle mixed separators (e.g. in virtual paths)
+  const normalized = relativePath.replace(/\\/g, '/');
+  const segments = normalized.split('/');
   return segments.some(isHiddenOrSensitive);
 }
 

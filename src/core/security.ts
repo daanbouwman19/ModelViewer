@@ -6,24 +6,12 @@ import { isDrivePath } from './media-utils.ts';
 import { ConcurrencyLimiter } from './utils/concurrency-limiter.ts';
 import { MAX_PATH_LENGTH, DISK_SCAN_CONCURRENCY } from './constants.ts';
 import { hasSensitiveSegments } from './utils/sensitive-paths.ts';
+import { isErrnoException } from './utils/error-utils.ts';
 
 export interface AuthorizationResult {
   isAllowed: boolean;
   realPath?: string;
   message?: string;
-}
-
-interface ErrnoException extends Error {
-  errno?: number;
-  code?: string;
-  path?: string;
-  syscall?: string;
-}
-
-function isErrnoException(error: unknown): error is ErrnoException {
-  return (
-    error instanceof Error && typeof (error as ErrnoException).code === 'string'
-  );
 }
 
 /**
