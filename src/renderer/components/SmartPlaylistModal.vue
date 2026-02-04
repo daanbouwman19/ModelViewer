@@ -74,9 +74,11 @@
                 <div
                   class="flex items-center gap-1 bg-black/40 px-2 py-1 rounded text-xs font-mono text-indigo-400"
                 >
-                  <span class="font-bold">{{ minRating }}</span>
-                  <span class="text-gray-600">/</span>
-                  <span class="text-gray-500">5</span>
+                  <span class="font-bold">{{
+                    minRating === 0 ? 'Any' : minRating
+                  }}</span>
+                  <span v-if="minRating > 0" class="text-gray-600">/</span>
+                  <span v-if="minRating > 0" class="text-gray-500">5</span>
                 </div>
               </div>
               <input
@@ -87,6 +89,9 @@
                 max="5"
                 step="1"
                 class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-indigo-500 hover:accent-indigo-400 transition-colors"
+                :aria-valuetext="
+                  minRating === 0 ? 'Any rating' : `Minimum ${minRating} stars`
+                "
               />
               <div class="flex justify-between text-xs text-gray-600 px-1">
                 <span>Any</span>

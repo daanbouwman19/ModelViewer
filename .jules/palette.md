@@ -120,3 +120,8 @@
 
 **Learning:** Users lack feedback when triggering external applications (like VLC), creating uncertainty about whether the action was registered.
 **Action:** Always wrap async external triggers with a loading state (spinner/disabled button) to prevent rage-clicks and provide reassurance.
+
+## 2026-02-04 - [Clarifying Range Inputs]
+
+**Learning:** Range inputs (sliders) that have a semantic "Any" or "None" value at 0 are confusing to screen reader users who just hear "0".
+**Action:** Use `aria-valuetext` to map "0" to "Any" or "None", and ensure visual labels match this state to prevent "0/5" ambiguity.
