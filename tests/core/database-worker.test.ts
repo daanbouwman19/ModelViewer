@@ -32,7 +32,7 @@ describe('Database Worker', () => {
   let tempDir: string;
   let messageId = 0;
 
-  const safeCleanup = async () => {
+  const safeCleanup = () => {
     if (fs.existsSync(tempDir)) {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
@@ -60,7 +60,7 @@ describe('Database Worker', () => {
       // Ignore errors during cleanup
     }
 
-    await safeCleanup();
+    safeCleanup();
   });
 
   const sendMessage = (
