@@ -569,11 +569,11 @@ export async function filterProcessingNeeded(
           file_path: string;
         }[];
       } else {
-        const args = new Array(SQL_BATCH_SIZE).fill(null);
-        for (let k = 0; k < batchPaths.length; k++) {
-          args[k] = batchPaths[k];
-        }
-        rows = statements.getSuccessfulPathsBatch.all(...args) as {
+        const placeholders = Array(batchPaths.length).fill('?').join(',');
+        const stmt = db.prepare(
+          `SELECT file_path FROM media_metadata WHERE file_path IN (${placeholders}) AND extraction_status = 'success'`,
+        );
+        rows = stmt.all(...batchPaths) as {
           file_path: string;
         }[];
       }
