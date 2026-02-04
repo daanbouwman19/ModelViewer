@@ -52,3 +52,8 @@
 
 **Learning:** Caching worker results (like media directories) in the main thread significantly reduces IPC overhead for high-frequency checks. However, a race condition occurs if the cache is invalidated _after_ the async write operation completes; concurrent reads during the write will return stale data.
 **Action:** Always invalidate the cache _before_ awaiting the worker operation. This forces concurrent reads to queue behind the write operation in the worker, ensuring consistency.
+
+## 2026-02-04 - [Filtering Metadata Processing in Worker]
+
+**Learning:** Fetching all metadata (heavy objects) to the main thread just to filter out successful files for background processing is inefficient for large libraries (high memory and IPC overhead).
+**Action:** Implemented `filterProcessingNeeded` in the worker which accepts a list of paths, queries successful status in batches using `IN` clause, and returns only the subset of paths requiring processing. This minimizes IPC traffic to just the necessary data.

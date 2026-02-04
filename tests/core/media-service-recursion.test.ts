@@ -19,6 +19,7 @@ vi.mock('../../src/core/database', () => ({
   bulkUpsertMetadata: vi.fn(),
   getMetadata: vi.fn().mockResolvedValue({}),
   getSetting: vi.fn(),
+  filterProcessingNeeded: vi.fn(),
 }));
 vi.mock('../../src/core/media-scanner');
 vi.mock('../../src/core/media-handler');
@@ -67,6 +68,9 @@ describe('media-service recursion', () => {
     vi.mocked(database.getMetadata).mockResolvedValue({});
     vi.mocked(database.getAllMetadata).mockResolvedValue({});
     vi.mocked(database.getAllMetadataStats).mockResolvedValue({});
+    vi.mocked(database.filterProcessingNeeded).mockImplementation(
+      async (paths) => paths,
+    );
 
     sharedState.lastWorker = null;
     sharedState.postMessageCallback = null;
