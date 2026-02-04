@@ -33,28 +33,9 @@ describe('Database Worker', () => {
   let messageId = 0;
 
   const safeCleanup = async () => {
-    for (let i = 0; i < 10; i++) {
-      try {
-        if (fs.existsSync(tempDir)) {
-          fs.rmSync(tempDir, { recursive: true, force: true });
-        }
-        return;
-      } catch (e) {
-        if (i === 9) console.warn(`Failed to clean up temp dir ${tempDir}:`, e);
-        await new Promise((resolve) => setTimeout(resolve, 50));
-      }
+    if (fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
     }
-  };
-
-  const retryInit = async (dbPath: string) => {
-    let result;
-    for (let i = 0; i < 5; i++) {
-      result = await sendMessage('init', { dbPath });
-      if (result.success) return result;
-      // Retry on failure (likely lock contention on Windows)
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
-    return result!;
   };
 
   beforeEach(async () => {
@@ -679,7 +660,7 @@ describe('Database Worker', () => {
         .run();
       tempDb.close();
 
-      const result = await retryInit(migDbPath);
+      const result = await sendMessage('init', { dbPath: migDbPath });
       expect(result.success, `Init failed: ${result.error}`).toBe(true);
 
       // Verify columns added

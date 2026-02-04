@@ -77,3 +77,9 @@ Implemented a callback-based interception mechanism for the `postMessage` mock. 
 **Discovery:** `tests/renderer/components/AmbientBackground.test.ts` was using multiple real `setTimeout` delays to wait for image loading and video frames, causing flakiness and slowness.
 
 **Strategy:** Enabled Vitest's Fake Timers (`vi.useFakeTimers()`) and replaced `setTimeout` waits with `vi.advanceTimersByTime()`. This allows precise control over time-dependent logic like image `onload` and `requestAnimationFrame` loops, making the test deterministic and instant.
+
+## 2026-02-04 - Removing Flaky Retry Logic in Worker Tests
+
+**Discovery:** `tests/core/database-worker.test.ts` and `tests/core/database-worker.smart-playlist-optimization.test.ts` contained `safeCleanup` and `retryInit` functions that used loops with `setTimeout` to mask potential file locking or initialization failures. This added unnecessary complexity and potential slowness.
+
+**Strategy:** Removed the retry loops and replaced them with standard `fs.rmSync` and direct initialization calls. This adheres to the principle of "fail fast" and exposes real resource management issues rather than masking them with sleeps.

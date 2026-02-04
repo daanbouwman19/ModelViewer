@@ -24,16 +24,8 @@ describe('Database Worker Optimization', () => {
   let messageId = 0;
 
   const safeCleanup = async () => {
-    for (let i = 0; i < 10; i++) {
-      try {
-        if (fs.existsSync(tempDir)) {
-          fs.rmSync(tempDir, { recursive: true, force: true });
-        }
-        return;
-      } catch (e) {
-        if (i === 9) console.warn(`Failed to clean up temp dir ${tempDir}:`, e);
-        await new Promise((resolve) => setTimeout(resolve, 50));
-      }
+    if (fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
     }
   };
 
