@@ -21,7 +21,10 @@ import {
   updateSmartPlaylist,
 } from '../../core/database.ts';
 import { listDirectory } from '../../core/file-system.ts';
-import { isRestrictedPath, isSensitiveDirectory } from '../../core/security.ts';
+import {
+  isRestrictedPath,
+  isSensitiveDirectory,
+} from '../../core/utils/sensitive-paths.ts';
 import { getQueryParam } from '../../core/utils/http-utils.ts';
 import {
   getDriveClient,

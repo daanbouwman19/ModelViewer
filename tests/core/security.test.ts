@@ -3,9 +3,11 @@ import {
   authorizeFilePath,
   filterAuthorizedPaths,
   escapeHtml,
+} from '../../src/core/security';
+import {
   isRestrictedPath,
   isSensitiveDirectory,
-} from '../../src/core/security';
+} from '../../src/core/utils/sensitive-paths';
 import path from 'path';
 import fs from 'fs/promises';
 import * as database from '../../src/core/database';
@@ -380,7 +382,7 @@ describe('Security Config Loading', () => {
     vi.mocked(fsMock.default.readFile).mockResolvedValue(mockConfig);
 
     const { loadSecurityConfig: loadConfig, isRestrictedPath: checkPath } =
-      await import('../../src/core/security');
+      await import('../../src/core/utils/sensitive-paths');
 
     await loadConfig('/path/to/config.json');
 
@@ -395,7 +397,7 @@ describe('Security Config Loading', () => {
     vi.mocked(fsMock.default.readFile).mockRejectedValue(error);
 
     const { loadSecurityConfig: loadConfig } =
-      await import('../../src/core/security');
+      await import('../../src/core/utils/sensitive-paths');
     await loadConfig('/missing/config.json');
 
     expect(consoleWarnSpy).not.toHaveBeenCalled();
@@ -407,9 +409,10 @@ describe('Security Config Loading', () => {
     vi.mocked(fsMock.default.readFile).mockResolvedValue('{ invalid json ');
 
     const { loadSecurityConfig: loadConfig } =
-      await import('../../src/core/security');
+      await import('../../src/core/utils/sensitive-paths');
     await expect(loadConfig('/bad/config.json')).rejects.toThrow();
 
-    expect(consoleWarnSpy).toHaveBeenCalled();
+    // safeWarn suppresses output in test environment
+    expect(consoleWarnSpy).not.toHaveBeenCalled();
   });
 });

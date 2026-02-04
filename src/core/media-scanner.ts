@@ -13,7 +13,7 @@ import {
   ALL_SUPPORTED_EXTENSIONS_SET,
   DISK_SCAN_CONCURRENCY,
 } from './constants.ts';
-import { isIgnoredDirectory } from './security.ts';
+import { isIgnoredDirectory } from './utils/sensitive-paths.ts';
 import { isDrivePath, getDriveId } from './media-utils.ts';
 import type { Album, MediaFile } from './types.ts';
 import { listDriveFiles } from '../main/google-drive-service.ts';

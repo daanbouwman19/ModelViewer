@@ -17,7 +17,10 @@ import { getServerPort } from '../local-server';
 import { openMediaInVlc } from '../../core/vlc-player';
 import { listDirectory } from '../../core/file-system';
 import { handleIpc } from '../utils/ipc-helper';
-import { isSensitiveDirectory, isRestrictedPath } from '../../core/security';
+import {
+  isSensitiveDirectory,
+  isRestrictedPath,
+} from '../../core/utils/sensitive-paths';
 
 export function registerSystemHandlers() {
   handleIpc(
