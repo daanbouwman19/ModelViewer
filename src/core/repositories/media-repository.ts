@@ -12,6 +12,7 @@ import {
   getPendingMetadata,
   getSetting,
   bulkUpsertMetadata,
+  filterProcessingNeeded,
 } from '../database.ts';
 import type { Album, MediaMetadata } from '../types.ts';
 
@@ -50,6 +51,10 @@ export class MediaRepository {
 
   async getPendingMetadata() {
     return getPendingMetadata();
+  }
+
+  async filterProcessingNeeded(filePaths: string[]) {
+    return filterProcessingNeeded(filePaths);
   }
 
   async getSetting(key: string) {

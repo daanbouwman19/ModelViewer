@@ -15,7 +15,7 @@ import PQueue from 'p-queue';
 import {
   METADATA_EXTRACTION_CONCURRENCY,
   METADATA_BATCH_SIZE,
-  SUPPORTED_VIDEO_EXTENSIONS,
+  SUPPORTED_VIDEO_EXTENSIONS_SET,
   WORKER_SCAN_TIMEOUT_MS,
 } from './constants.ts';
 import { isDrivePath } from './media-utils.ts';
@@ -196,9 +196,14 @@ export class MediaService {
 
       (async () => {
         try {
+          // Bolt Optimization: Filter paths that are already "success" in DB
+          // to avoid fetching ALL metadata or processing known files.
+          const pathsToProcess =
+            await this.mediaRepo.filterProcessingNeeded(allFilePaths);
+
           const pending = await this.mediaRepo.getPendingMetadata();
           const uniquePaths = new Set(pending);
-          for (const p of allFilePaths) {
+          for (const p of pathsToProcess) {
             uniquePaths.add(p);
           }
 
@@ -345,7 +350,7 @@ export class MediaService {
           };
 
           const ext = path.extname(filePath).toLowerCase();
-          if (SUPPORTED_VIDEO_EXTENSIONS.includes(ext)) {
+          if (SUPPORTED_VIDEO_EXTENSIONS_SET.has(ext)) {
             const result = await getVideoDuration(filePath, ffmpegPath);
             if (result && 'duration' in result) {
               metadata.duration = result.duration;

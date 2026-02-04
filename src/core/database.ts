@@ -559,6 +559,7 @@ export {
   getAllMetadataAndStats,
   getPendingMetadata,
   getRecentlyPlayed,
+  filterProcessingNeeded,
 };
 
 /**
@@ -588,5 +589,21 @@ async function getPendingMetadata(): Promise<string[]> {
   } catch (error) {
     console.error('[database.js] Error getting pending metadata:', error);
     return [];
+  }
+}
+
+/**
+ * Filters a list of file paths to only those that need metadata processing.
+ * @param filePaths - The list of file paths to check.
+ * @returns The filtered list of file paths.
+ */
+async function filterProcessingNeeded(filePaths: string[]): Promise<string[]> {
+  try {
+    return await getClient().sendMessage<string[]>('filterProcessingNeeded', {
+      filePaths,
+    });
+  } catch (error) {
+    console.error('[database.js] Error filtering processing needed:', error);
+    return filePaths; // Fallback to processing all if error
   }
 }

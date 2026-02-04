@@ -357,6 +357,11 @@ export function initDatabase(dbPath: string): WorkerResult {
        FROM media_metadata WHERE file_path IS NOT NULL`,
     );
 
+    // Filter Optimization: Get successful paths in batch
+    statements.getSuccessfulPathsBatch = db.prepare(
+      `SELECT file_path FROM media_metadata WHERE file_path IN (${placeholders}) AND extraction_status = 'success'`,
+    );
+
     statements.getFileIdsByPathsBatch = db.prepare(
       `SELECT file_path, file_path_hash FROM media_metadata WHERE file_path IN (${placeholders})`,
     );
@@ -531,6 +536,55 @@ export function getAllMetadataStats(): WorkerResult {
     );
 
     return { success: true, data: metadataMap };
+  } catch (error: unknown) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+/**
+ * Filters a list of file paths to only those that need metadata processing.
+ * Removes paths that are already marked as 'success' in the database.
+ * @param filePaths - The list of file paths to check.
+ * @returns The filtered list of file paths.
+ */
+export async function filterProcessingNeeded(
+  filePaths: string[],
+): Promise<WorkerResult> {
+  if (!db) return { success: false, error: 'Database not initialized' };
+  try {
+    if (filePaths.length === 0) {
+      return { success: true, data: [] };
+    }
+
+    const successfulPathsSet = new Set<string>();
+
+    for (let i = 0; i < filePaths.length; i += SQL_BATCH_SIZE) {
+      const batchPaths = filePaths.slice(i, i + SQL_BATCH_SIZE);
+      if (batchPaths.length === 0) continue;
+
+      let rows: { file_path: string }[];
+
+      if (batchPaths.length === SQL_BATCH_SIZE) {
+        rows = statements.getSuccessfulPathsBatch.all(...batchPaths) as {
+          file_path: string;
+        }[];
+      } else {
+        const placeholders = Array(batchPaths.length).fill('?').join(',');
+        const stmt = db.prepare(
+          `SELECT file_path FROM media_metadata WHERE file_path IN (${placeholders}) AND extraction_status = 'success'`,
+        );
+        rows = stmt.all(...batchPaths) as {
+          file_path: string;
+        }[];
+      }
+
+      for (const row of rows) {
+        successfulPathsSet.add(row.file_path);
+      }
+    }
+
+    const neededPaths = filePaths.filter((p) => !successfulPathsSet.has(p));
+    return { success: true, data: neededPaths };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
   }
@@ -1092,6 +1146,9 @@ if (parentPort) {
             file_path: string;
           }[];
           result = { success: true, data: pending.map((p) => p.file_path) };
+          break;
+        case 'filterProcessingNeeded':
+          result = await filterProcessingNeeded(payload.filePaths);
           break;
         default:
           result = { success: false, error: `Unknown message type: ${type}` };
