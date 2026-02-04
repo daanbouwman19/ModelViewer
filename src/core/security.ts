@@ -141,7 +141,7 @@ export async function authorizeFilePath(
 /**
  * Basic sanity checks for file paths.
  */
-function validateInput(filePath: string): AuthorizationResult | null {
+export function validateInput(filePath: string): AuthorizationResult | null {
   if (
     !filePath ||
     filePath.includes('\0') ||
