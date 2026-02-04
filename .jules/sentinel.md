@@ -95,3 +95,9 @@
 **Vulnerability:** The `isHiddenOrSensitive` check accessed the `sensitiveSubdirectoriesSet` directly, bypassing the enhanced logic in `isSensitiveFilename`. This caused files like `id_rsa.bak` (which were not in the set but were caught by `isSensitiveFilename`) to be allowed if they didn't start with a dot.
 **Learning:** Duplicate security logic leads to bypasses. When logic is enhanced in one place (`isSensitiveFilename`), all consumers must use that function instead of re-implementing the check or accessing underlying data structures directly.
 **Prevention:** Refactored `isHiddenOrSensitive` to call `isSensitiveFilename`, ensuring consistent enforcement of all sensitivity rules including prefix/suffix checks.
+
+## 2026-02-04 - Inconsistent Path Validation in System Routes
+
+**Vulnerability:** `POST /api/directories` and other system routes implemented custom validation logic that missed critical checks (like `MAX_PATH_LENGTH`) enforced in `authorizeFilePath`. This allowed potential DoS via large inputs.
+**Learning:** Re-implementing validation logic instead of reusing a centralized validator leads to inconsistencies and gaps.
+**Prevention:** Exported and reused `validateInput` from `security.ts` across all routes handling file paths.

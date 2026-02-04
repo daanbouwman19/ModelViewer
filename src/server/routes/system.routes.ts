@@ -21,7 +21,11 @@ import {
   updateSmartPlaylist,
 } from '../../core/database.ts';
 import { listDirectory } from '../../core/file-system.ts';
-import { isRestrictedPath, isSensitiveDirectory } from '../../core/security.ts';
+import {
+  isRestrictedPath,
+  isSensitiveDirectory,
+  validateInput,
+} from '../../core/security.ts';
 import { getQueryParam } from '../../core/utils/http-utils.ts';
 import {
   getDriveClient,
@@ -113,8 +117,13 @@ export function createSystemRoutes(limiters: RateLimiters) {
         throw new AppError(400, 'Missing path');
       }
 
-      if (typeof dirPath !== 'string' || dirPath.includes('\0')) {
+      if (typeof dirPath !== 'string') {
         throw new AppError(400, 'Invalid path');
+      }
+
+      const inputResult = validateInput(dirPath);
+      if (inputResult) {
+        throw new AppError(400, inputResult.message || 'Invalid path');
       }
 
       validateMediaDirectoryPath(dirPath);
@@ -157,6 +166,13 @@ export function createSystemRoutes(limiters: RateLimiters) {
       if (!dirPath) {
         throw new AppError(400, 'Missing path');
       }
+      if (typeof dirPath !== 'string') {
+        throw new AppError(400, 'Invalid path');
+      }
+      const inputResult = validateInput(dirPath);
+      if (inputResult) {
+        throw new AppError(400, inputResult.message || 'Invalid path');
+      }
       await removeMediaDirectory(dirPath);
       res.sendStatus(200);
     }),
@@ -170,6 +186,13 @@ export function createSystemRoutes(limiters: RateLimiters) {
       if (!dirPath) {
         throw new AppError(400, 'Missing path');
       }
+      if (typeof dirPath !== 'string') {
+        throw new AppError(400, 'Invalid path');
+      }
+      const inputResult = validateInput(dirPath);
+      if (inputResult) {
+        throw new AppError(400, inputResult.message || 'Invalid path');
+      }
       await setDirectoryActiveState(dirPath, isActive);
       res.sendStatus(200);
     }),
@@ -182,6 +205,11 @@ export function createSystemRoutes(limiters: RateLimiters) {
       const dirPath = getQueryParam(req.query, 'path');
       if (!dirPath || typeof dirPath !== 'string') {
         throw new AppError(400, 'Missing path');
+      }
+
+      const inputResult = validateInput(dirPath);
+      if (inputResult) {
+        throw new AppError(400, inputResult.message || 'Invalid path');
       }
 
       if (isRestrictedPath(dirPath)) {
@@ -203,6 +231,10 @@ export function createSystemRoutes(limiters: RateLimiters) {
       const dirPath = getQueryParam(req.query, 'path');
       if (!dirPath || typeof dirPath !== 'string') {
         throw new AppError(400, 'Missing path');
+      }
+      const inputResult = validateInput(dirPath);
+      if (inputResult) {
+        throw new AppError(400, inputResult.message || 'Invalid path');
       }
 
       const parent = path.dirname(dirPath);
