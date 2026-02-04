@@ -23,14 +23,9 @@ vi.mock('fs/promises', () => ({
   },
 }));
 
-// We don't want to mock security.ts entirely, but we need to ensure it works as expected.
-// However, the issue is that system.routes.ts DOES NOT use security.ts for validation.
-// So mocking security.ts or not shouldn't matter for the reproduction,
-// UNLESS system.routes.ts imports something from it.
-// It imports isRestrictedPath and isSensitiveDirectory.
-
 describe('Path Length Validation', () => {
   let app: any;
+  const longPath = '/' + 'a'.repeat(MAX_PATH_LENGTH + 100);
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -38,24 +33,64 @@ describe('Path Length Validation', () => {
   });
 
   describe('POST /api/directories', () => {
-    it('should currently accept paths longer than MAX_PATH_LENGTH', async () => {
-      // Create a path longer than MAX_PATH_LENGTH
-      const longPath = '/' + 'a'.repeat(MAX_PATH_LENGTH + 100);
-
+    it('should reject paths longer than MAX_PATH_LENGTH', async () => {
       const payload = { path: longPath };
-
-      // Mock addMediaDirectory to resolve successfully
       vi.mocked(database.addMediaDirectory).mockResolvedValue(undefined);
 
       const response = await request(app)
         .post('/api/directories')
         .send(payload);
 
-      // CURRENT BEHAVIOR: 200 OK (because validation is missing)
-      // EXPECTED AFTER FIX: 400 Bad Request
       expect(response.status).toBe(400);
-
       expect(database.addMediaDirectory).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('DELETE /api/directories', () => {
+    it('should reject paths longer than MAX_PATH_LENGTH', async () => {
+      const payload = { path: longPath };
+      vi.mocked(database.removeMediaDirectory).mockResolvedValue(undefined);
+
+      const response = await request(app)
+        .delete('/api/directories')
+        .send(payload);
+
+      expect(response.status).toBe(400);
+      expect(database.removeMediaDirectory).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('PUT /api/directories/active', () => {
+    it('should reject paths longer than MAX_PATH_LENGTH', async () => {
+      const payload = { path: longPath, isActive: true };
+      vi.mocked(database.setDirectoryActiveState).mockResolvedValue(undefined);
+
+      const response = await request(app)
+        .put('/api/directories/active')
+        .send(payload);
+
+      expect(response.status).toBe(400);
+      expect(database.setDirectoryActiveState).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('GET /api/fs/ls', () => {
+    it('should reject paths longer than MAX_PATH_LENGTH', async () => {
+      const response = await request(app)
+        .get('/api/fs/ls')
+        .query({ path: longPath });
+
+      expect(response.status).toBe(400);
+    });
+  });
+
+  describe('GET /api/fs/parent', () => {
+    it('should reject paths longer than MAX_PATH_LENGTH', async () => {
+      const response = await request(app)
+        .get('/api/fs/parent')
+        .query({ path: longPath });
+
+      expect(response.status).toBe(400);
     });
   });
 });

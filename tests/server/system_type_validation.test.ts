@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../src/server/server';
-import * as database from '../../src/core/database';
 
 // Mock dependencies
 vi.mock('../../src/core/database');
