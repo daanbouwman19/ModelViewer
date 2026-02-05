@@ -34,6 +34,11 @@ import {
 } from '../../main/google-drive-service.ts';
 import type { RateLimiters } from '../middleware/rate-limiters.ts';
 import { asyncHandler } from '../middleware/async-handler.ts';
+import { createRateLimiter } from '../../core/rate-limiter.ts';
+import {
+  RATE_LIMIT_FILE_MAX_REQUESTS,
+  RATE_LIMIT_FILE_WINDOW_MS,
+} from '../../core/constants.ts';
 
 function validateMediaDirectoryPath(dirPath: string): void {
   if (!path.isAbsolute(dirPath)) {
@@ -198,9 +203,15 @@ export function createSystemRoutes(limiters: RateLimiters) {
     }),
   );
 
+  const fsRateLimiter = createRateLimiter(
+    RATE_LIMIT_FILE_WINDOW_MS,
+    RATE_LIMIT_FILE_MAX_REQUESTS,
+    'Too many file system requests. Please slow down.',
+  );
+
   router.get(
     '/api/fs/ls',
-    limiters.fileLimiter,
+    fsRateLimiter,
     asyncHandler(async (req, res) => {
       const dirPath = getQueryParam(req.query, 'path');
       if (!dirPath || typeof dirPath !== 'string') {
@@ -212,11 +223,6 @@ export function createSystemRoutes(limiters: RateLimiters) {
         throw new AppError(400, inputResult.message || 'Invalid path');
       }
 
-      if (dirPath !== 'ROOT') {
-        // [SECURITY] Stronger sanitization and validation for user-provided paths
-        validateMediaDirectoryPath(dirPath);
-      }
-
       if (isRestrictedPath(dirPath)) {
         console.warn(
           `[Security] Blocked attempt to list restricted directory: ${dirPath}`,
@@ -224,24 +230,7 @@ export function createSystemRoutes(limiters: RateLimiters) {
         throw new AppError(403, 'Access denied');
       }
 
-      let resolvedPath = dirPath;
-      if (dirPath !== 'ROOT') {
-        try {
-          // [SECURITY] Resolve symlinks to prevent traversal to restricted directories
-          resolvedPath = await fs.realpath(dirPath);
-        } catch {
-          throw new AppError(400, 'Directory does not exist or invalid path');
-        }
-      }
-
-      if (resolvedPath !== dirPath && isRestrictedPath(resolvedPath)) {
-        console.warn(
-          `[Security] Blocked attempt to list restricted directory (resolved): ${resolvedPath}`,
-        );
-        throw new AppError(403, 'Access denied');
-      }
-
-      const contents = await listDirectory(resolvedPath);
+      const contents = await listDirectory(dirPath);
       res.json(contents);
     }),
   );

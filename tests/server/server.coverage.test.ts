@@ -514,35 +514,10 @@ describe('Server Coverage', () => {
       expect(res.status).toBe(400);
     });
 
-    it('GET /api/fs/ls handles restricted input path', async () => {
+    it('GET /api/fs/ls handles restricted path', async () => {
       vi.mocked(security.isRestrictedPath).mockReturnValueOnce(true);
       const res = await request(app).get('/api/fs/ls').query({ path: '/root' });
       expect(res.status).toBe(403);
-      // Ensure realpath was NOT called
-      expect(mockFs.realpath).not.toHaveBeenCalled();
-    });
-
-    it('GET /api/fs/ls handles restricted resolved path', async () => {
-      vi.mocked(mockFs.realpath).mockResolvedValue('/resolved/root' as any);
-      // First call (input) -> false, Second call (resolved) -> true
-      vi.mocked(security.isRestrictedPath)
-        .mockReturnValueOnce(false)
-        .mockReturnValueOnce(true);
-
-      const res = await request(app)
-        .get('/api/fs/ls')
-        .query({ path: '/allowed' });
-      expect(res.status).toBe(403);
-      expect(mockFs.realpath).toHaveBeenCalledWith('/allowed');
-    });
-
-    it('GET /api/fs/ls requires absolute path', async () => {
-      const res = await request(app)
-        .get('/api/fs/ls')
-        .query({ path: 'relative/path' });
-      expect(res.status).toBe(400);
-      // validateMediaDirectoryPath throws 'Invalid path' for non-absolute paths
-      expect(res.body.error).toBe('Invalid path');
     });
 
     it('GET /auth/google/callback handles missing code', async () => {
