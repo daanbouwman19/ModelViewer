@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
 // Mock worker_threads globally for this file
 vi.mock('worker_threads', () => {
   class MockWorker {
-    listeners: Record<string, any> = {};
+    listeners: Record<string, ((message: any) => void)[]> = {};
 
     constructor() {
       if (mocks.workerShouldThrow) {
@@ -17,8 +17,11 @@ vi.mock('worker_threads', () => {
       }
     }
 
-    on(event: string, cb: any) {
-      this.listeners[event] = cb;
+    on(event: string, cb: (message: any) => void) {
+      if (!this.listeners[event]) {
+        this.listeners[event] = [];
+      }
+      this.listeners[event].push(cb);
     }
 
     postMessage(msg: any) {
@@ -26,11 +29,14 @@ vi.mock('worker_threads', () => {
       if (msg && msg.type === 'init') {
         // simulate async worker response
         setTimeout(() => {
-          if (this.listeners['message']) {
-            this.listeners['message']({
-              id: msg.id,
-              result: { success: true, data: {} },
-            });
+          const cbs = this.listeners['message'];
+          if (cbs) {
+            cbs.forEach((cb) =>
+              cb({
+                id: msg.id,
+                result: { success: true, data: {} },
+              }),
+            );
           }
         }, 0);
         return;
