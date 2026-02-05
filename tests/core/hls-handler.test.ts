@@ -43,7 +43,9 @@ describe('hls-handler', () => {
       status: vi.fn().mockReturnThis(),
       send: vi.fn(),
       set: vi.fn(),
-      sendFile: vi.fn(),
+      sendFile: vi.fn((_path, cb) => {
+        if (cb) cb();
+      }),
       headersSent: false,
     };
   });
@@ -188,6 +190,7 @@ describe('hls-handler', () => {
 
       expect(res.sendFile).toHaveBeenCalledWith(
         path.join('/tmp/hls/mock-session-id', 'segment_001.ts'),
+        expect.any(Function),
       );
     });
 
@@ -259,7 +262,11 @@ describe('hls-handler', () => {
       };
       // @ts-expect-error - Mocking static method
       HlsManager.getInstance.mockReturnValue(mockHlsManager);
-      vi.mocked(fs.access).mockRejectedValue(new Error('File not found'));
+
+      // Mock res.sendFile to fail
+      res.sendFile.mockImplementation((_path, cb) => {
+        if (cb) cb(new Error('File not found'));
+      });
 
       await serveHlsSegment(req, res, '/path/to/video.mp4', 'segment_001.ts');
 
