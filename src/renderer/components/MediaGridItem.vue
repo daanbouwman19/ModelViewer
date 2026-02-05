@@ -5,6 +5,10 @@
     :aria-label="ariaLabel"
     :title="displayName"
     @click="$emit('click', item)"
+    @mouseenter="handleMouseEnter"
+    @mouseleave="handleMouseLeave"
+    @focus="handleMouseEnter"
+    @blur="handleMouseLeave"
   >
     <!-- Skeleton Loader -->
     <div
@@ -44,9 +48,21 @@
       />
     </template>
     <template v-else-if="isVideo">
+      <!-- Palette: Hover-to-Play Preview -->
+      <video
+        v-if="shouldPlayPreview || !posterUrl || posterFailed"
+        :src="mediaUrl"
+        :poster="posterUrl"
+        muted
+        autoplay
+        loop
+        playsinline
+        class="h-full w-full object-cover rounded block"
+        @error="handlePosterError"
+      ></video>
       <!-- Bolt Optimization: Use img for video thumbnails to save memory/CPU -->
       <img
-        v-if="posterUrl && !posterFailed"
+        v-else
         :src="posterUrl"
         class="h-full w-full object-cover rounded block transition-opacity duration-300"
         :class="{ 'opacity-0': isLoading }"
@@ -54,14 +70,6 @@
         @load="isLoading = false"
         @error="handlePosterError"
       />
-      <video
-        v-else
-        :src="mediaUrl"
-        muted
-        preload="metadata"
-        :poster="posterUrl"
-        class="h-full w-full object-cover rounded block"
-      ></video>
       <div
         class="absolute top-2 right-2 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded flex items-center pointer-events-none"
       >
@@ -204,8 +212,26 @@ watch(
   () => {
     posterFailed.value = false;
     isLoading.value = true;
+    isHovered.value = false;
   },
 );
+
+const isHovered = ref(false);
+let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
+
+const handleMouseEnter = () => {
+  if (hoverTimeout) clearTimeout(hoverTimeout);
+  hoverTimeout = setTimeout(() => {
+    isHovered.value = true;
+  }, 500); // 500ms debounce
+};
+
+const handleMouseLeave = () => {
+  if (hoverTimeout) clearTimeout(hoverTimeout);
+  isHovered.value = false;
+};
+
+const shouldPlayPreview = computed(() => isHovered.value && isVideo.value);
 </script>
 
 <style scoped>
