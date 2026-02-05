@@ -107,3 +107,9 @@
 **Vulnerability:** The `GET /api/fs/ls` endpoint validated restricted paths using `isRestrictedPath` on the provided input path directly. Attackers could bypass this restriction by creating a symlink in an allowed directory pointing to a restricted directory (e.g., `/etc`), allowing them to list sensitive file structures.
 **Learning:** Path validation against blocklists MUST operate on the canonical (resolved) path, not the user-supplied path. File system APIs like `fs.readdir` follow symlinks by default, but string-based checks do not.
 **Prevention:** Updated `/api/fs/ls` to explicitly resolve the path using `fs.realpath` before passing it to `isRestrictedPath`.
+
+## 2026-02-05 - Symlink Traversal via API Listing
+
+**Vulnerability:** The `GET /api/fs/ls` endpoint validated restricted paths using `isRestrictedPath` on the provided input path directly. Attackers could bypass this restriction by creating a symlink in an allowed directory pointing to a restricted directory (e.g., `/etc`), allowing them to list sensitive file structures.
+**Learning:** Path validation against blocklists MUST operate on the canonical (resolved) path, not the user-supplied path. File system APIs like `fs.readdir` follow symlinks by default, but string-based checks do not.
+**Prevention:** Updated `/api/fs/ls` to explicitly resolve the path using `fs.realpath` before passing it to `isRestrictedPath`.

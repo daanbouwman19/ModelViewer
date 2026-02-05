@@ -200,7 +200,7 @@ export function createSystemRoutes(limiters: RateLimiters) {
 
   router.get(
     '/api/fs/ls',
-    limiters.fileLimiter,
+    limiters.readLimiter,
     asyncHandler(async (req, res) => {
       const dirPath = getQueryParam(req.query, 'path');
       if (!dirPath || typeof dirPath !== 'string') {
@@ -212,6 +212,17 @@ export function createSystemRoutes(limiters: RateLimiters) {
         throw new AppError(400, inputResult.message || 'Invalid path');
       }
 
+      if (dirPath !== 'ROOT' && !path.isAbsolute(dirPath)) {
+        throw new AppError(400, 'Invalid path (must be absolute)');
+      }
+
+      if (isRestrictedPath(dirPath)) {
+        console.warn(
+          `[Security] Blocked attempt to list restricted directory: ${dirPath}`,
+        );
+        throw new AppError(403, 'Access denied');
+      }
+
       let resolvedPath = dirPath;
       if (dirPath !== 'ROOT') {
         try {
@@ -221,7 +232,7 @@ export function createSystemRoutes(limiters: RateLimiters) {
         }
       }
 
-      if (isRestrictedPath(resolvedPath)) {
+      if (resolvedPath !== dirPath && isRestrictedPath(resolvedPath)) {
         console.warn(
           `[Security] Blocked attempt to list restricted directory (resolved): ${resolvedPath}`,
         );
