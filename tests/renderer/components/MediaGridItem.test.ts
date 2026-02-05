@@ -142,10 +142,6 @@ describe('MediaGridItem.vue', () => {
 
     // Initially should show image (poster)
     expect(wrapper.find('img').exists()).toBe(true);
-    // Note: Video might exist if logic allows it for other reasons, but let's check our specific logic
-    // In our component: v-if="shouldPlayPreview || !posterUrl || posterFailed" for video
-    // v-else for img.
-    // Assuming posterUrl is generated (thumbnailUrlGenerator returns path), img should be present.
     expect(wrapper.find('video').exists()).toBe(false);
 
     // Trigger mouseenter
@@ -265,6 +261,33 @@ describe('MediaGridItem.vue', () => {
     await vi.advanceTimersByTimeAsync(400);
 
     // Should still be image, never switched
+    expect(wrapper.find('video').exists()).toBe(false);
+    expect(wrapper.find('img').exists()).toBe(true);
+  });
+
+  it('hides video if video loading/playback fails (even if hovered)', async () => {
+    const item = {
+      path: 'test.mp4',
+      name: 'test.mp4',
+      rating: 0,
+      duration: 120,
+    };
+    const wrapper = mount(MediaGridItem, {
+      props: {
+        ...defaultProps,
+        item,
+      },
+    });
+
+    // Enter and wait
+    await wrapper.find('button').trigger('mouseenter');
+    await vi.advanceTimersByTimeAsync(500);
+    expect(wrapper.find('video').exists()).toBe(true);
+
+    // Trigger video error
+    await wrapper.find('video').trigger('error');
+
+    // Should switch back to image/poster (assuming poster hasn't failed)
     expect(wrapper.find('video').exists()).toBe(false);
     expect(wrapper.find('img').exists()).toBe(true);
   });
