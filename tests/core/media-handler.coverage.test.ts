@@ -84,11 +84,17 @@ const createMockRes = (): MockResponse => {
     end: vi.fn(),
     headersSent: false,
   };
-  res.sendFile = vi.fn((_path: any, optOrCb: any, cb: any) => {
-    const callback = typeof optOrCb === 'function' ? optOrCb : cb;
-    if (callback) callback();
-    return res;
-  });
+  res.sendFile = vi.fn(
+    (
+      _path: string,
+      optOrCb: any | ((err?: Error) => void),
+      cb?: (err?: Error) => void,
+    ) => {
+      const callback = typeof optOrCb === 'function' ? optOrCb : cb;
+      if (callback) callback();
+      return res;
+    },
+  );
   return res;
 };
 
@@ -198,11 +204,17 @@ describe('media-handler coverage', () => {
     vi.mocked(fsPromises.access).mockRejectedValue(new Error('missing'));
     (fsPromises as any).default.access.mockRejectedValue(new Error('missing'));
 
-    res.sendFile.mockImplementation((_path: any, optOrCb: any, cb: any) => {
-      const callback = typeof optOrCb === 'function' ? optOrCb : cb;
-      if (callback) callback(new Error('Missing'));
-      return res;
-    });
+    res.sendFile.mockImplementation(
+      (
+        _path: string,
+        optOrCb: any | ((err?: Error) => void),
+        cb?: (err?: Error) => void,
+      ) => {
+        const callback = typeof optOrCb === 'function' ? optOrCb : cb;
+        if (callback) callback(new Error('Missing'));
+        return res;
+      },
+    );
 
     await serveHlsSegment(req, res as any, '/file.mp4', 'segment_001.ts');
 

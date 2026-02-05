@@ -93,11 +93,13 @@ describe('MediaHandler class', () => {
       json: vi.fn().mockReturnThis(),
       set: vi.fn().mockReturnThis(),
     };
-    res.sendFile = vi.fn((_path: any, optOrCb: any, cb: any) => {
-      const callback = typeof optOrCb === 'function' ? optOrCb : cb;
-      if (callback) callback();
-      return res;
-    });
+    res.sendFile = vi.fn(
+      (_path: string, optOrCb: any | (() => void), cb?: () => void) => {
+        const callback = typeof optOrCb === 'function' ? optOrCb : cb;
+        if (callback) callback();
+        return res;
+      },
+    );
 
     await handler.serveMetadata(req, res, '/file.mp4');
     await handler.serveThumbnail(req, res, '/file.mp4');

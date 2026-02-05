@@ -214,15 +214,21 @@ describe('media-handler unit tests', () => {
       send: vi.fn(),
       json: vi.fn(),
       set: vi.fn().mockReturnThis(),
-      sendFile: vi.fn((_path: string, optOrCb?: any, cb?: any) => {
-        const callback =
-          typeof optOrCb === 'function'
-            ? optOrCb
-            : typeof cb === 'function'
-              ? cb
-              : undefined;
-        if (callback) callback();
-      }),
+      sendFile: vi.fn(
+        (
+          _path: string,
+          optOrCb?: any | ((err?: Error) => void),
+          cb?: (err?: Error) => void,
+        ) => {
+          const callback =
+            typeof optOrCb === 'function'
+              ? optOrCb
+              : typeof cb === 'function'
+                ? cb
+                : undefined;
+          if (callback) callback();
+        },
+      ),
       setHeader: vi.fn(),
       getHeader: vi.fn(),
     };
@@ -1198,7 +1204,11 @@ describe('media-handler unit tests', () => {
         mockFsAccess.mockRejectedValue(new Error('Noent'));
 
         res.sendFile.mockImplementation(
-          (_path: string, optOrCb: any, cb: any) => {
+          (
+            _path: string,
+            optOrCb: any | ((err?: Error) => void),
+            cb?: (err?: Error) => void,
+          ) => {
             const callback = typeof optOrCb === 'function' ? optOrCb : cb;
             if (callback) callback(new Error('File not found'));
           },
