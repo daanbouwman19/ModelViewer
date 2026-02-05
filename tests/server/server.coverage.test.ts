@@ -529,15 +529,20 @@ describe('Server Coverage', () => {
         .mockReturnValueOnce(false)
         .mockReturnValueOnce(true);
 
-      const res = await request(app).get('/api/fs/ls').query({ path: '/allowed' });
+      const res = await request(app)
+        .get('/api/fs/ls')
+        .query({ path: '/allowed' });
       expect(res.status).toBe(403);
       expect(mockFs.realpath).toHaveBeenCalledWith('/allowed');
     });
 
     it('GET /api/fs/ls requires absolute path', async () => {
-      const res = await request(app).get('/api/fs/ls').query({ path: 'relative/path' });
+      const res = await request(app)
+        .get('/api/fs/ls')
+        .query({ path: 'relative/path' });
       expect(res.status).toBe(400);
-      expect(res.body.error).toMatch(/absolute/);
+      // validateMediaDirectoryPath throws 'Invalid path' for non-absolute paths
+      expect(res.body.error).toBe('Invalid path');
     });
 
     it('GET /auth/google/callback handles missing code', async () => {

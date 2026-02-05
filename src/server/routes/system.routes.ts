@@ -200,7 +200,7 @@ export function createSystemRoutes(limiters: RateLimiters) {
 
   router.get(
     '/api/fs/ls',
-    limiters.readLimiter,
+    limiters.fileLimiter,
     asyncHandler(async (req, res) => {
       const dirPath = getQueryParam(req.query, 'path');
       if (!dirPath || typeof dirPath !== 'string') {
@@ -212,8 +212,9 @@ export function createSystemRoutes(limiters: RateLimiters) {
         throw new AppError(400, inputResult.message || 'Invalid path');
       }
 
-      if (dirPath !== 'ROOT' && !path.isAbsolute(dirPath)) {
-        throw new AppError(400, 'Invalid path (must be absolute)');
+      if (dirPath !== 'ROOT') {
+        // [SECURITY] Stronger sanitization and validation for user-provided paths
+        validateMediaDirectoryPath(dirPath);
       }
 
       if (isRestrictedPath(dirPath)) {
@@ -226,6 +227,7 @@ export function createSystemRoutes(limiters: RateLimiters) {
       let resolvedPath = dirPath;
       if (dirPath !== 'ROOT') {
         try {
+          // [SECURITY] Resolve symlinks to prevent traversal to restricted directories
           resolvedPath = await fs.realpath(dirPath);
         } catch {
           throw new AppError(400, 'Directory does not exist or invalid path');
