@@ -5,6 +5,10 @@
     :aria-label="ariaLabel"
     :title="displayName"
     @click="$emit('click', item)"
+    @mouseenter="handleMouseEnter"
+    @mouseleave="handleMouseLeave"
+    @focus="handleMouseEnter"
+    @blur="handleMouseLeave"
   >
     <!-- Skeleton Loader -->
     <div
@@ -44,9 +48,31 @@
       />
     </template>
     <template v-else-if="isVideo">
+      <!-- Palette: Hover-to-Play Preview -->
+      <video
+        v-if="shouldPlayPreview && !videoPreviewFailed"
+        :src="mediaUrl"
+        :poster="posterUrl"
+        muted
+        autoplay
+        loop
+        playsinline
+        class="h-full w-full object-cover rounded block"
+        @error="handleVideoError"
+      ></video>
+      <!-- Fallback: Video Player if Poster Failed (but try preview logic first) -->
+      <video
+        v-else-if="(!posterUrl || posterFailed) && !videoPreviewFailed"
+        :src="mediaUrl"
+        :poster="posterUrl"
+        muted
+        preload="metadata"
+        class="h-full w-full object-cover rounded block"
+        @error="handleVideoError"
+      ></video>
       <!-- Bolt Optimization: Use img for video thumbnails to save memory/CPU -->
       <img
-        v-if="posterUrl && !posterFailed"
+        v-else
         :src="posterUrl"
         class="h-full w-full object-cover rounded block transition-opacity duration-300"
         :class="{ 'opacity-0': isLoading }"
@@ -54,14 +80,6 @@
         @load="isLoading = false"
         @error="handlePosterError"
       />
-      <video
-        v-else
-        :src="mediaUrl"
-        muted
-        preload="metadata"
-        :poster="posterUrl"
-        class="h-full w-full object-cover rounded block"
-      ></video>
       <div
         class="absolute top-2 right-2 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded flex items-center pointer-events-none"
       >
@@ -203,9 +221,38 @@ watch(
   () => props.item.path,
   () => {
     posterFailed.value = false;
+    videoPreviewFailed.value = false;
     isLoading.value = true;
+    isHovered.value = false;
   },
 );
+
+const PREVIEW_DEBOUNCE_MS = 500;
+const isHovered = ref(false);
+const videoPreviewFailed = ref(false);
+let hoverTimeout: ReturnType<typeof setTimeout> | null = null;
+
+const handleMouseEnter = () => {
+  if (hoverTimeout) clearTimeout(hoverTimeout);
+  hoverTimeout = setTimeout(() => {
+    isHovered.value = true;
+  }, PREVIEW_DEBOUNCE_MS);
+};
+
+const handleMouseLeave = () => {
+  if (hoverTimeout) clearTimeout(hoverTimeout);
+  isHovered.value = false;
+};
+
+const handleVideoError = () => {
+  // If the video fails to load/play, stop trying to preview it
+  videoPreviewFailed.value = true;
+  // If we were relying on the video because the poster failed, and the video ALSO failed,
+  // we effectively have a double failure. The UI might just show a broken state or the poster error state.
+  // If the poster hasn't failed yet, this will trigger the v-else to show the poster.
+};
+
+const shouldPlayPreview = computed(() => isHovered.value && isVideo.value);
 </script>
 
 <style scoped>
