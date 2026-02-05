@@ -118,6 +118,12 @@ export async function serveHlsSegment(
     .update(authorizedPath)
     .digest('hex');
 
+  // Security check: segmentName must match the expected pattern strictly
+  if (!/^segment_\d+\.ts$/.test(segmentName)) {
+    res.status(400).send('Invalid segment name');
+    return;
+  }
+
   const hlsManager = HlsManager.getInstance();
   const sessionDir = hlsManager.getSessionDir(sessionId);
 
@@ -130,12 +136,6 @@ export async function serveHlsSegment(
   }
 
   const segmentPath = path.join(sessionDir, segmentName);
-
-  // Security check: segmentName should be simple filename
-  if (segmentName.includes('/') || segmentName.includes('\\')) {
-    res.status(400).send('Invalid segment name');
-    return;
-  }
 
   try {
     // Check if file exists
