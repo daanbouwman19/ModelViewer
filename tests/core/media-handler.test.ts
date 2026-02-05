@@ -214,7 +214,21 @@ describe('media-handler unit tests', () => {
       send: vi.fn(),
       json: vi.fn(),
       set: vi.fn().mockReturnThis(),
-      sendFile: vi.fn(),
+      sendFile: vi.fn(
+        (
+          _path: string,
+          optOrCb?: any | ((err?: Error) => void),
+          cb?: (err?: Error) => void,
+        ) => {
+          const callback =
+            typeof optOrCb === 'function'
+              ? optOrCb
+              : typeof cb === 'function'
+                ? cb
+                : undefined;
+          if (callback) callback();
+        },
+      ),
       setHeader: vi.fn(),
       getHeader: vi.fn(),
     };
@@ -1151,6 +1165,7 @@ describe('media-handler unit tests', () => {
         expect(mockHlsGetSessionDir).toHaveBeenCalled();
         expect(res.sendFile).toHaveBeenCalledWith(
           expect.stringContaining('segment_000.ts'),
+          expect.any(Function),
         );
         expect(mockHlsTouchSession).toHaveBeenCalled();
       });
@@ -1187,6 +1202,17 @@ describe('media-handler unit tests', () => {
         });
         mockHlsGetSessionDir.mockReturnValue('/tmp/hls/session123');
         mockFsAccess.mockRejectedValue(new Error('Noent'));
+
+        res.sendFile.mockImplementation(
+          (
+            _path: string,
+            optOrCb: any | ((err?: Error) => void),
+            cb?: (err?: Error) => void,
+          ) => {
+            const callback = typeof optOrCb === 'function' ? optOrCb : cb;
+            if (callback) callback(new Error('File not found'));
+          },
+        );
 
         await serveHlsSegment(req, res, '/path/to/video.mp4', 'segment_999.ts');
         expect(res.status).toHaveBeenCalledWith(404);

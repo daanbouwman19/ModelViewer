@@ -75,15 +75,28 @@ type MockResponse = {
   headersSent: boolean;
 };
 
-const createMockRes = (): MockResponse => ({
-  status: vi.fn().mockReturnThis(),
-  send: vi.fn().mockReturnThis(),
-  json: vi.fn().mockReturnThis(),
-  set: vi.fn().mockReturnThis(),
-  end: vi.fn(),
-  sendFile: vi.fn().mockReturnThis(),
-  headersSent: false,
-});
+const createMockRes = (): MockResponse => {
+  const res: any = {
+    status: vi.fn().mockReturnThis(),
+    send: vi.fn().mockReturnThis(),
+    json: vi.fn().mockReturnThis(),
+    set: vi.fn().mockReturnThis(),
+    end: vi.fn(),
+    headersSent: false,
+  };
+  res.sendFile = vi.fn(
+    (
+      _path: string,
+      optOrCb: any | ((err?: Error) => void),
+      cb?: (err?: Error) => void,
+    ) => {
+      const callback = typeof optOrCb === 'function' ? optOrCb : cb;
+      if (callback) callback();
+      return res;
+    },
+  );
+  return res;
+};
 
 const createMockReq = (query: Record<string, string> = {}) => {
   const handlers: Record<string, () => void> = {};
@@ -190,6 +203,18 @@ describe('media-handler coverage', () => {
     } as any);
     vi.mocked(fsPromises.access).mockRejectedValue(new Error('missing'));
     (fsPromises as any).default.access.mockRejectedValue(new Error('missing'));
+
+    res.sendFile.mockImplementation(
+      (
+        _path: string,
+        optOrCb: any | ((err?: Error) => void),
+        cb?: (err?: Error) => void,
+      ) => {
+        const callback = typeof optOrCb === 'function' ? optOrCb : cb;
+        if (callback) callback(new Error('Missing'));
+        return res;
+      },
+    );
 
     await serveHlsSegment(req, res as any, '/file.mp4', 'segment_001.ts');
 
