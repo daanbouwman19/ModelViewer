@@ -584,17 +584,27 @@ describe('Database Worker', () => {
 
       const result = await sendMessage('getAllMetadataStats', {});
       expect(result.success).toBe(true);
-      const data = result.data as Record<string, any>;
-      const item = data[filePath];
+      const data = result.data as Array<{
+        filePath: string;
+        duration?: number;
+        rating?: number;
+        size?: number;
+        watchedSegments?: string;
+        status?: string;
+      }>;
+
+      const item = data.find((i) => i.filePath === filePath);
 
       expect(item).toBeDefined();
-      expect(item.duration).toBe(100);
-      expect(item.rating).toBe(3);
+      if (item) {
+        expect(item.duration).toBe(100);
+        expect(item.rating).toBe(3);
 
-      // Verify heavy fields are NOT returned
-      expect(item.size).toBeUndefined();
-      expect(item.watchedSegments).toBeUndefined();
-      expect(item.status).toBeUndefined();
+        // Verify heavy fields are NOT returned
+        expect(item.size).toBeUndefined();
+        expect(item.watchedSegments).toBeUndefined();
+        expect(item.status).toBeUndefined();
+      }
     });
 
     it('should handle executeSmartPlaylist message', async () => {

@@ -109,8 +109,23 @@ async function getAllMetadataStats(): Promise<{
   [path: string]: MediaMetadata;
 }> {
   try {
-    return await getClient().sendMessage<{ [path: string]: MediaMetadata }>(
-      'getAllMetadataStats',
+    const rows = await getClient().sendMessage<
+      { filePath: string; duration?: number; rating?: number }[]
+    >('getAllMetadataStats');
+
+    // Bolt Optimization: Transform array to map here to relieve worker
+    // Using reduce as requested for functional style
+    return rows.reduce(
+      (acc, row) => {
+        if (row.filePath) {
+          acc[row.filePath] = {
+            duration: row.duration,
+            rating: row.rating,
+          };
+        }
+        return acc;
+      },
+      {} as { [path: string]: MediaMetadata },
     );
   } catch (error) {
     console.error('[database.js] Error getting all metadata stats:', error);
