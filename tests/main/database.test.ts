@@ -1,4 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import * as logger from '../../src/core/utils/logger';
+
+// Mock logger
+vi.mock('../../src/core/utils/logger', () => ({
+  safeLog: vi.fn(),
+  safeError: vi.fn(),
+  safeWarn: vi.fn(),
+}));
 
 // Import mocks
 import { mockWorkerInstance, resetMockWorker } from './mocks/worker';
@@ -476,30 +484,20 @@ describe('Additional Function Coverage', () => {
   });
 
   it('logs an error when worker exits unexpectedly', async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, 'error')
-      .mockImplementation(() => {});
-
     expect(mockWorkerInstance).toBeDefined();
     expect(mockWorkerInstance).not.toBeNull();
 
     // Simulate an unexpected exit with a non-zero code
     mockWorkerInstance!.simulateExit(1);
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
+    expect(logger.safeError).toHaveBeenCalledWith(
       '[database.js] Worker exited unexpectedly with code 1',
     );
-
-    consoleErrorSpy.mockRestore();
   });
 
   it('logs a warning for recordMediaView errors in non-test environment', async () => {
     const originalNodeEnv = process.env.NODE_ENV;
     process.env.NODE_ENV = 'development';
-
-    const consoleWarnSpy = vi
-      .spyOn(console, 'warn')
-      .mockImplementation(() => {});
 
     expect(mockWorkerInstance).toBeDefined();
     expect(mockWorkerInstance).not.toBeNull();
@@ -518,21 +516,16 @@ describe('Additional Function Coverage', () => {
 
     await db.recordMediaView('/some/file.jpg');
 
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
+    expect(logger.safeWarn).toHaveBeenCalledWith(
       '[database.js] Error recording media view: Test worker error',
     );
 
     // Cleanup
     postMessageSpy.mockRestore();
-    consoleWarnSpy.mockRestore();
     process.env.NODE_ENV = originalNodeEnv;
   });
 
   it('rejects pending messages when worker emits an error', async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, 'error')
-      .mockImplementation(() => {});
-
     const addDirPromise = db.addMediaDirectory('/test/dir');
     const getViewCountsPromise = db.getMediaViewCounts(['/file.txt']);
 
@@ -542,12 +535,10 @@ describe('Additional Function Coverage', () => {
     await expect(addDirPromise).rejects.toThrow(testError);
     await expect(getViewCountsPromise).resolves.toEqual({});
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
+    expect(logger.safeError).toHaveBeenCalledWith(
       '[database.js] Worker error:',
       testError,
     );
-
-    consoleErrorSpy.mockRestore();
   });
 
   it('getMediaDirectories should return [] on falsy worker response', async () => {
@@ -571,15 +562,12 @@ describe('Additional Function Coverage', () => {
   });
 
   it('should handle errors when terminating the worker during close', async () => {
-    const consoleErrorSpy = vi
-      .spyOn(console, 'error')
-      .mockImplementation(() => {});
     const terminateError = new Error('Failed to terminate');
     mockWorkerInstance!.terminate.mockRejectedValue(terminateError);
 
     await db.closeDatabase();
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
+    expect(logger.safeError).toHaveBeenCalledWith(
       '[database.js] Error terminating worker:',
       terminateError,
     );
@@ -588,17 +576,12 @@ describe('Additional Function Coverage', () => {
       'Database worker not initialized',
     );
 
-    consoleErrorSpy.mockRestore();
     await db.initDatabase();
   });
 
   it('sendMessageToWorker handles synchronous postMessage error', async () => {
     await db.closeDatabase();
     await db.initDatabase();
-
-    const consoleErrorSpy = vi
-      .spyOn(console, 'error')
-      .mockImplementation(() => {});
 
     mockWorkerInstance!.postMessage.mockImplementation(() => {
       throw new Error('Sync postMessage error');
@@ -608,12 +591,11 @@ describe('Additional Function Coverage', () => {
       'Sync postMessage error',
     );
 
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
+    expect(logger.safeError).toHaveBeenCalledWith(
       expect.stringContaining(
         '[database.js] Error posting message to worker: Sync postMessage error',
       ),
     );
-    consoleErrorSpy.mockRestore();
   });
 
   it('closeDatabase logs warning if close message fails in non-test env', async () => {
@@ -623,22 +605,17 @@ describe('Additional Function Coverage', () => {
     await db.closeDatabase();
     await db.initDatabase();
 
-    const consoleWarnSpy = vi
-      .spyOn(console, 'warn')
-      .mockImplementation(() => {});
-
     mockWorkerInstance!.postMessage.mockImplementation((msg: any) => {
       if (msg.type === 'close') throw new Error('Close message failed');
     });
 
     await db.closeDatabase();
 
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
+    expect(logger.safeWarn).toHaveBeenCalledWith(
       '[database.js] Warning during worker shutdown:',
       expect.any(Error),
     );
 
-    consoleWarnSpy.mockRestore();
     process.env.NODE_ENV = originalNodeEnv;
   });
 });

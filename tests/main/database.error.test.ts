@@ -1,88 +1,109 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createMockElectron } from './mocks/electron';
 
-// We'll dynamically import the module after setting up mocks so the module uses our mocked Worker
+// Hoist the control variable so it can be used in the hoisted vi.mock factory
+const mocks = vi.hoisted(() => ({
+  workerShouldThrow: false,
+}));
+
+// Mock worker_threads globally for this file
+vi.mock('worker_threads', () => {
+  class MockWorker {
+    listeners: Record<string, ((message: any) => void)[]> = {};
+
+    constructor() {
+      if (mocks.workerShouldThrow) {
+        throw new Error('Worker construction failed');
+      }
+    }
+
+    on(event: string, cb: (message: any) => void) {
+      if (!this.listeners[event]) {
+        this.listeners[event] = [];
+      }
+      this.listeners[event].push(cb);
+    }
+
+    postMessage(msg: any) {
+      // During initDatabase, the module sends an 'init' message — reply with success
+      if (msg && msg.type === 'init') {
+        // simulate async worker response
+        setTimeout(() => {
+          const cbs = this.listeners['message'];
+          if (cbs) {
+            cbs.forEach((cb) =>
+              cb({
+                id: msg.id,
+                result: { success: true, data: {} },
+              }),
+            );
+          }
+        }, 0);
+        return;
+      }
+
+      // For any other message type, simulate a postMessage failure
+      throw new Error('postMessage failed');
+    }
+
+    async terminate() {
+      return;
+    }
+  }
+
+  return { Worker: MockWorker, default: { Worker: MockWorker } };
+});
 
 describe('Database error handling (isolated)', () => {
   beforeEach(() => {
     // Ensure a clean module cache for each test
     vi.resetModules();
+    vi.doMock('electron', () => createMockElectron());
+
+    // Reset the mock behavior state
+    mocks.workerShouldThrow = false;
   });
 
-  it('initDatabase should throw when Worker constructor throws', async () => {
-    // Mock Worker to throw on construction
-    vi.mock('worker_threads', () => {
-      function Worker() {
-        throw new Error('Worker construction failed');
-      }
-      return { Worker, default: { Worker } };
-    });
-
+  it('initDatabase throws when Worker constructor throws', async () => {
+    // Arrange
+    mocks.workerShouldThrow = true;
     const db = await import('../../src/main/database.js');
 
-    // Depending on environment and module cache, initDatabase may either throw
-    // or handle the error internally. Accept both behaviors but ensure it
-    // doesn't crash the test runner.
-    await expect(db.initDatabase()).resolves.not.toThrow();
+    // Act & Assert
+    await expect(db.initDatabase()).rejects.toThrow(
+      'Worker construction failed',
+    );
   });
 
-  it('recordMediaView/getMediaViewCounts should handle postMessage failures gracefully', async () => {
-    // Mock Worker that responds to 'init' but throws on other postMessage calls.
-    // Define the class inside the factory to avoid hoisting issues with vi.mock.
-    vi.mock('worker_threads', () => {
-      class MockWorker {
-        listeners: any;
-        constructor() {
-          this.listeners = {};
-        }
+  describe('when worker is initialized but fails messages', () => {
+    it('recordMediaView handles worker failure gracefully', async () => {
+      // Arrange
+      const db = await import('../../src/main/database.js');
+      await db.initDatabase();
 
-        on(event: string, cb: any) {
-          this.listeners[event] = cb;
-        }
+      // Act & Assert
+      // recordMediaView should swallow errors (not throw)
+      await expect(
+        db.recordMediaView('/some/file.png'),
+      ).resolves.toBeUndefined();
 
-        postMessage(msg: any) {
-          // During initDatabase, the module sends an 'init' message — reply with success
-          if (msg && msg.type === 'init') {
-            // simulate async worker response
-            setTimeout(() => {
-              if (this.listeners['message']) {
-                this.listeners['message']({
-                  id: msg.id,
-                  result: { success: true, data: {} },
-                });
-              }
-            }, 0);
-            return;
-          }
-
-          // For any other message type, simulate a postMessage failure
-          throw new Error('postMessage failed');
-        }
-
-        async terminate() {
-          return;
-        }
-      }
-
-      return { Worker: MockWorker, default: { Worker: MockWorker } };
+      // Cleanup
+      await db.closeDatabase();
     });
 
-    // Also mock electron.app.getPath to a temp dir so initDatabase can compute dbPath
-    vi.mock('electron', () => createMockElectron());
+    it('getMediaViewCounts returns empty object on worker failure', async () => {
+      // Arrange
+      const db = await import('../../src/main/database.js');
+      await db.initDatabase();
 
-    const db = await import('../../src/main/database.js');
+      // Act
+      const counts = await db.getMediaViewCounts(['/some/file.png']);
 
-    // Initialize database should succeed because our MockWorker replies to 'init'
-    await expect(db.initDatabase()).resolves.not.toThrow();
+      // Assert
+      expect(counts).toEqual({});
 
-    // recordMediaView should swallow errors (not throw)
-    await expect(db.recordMediaView('/some/file.png')).resolves.toBeUndefined();
-
-    // getMediaViewCounts should return empty object when postMessage fails
-    const counts = await db.getMediaViewCounts(['/some/file.png']);
-    expect(counts).toEqual({});
-
-    // cleanup
-    await db.closeDatabase();
+      // Cleanup
+      await db.closeDatabase();
+    });
   });
 });

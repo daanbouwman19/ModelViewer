@@ -5,7 +5,7 @@
 
 import { type WorkerOptions } from 'worker_threads';
 import { FILE_INDEX_CACHE_KEY } from './constants.ts';
-import { safeWarn } from './utils/logger.ts';
+import { safeWarn, safeError } from './utils/logger.ts';
 import type {
   Album,
   MediaDirectory,
@@ -96,7 +96,7 @@ async function getMediaViewCounts(
       { filePaths },
     );
   } catch (error) {
-    console.error('[database.js] Error fetching view counts:', error);
+    safeError('[database.js] Error fetching view counts:', error);
     return {};
   }
 }
@@ -128,7 +128,7 @@ async function getAllMetadataStats(): Promise<{
       {} as { [path: string]: MediaMetadata },
     );
   } catch (error) {
-    console.error('[database.js] Error getting all metadata stats:', error);
+    safeError('[database.js] Error getting all metadata stats:', error);
     return {};
   }
 }
@@ -145,7 +145,7 @@ async function getAllMediaViewCounts(): Promise<{
       'getAllMediaViewCounts',
     );
   } catch (error) {
-    console.error('[database.js] Error fetching all view counts:', error);
+    safeError('[database.js] Error fetching all view counts:', error);
     return {};
   }
 }
@@ -162,7 +162,7 @@ async function cacheAlbums(albums: Album[]): Promise<void> {
       albums,
     });
   } catch (error) {
-    console.error('[database.js] Error caching albums:', error);
+    safeError('[database.js] Error caching albums:', error);
   }
 }
 
@@ -236,7 +236,7 @@ async function addMediaDirectory(
       directoryObj: payload,
     });
   } catch (error) {
-    console.error(
+    safeError(
       `[database.js] Error adding media directory '${typeof directory === 'string' ? directory : directory.path}':`,
       error,
     );
@@ -259,7 +259,7 @@ async function getMediaDirectories(): Promise<MediaDirectory[]> {
     cachedMediaDirectories = directories || [];
     return [...cachedMediaDirectories];
   } catch (error) {
-    console.error('[database.js] Error getting media directories:', error);
+    safeError('[database.js] Error getting media directories:', error);
     return [];
   }
 }
@@ -277,7 +277,7 @@ async function removeMediaDirectory(directoryPath: string): Promise<void> {
       directoryPath,
     });
   } catch (error) {
-    console.error(
+    safeError(
       '[database.js] Error removing media directory %s',
       directoryPath,
       error,
@@ -304,7 +304,7 @@ async function setDirectoryActiveState(
       isActive,
     });
   } catch (error) {
-    console.error(
+    safeError(
       '[database.js] Error setting active state for %s:',
       directoryPath,
       error,
@@ -326,7 +326,7 @@ async function upsertMetadata(
       ...metadata,
     });
   } catch (error) {
-    console.error('[database.js] Error upserting metadata:', filePath, error);
+    safeError('[database.js] Error upserting metadata:', filePath, error);
     throw error;
   }
 }
@@ -340,7 +340,7 @@ async function bulkUpsertMetadata(
   try {
     await getClient().sendMessage<void>('bulkUpsertMetadata', payloads);
   } catch (error) {
-    console.error('[database.js] Error bulk upserting metadata:', error);
+    safeError('[database.js] Error bulk upserting metadata:', error);
     throw error;
   }
 }
@@ -355,7 +355,7 @@ async function setRating(filePath: string, rating: number): Promise<void> {
       rating,
     });
   } catch (error) {
-    console.error('[database.js] Error setting rating:', filePath, error);
+    safeError('[database.js] Error setting rating:', filePath, error);
     throw error;
   }
 }
@@ -373,7 +373,7 @@ async function updateWatchedSegments(
       segmentsJson,
     });
   } catch (error) {
-    console.error(
+    safeError(
       '[database.js] Error updating watched segments:',
       filePath,
       error,
@@ -393,7 +393,7 @@ async function getMetadata(
       { filePaths },
     );
   } catch (error) {
-    console.error('[database.js] Error getting metadata:', filePaths, error);
+    safeError('[database.js] Error getting metadata:', filePaths, error);
     return {};
   }
 }
@@ -407,7 +407,7 @@ async function getAllMetadata(): Promise<{ [path: string]: MediaMetadata }> {
       'getAllMetadata',
     );
   } catch (error) {
-    console.error('[database.js] Error getting all metadata:', error);
+    safeError('[database.js] Error getting all metadata:', error);
     return {};
   }
 }
@@ -441,7 +441,7 @@ async function createSmartPlaylist(
       },
     );
   } catch (error) {
-    console.error('[database.js] Error creating smart playlist:', error);
+    safeError('[database.js] Error creating smart playlist:', error);
     throw error;
   }
 }
@@ -453,7 +453,7 @@ async function getSmartPlaylists(): Promise<SmartPlaylist[]> {
   try {
     return await getClient().sendMessage<SmartPlaylist[]>('getSmartPlaylists');
   } catch (error) {
-    console.error('[database.js] Error getting smart playlists:', error);
+    safeError('[database.js] Error getting smart playlists:', error);
     return [];
   }
 }
@@ -465,7 +465,7 @@ async function deleteSmartPlaylist(id: number): Promise<void> {
   try {
     await getClient().sendMessage<void>('deleteSmartPlaylist', { id });
   } catch (error) {
-    console.error('[database.js] Error deleting smart playlist:', error);
+    safeError('[database.js] Error deleting smart playlist:', error);
     throw error;
   }
 }
@@ -498,7 +498,7 @@ async function updateSmartPlaylist(
       criteria,
     });
   } catch (error) {
-    console.error('[database.js] Error updating smart playlist:', error);
+    safeError('[database.js] Error updating smart playlist:', error);
     throw error;
   }
 }
@@ -510,7 +510,7 @@ async function saveSetting(key: string, value: string): Promise<void> {
   try {
     await getClient().sendMessage<void>('saveSetting', { key, value });
   } catch (error) {
-    console.error('[database.js] Error saving setting:', error);
+    safeError('[database.js] Error saving setting:', error);
     throw error;
   }
 }
@@ -522,7 +522,7 @@ async function getSetting(key: string): Promise<string | null> {
   try {
     return await getClient().sendMessage<string | null>('getSetting', { key });
   } catch (error) {
-    console.error('[database.js] Error getting setting:', error);
+    safeError('[database.js] Error getting setting:', error);
     return null;
   }
 }
@@ -540,7 +540,7 @@ async function getAllMetadataAndStats(): Promise<MediaLibraryItem[]> {
       },
     );
   } catch (error) {
-    console.error('[database.js] Error getting all metadata:', error);
+    safeError('[database.js] Error getting all metadata:', error);
     return [];
   }
 }
@@ -590,7 +590,7 @@ async function getRecentlyPlayed(limit = 50): Promise<MediaLibraryItem[]> {
       },
     );
   } catch (error) {
-    console.error('[database.js] Error getting recently played:', error);
+    safeError('[database.js] Error getting recently played:', error);
     throw error;
   }
 }
@@ -602,7 +602,7 @@ async function getPendingMetadata(): Promise<string[]> {
   try {
     return await getClient().sendMessage<string[]>('getPendingMetadata');
   } catch (error) {
-    console.error('[database.js] Error getting pending metadata:', error);
+    safeError('[database.js] Error getting pending metadata:', error);
     return [];
   }
 }
@@ -618,7 +618,7 @@ async function filterProcessingNeeded(filePaths: string[]): Promise<string[]> {
       filePaths,
     });
   } catch (error) {
-    console.error('[database.js] Error filtering processing needed:', error);
+    safeError('[database.js] Error filtering processing needed:', error);
     return filePaths; // Fallback to processing all if error
   }
 }
