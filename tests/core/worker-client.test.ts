@@ -1,6 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { WorkerClient } from '../../src/core/worker-client';
 import { Worker } from 'worker_threads';
+import * as logger from '../../src/core/utils/logger';
+
+// Mock logger
+vi.mock('../../src/core/utils/logger', () => ({
+  safeLog: vi.fn(),
+  safeError: vi.fn(),
+  safeWarn: vi.fn(),
+}));
 
 // Mock worker_threads
 vi.mock('worker_threads', async () => {
@@ -71,15 +79,12 @@ describe('WorkerClient Coverage', () => {
       throw new Error('Constructor Fail');
     });
 
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
     await expect(client.init()).rejects.toThrow('Constructor Fail');
 
-    expect(consoleSpy).toHaveBeenCalledWith(
+    expect(logger.safeError).toHaveBeenCalledWith(
       expect.stringContaining('CRITICAL ERROR'),
       expect.any(Error),
     );
-    consoleSpy.mockRestore();
   });
 
   it('sendMessage() rejects if worker not initialized', async () => {
@@ -99,11 +104,7 @@ describe('WorkerClient Coverage', () => {
       throw new Error('Post failure');
     });
 
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
     await expect(client.sendMessage('TEST')).rejects.toThrow('Post failure');
-
-    consoleSpy.mockRestore();
   });
 
   it('terminate() handles soft close error gracefully', async () => {

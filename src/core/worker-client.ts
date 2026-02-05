@@ -3,7 +3,7 @@
  */
 
 import { Worker, type WorkerOptions } from 'worker_threads';
-import { safeLog } from './utils/logger.ts';
+import { safeLog, safeError } from './utils/logger.ts';
 
 interface WorkerResponse<T = unknown> {
   id: number;
@@ -98,7 +98,7 @@ export class WorkerClient {
       });
 
       this.worker.on('error', (error) => {
-        console.error(`[${this.name}] Worker error:`, error);
+        safeError(`[${this.name}] Worker error:`, error);
         // Error doesn't necessarily mean exit, but commonly does.
         // We let the 'exit' handler manage restarts.
         this.rejectAllPending(error);
@@ -121,7 +121,7 @@ export class WorkerClient {
 
       safeLog(`[${this.name}] Worker initialized successfully.`);
     } catch (error) {
-      console.error(
+      safeError(
         `[${this.name}] CRITICAL ERROR: Failed to initialize worker:`,
         error,
       );
@@ -131,9 +131,7 @@ export class WorkerClient {
   }
 
   private handleUnexpectedExit(code: number) {
-    console.error(
-      `[${this.name}] Worker exited unexpectedly with code ${code}`,
-    );
+    safeError(`[${this.name}] Worker exited unexpectedly with code ${code}`);
     this.rejectAllPending(new Error('Worker exited unexpectedly'));
     this.worker = null;
 
@@ -145,11 +143,11 @@ export class WorkerClient {
         );
         setTimeout(() => {
           this.init(this.initialPayload).catch((e) => {
-            console.error(`[${this.name}] Failed to auto-restart worker:`, e);
+            safeError(`[${this.name}] Failed to auto-restart worker:`, e);
           });
         }, this.restartDelay);
       } else {
-        console.error(`[${this.name}] Max restarts reached. Giving up.`);
+        safeError(`[${this.name}] Max restarts reached. Giving up.`);
       }
     }
   }
@@ -186,7 +184,7 @@ export class WorkerClient {
       try {
         this.worker.postMessage({ id, type, payload });
       } catch (error) {
-        console.error(
+        safeError(
           `[${this.name}] Error posting message to worker: ${(error as Error).message}`,
         );
         clearTimeout(timeoutId);
@@ -209,12 +207,12 @@ export class WorkerClient {
       try {
         await this.worker.terminate();
       } catch (error) {
-        console.error(`[${this.name}] Error terminating worker:`, error);
+        safeError(`[${this.name}] Error terminating worker:`, error);
       } finally {
         this.worker = null;
         this.isTerminating = false;
         this.rejectAllPending(new Error('Worker terminated'));
-        console.log(`[${this.name}] Worker terminated.`);
+        safeLog(`[${this.name}] Worker terminated.`);
       }
     }
   }
