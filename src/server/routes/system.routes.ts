@@ -34,6 +34,11 @@ import {
 } from '../../main/google-drive-service.ts';
 import type { RateLimiters } from '../middleware/rate-limiters.ts';
 import { asyncHandler } from '../middleware/async-handler.ts';
+import { createRateLimiter } from '../../core/rate-limiter.ts';
+import {
+  RATE_LIMIT_FILE_MAX_REQUESTS,
+  RATE_LIMIT_FILE_WINDOW_MS,
+} from '../../core/constants.ts';
 
 function validateMediaDirectoryPath(dirPath: string): void {
   if (!path.isAbsolute(dirPath)) {
@@ -198,9 +203,15 @@ export function createSystemRoutes(limiters: RateLimiters) {
     }),
   );
 
+  const fsRateLimiter = createRateLimiter(
+    RATE_LIMIT_FILE_WINDOW_MS,
+    RATE_LIMIT_FILE_MAX_REQUESTS,
+    'Too many file system requests. Please slow down.',
+  );
+
   router.get(
     '/api/fs/ls',
-    limiters.fileLimiter,
+    fsRateLimiter,
     asyncHandler(async (req, res) => {
       const dirPath = getQueryParam(req.query, 'path');
       if (!dirPath || typeof dirPath !== 'string') {
