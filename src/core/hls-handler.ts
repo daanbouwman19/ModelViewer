@@ -1,0 +1,156 @@
+/**
+ * @file HLS streaming handlers.
+ * Extracted from media-handler.ts to separate concerns.
+ */
+
+import { Request, Response } from 'express';
+import crypto from 'crypto';
+import path from 'path';
+import fs from 'fs/promises';
+
+import { HlsManager } from './hls-manager.ts';
+import { validateFileAccess } from './access-validator.ts';
+import { getQueryParam } from './utils/http-utils.ts';
+
+const HLS_BANDWIDTH = 2000000;
+const HLS_RESOLUTION = '1280x720';
+
+/**
+ * Helper to validate file access.
+ */
+async function ensureFileAccess(
+  res: Response,
+  filePath: string,
+): Promise<{ authorizedPath: string } | null> {
+  const access = await validateFileAccess(filePath);
+  if (!access.success) {
+    if (!res.headersSent) res.status(access.statusCode).send(access.error);
+    return null;
+  }
+  return { authorizedPath: access.path };
+}
+
+/**
+ * Generates a session ID based on the file path.
+ */
+function generateSessionId(filePath: string): string {
+  return crypto.createHash('md5').update(filePath).digest('hex');
+}
+
+/**
+ * Serves the HLS Master Playlist.
+ */
+export async function serveHlsMaster(
+  req: Request,
+  res: Response,
+  filePath: string,
+) {
+  const access = await ensureFileAccess(res, filePath);
+  if (!access) return;
+
+  const fileQuery = getQueryParam(req.query, 'file');
+  const encodedFile = encodeURIComponent(fileQuery || '');
+
+  res.set('Content-Type', 'application/vnd.apple.mpegurl');
+  res.send(`#EXTM3U
+#EXT-X-VERSION:3
+#EXT-X-STREAM-INF:BANDWIDTH=${HLS_BANDWIDTH},RESOLUTION=${HLS_RESOLUTION}
+playlist.m3u8?file=${encodedFile}`);
+}
+
+/**
+ * Serves the HLS Variant Playlist.
+ */
+export async function serveHlsPlaylist(
+  req: Request,
+  res: Response,
+  filePath: string,
+) {
+  const access = await ensureFileAccess(res, filePath);
+  if (!access) return;
+
+  const sessionId = generateSessionId(access.authorizedPath);
+
+  try {
+    const hlsManager = HlsManager.getInstance();
+    await hlsManager.ensureSession(sessionId, access.authorizedPath);
+
+    const sessionDir = hlsManager.getSessionDir(sessionId);
+    if (!sessionDir) throw new Error('Session dir not found');
+
+    const playlistPath = path.join(sessionDir, 'playlist.m3u8');
+    let playlistContent = await fs.readFile(playlistPath, 'utf8');
+
+    // Rewrite segment paths to include the file query param
+    // The segments are named 'segment_000.ts'
+    // We want 'segment_000.ts?file=...'
+    const fileQuery = getQueryParam(req.query, 'file');
+    const encodedFile = encodeURIComponent(fileQuery || '');
+
+    // Simple regex replace
+    // Use a more robust regex that handles potential variations in segment naming
+    const segmentRegex = /(segment_\d+\.ts)/g;
+    playlistContent = playlistContent.replace(
+      segmentRegex,
+      `$1?file=${encodedFile}`,
+    );
+
+    res.set('Content-Type', 'application/vnd.apple.mpegurl');
+    res.send(playlistContent);
+
+    // Keep session alive
+    hlsManager.touchSession(sessionId);
+  } catch (e) {
+    console.error('[HLS] Playlist error:', e);
+    res.status(500).send('HLS Generation failed');
+  }
+}
+
+/**
+ * Serves an HLS Segment.
+ */
+export async function serveHlsSegment(
+  _req: Request,
+  res: Response,
+  filePath: string,
+  segmentName: string,
+) {
+  const access = await ensureFileAccess(res, filePath);
+  if (!access) return;
+
+  // Security check: segmentName must match the expected pattern strictly
+  if (!/^segment_\d+\.ts$/.test(segmentName)) {
+    res.status(400).send('Invalid segment name');
+    return;
+  }
+
+  const sessionId = generateSessionId(access.authorizedPath);
+  const hlsManager = HlsManager.getInstance();
+  const sessionDir = hlsManager.getSessionDir(sessionId);
+
+  // If session doesn't exist, we can't serve segment.
+  // The player should have requested playlist first which creates session.
+  // If session timed out, we assume segment is gone.
+  if (!sessionDir) {
+    res.status(404).send('Segment not found (Session expired)');
+    return;
+  }
+
+  const segmentPath = path.join(sessionDir, segmentName);
+
+  try {
+    await new Promise<void>((resolve, reject) => {
+      res.sendFile(segmentPath, (err) => {
+        if (err) {
+          return reject(err);
+        }
+        hlsManager.touchSession(sessionId);
+        resolve();
+      });
+    });
+  } catch {
+    if (!res.headersSent) {
+      res.status(404).send('Segment not found');
+    }
+  }
+}
