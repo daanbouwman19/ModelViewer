@@ -522,20 +522,9 @@ export function getAllMetadataStats(): WorkerResult {
       rating?: number;
     }[];
 
-    const metadataMap = rows.reduce(
-      (acc, row) => {
-        if (row.filePath) {
-          acc[row.filePath] = {
-            duration: row.duration,
-            rating: row.rating,
-          };
-        }
-        return acc;
-      },
-      {} as Record<string, { duration?: number; rating?: number }>,
-    );
-
-    return { success: true, data: metadataMap };
+    // Bolt Optimization: Return raw rows to avoid blocking worker with heavy reduce
+    // The transformation to a map will handle by the consumer.
+    return { success: true, data: rows };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
   }

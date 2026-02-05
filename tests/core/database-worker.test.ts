@@ -584,8 +584,9 @@ describe('Database Worker', () => {
 
       const result = await sendMessage('getAllMetadataStats', {});
       expect(result.success).toBe(true);
-      const data = result.data as Record<string, any>;
-      const item = data[filePath];
+      const data = result.data as Array<any>;
+
+      const item = data.find((i) => i.filePath === filePath);
 
       expect(item).toBeDefined();
       expect(item.duration).toBe(100);
