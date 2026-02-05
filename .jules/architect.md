@@ -81,3 +81,9 @@
 **Smell:** `generateFileUrl` mixed HTTP and Data URL generation logic with a complex boolean decision tree and inline magic numbers.
 **Insight:** URL generation strategies (HTTP vs Data) are distinct operations. Separating them clarifies the "decision" phase from the "generation" phase, making the high-level policy (size limits) explicit and readable.
 **Prevention:** When a function computes a result using one of several strategies based on criteria, extract each strategy into a dedicated helper function and keep the main function focused on the selection logic.
+
+## 2026-02-04 - Extracting HLS Handler
+
+**Smell:** `media-handler.ts` was a "God Object" mixing general media streaming, metadata, heatmaps, and complex HLS session management.
+**Insight:** HLS logic has its own lifecycle (sessions, segments, playlists) and dependencies (`HlsManager`) that are distinct from stateless direct file streaming.
+**Prevention:** When a handler file starts importing dedicated managers for specific protocols (like HLS), it's a sign that the protocol handling should be moved to its own module.
