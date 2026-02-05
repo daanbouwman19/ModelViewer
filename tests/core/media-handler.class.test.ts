@@ -86,14 +86,18 @@ describe('MediaHandler class', () => {
     });
 
     const req = { query: { file: '/file.mp4' } } as any;
-    const res = {
+    const res: any = {
       headersSent: false,
       status: vi.fn().mockReturnThis(),
       send: vi.fn().mockReturnThis(),
       json: vi.fn().mockReturnThis(),
       set: vi.fn().mockReturnThis(),
-      sendFile: vi.fn().mockReturnThis(),
-    } as any;
+    };
+    res.sendFile = vi.fn((_path: any, optOrCb: any, cb: any) => {
+      const callback = typeof optOrCb === 'function' ? optOrCb : cb;
+      if (callback) callback();
+      return res;
+    });
 
     await handler.serveMetadata(req, res, '/file.mp4');
     await handler.serveThumbnail(req, res, '/file.mp4');

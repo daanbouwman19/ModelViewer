@@ -43,7 +43,7 @@ describe('hls-handler', () => {
       status: vi.fn().mockReturnThis(),
       send: vi.fn(),
       set: vi.fn(),
-      sendFile: vi.fn((_path, cb) => {
+      sendFile: vi.fn((_path: string, cb: (err?: any) => void) => {
         if (cb) cb();
       }),
       headersSent: false,
@@ -264,9 +264,11 @@ describe('hls-handler', () => {
       HlsManager.getInstance.mockReturnValue(mockHlsManager);
 
       // Mock res.sendFile to fail
-      res.sendFile.mockImplementation((_path, cb) => {
-        if (cb) cb(new Error('File not found'));
-      });
+      res.sendFile.mockImplementation(
+        (_path: string, cb: (err?: any) => void) => {
+          if (cb) cb(new Error('File not found'));
+        },
+      );
 
       await serveHlsSegment(req, res, '/path/to/video.mp4', 'segment_001.ts');
 
