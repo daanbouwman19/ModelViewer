@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import MediaGridItem from '../../../src/renderer/components/MediaGridItem.vue';
 
@@ -19,6 +19,14 @@ describe('MediaGridItem.vue', () => {
     thumbnailUrlGenerator: (path: string) => path,
     failedImagePaths: new Set<string>(),
   };
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it('renders correct aria-label for image without rating', () => {
     const item = {
@@ -116,5 +124,148 @@ describe('MediaGridItem.vue', () => {
     expect(button.attributes('aria-label')).toBe(
       'View test.mp4, Video, 120 sec, Rated 5 stars',
     );
+  });
+
+  it('shows video preview on hover after debounce', async () => {
+    const item = {
+      path: 'test.mp4',
+      name: 'test.mp4',
+      rating: 0,
+      duration: 120,
+    };
+    const wrapper = mount(MediaGridItem, {
+      props: {
+        ...defaultProps,
+        item,
+      },
+    });
+
+    // Initially should show image (poster)
+    expect(wrapper.find('img').exists()).toBe(true);
+    // Note: Video might exist if logic allows it for other reasons, but let's check our specific logic
+    // In our component: v-if="shouldPlayPreview || !posterUrl || posterFailed" for video
+    // v-else for img.
+    // Assuming posterUrl is generated (thumbnailUrlGenerator returns path), img should be present.
+    expect(wrapper.find('video').exists()).toBe(false);
+
+    // Trigger mouseenter
+    await wrapper.find('button').trigger('mouseenter');
+
+    // Should not switch immediately (debounce)
+    expect(wrapper.find('video').exists()).toBe(false);
+
+    // Fast-forward time
+    await vi.advanceTimersByTimeAsync(500);
+
+    // Now should show video
+    expect(wrapper.find('video').exists()).toBe(true);
+    expect(wrapper.find('img').exists()).toBe(false);
+  });
+
+  it('stops video preview on mouseleave', async () => {
+    const item = {
+      path: 'test.mp4',
+      name: 'test.mp4',
+      rating: 0,
+      duration: 120,
+    };
+    const wrapper = mount(MediaGridItem, {
+      props: {
+        ...defaultProps,
+        item,
+      },
+    });
+
+    // Enter and wait
+    await wrapper.find('button').trigger('mouseenter');
+    await vi.advanceTimersByTimeAsync(500);
+    expect(wrapper.find('video').exists()).toBe(true);
+
+    // Leave
+    await wrapper.find('button').trigger('mouseleave');
+    // Should switch back immediately
+    expect(wrapper.find('video').exists()).toBe(false);
+    expect(wrapper.find('img').exists()).toBe(true);
+  });
+
+  it('handles focus/blur for accessibility', async () => {
+    const item = {
+      path: 'test.mp4',
+      name: 'test.mp4',
+      rating: 0,
+      duration: 120,
+    };
+    const wrapper = mount(MediaGridItem, {
+      props: {
+        ...defaultProps,
+        item,
+      },
+    });
+
+    // Focus triggers preview (via same handler as mouseenter)
+    await wrapper.find('button').trigger('focus');
+    expect(wrapper.find('video').exists()).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(500);
+    expect(wrapper.find('video').exists()).toBe(true);
+
+    // Blur stops preview
+    await wrapper.find('button').trigger('blur');
+    expect(wrapper.find('video').exists()).toBe(false);
+  });
+
+  it('falls back to video if poster fails', async () => {
+    const item = {
+      path: 'test.mp4',
+      name: 'test.mp4',
+      rating: 0,
+      duration: 120,
+    };
+    const wrapper = mount(MediaGridItem, {
+      props: {
+        ...defaultProps,
+        item,
+      },
+    });
+
+    // Initially image
+    const img = wrapper.find('img');
+    expect(img.exists()).toBe(true);
+
+    // Trigger error on image
+    await img.trigger('error');
+
+    // Should switch to video
+    expect(wrapper.find('video').exists()).toBe(true);
+    expect(wrapper.find('img').exists()).toBe(false);
+  });
+
+  it('clears hover timeout on mouseleave before debounce completes', async () => {
+    const item = {
+      path: 'test.mp4',
+      name: 'test.mp4',
+      rating: 0,
+      duration: 120,
+    };
+    const wrapper = mount(MediaGridItem, {
+      props: {
+        ...defaultProps,
+        item,
+      },
+    });
+
+    // Enter
+    await wrapper.find('button').trigger('mouseenter');
+
+    // Leave before 500ms
+    await vi.advanceTimersByTimeAsync(200);
+    await wrapper.find('button').trigger('mouseleave');
+
+    // Wait remaining time
+    await vi.advanceTimersByTimeAsync(400);
+
+    // Should still be image, never switched
+    expect(wrapper.find('video').exists()).toBe(false);
+    expect(wrapper.find('img').exists()).toBe(true);
   });
 });
