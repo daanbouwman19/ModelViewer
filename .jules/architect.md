@@ -87,3 +87,9 @@
 **Smell:** `media-handler.ts` was a "God Object" mixing general media streaming, metadata, heatmaps, and complex HLS session management.
 **Insight:** HLS logic has its own lifecycle (sessions, segments, playlists) and dependencies (`HlsManager`) that are distinct from stateless direct file streaming.
 **Prevention:** When a handler file starts importing dedicated managers for specific protocols (like HLS), it's a sign that the protocol handling should be moved to its own module.
+
+## 2026-02-06 - Extracting Drive File Processing
+
+**Smell:** `listDriveFiles` mixed API iteration logic with file object mapping and shortcut resolution, creating a complex loop with inline mapping and filtering.
+**Insight:** Separating the "processing" of a single item (mapping, validation) from the "iteration" logic (fetching pages) makes both parts clearer and allows independent testing of file validation rules.
+**Prevention:** When a map/filter chain inside a loop becomes complex (e.g. handling specific edge cases like shortcuts), extract the logic into a `processItem` helper function.
