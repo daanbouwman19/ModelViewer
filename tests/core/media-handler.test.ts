@@ -743,6 +743,10 @@ describe('media-handler unit tests', () => {
 
     it('falls back to serveRawStream for gdrive files', async () => {
       req.query = { file: 'gdrive://123' };
+      mockAuthorizeFilePath.mockResolvedValue({
+        isAllowed: true,
+        realPath: 'gdrive://123',
+      });
 
       // serveRawStream logic will be called.
       await handleStreamRequest(req, res, 'ffmpeg');

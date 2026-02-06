@@ -575,7 +575,23 @@ export {
   getPendingMetadata,
   getRecentlyPlayed,
   filterProcessingNeeded,
+  isFileInLibrary,
 };
+
+/**
+ * Checks if a file exists in the library (metadata table).
+ * @param filePath - The path to check.
+ * @returns True if the file is known in the library.
+ */
+async function isFileInLibrary(filePath: string): Promise<boolean> {
+  try {
+    const meta = await getMetadata([filePath]);
+    return !!meta[filePath];
+  } catch (error) {
+    safeError('[database.js] Error checking library presence:', error);
+    return false;
+  }
+}
 
 /**
  * Retrieves recently played media items.

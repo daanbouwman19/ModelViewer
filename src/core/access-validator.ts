@@ -14,9 +14,8 @@ export type FileAccessResult =
 export async function validateFileAccess(
   filePath: string,
 ): Promise<FileAccessResult> {
-  // GDrive files are handled by their specific providers/logic
-  if (isDrivePath(filePath)) return { success: true, path: filePath };
-
+  // [SECURITY] Fixed IDOR bypass: Drive files must now pass authorizeFilePath
+  // which verifies they are in the allowed library via isFileInLibrary check.
   try {
     const auth: AuthorizationResult = await authorizeFilePath(filePath);
     if (!auth.isAllowed) {

@@ -10,6 +10,7 @@ import Database from 'better-sqlite3';
 import crypto from 'crypto';
 import fs from 'fs/promises';
 import path from 'path';
+import type { Album } from './types.ts';
 import { isDrivePath, getDriveId } from './media-utils.ts';
 import {
   initializeSchema,
@@ -874,9 +875,45 @@ export async function getMediaViewCounts(
  * @param albums - The album data to cache.
  * @returns The result of the operation.
  */
-export function cacheAlbums(cacheKey: string, albums: unknown): WorkerResult {
+export async function cacheAlbums(
+  cacheKey: string,
+  albums: unknown,
+): Promise<WorkerResult> {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
+    // 1. Traverse and index all paths into media_metadata (whitelist for Drive & Local)
+    // This ensures every file in the library is strictly "authorized" via DB presence.
+    if (Array.isArray(albums)) {
+      const paths: string[] = [];
+      const stack: Album[] = [...(albums as Album[])];
+
+      while (stack.length > 0) {
+        const album = stack.pop();
+        if (album) {
+          if (album.textures && Array.isArray(album.textures)) {
+            for (const texture of album.textures) {
+              if (texture && texture.path) {
+                paths.push(texture.path);
+              }
+            }
+          }
+          if (album.children && Array.isArray(album.children)) {
+            for (let i = album.children.length - 1; i >= 0; i--) {
+              stack.push(album.children[i]);
+            }
+          }
+        }
+      }
+
+      if (paths.length > 0) {
+        // Bulk upsert to ensure they are in the DB.
+        // We pass only filePath; existing metadata (duration, etc.) is preserved by upsert logic.
+        const payloads = paths.map((p) => ({ filePath: p }));
+        // We can reuse bulkUpsertMetadata logic.
+        await bulkUpsertMetadata(payloads);
+      }
+    }
+
     statements.cacheAlbum.run(
       cacheKey,
       JSON.stringify(albums),
@@ -1050,7 +1087,7 @@ if (parentPort) {
           result = await getMediaViewCounts(payload.filePaths);
           break;
         case 'cacheAlbums':
-          result = cacheAlbums(payload.cacheKey, payload.albums);
+          result = await cacheAlbums(payload.cacheKey, payload.albums);
           break;
         case 'getCachedAlbums':
           result = getCachedAlbums(payload.cacheKey);

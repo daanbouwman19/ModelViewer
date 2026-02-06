@@ -41,6 +41,10 @@ describe('filterAuthorizedPaths Security', () => {
       },
     ]);
     (vi.mocked(fs.realpath) as any).mockImplementation(async (p: string) => p);
+    // Mock isFileInLibrary
+    (database as any).isFileInLibrary = vi.fn().mockImplementation(async (p: string) => {
+      return p === 'gdrive://valid';
+    });
   });
 
   it('filters out unauthorized paths', async () => {
@@ -140,6 +144,7 @@ describe('authorizeFilePath Security', () => {
   });
 
   it('allows access to valid gdrive:// paths', async () => {
+    (database as any).isFileInLibrary = vi.fn().mockResolvedValue(true);
     const result = await authorizeFilePath('gdrive://fileId123');
     expect(result.isAllowed).toBe(true);
     expect(result.realPath).toBe('gdrive://fileId123');
@@ -148,9 +153,17 @@ describe('authorizeFilePath Security', () => {
   it('allows access to gdrive:// paths even when they do not match the exact root', async () => {
     // This test ensures that if 'gdrive://' is an allowed root, specific file IDs like 'gdrive://12345' are allowed
     // even though path.relative might treat them weirdly if not handled correctly.
+    (database as any).isFileInLibrary = vi.fn().mockResolvedValue(true);
     const result = await authorizeFilePath('gdrive://some-other-id');
     expect(result.isAllowed).toBe(true);
     expect(result.realPath).toBe('gdrive://some-other-id');
+  });
+
+  it('blocks access to gdrive:// paths NOT in library', async () => {
+    (database as any).isFileInLibrary = vi.fn().mockResolvedValue(false);
+    const result = await authorizeFilePath('gdrive://unknown-id');
+    expect(result.isAllowed).toBe(false);
+    expect(result.message).toBe('Access denied');
   });
 
   it('allows access to valid local files within allowed directories', async () => {
