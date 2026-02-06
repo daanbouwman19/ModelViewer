@@ -13,8 +13,14 @@
     <!-- Skeleton Loader -->
     <div
       v-if="showSkeleton"
-      class="absolute inset-0 bg-gray-800 animate-pulse rounded z-10"
-    ></div>
+      class="absolute inset-0 bg-gray-800 animate-pulse rounded z-10 flex items-center justify-center text-gray-700"
+    >
+      <component
+        :is="isVideo ? PlayIcon : ImageIcon"
+        class="w-8 h-8 opacity-50"
+        aria-hidden="true"
+      />
+    </div>
 
     <template v-if="isImage">
       <div
@@ -91,7 +97,7 @@
       v-if="item.rating"
       class="absolute top-2 left-2 bg-black/60 text-yellow-400 text-xs px-1.5 py-0.5 rounded flex items-center pointer-events-none gap-1"
     >
-      <span>★</span>
+      <StarIcon class="w-3 h-3 fill-current" />
       {{ item.rating }}
     </div>
     <div
@@ -113,6 +119,9 @@ import {
   isMediaFileVideo,
 } from '../utils/mediaUtils';
 import { formatTime, formatDurationForA11y } from '../utils/timeUtils';
+import ImageIcon from './icons/ImageIcon.vue';
+import PlayIcon from './icons/PlayIcon.vue';
+import StarIcon from './icons/StarIcon.vue';
 
 const props = defineProps<{
   item: MediaFile;
