@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../src/server/server';
 import * as security from '../../src/core/security';
+import { MAX_API_BATCH_SIZE } from '../../src/core/constants';
 
 // Mock dependencies
 vi.mock('../../src/core/database');
@@ -67,28 +68,160 @@ describe('Server Input Validation', () => {
     app = await createApp();
   });
 
-  describe('POST /api/media/views', () => {
-    it('should handle array with non-string elements gracefully', async () => {
-      // This payload contains an integer, which should be rejected
-      const payload = { filePaths: ['/valid/path', 123] };
+  const testCases = [
+    // POST /api/media/view
+    {
+      method: 'post',
+      path: '/api/media/view',
+      payload: {},
+      description: 'fails when filePath is missing',
+    },
+    {
+      method: 'post',
+      path: '/api/media/view',
+      payload: { filePath: 123 },
+      description: 'fails when filePath is not a string',
+    },
 
-      const response = await request(app)
-        .post('/api/media/views')
-        .send(payload);
+    // POST /api/media/views
+    {
+      method: 'post',
+      path: '/api/media/views',
+      payload: {},
+      description: 'fails when filePaths is missing',
+    },
+    {
+      method: 'post',
+      path: '/api/media/views',
+      payload: { filePaths: 'string' },
+      description: 'fails when filePaths is not an array',
+    },
+    {
+      method: 'post',
+      path: '/api/media/views',
+      payload: { filePaths: ['/valid', 123] },
+      description: 'fails when filePaths contains non-string elements',
+    },
+    {
+      method: 'post',
+      path: '/api/media/views',
+      payload: { filePaths: Array(MAX_API_BATCH_SIZE + 1).fill('/path') },
+      description: 'fails when batch size exceeds limit',
+    },
 
+    // POST /api/media/rate
+    {
+      method: 'post',
+      path: '/api/media/rate',
+      payload: {},
+      description: 'fails when body is empty',
+    },
+    {
+      method: 'post',
+      path: '/api/media/rate',
+      payload: { filePath: '/path' },
+      description: 'fails when rating is missing',
+    },
+    {
+      method: 'post',
+      path: '/api/media/rate',
+      payload: { rating: 5 },
+      description: 'fails when filePath is missing',
+    },
+    {
+      method: 'post',
+      path: '/api/media/rate',
+      payload: { filePath: 123, rating: 5 },
+      description: 'fails when filePath is not a string',
+    },
+    {
+      method: 'post',
+      path: '/api/media/rate',
+      payload: { filePath: '/path', rating: '5' },
+      description: 'fails when rating is not a number',
+    },
+
+    // POST /api/media/metadata
+    {
+      method: 'post',
+      path: '/api/media/metadata',
+      payload: {},
+      description: 'fails when body is empty',
+    },
+    {
+      method: 'post',
+      path: '/api/media/metadata',
+      payload: { filePath: 123, metadata: {} },
+      description: 'fails when filePath is not a string',
+    },
+    {
+      method: 'post',
+      path: '/api/media/metadata',
+      payload: { filePath: '/path' },
+      description: 'fails when metadata is missing',
+    },
+
+    // POST /api/media/metadata/batch
+    {
+      method: 'post',
+      path: '/api/media/metadata/batch',
+      payload: { filePaths: ['/valid/path', { bad: 'object' }] },
+      description: 'fails when filePaths contains non-string elements',
+    },
+    {
+      method: 'post',
+      path: '/api/media/metadata/batch',
+      payload: { filePaths: Array(MAX_API_BATCH_SIZE + 1).fill('/path') },
+      description: 'fails when batch size exceeds limit',
+    },
+
+    // GET /api/stream
+    {
+      method: 'get',
+      path: '/api/stream',
+      query: {},
+      description: 'fails when file param is missing',
+    },
+
+    // GET /api/metadata
+    {
+      method: 'get',
+      path: '/api/metadata',
+      query: {},
+      description: 'fails when file param is missing',
+    },
+
+    // GET /api/thumbnail
+    {
+      method: 'get',
+      path: '/api/thumbnail',
+      query: {},
+      description: 'fails when file param is missing',
+    },
+
+    // GET /api/video/heatmap
+    {
+      method: 'get',
+      path: '/api/video/heatmap',
+      query: {},
+      description: 'fails when file param is missing',
+    },
+  ];
+
+  it.each(testCases)(
+    '$method $path $description',
+    async ({ method, path, payload, query }) => {
+      let req = request(app)[method as 'get' | 'post'](path);
+
+      if (payload) {
+        req = req.send(payload);
+      }
+      if (query) {
+        req = req.query(query);
+      }
+
+      const response = await req;
       expect(response.status).toBe(400);
-    });
-  });
-
-  describe('POST /api/media/metadata/batch', () => {
-    it('should handle array with non-string elements gracefully', async () => {
-      const payload = { filePaths: ['/valid/path', { bad: 'object' }] };
-
-      const response = await request(app)
-        .post('/api/media/metadata/batch')
-        .send(payload);
-
-      expect(response.status).toBe(400);
-    });
-  });
+    },
+  );
 });
