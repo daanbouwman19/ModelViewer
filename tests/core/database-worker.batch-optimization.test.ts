@@ -32,11 +32,13 @@ describe('database-worker batch optimization', () => {
     // However, fs/promises is usually a module.
     // Ideally we spy on fs.stat.
     // If this fails, we might need to spy on the module export.
+    let statCounter = 0;
     statSpy = vi.spyOn(fs, 'stat').mockImplementation(
       async (p: any) =>
         ({
           size: 1000 + (p ? p.length : 0),
-          mtime: new Date(),
+          // Ensure unique mtime to avoid ID collisions in tests
+          mtime: new Date(Date.now() + statCounter++ * 1000),
           isFile: () => true,
         }) as any,
     );
