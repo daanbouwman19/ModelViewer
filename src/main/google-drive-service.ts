@@ -61,24 +61,34 @@ function validateFolderId(folderId: string): void {
  * Handles shortcut resolution.
  */
 function processDriveFile(f: drive_v3.Schema$File): MediaFile | null {
-  const isShortcut = f.mimeType === 'application/vnd.google-apps.shortcut';
+  if (f.mimeType === 'application/vnd.google-apps.shortcut') {
+    const { targetId, targetMimeType } = f.shortcutDetails || {};
 
-  if (isShortcut) {
-    const targetMime = f.shortcutDetails?.targetMimeType || '';
-    if (!targetMime.includes('image/') && !targetMime.includes('video/')) {
-      return null;
+    // A shortcut is only valid if it points to a media file and has a target ID.
+    if (
+      targetId &&
+      targetMimeType &&
+      (targetMimeType.includes('image/') || targetMimeType.includes('video/'))
+    ) {
+      return {
+        name: f.name || 'Untitled',
+        path: createDrivePath(targetId),
+      };
     }
+
+    // Invalid or non-media shortcut, so we ignore it.
+    return null;
   }
 
-  let path = createDrivePath(f.id || '');
-  // If shortcut, we point to targetId.
-  if (isShortcut && f.shortcutDetails?.targetId) {
-    path = createDrivePath(f.shortcutDetails.targetId);
+  // For regular files, we rely on the API query having filtered for media types.
+  // A file without an ID is not usable.
+  if (!f.id) {
+    return null;
   }
 
   return {
     name: f.name || 'Untitled',
-    path,
+    path: createDrivePath(f.id),
   };
 }
 
@@ -91,7 +101,7 @@ function processDriveFile(f: drive_v3.Schema$File): MediaFile | null {
 export async function listDriveFiles(folderId: string): Promise<Album> {
   validateFolderId(folderId);
   const drive = await getDriveClient();
-  const q = `'${folderId}' in parents and (mimeType contains 'image/' or mimeType contains 'video/') and trashed = false`;
+  const q = `'${folderId}' in parents and (mimeType contains 'image/' or mimeType contains 'video/' or mimeType = 'application/vnd.google-apps.shortcut') and trashed = false`;
 
   let allFiles: drive_v3.Schema$File[] = [];
   let pageToken: string | undefined = undefined;
@@ -116,13 +126,9 @@ export async function listDriveFiles(folderId: string): Promise<Album> {
     pageToken = res.data.nextPageToken || undefined;
   } while (pageToken);
 
-  const textures: MediaFile[] = [];
-  for (const f of allFiles) {
-    const mediaFile = processDriveFile(f);
-    if (mediaFile) {
-      textures.push(mediaFile);
-    }
-  }
+  const textures: MediaFile[] = allFiles
+    .map(processDriveFile)
+    .filter((file): file is MediaFile => file !== null);
 
   // For MVP, we are not recursively fetching subfolders yet, or we can add that logic.
   // The user requirement said: "List files in a specific Drive folder (recursively or flat)."
