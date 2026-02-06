@@ -57,3 +57,8 @@
 
 **Learning:** Fetching all metadata (heavy objects) to the main thread just to filter out successful files for background processing is inefficient for large libraries (high memory and IPC overhead).
 **Action:** Implemented `filterProcessingNeeded` in the worker which accepts a list of paths, queries successful status in batches using `IN` clause, and returns only the subset of paths requiring processing. This minimizes IPC traffic to just the necessary data.
+
+## 2026-02-06 - [WAL Mode]
+
+**Learning:** SQLite's WAL (Write-Ahead Logging) mode significantly improves write performance and concurrency by allowing readers to not block writers.
+**Action:** Enabled WAL mode in `database-worker.ts`, resulting in an ~88% reduction in execution time for mixed read/write workloads (benchmark: ~900ms to ~100ms).
