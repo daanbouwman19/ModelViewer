@@ -57,6 +57,32 @@ function validateFolderId(folderId: string): void {
 }
 
 /**
+ * Processes a single Drive file to determine if it is a valid media file.
+ * Handles shortcut resolution.
+ */
+function processDriveFile(f: drive_v3.Schema$File): MediaFile | null {
+  const isShortcut = f.mimeType === 'application/vnd.google-apps.shortcut';
+
+  if (isShortcut) {
+    const targetMime = f.shortcutDetails?.targetMimeType || '';
+    if (!targetMime.includes('image/') && !targetMime.includes('video/')) {
+      return null;
+    }
+  }
+
+  let path = createDrivePath(f.id || '');
+  // If shortcut, we point to targetId.
+  if (isShortcut && f.shortcutDetails?.targetId) {
+    path = createDrivePath(f.shortcutDetails.targetId);
+  }
+
+  return {
+    name: f.name || 'Untitled',
+    path,
+  };
+}
+
+/**
  * Lists files in a specific Google Drive folder.
  * Currently implements a flat list mapped to an Album structure for simplicity in the MVP.
  * For recursive structures, we might need a more complex traversal.
@@ -90,34 +116,13 @@ export async function listDriveFiles(folderId: string): Promise<Album> {
     pageToken = res.data.nextPageToken || undefined;
   } while (pageToken);
 
-  const files = allFiles;
-  const textures: MediaFile[] = files
-    .filter((f) => {
-      // Filter out non-media unless it's a shortcut to media (future)
-      // For now, our query filters media items.
-      // But we need to handle shortcuts to media if we want them to show up as files.
-      if (f.mimeType === 'application/vnd.google-apps.shortcut') {
-        const targetMime = f.shortcutDetails?.targetMimeType || '';
-        return targetMime.includes('image/') || targetMime.includes('video/');
-      }
-      return true;
-    })
-    .map((f) => {
-      let path = createDrivePath(f.id || '');
-      // If shortcut, maybe we should point to targetId?
-      // Actually, for streaming, we might need the original ID or target ID depending on permission.
-      // Usually target ID is better if we have access.
-      if (
-        f.mimeType === 'application/vnd.google-apps.shortcut' &&
-        f.shortcutDetails?.targetId
-      ) {
-        path = createDrivePath(f.shortcutDetails.targetId || '');
-      }
-      return {
-        name: f.name || 'Untitled',
-        path,
-      };
-    });
+  const textures: MediaFile[] = [];
+  for (const f of allFiles) {
+    const mediaFile = processDriveFile(f);
+    if (mediaFile) {
+      textures.push(mediaFile);
+    }
+  }
 
   // For MVP, we are not recursively fetching subfolders yet, or we can add that logic.
   // The user requirement said: "List files in a specific Drive folder (recursively or flat)."
