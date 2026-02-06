@@ -891,11 +891,11 @@ export async function cacheAlbums(
         const album = stack.pop();
         if (album) {
           if (album.textures && Array.isArray(album.textures)) {
-            for (const texture of album.textures) {
-              if (texture && texture.path) {
-                paths.push(texture.path);
-              }
-            }
+            paths.push(
+              ...(album.textures
+                .map((t) => t?.path)
+                .filter(Boolean) as string[]),
+            );
           }
           if (album.children && Array.isArray(album.children)) {
             for (let i = album.children.length - 1; i >= 0; i--) {

@@ -102,7 +102,7 @@
 **Learning:** Re-implementing validation logic instead of reusing a centralized validator leads to inconsistencies and gaps.
 **Prevention:** Exported and reused `validateInput` from `security.ts` across all routes handling file paths.
 
-## 2026-02-05 - Drive Authorization Bypass (IDOR) Fix
+## 2026-02-06 - Drive Authorization Bypass (IDOR) Fix
 
 **Vulnerability:** The application blindly authorized any file path starting with `gdrive://` via a bypass in `validateFileAccess`. This allowed attackers to access any file in the connected Google Drive by guessing its ID, bypassing the intended restriction to specific "Media Directories".
 **Learning:** Bypass checks based on protocol/scheme (e.g. `if (isDrivePath)`) are dangerous if the underlying authorization logic (`authorizeFilePath`) relies on path hierarchy that doesn't exist for that protocol (flat IDs vs folders). Always enforce a positive authorization model (allowlist) for external resources where hierarchy cannot be trusted or verified easily.
