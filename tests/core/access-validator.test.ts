@@ -14,10 +14,25 @@ describe('access-validator unit tests', () => {
     vi.clearAllMocks();
   });
 
-  it('allows drive paths without checking auth', async () => {
+  it('checks auth for drive paths (no longer bypassed)', async () => {
+    mockAuthorizeFilePath.mockResolvedValue({
+      isAllowed: true,
+      realPath: 'gdrive://file-id',
+    });
     const result = await validateFileAccess('gdrive://file-id');
     expect(result).toEqual({ success: true, path: 'gdrive://file-id' });
-    expect(mockAuthorizeFilePath).not.toHaveBeenCalled();
+    expect(mockAuthorizeFilePath).toHaveBeenCalledWith('gdrive://file-id');
+  });
+
+  it('denies unauthorized drive paths', async () => {
+    mockAuthorizeFilePath.mockResolvedValue({ isAllowed: false });
+    const result = await validateFileAccess('gdrive://unknown-id');
+    expect(result).toEqual({
+      success: false,
+      error: 'Access denied.',
+      statusCode: 403,
+    });
+    expect(mockAuthorizeFilePath).toHaveBeenCalledWith('gdrive://unknown-id');
   });
 
   it('allows authorized local paths', async () => {

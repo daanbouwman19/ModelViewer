@@ -101,3 +101,9 @@
 **Vulnerability:** `POST /api/directories` and other system routes implemented custom validation logic that missed critical checks (like `MAX_PATH_LENGTH`) enforced in `authorizeFilePath`. This allowed potential DoS via large inputs.
 **Learning:** Re-implementing validation logic instead of reusing a centralized validator leads to inconsistencies and gaps.
 **Prevention:** Exported and reused `validateInput` from `security.ts` across all routes handling file paths.
+
+## 2026-02-06 - Drive Authorization Bypass (IDOR) Fix
+
+**Vulnerability:** The application blindly authorized any file path starting with `gdrive://` via a bypass in `validateFileAccess`. This allowed attackers to access any file in the connected Google Drive by guessing its ID, bypassing the intended restriction to specific "Media Directories".
+**Learning:** Bypass checks based on protocol/scheme (e.g. `if (isDrivePath)`) are dangerous if the underlying authorization logic (`authorizeFilePath`) relies on path hierarchy that doesn't exist for that protocol (flat IDs vs folders). Always enforce a positive authorization model (allowlist) for external resources where hierarchy cannot be trusted or verified easily.
+**Prevention:** Removed the bypass. Implemented strict authorization by requiring Drive files to be present in the scanned media library (`media_metadata` table). Updated the scanner logic (`cacheAlbums`) to ensure all valid Drive files are indexed into this table during scans.

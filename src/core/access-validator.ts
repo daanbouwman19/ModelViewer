@@ -1,4 +1,3 @@
-import { isDrivePath } from './media-utils.ts';
 import { authorizeFilePath, AuthorizationResult } from './security.ts';
 
 export type FileAccessResult =
@@ -14,9 +13,6 @@ export type FileAccessResult =
 export async function validateFileAccess(
   filePath: string,
 ): Promise<FileAccessResult> {
-  // GDrive files are handled by their specific providers/logic
-  if (isDrivePath(filePath)) return { success: true, path: filePath };
-
   try {
     const auth: AuthorizationResult = await authorizeFilePath(filePath);
     if (!auth.isAllowed) {

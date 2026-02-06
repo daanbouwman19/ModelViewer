@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { getMediaDirectories } from './database.ts';
+import { getMediaDirectories, isFileInLibrary } from './database.ts';
 import { MediaDirectory } from './types.ts';
 import { isDrivePath } from './media-utils.ts';
 import { ConcurrencyLimiter } from './utils/concurrency-limiter.ts';
@@ -118,7 +118,7 @@ export async function authorizeFilePath(
 
   if (isDrivePath(filePath)) {
     return (
-      authorizeVirtualPath(filePath, allowedPaths) ?? {
+      (await authorizeVirtualPath(filePath)) ?? {
         isAllowed: false,
         message: 'Access denied',
       }
@@ -164,10 +164,9 @@ export function validateInput(filePath: string): AuthorizationResult | null {
 /**
  * Handles validation for virtual/drive paths (e.g., gdrive://).
  */
-function authorizeVirtualPath(
+async function authorizeVirtualPath(
   filePath: string,
-  allowedPaths: string[],
-): AuthorizationResult | null {
+): Promise<AuthorizationResult | null> {
   const trimmed = filePath.trim();
   const schemeMatch = /^([a-zA-Z][a-zA-Z0-9+.-]*):\/\//.exec(trimmed);
 
@@ -175,31 +174,17 @@ function authorizeVirtualPath(
     return null;
   }
 
-  for (const allowedDir of allowedPaths) {
-    if (isDrivePath(allowedDir)) {
-      // [FIX] For Google Drive, path.relative is unreliable on Windows/Node because of the URI scheme.
-      // Instead, we check if the file path starts with the allowed directory prefix.
-      // Since GDrive paths are flat IDs (gdrive://<ID>), and usually the allowed dir is 'gdrive://',
-      // a simple startsWith check is sufficient and safe.
-      if (trimmed.startsWith(allowedDir)) {
-        return { isAllowed: true, realPath: trimmed };
-      }
-
-      const relative = path.relative(allowedDir, trimmed);
-      if (!relative.startsWith('..') && !path.isAbsolute(relative)) {
-        if (hasSensitiveSegments(relative)) {
-          console.warn(
-            `[Security] Access denied to sensitive file: ${trimmed}`,
-          );
-          return {
-            isAllowed: false,
-            message: 'Access to sensitive file denied',
-          };
-        }
-        return { isAllowed: true, realPath: trimmed };
-      }
-    }
+  // Strict validation: Verify the file is actually in our scanned library.
+  // This prevents IDOR attacks where an attacker accesses a file ID that exists in Drive
+  // but is not part of the allowed/scanned folders.
+  if (await isFileInLibrary(trimmed)) {
+    return { isAllowed: true, realPath: trimmed };
   }
+
+  // Fallback / Legacy check (optional, but likely ineffective for flat Drive IDs)
+  // We keep this structure in case we add other virtual providers that support hierarchy.
+  // But for now, we rely on DB presence for Drive files.
+
   return null;
 }
 
