@@ -42,9 +42,11 @@ describe('filterAuthorizedPaths Security', () => {
     ]);
     (vi.mocked(fs.realpath) as any).mockImplementation(async (p: string) => p);
     // Mock isFileInLibrary
-    (database as any).isFileInLibrary = vi.fn().mockImplementation(async (p: string) => {
-      return p === 'gdrive://valid';
-    });
+    (database as any).isFileInLibrary = vi
+      .fn()
+      .mockImplementation(async (p: string) => {
+        return p === 'gdrive://valid';
+      });
   });
 
   it('filters out unauthorized paths', async () => {

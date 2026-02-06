@@ -284,4 +284,41 @@ describe('Database Core Coverage', () => {
     });
     await expect(database.getPendingMetadata()).resolves.toEqual([]);
   });
+
+  it('isFileInLibrary returns true if file exists', async () => {
+    const worker = await initTestDb();
+
+    const promise = database.isFileInLibrary('/file.mp4');
+    const msg = worker.postMessage.mock.calls.find(
+      (c: any) => c[0].type === 'getMetadata',
+    );
+    expect(msg).toBeDefined();
+    worker.emit('message', {
+      id: msg[0].id,
+      result: { success: true, data: { '/file.mp4': {} } },
+    });
+    expect(await promise).toBe(true);
+  });
+
+  it('isFileInLibrary returns false if file missing or error', async () => {
+    const worker = await initTestDb();
+
+    // Case 1: Missing in result
+    const p1 = database.isFileInLibrary('/missing.mp4');
+    const msg1 = worker.postMessage.mock.calls.find(
+      (c: any) => c[0].type === 'getMetadata',
+    );
+    worker.emit('message', {
+      id: msg1[0].id,
+      result: { success: true, data: {} },
+    });
+    expect(await p1).toBe(false);
+
+    // Case 2: Error
+    worker.postMessage.mockImplementationOnce(() => {
+      throw new Error('Worker Error');
+    });
+    const p2 = database.isFileInLibrary('/error.mp4');
+    expect(await p2).toBe(false);
+  });
 });
