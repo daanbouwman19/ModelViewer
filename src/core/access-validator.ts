@@ -13,7 +13,6 @@ export type FileAccessResult =
 export async function validateFileAccess(
   filePath: string,
 ): Promise<FileAccessResult> {
-  // which verifies they are in the allowed library via isFileInLibrary check.
   try {
     const auth: AuthorizationResult = await authorizeFilePath(filePath);
     if (!auth.isAllowed) {
