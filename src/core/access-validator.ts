@@ -1,4 +1,3 @@
-import { isDrivePath } from './media-utils.ts';
 import { authorizeFilePath, AuthorizationResult } from './security.ts';
 
 export type FileAccessResult =

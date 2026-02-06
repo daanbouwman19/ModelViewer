@@ -118,7 +118,7 @@ export async function authorizeFilePath(
 
   if (isDrivePath(filePath)) {
     return (
-      (await authorizeVirtualPath(filePath, allowedPaths)) ?? {
+      (await authorizeVirtualPath(filePath)) ?? {
         isAllowed: false,
         message: 'Access denied',
       }
@@ -166,7 +166,6 @@ export function validateInput(filePath: string): AuthorizationResult | null {
  */
 async function authorizeVirtualPath(
   filePath: string,
-  allowedPaths: string[],
 ): Promise<AuthorizationResult | null> {
   const trimmed = filePath.trim();
   const schemeMatch = /^([a-zA-Z][a-zA-Z0-9+.-]*):\/\//.exec(trimmed);
