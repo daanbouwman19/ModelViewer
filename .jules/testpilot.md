@@ -83,3 +83,9 @@ Implemented a callback-based interception mechanism for the `postMessage` mock. 
 **Discovery:** `tests/core/database-worker.test.ts` and `tests/core/database-worker.smart-playlist-optimization.test.ts` contained `safeCleanup` and `retryInit` functions that used loops with `setTimeout` to mask potential file locking or initialization failures. This added unnecessary complexity and potential slowness.
 
 **Strategy:** Removed the retry loops and replaced them with standard `fs.rmSync` and direct initialization calls. This adheres to the principle of "fail fast" and exposes real resource management issues rather than masking them with sleeps.
+
+## 2026-02-07 - Deterministic Async Retry Testing
+
+**Discovery:** `tests/core/utils/async-utils.test.ts` was using real-time delays (up to 300ms) to test exponential backoff logic, making tests slow and prone to flakiness.
+
+**Strategy:** Refactored to use Vitest's `vi.useFakeTimers()` and `vi.runAllTimersAsync()`. This allows testing complex recursive async functions with delays instantly and deterministically, properly handling the promise chain and unhandled rejections.
