@@ -23,6 +23,7 @@ vi.mock('../../../src/renderer/composables/useSlideshow', () => ({
 vi.mock('../../../src/renderer/api', () => ({
   api: {
     getAllMetadataAndStats: vi.fn(),
+    executeSmartPlaylist: vi.fn(),
     deleteSmartPlaylist: vi.fn(),
     getSmartPlaylists: vi.fn(),
   },
@@ -95,11 +96,9 @@ describe('AlbumsList Coverage (Filtering)', () => {
       },
     ];
 
-    const items = [
-      { file_path: '/short.mp4', duration: 10 },
-      { file_path: '/long.mp4', duration: 100 },
-    ];
-    (api.getAllMetadataAndStats as Mock).mockResolvedValue(items);
+    // DB should return only matching items
+    const items = [{ file_path: '/long.mp4', duration: 100 }];
+    (api.executeSmartPlaylist as Mock).mockResolvedValue(items);
 
     const wrapper = mountList();
     await wrapper.vm.$nextTick();
@@ -131,11 +130,9 @@ describe('AlbumsList Coverage (Filtering)', () => {
         ],
       },
     ];
-    const items = [
-      { file_path: '/rare.mp4', view_count: 1 },
-      { file_path: '/popular.mp4', view_count: 10 },
-    ];
-    (api.getAllMetadataAndStats as Mock).mockResolvedValue(items);
+    // DB returns only popular
+    const items = [{ file_path: '/popular.mp4', view_count: 10 }];
+    (api.executeSmartPlaylist as Mock).mockResolvedValue(items);
 
     const wrapper = mountList();
     await wrapper.vm.$nextTick();
@@ -165,11 +162,9 @@ describe('AlbumsList Coverage (Filtering)', () => {
         ],
       },
     ];
-    const items = [
-      { file_path: '/seen.mp4', view_count: 5 },
-      { file_path: '/unseen.mp4', view_count: 0 },
-    ];
-    (api.getAllMetadataAndStats as Mock).mockResolvedValue(items);
+    // DB returns only unseen
+    const items = [{ file_path: '/unseen.mp4', view_count: 0 }];
+    (api.executeSmartPlaylist as Mock).mockResolvedValue(items);
 
     const wrapper = mountList();
     await wrapper.vm.$nextTick();
@@ -206,18 +201,15 @@ describe('AlbumsList Coverage (Filtering)', () => {
     ];
     const now = Date.now();
     const oneDay = 24 * 60 * 60 * 1000;
+    // DB returns only old and never
     const items = [
-      {
-        file_path: '/recent.mp4',
-        last_viewed: new Date(now - oneDay).toISOString(),
-      }, // 1 day ago
       {
         file_path: '/old.mp4',
         last_viewed: new Date(now - 100 * oneDay).toISOString(),
       }, // 100 days ago
       { file_path: '/never.mp4', last_viewed: null },
     ];
-    (api.getAllMetadataAndStats as Mock).mockResolvedValue(items);
+    (api.executeSmartPlaylist as Mock).mockResolvedValue(items);
 
     const wrapper = mountList();
     await wrapper.vm.$nextTick();
@@ -239,9 +231,7 @@ describe('AlbumsList Coverage (Filtering)', () => {
     mockLibraryState.smartPlaylists = [
       { id: 1, name: 'Broken', criteria: '{}' },
     ];
-    (api.getAllMetadataAndStats as Mock).mockRejectedValue(
-      new Error('API Fail'),
-    );
+    (api.executeSmartPlaylist as Mock).mockRejectedValue(new Error('API Fail'));
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const wrapper = mountList();

@@ -118,6 +118,10 @@ export interface IpcContract {
     payload: [{ filePath: string; segmentsJson: string }];
     response: void;
   };
+  [IPC_CHANNELS.DB_EXECUTE_SMART_PLAYLIST]: {
+    payload: [string];
+    response: MediaLibraryItem[];
+  };
   [IPC_CHANNELS.DB_GET_ALL_METADATA_AND_STATS]: {
     payload: [];
     response: MediaLibraryItem[];
