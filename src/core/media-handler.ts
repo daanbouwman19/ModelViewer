@@ -413,14 +413,9 @@ export async function serveStaticFile(
     const authorizedPath = access.path;
     // If local file, use res.sendFile for optimizing range/seeking
     if (!isDrivePath(authorizedPath)) {
-      // [SECURITY] Explicitly re-validate/sanitize local path to prevent traversal
-      const auth = await authorizeFilePath(authorizedPath);
-      if (!auth.isAllowed || !auth.realPath) {
-        throw new Error(auth.message || 'Access denied (path sanitization)');
-      }
-
       // Use the fully validated absolute path directly to avoid exposing arbitrary paths
-      return res.sendFile(auth.realPath);
+      // [SECURITY] path is already validated and resolved by validateFileAccess
+      return res.sendFile(authorizedPath);
     }
 
     const source = createMediaSource(authorizedPath);
