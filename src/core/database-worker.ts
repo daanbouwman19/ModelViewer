@@ -735,9 +735,7 @@ export function getSetting(key: string): WorkerResult {
 /**
  * Executes a smart playlist criteria to find matching files.
  */
-export async function executeSmartPlaylist(
-  criteriaJson?: string,
-): Promise<WorkerResult> {
+export function executeSmartPlaylist(criteriaJson?: string): WorkerResult {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
     let sql = `
@@ -782,7 +780,8 @@ export async function executeSmartPlaylist(
           params.push(criteria.minDaysSinceView);
         }
       } catch (e) {
-        console.warn('[worker] Invalid criteria JSON:', e);
+        console.error('[worker] Invalid criteria JSON:', criteriaJson, e);
+        throw e;
       }
     }
 
@@ -1207,7 +1206,7 @@ if (parentPort) {
           result = getSetting(payload.key);
           break;
         case 'executeSmartPlaylist':
-          result = await executeSmartPlaylist(payload.criteria);
+          result = executeSmartPlaylist(payload.criteria);
           break;
         case 'getRecentlyPlayed':
           result = getRecentlyPlayed(payload.limit);
