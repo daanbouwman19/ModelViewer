@@ -419,7 +419,10 @@ export async function serveStaticFile(
       if (!auth.isAllowed || !auth.realPath) {
         // Return 403 explicitly here to match previous behavior and satisfy tests
         // that mock authorizeFilePath failure after validateFileAccess success.
-        console.warn('[ServeStatic] Access denied during re-validation:', auth.message);
+        console.warn(
+          '[ServeStatic] Access denied during re-validation:',
+          auth.message,
+        );
         if (!res.headersSent) res.status(403).send('Access denied.');
         return;
       }
