@@ -84,7 +84,7 @@ Implemented a callback-based interception mechanism for the `postMessage` mock. 
 
 **Strategy:** Removed the retry loops and replaced them with standard `fs.rmSync` and direct initialization calls. This adheres to the principle of "fail fast" and exposes real resource management issues rather than masking them with sleeps.
 
-## 2026-02-05 - Deterministic Async Retry Testing
+## 2026-02-07 - Deterministic Async Retry Testing
 
 **Discovery:** `tests/core/utils/async-utils.test.ts` was using real-time delays (up to 300ms) to test exponential backoff logic, making tests slow and prone to flakiness.
 

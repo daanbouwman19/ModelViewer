@@ -73,7 +73,7 @@ describe('async-utils', () => {
         shouldRetry,
       });
 
-      // Attach assertion immediately
+      // Attach assertion immediately to avoid unhandled rejection
       const assertion = expect(promise).rejects.toThrow('fail');
 
       await vi.runAllTimersAsync();
