@@ -405,26 +405,26 @@ export async function serveStaticFile(
 ) {
   try {
     const access = await validateFileAccess(filePath);
-    if (access.success) {
-      const authorizedPath = access.path;
-      // If local file, use res.sendFile for optimizing range/seeking
-      if (!isDrivePath(authorizedPath)) {
-        // [SECURITY] Explicitly re-validate/sanitize local path to prevent traversal
-        const auth = await authorizeFilePath(authorizedPath);
-        if (!auth.isAllowed || !auth.realPath) {
-          throw new Error(auth.message || 'Access denied (path sanitization)');
-        }
-
-        // Use the fully validated absolute path directly to avoid exposing arbitrary paths
-        return res.sendFile(auth.realPath);
-      }
-
-      const source = createMediaSource(authorizedPath);
-      return await serveRawStream(req, res, source);
-    } else {
+    if (!access.success) {
       if (!res.headersSent) res.status(access.statusCode).send(access.error);
       return;
     }
+
+    const authorizedPath = access.path;
+    // If local file, use res.sendFile for optimizing range/seeking
+    if (!isDrivePath(authorizedPath)) {
+      // [SECURITY] Explicitly re-validate/sanitize local path to prevent traversal
+      const auth = await authorizeFilePath(authorizedPath);
+      if (!auth.isAllowed || !auth.realPath) {
+        throw new Error(auth.message || 'Access denied (path sanitization)');
+      }
+
+      // Use the fully validated absolute path directly to avoid exposing arbitrary paths
+      return res.sendFile(auth.realPath);
+    }
+
+    const source = createMediaSource(authorizedPath);
+    return await serveRawStream(req, res, source);
   } catch (err: unknown) {
     console.error('[ServeStatic] Error:', err);
     if (!res.headersSent) {
