@@ -25,7 +25,8 @@
       <!-- Main Media Area -->
       <div
         id="main-content"
-        class="grow flex flex-col h-full relative w-full min-w-0"
+        tabindex="-1"
+        class="grow flex flex-col h-full relative w-full min-w-0 outline-none"
         :class="{
           'glass-panel md:rounded-xl overflow-hidden': viewMode === 'player',
         }"

@@ -129,6 +129,9 @@ describe('App.vue', () => {
     const skipLink = wrapper.find('a[href="#main-content"]');
     expect(skipLink.exists()).toBe(true);
     expect(skipLink.text()).toBe('Skip to content');
+
+    const mainContent = wrapper.find('#main-content');
+    expect(mainContent.attributes('tabindex')).toBe('-1');
   });
 
   it('should render AlbumsList component', () => {
