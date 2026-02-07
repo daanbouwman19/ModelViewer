@@ -124,6 +124,16 @@ describe('App.vue', () => {
     expect(wrapper.find('h1').text()).toBe('MediaPlayer');
   });
 
+  it('should render a skip to content link', () => {
+    const wrapper = mount(App);
+    const skipLink = wrapper.find('a[href="#main-content"]');
+    expect(skipLink.exists()).toBe(true);
+    expect(skipLink.text()).toBe('Skip to content');
+
+    const mainContent = wrapper.find('#main-content');
+    expect(mainContent.attributes('tabindex')).toBe('-1');
+  });
+
   it('should render AlbumsList component', () => {
     const wrapper = mount(App);
     expect(wrapper.find('.albums-list-mock').exists()).toBe(true);

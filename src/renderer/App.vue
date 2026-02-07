@@ -1,5 +1,11 @@
 <template>
   <div class="app-container text-white min-h-screen flex flex-col relative">
+    <a
+      href="#main-content"
+      class="absolute top-4 left-4 z-[100] -translate-y-[150%] focus:translate-y-0 transition-transform bg-indigo-600 text-white px-4 py-2 rounded-md font-bold shadow-lg focus:outline-none focus:ring-2 focus:ring-white"
+    >
+      Skip to content
+    </a>
     <AmbientBackground />
 
     <!-- Main Content Layer -->
@@ -18,7 +24,9 @@
 
       <!-- Main Media Area -->
       <div
-        class="grow flex flex-col h-full relative w-full min-w-0"
+        id="main-content"
+        tabindex="-1"
+        class="grow flex flex-col h-full relative w-full min-w-0 outline-none"
         :class="{
           'glass-panel md:rounded-xl overflow-hidden': viewMode === 'player',
         }"
