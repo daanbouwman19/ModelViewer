@@ -446,12 +446,7 @@ import {
   getAlbumAndChildrenIds,
   collectTexturesRecursive,
 } from '../utils/albumUtils';
-import type {
-  Album,
-  SmartPlaylist,
-  MediaFile,
-  MediaLibraryItem,
-} from '../../core/types';
+import type { Album, SmartPlaylist, MediaFile } from '../../core/types';
 import { MEDIA_FILTERS, type MediaFilter } from '../../core/constants';
 import { RECENTLY_PLAYED_FETCH_LIMIT } from '../../core/constants';
 
@@ -555,72 +550,39 @@ const getMediaForPlaylist = async (
   playlist: SmartPlaylist,
 ): Promise<MediaFile[]> => {
   // 1. Get all known media files from the loaded albums (Source of Truth for existence)
-  const allFiles: MediaFile[] = [];
+  const fileMap = new Map<string, MediaFile>();
   const traverse = (albums: Album[]) => {
     for (const album of albums) {
-      if (album.textures) allFiles.push(...album.textures);
+      if (album.textures) {
+        for (const file of album.textures) {
+          fileMap.set(file.path, file);
+        }
+      }
       if (album.children) traverse(album.children);
     }
   };
   traverse(allAlbums.value);
 
-  // 2. Get metadata/stats from DB (Source of Truth for duration, rating, views)
-  const dbItems = await api.getAllMetadataAndStats();
+  // 2. Get MATCHING metadata/stats from DB using criteria
+  // Bolt Optimization: Filter in DB to reduce IPC/Memory and avoid fetching entire library
+  const dbItems = await api.executeSmartPlaylist(playlist.criteria);
 
-  // Create a quick lookup map by file path
-  const statsMap = new Map<string, MediaLibraryItem>();
+  // 3. Map DB items to MediaFiles (only if they exist in library)
+  const result: MediaFile[] = [];
+
   for (const item of dbItems) {
-    if (item.file_path) {
-      statsMap.set(item.file_path, item);
+    const file = fileMap.get(item.file_path);
+    if (file) {
+      result.push({
+        ...file,
+        viewCount: item.view_count || 0,
+        rating: item.rating || 0,
+        duration: item.duration || 0,
+      });
     }
   }
 
-  const criteria = JSON.parse(playlist.criteria);
-
-  // 3. Filter
-  const filtered = allFiles.filter((file) => {
-    const stats: Partial<MediaLibraryItem> = statsMap.get(file.path) || {};
-
-    const rating = stats.rating || 0;
-    const duration = stats.duration || 0;
-    const viewCount = stats.view_count || 0;
-    const lastViewed = stats.last_viewed;
-
-    let match = true;
-    if (criteria.minRating && rating < criteria.minRating) match = false;
-    // criteria.minDuration is in SECONDS (as per SmartPlaylistModal: minDurationMinutes * 60)
-    // DB duration is in seconds.
-    if (criteria.minDuration && duration < criteria.minDuration) match = false;
-
-    if (criteria.minViews !== undefined && viewCount < criteria.minViews)
-      match = false;
-    if (criteria.maxViews !== undefined && viewCount > criteria.maxViews)
-      match = false;
-
-    if (criteria.minDaysSinceView) {
-      if (!lastViewed) {
-        // Never viewed -> Infinite days -> Matches "Not viewed in X days"
-      } else {
-        const lastViewDate = new Date(lastViewed).getTime();
-        const diffMs = Date.now() - lastViewDate;
-        const diffDays = diffMs / (1000 * 60 * 60 * 24);
-        if (diffDays < criteria.minDaysSinceView) match = false;
-      }
-    }
-
-    return match;
-  });
-
-  // 4. Map to view model
-  return filtered.map((file) => {
-    const stats = statsMap.get(file.path);
-    return {
-      ...file,
-      viewCount: stats?.view_count || 0,
-      rating: stats?.rating || 0,
-      duration: stats?.duration || 0,
-    };
-  });
+  return result;
 };
 
 const handleSmartPlaylistSlideshow = async (playlist: SmartPlaylist) => {

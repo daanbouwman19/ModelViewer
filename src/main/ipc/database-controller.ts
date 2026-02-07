@@ -13,6 +13,7 @@ import {
   deleteSmartPlaylist,
   updateSmartPlaylist,
   updateWatchedSegments,
+  executeSmartPlaylist,
   getAllMetadataAndStats,
 } from '../database';
 import { handleIpc } from '../utils/ipc-helper';
@@ -72,6 +73,13 @@ export function registerDatabaseHandlers() {
       await updateWatchedSegments(filePath, segmentsJson);
     },
     { validators: [({ filePath }) => validatePathAccess(filePath)] },
+  );
+
+  handleIpc(
+    IPC_CHANNELS.DB_EXECUTE_SMART_PLAYLIST,
+    async (_event: IpcMainInvokeEvent, criteria: string) => {
+      return executeSmartPlaylist(criteria);
+    },
   );
 
   handleIpc(IPC_CHANNELS.DB_GET_ALL_METADATA_AND_STATS, async () => {

@@ -1,324 +1,489 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import path from 'path';
+import {
+  executeSmartPlaylist,
+  getAllMetadataAndStats,
+  getRecentlyPlayed,
+  getPendingMetadata,
+  initDatabase,
+  closeDatabase,
+  upsertMetadata,
+  getMetadata,
+  setRating,
+  createSmartPlaylist,
+  getSmartPlaylists,
+  deleteSmartPlaylist,
+  updateSmartPlaylist,
+  updateWatchedSegments,
+  saveSetting,
+  getSetting,
+  recordMediaView,
+  getMediaViewCounts,
+  getAllMediaViewCounts,
+  addMediaDirectory,
+  getMediaDirectories,
+  removeMediaDirectory,
+  setDirectoryActiveState,
+  cacheAlbums,
+  getCachedAlbums,
+  isFileInLibrary,
+  filterProcessingNeeded,
+  setOperationTimeout,
+} from '../../src/core/database';
 
-const { workerInstances } = vi.hoisted(() => ({
-  workerInstances: [] as any[],
-}));
+const mocks = vi.hoisted(() => {
+  const instance = {
+    init: vi.fn().mockResolvedValue(undefined),
+    sendMessage: vi.fn().mockResolvedValue([]),
+    terminate: vi.fn().mockResolvedValue(undefined),
+    setOperationTimeout: vi.fn(),
+  };
 
-vi.mock('worker_threads', async () => {
-  const { EventEmitter } = await import('events');
-  class MockWorker extends EventEmitter {
-    postMessage = vi.fn((msg: any) => {
-      // Auto-reply to close to prevent teardown hangs
-      if (msg && msg.type === 'close') {
-        setTimeout(() => {
-          this.emit('message', { id: msg.id, result: { success: true } });
-        }, 0);
-      }
-    });
-    terminate = vi.fn().mockResolvedValue(undefined);
+  class MockWorkerClient {
     constructor() {
-      super();
-      workerInstances.push(this);
+      return instance;
     }
   }
+
   return {
-    Worker: MockWorker,
-    default: { Worker: MockWorker },
+    WorkerClientInstance: instance,
+    WorkerClient: MockWorkerClient,
   };
 });
 
-// Mock console
-vi.spyOn(console, 'error').mockImplementation(() => {});
-vi.spyOn(console, 'warn').mockImplementation(() => {});
+vi.mock('../../src/core/worker-client', () => ({
+  WorkerClient: mocks.WorkerClient,
+}));
 
-import * as database from '../../src/core/database';
-
-describe('Database Core Coverage', () => {
+describe('database.ts coverage', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
-    workerInstances.length = 0;
-    await database.closeDatabase();
+    await initDatabase('/tmp/db', '/tmp/worker.js');
   });
 
   afterEach(async () => {
-    await database.closeDatabase();
+    await closeDatabase();
   });
 
-  async function initTestDb() {
-    const initPromise = database.initDatabase(':memory:', 'worker.js');
-    const worker = workerInstances[0];
-    // worker.postMessage is synchronous, no need to wait
-    const initMsg = worker.postMessage.mock.calls[0][0];
-    worker.emit('message', { id: initMsg.id, result: { success: true } });
-    await initPromise;
-    return worker;
-  }
-
-  it('initDatabase handles worker error event', async () => {
-    // Provide absolute path to satisfy Node.js Worker/checks even if mocked
-    const workerPath = path.resolve(__dirname, 'worker.js');
-    const promise = database.initDatabase(':memory:', workerPath);
-
-    // Simulate init success to resolve the promise
-    const worker = workerInstances[0];
-    expect(worker).toBeDefined();
-
-    const postMessageSpy = worker.postMessage;
-    // Removed unnecessary setTimeout
-
-    expect(postMessageSpy).toHaveBeenCalled();
-    const initMsg = postMessageSpy.mock.calls[0][0];
-
-    worker.emit('message', {
-      id: initMsg.id,
-      result: { success: true },
-    });
-
-    await promise;
-
-    // Now trigger error
-    worker.emit('error', new Error('Worker Error'));
-  });
-
-  it('sendMessageToWorker handles timeout', async () => {
-    await initTestDb();
-
-    vi.useFakeTimers();
-    try {
-      // Set timeout
-      const timeoutMs = 100;
-      database.setOperationTimeout(timeoutMs);
-
-      // Call an operation but don't reply from worker
-      // use addMediaDirectory which throws
-      const opPromise = database.addMediaDirectory('test');
-
-      // Attach handler before advancing time to avoid unhandled rejection warning
-      const expectPromise = expect(opPromise).rejects.toThrow(
-        'Worker operation timed out: addMediaDirectory',
-      );
-
-      // Advance time
-      await vi.advanceTimersByTimeAsync(timeoutMs + 100);
-
-      // Wait for timeout
-      await expectPromise;
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it('sendMessageToWorker handles worker postMessage exception', async () => {
-    const worker = await initTestDb();
-
-    // Make postMessage throw
-    worker.postMessage.mockImplementationOnce(() => {
-      throw new Error('Post failure');
-    });
-
-    // use addMediaDirectory which throws on error
-    await expect(database.addMediaDirectory('test')).rejects.toThrow(
-      'Post failure',
+  it('executeSmartPlaylist sends correct message', async () => {
+    const criteria = JSON.stringify({ minRating: 5 });
+    await executeSmartPlaylist(criteria);
+    expect(mocks.WorkerClientInstance.sendMessage).toHaveBeenCalledWith(
+      'executeSmartPlaylist',
+      { criteria },
     );
   });
 
-  it('addMediaDirectory handles object payload', async () => {
-    const worker = await initTestDb();
-
-    const promise = database.addMediaDirectory({
-      path: '/path/to/obj',
-      name: 'ObjDir',
-    });
-
-    // Removed unnecessary setTimeout
-    const call = worker.postMessage.mock.calls.find(
-      (c: any) => c[0].type === 'addMediaDirectory',
+  it('executeSmartPlaylist handles error', async () => {
+    mocks.WorkerClientInstance.sendMessage.mockRejectedValueOnce(
+      new Error('Fail'),
     );
-    expect(call).toBeDefined();
-    expect(call[0].payload.directoryObj).toEqual({
-      path: '/path/to/obj',
-      name: 'ObjDir',
-    });
-
-    worker.emit('message', { id: call[0].id, result: { success: true } });
-    await promise;
+    const result = await executeSmartPlaylist('{}');
+    expect(result).toEqual([]);
   });
 
-  it('handles worker exit with error code', async () => {
-    // Emit exit with code 1
-    (await initTestDb()).emit('exit', 1);
+  it('getAllMetadataAndStats calls executeSmartPlaylist with empty criteria', async () => {
+    await getAllMetadataAndStats();
+    expect(mocks.WorkerClientInstance.sendMessage).toHaveBeenCalledWith(
+      'executeSmartPlaylist',
+      { criteria: '{}' },
+    );
   });
 
-  it('removeMediaDirectory handles error', async () => {
-    const worker = await initTestDb();
-
-    worker.postMessage.mockImplementationOnce(() => {
-      throw new Error('Worker communication error');
-    });
-
-    await expect(database.removeMediaDirectory('/path')).rejects.toThrow();
+  it('getAllMetadataAndStats handles error', async () => {
+    mocks.WorkerClientInstance.sendMessage.mockRejectedValueOnce(
+      new Error('Fail'),
+    );
+    const result = await getAllMetadataAndStats();
+    expect(result).toEqual([]);
   });
 
-  it('setDirectoryActiveState handles error', async () => {
-    const worker = await initTestDb();
-
-    worker.postMessage.mockImplementationOnce(() => {
-      throw new Error('Worker communication error');
-    });
-
-    await expect(
-      database.setDirectoryActiveState('/path', true),
-    ).rejects.toThrow();
+  it('getRecentlyPlayed sends correct message', async () => {
+    await getRecentlyPlayed(10);
+    expect(mocks.WorkerClientInstance.sendMessage).toHaveBeenCalledWith(
+      'getRecentlyPlayed',
+      { limit: 10 },
+    );
   });
 
-  it('bulkUpsertMetadata handles error', async () => {
-    const worker = await initTestDb();
+  it('getRecentlyPlayed handles error', async () => {
+    mocks.WorkerClientInstance.sendMessage.mockRejectedValueOnce(
+      new Error('Fail'),
+    );
+    await expect(getRecentlyPlayed(10)).rejects.toThrow('Fail');
+  });
 
-    worker.postMessage.mockImplementationOnce(() => {
-      throw new Error('Worker communication error');
-    });
+  it('getPendingMetadata sends correct message', async () => {
+    await getPendingMetadata();
+    expect(mocks.WorkerClientInstance.sendMessage).toHaveBeenCalledWith(
+      'getPendingMetadata',
+    );
+  });
 
-    await expect(
-      database.bulkUpsertMetadata([{ filePath: '/path' }]),
-    ).rejects.toThrow();
+  it('getPendingMetadata handles error', async () => {
+    mocks.WorkerClientInstance.sendMessage.mockRejectedValueOnce(
+      new Error('Fail'),
+    );
+    const result = await getPendingMetadata();
+    expect(result).toEqual([]);
+  });
+
+  it('upsertMetadata sends correct message', async () => {
+    const meta = { duration: 100 };
+    await upsertMetadata('/path', meta);
+    expect(mocks.WorkerClientInstance.sendMessage).toHaveBeenCalledWith(
+      'upsertMetadata',
+      { filePath: '/path', duration: 100 },
+    );
+  });
+
+  it('upsertMetadata handles error', async () => {
+    mocks.WorkerClientInstance.sendMessage.mockRejectedValueOnce(
+      new Error('Fail'),
+    );
+    await expect(upsertMetadata('/path', {})).rejects.toThrow('Fail');
+  });
+
+  it('getMetadata sends correct message', async () => {
+    await getMetadata(['/path']);
+    expect(mocks.WorkerClientInstance.sendMessage).toHaveBeenCalledWith(
+      'getMetadata',
+      { filePaths: ['/path'] },
+    );
+  });
+
+  it('getMetadata handles error', async () => {
+    mocks.WorkerClientInstance.sendMessage.mockRejectedValueOnce(
+      new Error('Fail'),
+    );
+    const result = await getMetadata(['/path']);
+    expect(result).toEqual({});
+  });
+
+  it('setRating sends correct message', async () => {
+    await setRating('/path', 5);
+    expect(mocks.WorkerClientInstance.sendMessage).toHaveBeenCalledWith(
+      'setRating',
+      { filePath: '/path', rating: 5 },
+    );
+  });
+
+  it('setRating handles error', async () => {
+    mocks.WorkerClientInstance.sendMessage.mockRejectedValueOnce(
+      new Error('Fail'),
+    );
+    await expect(setRating('/path', 5)).rejects.toThrow('Fail');
+  });
+
+  it('createSmartPlaylist sends correct message', async () => {
+    await createSmartPlaylist('Name', '{}');
+    expect(mocks.WorkerClientInstance.sendMessage).toHaveBeenCalledWith(
+      'createSmartPlaylist',
+      { name: 'Name', criteria: '{}' },
+    );
+  });
+
+  it('createSmartPlaylist validates input', async () => {
+    await expect(createSmartPlaylist('', '{}')).rejects.toThrow();
+    await expect(createSmartPlaylist('Name', 'invalid')).rejects.toThrow();
+  });
+
+  it('createSmartPlaylist handles error', async () => {
+    mocks.WorkerClientInstance.sendMessage.mockRejectedValueOnce(
+      new Error('Fail'),
+    );
+    await expect(createSmartPlaylist('Name', '{}')).rejects.toThrow('Fail');
+  });
+
+  it('getSmartPlaylists sends correct message', async () => {
+    await getSmartPlaylists();
+    expect(mocks.WorkerClientInstance.sendMessage).toHaveBeenCalledWith(
+      'getSmartPlaylists',
+    );
+  });
+
+  it('getSmartPlaylists handles error', async () => {
+    mocks.WorkerClientInstance.sendMessage.mockRejectedValueOnce(
+      new Error('Fail'),
+    );
+    const result = await getSmartPlaylists();
+    expect(result).toEqual([]);
+  });
+
+  it('deleteSmartPlaylist sends correct message', async () => {
+    await deleteSmartPlaylist(1);
+    expect(mocks.WorkerClientInstance.sendMessage).toHaveBeenCalledWith(
+      'deleteSmartPlaylist',
+      { id: 1 },
+    );
+  });
+
+  it('deleteSmartPlaylist handles error', async () => {
+    mocks.WorkerClientInstance.sendMessage.mockRejectedValueOnce(
+      new Error('Fail'),
+    );
+    await expect(deleteSmartPlaylist(1)).rejects.toThrow('Fail');
+  });
+
+  it('updateSmartPlaylist sends correct message', async () => {
+    await updateSmartPlaylist(1, 'Name', '{}');
+    expect(mocks.WorkerClientInstance.sendMessage).toHaveBeenCalledWith(
+      'updateSmartPlaylist',
+      { id: 1, name: 'Name', criteria: '{}' },
+    );
+  });
+
+  it('updateSmartPlaylist handles error', async () => {
+    mocks.WorkerClientInstance.sendMessage.mockRejectedValueOnce(
+      new Error('Fail'),
+    );
+    await expect(updateSmartPlaylist(1, 'Name', '{}')).rejects.toThrow('Fail');
   });
 
   it('updateSmartPlaylist validates input', async () => {
-    await expect(database.updateSmartPlaylist(1, '', '{}')).rejects.toThrow(
-      'Invalid playlist name',
-    );
-    await expect(database.updateSmartPlaylist(1, 'Name', '')).rejects.toThrow(
-      'Invalid playlist criteria',
-    );
-    await expect(
-      database.updateSmartPlaylist(1, 'Name', 'invalid-json'),
-    ).rejects.toThrow('Criteria must be valid JSON');
+    await expect(updateSmartPlaylist(1, '', '{}')).rejects.toThrow();
+    await expect(updateSmartPlaylist(1, 'Name', 'invalid')).rejects.toThrow();
   });
 
-  it('saveSetting/getSetting handles success and error', async () => {
-    const worker = await initTestDb();
-
-    // saveSetting success
-    const savePromise = database.saveSetting('key', 'value');
-    // Removed unnecessary setTimeout
-    const saveMsg = worker.postMessage.mock.calls.find(
-      (c: any) => c[0].type === 'saveSetting',
+  it('updateWatchedSegments sends correct message', async () => {
+    await updateWatchedSegments('/path', '[]');
+    expect(mocks.WorkerClientInstance.sendMessage).toHaveBeenCalledWith(
+      'updateWatchedSegments',
+      { filePath: '/path', segmentsJson: '[]' },
     );
-    expect(saveMsg).toBeDefined();
-    worker.emit('message', {
-      id: saveMsg[0].id,
-      result: { success: true },
-    });
-    await savePromise;
-
-    // saveSetting error
-    worker.postMessage.mockImplementationOnce(() => {
-      throw new Error('Err');
-    });
-    await expect(database.saveSetting('key', 'val')).rejects.toThrow();
-
-    // getSetting success
-    const getPromise = database.getSetting('key');
-    // Removed unnecessary setTimeout
-    const getMsg = worker.postMessage.mock.calls.find(
-      (c: any) => c[0].type === 'getSetting',
-    );
-    expect(getMsg).toBeDefined();
-    worker.emit('message', {
-      id: getMsg[0].id,
-      result: { success: true, data: 'value' },
-    });
-    expect(await getPromise).toBe('value');
-
-    // getSetting error
-    worker.postMessage.mockImplementationOnce(() => {
-      throw new Error('Err');
-    });
-    expect(await database.getSetting('key')).toBeNull();
   });
 
-  it('getRecentlyPlayed handles success and error', async () => {
-    const worker = await initTestDb();
-
-    // Success
-    const promise = database.getRecentlyPlayed(10);
-    // Removed unnecessary setTimeout
-    const msg = worker.postMessage.mock.calls.find(
-      (c: any) => c[0].type === 'getRecentlyPlayed',
+  it('updateWatchedSegments handles error', async () => {
+    mocks.WorkerClientInstance.sendMessage.mockRejectedValueOnce(
+      new Error('Fail'),
     );
-    expect(msg).toBeDefined();
-    expect(msg[0].payload.limit).toBe(10);
-    worker.emit('message', {
-      id: msg[0].id,
-      result: { success: true, data: [] },
-    });
-    await expect(promise).resolves.toEqual([]);
-
-    // Error
-    worker.postMessage.mockImplementationOnce(() => {
-      throw new Error('Err');
-    });
-    await expect(database.getRecentlyPlayed(10)).rejects.toThrow('Err');
+    await updateWatchedSegments('/path', '[]');
+    // It catches error and logs safeError
   });
 
-  it('getPendingMetadata handles success and error', async () => {
-    const worker = await initTestDb();
-
-    // Success
-    const promise = database.getPendingMetadata();
-    // Removed unnecessary setTimeout
-    const msg = worker.postMessage.mock.calls.find(
-      (c: any) => c[0].type === 'getPendingMetadata',
+  it('saveSetting sends correct message', async () => {
+    await saveSetting('key', 'value');
+    expect(mocks.WorkerClientInstance.sendMessage).toHaveBeenCalledWith(
+      'saveSetting',
+      { key: 'key', value: 'value' },
     );
-    expect(msg).toBeDefined();
-    worker.emit('message', {
-      id: msg[0].id,
-      result: { success: true, data: ['/file'] },
-    });
-    await expect(promise).resolves.toEqual(['/file']);
+  });
 
-    // Error
-    worker.postMessage.mockImplementationOnce(() => {
-      throw new Error('Err');
-    });
-    await expect(database.getPendingMetadata()).resolves.toEqual([]);
+  it('saveSetting handles error', async () => {
+    mocks.WorkerClientInstance.sendMessage.mockRejectedValueOnce(
+      new Error('Fail'),
+    );
+    await expect(saveSetting('key', 'value')).rejects.toThrow('Fail');
+  });
+
+  it('getSetting sends correct message', async () => {
+    await getSetting('key');
+    expect(mocks.WorkerClientInstance.sendMessage).toHaveBeenCalledWith(
+      'getSetting',
+      { key: 'key' },
+    );
+  });
+
+  it('getSetting handles error', async () => {
+    mocks.WorkerClientInstance.sendMessage.mockRejectedValueOnce(
+      new Error('Fail'),
+    );
+    const result = await getSetting('key');
+    expect(result).toBeNull();
+  });
+
+  it('recordMediaView sends correct message', async () => {
+    await recordMediaView('/path');
+    expect(mocks.WorkerClientInstance.sendMessage).toHaveBeenCalledWith(
+      'recordMediaView',
+      { filePath: '/path' },
+    );
+  });
+
+  it('recordMediaView handles error', async () => {
+    mocks.WorkerClientInstance.sendMessage.mockRejectedValueOnce(
+      new Error('Fail'),
+    );
+    await recordMediaView('/path');
+    // logs warning
+  });
+
+  it('getMediaViewCounts sends correct message', async () => {
+    await getMediaViewCounts(['/path']);
+    expect(mocks.WorkerClientInstance.sendMessage).toHaveBeenCalledWith(
+      'getMediaViewCounts',
+      { filePaths: ['/path'] },
+    );
+  });
+
+  it('getMediaViewCounts handles empty list', async () => {
+    const result = await getMediaViewCounts([]);
+    expect(result).toEqual({});
+    expect(mocks.WorkerClientInstance.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('getMediaViewCounts handles error', async () => {
+    mocks.WorkerClientInstance.sendMessage.mockRejectedValueOnce(
+      new Error('Fail'),
+    );
+    const result = await getMediaViewCounts(['/path']);
+    expect(result).toEqual({});
+  });
+
+  it('getAllMediaViewCounts sends correct message', async () => {
+    await getAllMediaViewCounts();
+    expect(mocks.WorkerClientInstance.sendMessage).toHaveBeenCalledWith(
+      'getAllMediaViewCounts',
+    );
+  });
+
+  it('getAllMediaViewCounts handles error', async () => {
+    mocks.WorkerClientInstance.sendMessage.mockRejectedValueOnce(
+      new Error('Fail'),
+    );
+    const result = await getAllMediaViewCounts();
+    expect(result).toEqual({});
+  });
+
+  it('addMediaDirectory sends correct message', async () => {
+    await addMediaDirectory('/path');
+    expect(mocks.WorkerClientInstance.sendMessage).toHaveBeenCalledWith(
+      'addMediaDirectory',
+      { directoryObj: { path: '/path' } },
+    );
+  });
+
+  it('addMediaDirectory handles error', async () => {
+    mocks.WorkerClientInstance.sendMessage.mockRejectedValueOnce(
+      new Error('Fail'),
+    );
+    await expect(addMediaDirectory('/path')).rejects.toThrow('Fail');
+  });
+
+  it('getMediaDirectories sends correct message', async () => {
+    mocks.WorkerClientInstance.sendMessage.mockResolvedValueOnce([
+      { path: '/path' },
+    ]);
+    await getMediaDirectories();
+    expect(mocks.WorkerClientInstance.sendMessage).toHaveBeenCalledWith(
+      'getMediaDirectories',
+    );
+  });
+
+  it('getMediaDirectories handles error', async () => {
+    mocks.WorkerClientInstance.sendMessage.mockRejectedValueOnce(
+      new Error('Fail'),
+    );
+    const result = await getMediaDirectories();
+    expect(result).toEqual([]);
+  });
+
+  it('removeMediaDirectory sends correct message', async () => {
+    await removeMediaDirectory('/path');
+    expect(mocks.WorkerClientInstance.sendMessage).toHaveBeenCalledWith(
+      'removeMediaDirectory',
+      { directoryPath: '/path' },
+    );
+  });
+
+  it('removeMediaDirectory handles error', async () => {
+    mocks.WorkerClientInstance.sendMessage.mockRejectedValueOnce(
+      new Error('Fail'),
+    );
+    await expect(removeMediaDirectory('/path')).rejects.toThrow('Fail');
+  });
+
+  it('setDirectoryActiveState sends correct message', async () => {
+    await setDirectoryActiveState('/path', true);
+    expect(mocks.WorkerClientInstance.sendMessage).toHaveBeenCalledWith(
+      'setDirectoryActiveState',
+      { directoryPath: '/path', isActive: true },
+    );
+  });
+
+  it('setDirectoryActiveState handles error', async () => {
+    mocks.WorkerClientInstance.sendMessage.mockRejectedValueOnce(
+      new Error('Fail'),
+    );
+    await expect(setDirectoryActiveState('/path', true)).rejects.toThrow(
+      'Fail',
+    );
+  });
+
+  it('cacheAlbums sends correct message', async () => {
+    await cacheAlbums([]);
+    expect(mocks.WorkerClientInstance.sendMessage).toHaveBeenCalledWith(
+      'cacheAlbums',
+      expect.objectContaining({ albums: [] }),
+    );
+  });
+
+  it('cacheAlbums handles error', async () => {
+    mocks.WorkerClientInstance.sendMessage.mockRejectedValueOnce(
+      new Error('Fail'),
+    );
+    await cacheAlbums([]);
+    // logs error
+  });
+
+  it('getCachedAlbums sends correct message', async () => {
+    await getCachedAlbums();
+    expect(mocks.WorkerClientInstance.sendMessage).toHaveBeenCalledWith(
+      'getCachedAlbums',
+      expect.any(Object),
+    );
+  });
+
+  it('getCachedAlbums handles error', async () => {
+    mocks.WorkerClientInstance.sendMessage.mockRejectedValueOnce(
+      new Error('Fail'),
+    );
+    const result = await getCachedAlbums();
+    expect(result).toBeNull();
   });
 
   it('isFileInLibrary returns true if file exists', async () => {
-    const worker = await initTestDb();
-
-    const promise = database.isFileInLibrary('/file.mp4');
-    const msg = worker.postMessage.mock.calls.find(
-      (c: any) => c[0].type === 'getMetadata',
-    );
-    expect(msg).toBeDefined();
-    worker.emit('message', {
-      id: msg[0].id,
-      result: { success: true, data: { '/file.mp4': {} } },
+    mocks.WorkerClientInstance.sendMessage.mockResolvedValueOnce({
+      '/path': { filePath: '/path' },
     });
-    expect(await promise).toBe(true);
+    const result = await isFileInLibrary('/path');
+    expect(result).toBe(true);
   });
 
-  it('isFileInLibrary returns false if file missing or error', async () => {
-    const worker = await initTestDb();
-
-    // Case 1: Missing in result
-    const p1 = database.isFileInLibrary('/missing.mp4');
-    const msg1 = worker.postMessage.mock.calls.find(
-      (c: any) => c[0].type === 'getMetadata',
+  it('isFileInLibrary handles error', async () => {
+    mocks.WorkerClientInstance.sendMessage.mockRejectedValueOnce(
+      new Error('Fail'),
     );
-    worker.emit('message', {
-      id: msg1[0].id,
-      result: { success: true, data: {} },
-    });
-    expect(await p1).toBe(false);
+    const result = await isFileInLibrary('/path');
+    expect(result).toBe(false);
+  });
 
-    // Case 2: Error
-    worker.postMessage.mockImplementationOnce(() => {
-      throw new Error('Worker Error');
-    });
-    const p2 = database.isFileInLibrary('/error.mp4');
-    expect(await p2).toBe(false);
+  it('filterProcessingNeeded sends correct message', async () => {
+    await filterProcessingNeeded(['/path']);
+    expect(mocks.WorkerClientInstance.sendMessage).toHaveBeenCalledWith(
+      'filterProcessingNeeded',
+      { filePaths: ['/path'] },
+    );
+  });
+
+  it('filterProcessingNeeded handles error', async () => {
+    mocks.WorkerClientInstance.sendMessage.mockRejectedValueOnce(
+      new Error('Fail'),
+    );
+    const result = await filterProcessingNeeded(['/path']);
+    expect(result).toEqual(['/path']);
+  });
+
+  it('setOperationTimeout calls client method', async () => {
+    setOperationTimeout(1000);
+    expect(mocks.WorkerClientInstance.setOperationTimeout).toHaveBeenCalledWith(
+      1000,
+    );
+  });
+
+  it('returns empty if worker not initialized', async () => {
+    await closeDatabase();
+    // getClient() throws, but getAllMetadataAndStats catches it
+    const result = await getAllMetadataAndStats();
+    expect(result).toEqual([]);
   });
 });

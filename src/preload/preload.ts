@@ -90,6 +90,10 @@ export interface ElectronAPI {
     segmentsJson: string,
   ) => Promise<IpcResult<void>>;
 
+  executeSmartPlaylist: (
+    criteria: string,
+  ) => Promise<IpcResult<MediaLibraryItem[]>>;
+
   getAllMetadataAndStats: () => Promise<IpcResult<MediaLibraryItem[]>>;
   getRecentlyPlayed: (limit?: number) => Promise<IpcResult<MediaLibraryItem[]>>;
   extractMetadata: (filePaths: string[]) => Promise<IpcResult<void>>;
@@ -196,6 +200,9 @@ const api: ElectronAPI = {
       filePath,
       segmentsJson,
     }),
+
+  executeSmartPlaylist: (criteria: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.DB_EXECUTE_SMART_PLAYLIST, criteria),
 
   getAllMetadataAndStats: () =>
     ipcRenderer.invoke(IPC_CHANNELS.DB_GET_ALL_METADATA_AND_STATS),

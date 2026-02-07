@@ -64,6 +64,8 @@ export interface IMediaBackend {
   ): Promise<void>;
   updateWatchedSegments(filePath: string, segmentsJson: string): Promise<void>;
 
+  executeSmartPlaylist(criteria: string): Promise<MediaLibraryItem[]>;
+
   getAllMetadataAndStats(): Promise<MediaLibraryItem[]>;
   getRecentlyPlayed(limit?: number): Promise<MediaLibraryItem[]>;
   extractMetadata(filePaths: string[]): Promise<void>;

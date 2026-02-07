@@ -735,12 +735,60 @@ export function getSetting(key: string): WorkerResult {
 /**
  * Executes a smart playlist criteria to find matching files.
  */
-export async function executeSmartPlaylist(/* criteriaJson: string */): Promise<WorkerResult> {
+export async function executeSmartPlaylist(
+  criteriaJson?: string,
+): Promise<WorkerResult> {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
-    // Bolt Optimization: Use cached prepared statement to avoid re-parsing SQL
-    // Query joined with views to provide complete stats for filtering/sorting
-    const rows = statements.executeSmartPlaylist.all();
+    let sql = `
+      SELECT
+        m.file_path_hash,
+        m.file_path,
+        m.duration,
+        m.rating,
+        m.created_at,
+        COALESCE(v.view_count, 0) as view_count,
+        v.last_viewed
+      FROM media_metadata m
+      LEFT JOIN media_views v ON m.file_path_hash = v.file_path_hash
+      WHERE m.file_path IS NOT NULL
+    `;
+    const params: (number | string)[] = [];
+
+    if (criteriaJson && criteriaJson !== '{}') {
+      try {
+        const criteria = JSON.parse(criteriaJson);
+
+        if (typeof criteria.minRating === 'number') {
+          sql += ' AND m.rating >= ?';
+          params.push(criteria.minRating);
+        }
+        if (typeof criteria.minDuration === 'number') {
+          sql += ' AND m.duration >= ?';
+          params.push(criteria.minDuration);
+        }
+        if (typeof criteria.minViews === 'number') {
+          sql += ' AND COALESCE(v.view_count, 0) >= ?';
+          params.push(criteria.minViews);
+        }
+        if (typeof criteria.maxViews === 'number') {
+          sql += ' AND COALESCE(v.view_count, 0) <= ?';
+          params.push(criteria.maxViews);
+        }
+        if (typeof criteria.minDaysSinceView === 'number') {
+          // Logic: item matches if (now - last_viewed) >= minDays OR last_viewed is NULL
+          sql +=
+            " AND (v.last_viewed IS NULL OR (julianday('now') - julianday(v.last_viewed)) >= ?)";
+          params.push(criteria.minDaysSinceView);
+        }
+      } catch (e) {
+        console.warn('[worker] Invalid criteria JSON:', e);
+      }
+    }
+
+    // Bolt Optimization: Filter in SQL instead of fetching all rows
+    const stmt = db.prepare(sql);
+    const rows = stmt.all(...params);
     return { success: true, data: rows };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
@@ -1159,7 +1207,7 @@ if (parentPort) {
           result = getSetting(payload.key);
           break;
         case 'executeSmartPlaylist':
-          result = await executeSmartPlaylist();
+          result = await executeSmartPlaylist(payload.criteria);
           break;
         case 'getRecentlyPlayed':
           result = getRecentlyPlayed(payload.limit);

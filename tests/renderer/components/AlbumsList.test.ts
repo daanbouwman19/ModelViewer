@@ -32,6 +32,7 @@ vi.mock('../../../src/renderer/composables/useSlideshow', () => ({
 vi.mock('../../../src/renderer/api', () => ({
   api: {
     getAllMetadataAndStats: vi.fn(),
+    executeSmartPlaylist: vi.fn(),
     deleteSmartPlaylist: vi.fn(),
     getSmartPlaylists: vi.fn(),
   },
@@ -302,11 +303,9 @@ describe('AlbumsList.vue', () => {
         },
       ];
 
-      const mockItems = [
-        { file_path: '/file1.jpg', rating: 5, view_count: 0 },
-        { file_path: '/file2.jpg', rating: 3, view_count: 10 },
-      ];
-      (api.getAllMetadataAndStats as Mock).mockResolvedValue(mockItems);
+      // The DB is expected to return only matching items
+      const mockItems = [{ file_path: '/file1.jpg', rating: 5, view_count: 0 }];
+      (api.executeSmartPlaylist as Mock).mockResolvedValue(mockItems);
 
       const wrapper = mount(AlbumsList);
       await wrapper.vm.$nextTick();
@@ -320,7 +319,7 @@ describe('AlbumsList.vue', () => {
 
       await new Promise(process.nextTick);
 
-      expect(api.getAllMetadataAndStats).toHaveBeenCalled();
+      expect(api.executeSmartPlaylist).toHaveBeenCalled();
       // Should filter to only file1
       expect(mockUIState.gridMediaFiles).toHaveLength(1);
       expect(mockUIState.gridMediaFiles[0].path).toBe('/file1.jpg');

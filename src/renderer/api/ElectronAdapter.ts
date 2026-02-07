@@ -190,6 +190,10 @@ export class ElectronAdapter implements IMediaBackend {
     );
   }
 
+  async executeSmartPlaylist(criteria: string): Promise<MediaLibraryItem[]> {
+    return this.invoke(this.bridge.executeSmartPlaylist(criteria));
+  }
+
   async getAllMetadataAndStats(): Promise<MediaLibraryItem[]> {
     return this.invoke(this.bridge.getAllMetadataAndStats());
   }

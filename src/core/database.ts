@@ -528,6 +528,26 @@ async function getSetting(key: string): Promise<string | null> {
 }
 
 /**
+ * Executes a smart playlist criteria to find matching files.
+ * @param criteria - The JSON stringified criteria.
+ */
+async function executeSmartPlaylist(
+  criteria: string,
+): Promise<MediaLibraryItem[]> {
+  try {
+    return await getClient().sendMessage<MediaLibraryItem[]>(
+      'executeSmartPlaylist',
+      {
+        criteria,
+      },
+    );
+  } catch (error) {
+    safeError('[database.js] Error executing smart playlist:', error);
+    return [];
+  }
+}
+
+/**
  * Gets all metadata and stats for smart playlist filtering.
  * Returns a raw list of objects from the DB join.
  */
@@ -571,6 +591,7 @@ export {
   updateWatchedSegments,
   saveSetting,
   getSetting,
+  executeSmartPlaylist,
   getAllMetadataAndStats,
   getPendingMetadata,
   getRecentlyPlayed,
