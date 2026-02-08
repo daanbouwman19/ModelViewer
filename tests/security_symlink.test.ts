@@ -49,10 +49,14 @@ describe('Symlink Traversal Security Fix', () => {
   });
 
   it('should block symlink listing when using the secure logic (mimicking routes)', async () => {
-    await expect(safeListDirectory(SYMLINK_PATH)).rejects.toThrow('Access denied');
+    await expect(safeListDirectory(SYMLINK_PATH)).rejects.toThrow(
+      'Access denied',
+    );
   });
 
   it('should block direct listing of restricted path', async () => {
-    await expect(safeListDirectory(TARGET_PATH)).rejects.toThrow('Access denied');
+    await expect(safeListDirectory(TARGET_PATH)).rejects.toThrow(
+      'Access denied',
+    );
   });
 });

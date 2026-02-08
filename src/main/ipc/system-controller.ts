@@ -17,7 +17,11 @@ import { getServerPort } from '../local-server';
 import { openMediaInVlc } from '../../core/vlc-player';
 import { listDirectory } from '../../core/file-system';
 import { handleIpc } from '../utils/ipc-helper';
-import { isSensitiveDirectory, isRestrictedPath } from '../../core/security';
+import {
+  isSensitiveDirectory,
+  isRestrictedPath,
+  validateAbsolutePath,
+} from '../../core/security';
 
 export function registerSystemHandlers() {
   handleIpc(
@@ -124,6 +128,13 @@ export function registerSystemHandlers() {
   handleIpc(
     IPC_CHANNELS.LIST_DIRECTORY,
     async (_event: IpcMainInvokeEvent, directoryPath: string) => {
+      if (directoryPath === 'ROOT') {
+        return listDirectory(directoryPath);
+      }
+
+      // [SECURITY] Validate path is absolute
+      validateAbsolutePath(directoryPath);
+
       let resolvedPath = directoryPath;
       try {
         resolvedPath = await fs.realpath(directoryPath);

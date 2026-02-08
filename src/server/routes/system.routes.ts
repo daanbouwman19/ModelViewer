@@ -25,6 +25,7 @@ import {
   isRestrictedPath,
   isSensitiveDirectory,
   validateInput,
+  validateAbsolutePath,
 } from '../../core/security.ts';
 import { getQueryParam } from '../../core/utils/http-utils.ts';
 import {
@@ -222,6 +223,16 @@ export function createSystemRoutes(limiters: RateLimiters) {
       if (inputResult) {
         throw new AppError(400, inputResult.message || 'Invalid path');
       }
+
+      // 'ROOT' is a special keyword used by the frontend/listDrives to request drive listing
+      // It is not a real path and should not be validated as one.
+      if (dirPath === 'ROOT') {
+        const contents = await listDirectory(dirPath);
+        return res.json(contents);
+      }
+
+      // [SECURITY] Validate path is absolute to prevent relative path traversal attacks
+      validateAbsolutePath(dirPath);
 
       // [SECURITY] Resolve symlinks to prevent bypassing restricted path checks
       let resolvedPath = dirPath;

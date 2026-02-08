@@ -1,5 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { AppError } from './errors.ts';
 import { getMediaDirectories, isFileInLibrary } from './database.ts';
 import { MediaDirectory } from './types.ts';
 import { isDrivePath } from './media-utils.ts';
@@ -159,6 +160,17 @@ export function validateInput(filePath: string): AuthorizationResult | null {
   }
 
   return null;
+}
+
+/**
+ * Validates that a path is absolute.
+ * @param filePath - The path to check.
+ * @throws {AppError} If the path is not absolute.
+ */
+export function validateAbsolutePath(filePath: string): void {
+  if (!path.isAbsolute(filePath)) {
+    throw new AppError(400, 'Invalid path: must be absolute');
+  }
 }
 
 /**
