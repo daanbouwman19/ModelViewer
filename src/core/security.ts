@@ -174,6 +174,39 @@ export function validateAbsolutePath(filePath: string): void {
 }
 
 /**
+ * Sanitizes and validates a file path for usage in filesystem operations.
+ * Performs absolute path check, normalization, and restricted path pre-check.
+ * @param filePath - The raw user-provided path.
+ * @returns The normalized, safe path string.
+ * @throws {AppError} If validation fails.
+ */
+export function sanitizePath(filePath: string): string {
+  // 1. Basic Input Validation
+  const inputResult = validateInput(filePath);
+  if (inputResult) {
+    throw new AppError(400, inputResult.message || 'Invalid path');
+  }
+
+  // 2. Absolute Path Enforcement
+  if (!path.isAbsolute(filePath)) {
+    throw new AppError(400, 'Invalid path: must be absolute');
+  }
+
+  // 3. Normalization (resolves .. segments)
+  const normalizedPath = path.normalize(filePath);
+
+  // 4. Restricted Path Pre-Check
+  if (isRestrictedPath(normalizedPath)) {
+    console.warn(
+      `[Security] Blocked attempt to access restricted path (pre-check): ${normalizedPath}`,
+    );
+    throw new AppError(403, 'Access denied');
+  }
+
+  return normalizedPath;
+}
+
+/**
  * Handles validation for virtual/drive paths (e.g., gdrive://).
  */
 async function authorizeVirtualPath(

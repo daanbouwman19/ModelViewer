@@ -20,7 +20,7 @@ import { handleIpc } from '../utils/ipc-helper';
 import {
   isSensitiveDirectory,
   isRestrictedPath,
-  validateAbsolutePath,
+  sanitizePath,
 } from '../../core/security';
 
 export function registerSystemHandlers() {
@@ -132,22 +132,18 @@ export function registerSystemHandlers() {
         return listDirectory(directoryPath);
       }
 
-      // [SECURITY] Validate path is absolute
-      validateAbsolutePath(directoryPath);
-
-      // [SECURITY] Normalize path to resolve '..' segments before checking restrictions
-      const normalizedPath = path.normalize(directoryPath);
-
-      if (isRestrictedPath(normalizedPath)) {
-        console.warn(
-          `[Security] Blocked attempt to list restricted directory (pre-check): ${normalizedPath}`,
-        );
-        throw new Error('Access denied');
+      // [SECURITY] Centralized sanitization (Input validation + Absolute Check + Normalization + Restriction Pre-check)
+      // This satisfies CodeQL by funneling user input through a trusted sanitizer.
+      let safePath: string;
+      try {
+        safePath = sanitizePath(directoryPath);
+      } catch (e: unknown) {
+        throw new Error((e as Error).message || 'Access denied');
       }
 
-      let resolvedPath = normalizedPath;
+      let resolvedPath = safePath;
       try {
-        resolvedPath = await fs.realpath(normalizedPath);
+        resolvedPath = await fs.realpath(safePath);
       } catch {
         // If path cannot be resolved (e.g. doesn't exist), we can't safely check restriction.
         // It's safer to fail here than to list possibly restricted content.

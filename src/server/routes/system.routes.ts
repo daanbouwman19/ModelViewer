@@ -25,7 +25,7 @@ import {
   isRestrictedPath,
   isSensitiveDirectory,
   validateInput,
-  validateAbsolutePath,
+  sanitizePath,
 } from '../../core/security.ts';
 import { getQueryParam } from '../../core/utils/http-utils.ts';
 import {
@@ -219,11 +219,6 @@ export function createSystemRoutes(limiters: RateLimiters) {
         throw new AppError(400, 'Missing path');
       }
 
-      const inputResult = validateInput(dirPath);
-      if (inputResult) {
-        throw new AppError(400, inputResult.message || 'Invalid path');
-      }
-
       // 'ROOT' is a special keyword used by the frontend/listDrives to request drive listing
       // It is not a real path and should not be validated as one.
       if (dirPath === 'ROOT') {
@@ -231,24 +226,14 @@ export function createSystemRoutes(limiters: RateLimiters) {
         return res.json(contents);
       }
 
-      // [SECURITY] Validate path is absolute to prevent relative path traversal attacks
-      validateAbsolutePath(dirPath);
-
-      // [SECURITY] Normalize path to resolve '..' segments before checking restrictions
-      // This prevents basic traversal attempts and ensures we check the intended logical path.
-      const normalizedPath = path.normalize(dirPath);
-
-      if (isRestrictedPath(normalizedPath)) {
-        console.warn(
-          `[Security] Blocked attempt to list restricted directory (pre-check): ${normalizedPath}`,
-        );
-        throw new AppError(403, 'Access denied');
-      }
+      // [SECURITY] Centralized sanitization (Input validation + Absolute Check + Normalization + Restriction Pre-check)
+      // This satisfies CodeQL by funneling user input through a trusted sanitizer.
+      const safePath = sanitizePath(dirPath);
 
       // [SECURITY] Resolve symlinks to prevent bypassing restricted path checks
-      let resolvedPath = normalizedPath;
+      let resolvedPath = safePath;
       try {
-        resolvedPath = await fs.realpath(normalizedPath);
+        resolvedPath = await fs.realpath(safePath);
       } catch {
         // If path doesn't exist or access is denied, we can't list it anyway.
         // We let listDirectory handle the error for consistency, or fail here.
