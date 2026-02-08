@@ -515,6 +515,7 @@ describe('Server Coverage', () => {
     });
 
     it('GET /api/fs/ls handles restricted path', async () => {
+      vi.mocked(mockFs.realpath).mockResolvedValue('/root');
       vi.mocked(security.isRestrictedPath).mockReturnValueOnce(true);
       const res = await request(app).get('/api/fs/ls').query({ path: '/root' });
       expect(res.status).toBe(403);

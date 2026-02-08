@@ -99,6 +99,7 @@ describe('system-controller security', () => {
       const handler = getHandler(IPC_CHANNELS.LIST_DIRECTORY);
       const targetPath = '/restricted/path';
 
+      (fs.realpath as Mock).mockResolvedValue(targetPath);
       (isRestrictedPath as Mock).mockReturnValue(true);
 
       // We expect the handler to throw or return error/null
@@ -117,6 +118,7 @@ describe('system-controller security', () => {
       const handler = getHandler(IPC_CHANNELS.LIST_DIRECTORY);
       const targetPath = '/safe/path';
 
+      (fs.realpath as Mock).mockResolvedValue(targetPath);
       (isRestrictedPath as Mock).mockReturnValue(false);
       (listDirectory as Mock).mockResolvedValue([]);
 

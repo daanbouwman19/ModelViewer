@@ -202,6 +202,7 @@ describe('system-controller', () => {
   describe('LIST_DIRECTORY', () => {
     it('lists directory', async () => {
       const handler = getHandler(IPC_CHANNELS.LIST_DIRECTORY);
+      (fs.realpath as Mock).mockResolvedValue('/path');
       await handler({}, '/path');
       expect(listDirectory).toHaveBeenCalledWith('/path');
     });

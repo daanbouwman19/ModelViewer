@@ -124,13 +124,22 @@ export function registerSystemHandlers() {
   handleIpc(
     IPC_CHANNELS.LIST_DIRECTORY,
     async (_event: IpcMainInvokeEvent, directoryPath: string) => {
-      if (isRestrictedPath(directoryPath)) {
+      let resolvedPath = directoryPath;
+      try {
+        resolvedPath = await fs.realpath(directoryPath);
+      } catch {
+        // If path cannot be resolved (e.g. doesn't exist), we can't safely check restriction.
+        // It's safer to fail here than to list possibly restricted content.
+        throw new Error('Invalid path or access denied');
+      }
+
+      if (isRestrictedPath(resolvedPath)) {
         console.warn(
-          `[Security] Blocked attempt to list restricted directory: ${directoryPath}`,
+          `[Security] Blocked attempt to list restricted directory: ${directoryPath} (resolved to ${resolvedPath})`,
         );
         throw new Error('Access denied');
       }
-      return listDirectory(directoryPath);
+      return listDirectory(resolvedPath);
     },
   );
 

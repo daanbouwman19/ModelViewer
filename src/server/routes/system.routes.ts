@@ -223,14 +223,29 @@ export function createSystemRoutes(limiters: RateLimiters) {
         throw new AppError(400, inputResult.message || 'Invalid path');
       }
 
-      if (isRestrictedPath(dirPath)) {
+      // [SECURITY] Resolve symlinks to prevent bypassing restricted path checks
+      let resolvedPath = dirPath;
+      try {
+        resolvedPath = await fs.realpath(dirPath);
+      } catch {
+        // If path doesn't exist or access is denied, we can't list it anyway.
+        // We let listDirectory handle the error for consistency, or fail here.
+        // However, if we can't resolve it, we can't check restriction accurately.
+        // For safety, we should probably fail or treat as restricted if unknown.
+        // But since listDirectory would fail too, we can just proceed with original path
+        // which will likely fail in listDirectory or be caught by isRestrictedPath if simple path.
+        // To be safe and strict:
+        throw new AppError(400, 'Invalid path or access denied');
+      }
+
+      if (isRestrictedPath(resolvedPath)) {
         console.warn(
-          `[Security] Blocked attempt to list restricted directory: ${dirPath}`,
+          `[Security] Blocked attempt to list restricted directory: ${dirPath} (resolved to ${resolvedPath})`,
         );
         throw new AppError(403, 'Access denied');
       }
 
-      const contents = await listDirectory(dirPath);
+      const contents = await listDirectory(resolvedPath);
       res.json(contents);
     }),
   );
