@@ -413,6 +413,23 @@ async function getAllMetadata(): Promise<{ [path: string]: MediaMetadata }> {
 }
 
 /**
+ * Retrieves lightweight metadata for verification checks.
+ * Skips heavy columns like watched_segments and rating.
+ */
+async function getAllMetadataVerification(): Promise<{
+  [path: string]: MediaMetadata;
+}> {
+  try {
+    return await getClient().sendMessage<{ [path: string]: MediaMetadata }>(
+      'getAllMetadataVerification',
+    );
+  } catch (error) {
+    safeError('[database.js] Error getting all metadata verification:', error);
+    return {};
+  }
+}
+
+/**
  * Creates a new smart playlist.
  */
 async function createSmartPlaylist(
@@ -584,6 +601,7 @@ export {
   getMetadata,
   getAllMetadata,
   getAllMetadataStats,
+  getAllMetadataVerification,
   createSmartPlaylist,
   getSmartPlaylists,
   deleteSmartPlaylist,

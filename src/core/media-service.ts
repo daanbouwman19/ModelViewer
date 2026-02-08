@@ -291,7 +291,7 @@ export class MediaService {
     let existingMetadataMap: { [path: string]: MediaMetadata } = {};
     try {
       if (filePaths.length > 1000) {
-        existingMetadataMap = await this.mediaRepo.getAllMetadata();
+        existingMetadataMap = await this.mediaRepo.getAllMetadataVerification();
       } else if (filePaths.length > 0) {
         existingMetadataMap = await this.mediaRepo.getMetadata(filePaths);
       }

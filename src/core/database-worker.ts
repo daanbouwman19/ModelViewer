@@ -359,6 +359,16 @@ export function initDatabase(dbPath: string): WorkerResult {
        FROM media_metadata WHERE file_path IS NOT NULL`,
     );
 
+    // Optimized query for metadata verification (skips duration, rating, watched_segments)
+    statements.getAllMetadataVerification = db.prepare(
+      `SELECT
+        file_path as filePath,
+        size,
+        created_at as createdAt,
+        extraction_status as status
+       FROM media_metadata WHERE file_path IS NOT NULL`,
+    );
+
     // Filter Optimization: Get successful paths in batch
     statements.getSuccessfulPathsBatch = db.prepare(
       `SELECT file_path FROM media_metadata WHERE file_path IN (${placeholders}) AND extraction_status = 'success'`,
@@ -527,6 +537,33 @@ export function getAllMetadataStats(): WorkerResult {
     // Bolt Optimization: Return raw rows to avoid blocking worker with heavy reduce
     // The transformation to a map will handle by the consumer.
     return { success: true, data: rows };
+  } catch (error: unknown) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+/**
+ * Retrieves lightweight metadata for verification checks.
+ * Skips heavy columns like watched_segments and rating.
+ */
+export function getAllMetadataVerification(): WorkerResult {
+  if (!db) return { success: false, error: 'Database not initialized' };
+  try {
+    const rows = statements.getAllMetadataVerification.all() as {
+      filePath: string;
+      size: number;
+      createdAt: string;
+      status: string;
+    }[];
+
+    const metadataMap: { [key: string]: unknown } = {};
+    for (const row of rows) {
+      if (row.filePath) {
+        metadataMap[row.filePath] = row;
+      }
+    }
+
+    return { success: true, data: metadataMap };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
   }
@@ -1179,6 +1216,9 @@ if (parentPort) {
           break;
         case 'getAllMetadataStats':
           result = getAllMetadataStats();
+          break;
+        case 'getAllMetadataVerification':
+          result = getAllMetadataVerification();
           break;
         case 'getMetadata':
           result = await getMetadata(payload.filePaths);
