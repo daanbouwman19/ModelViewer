@@ -102,6 +102,7 @@ export { validateFileAccess };
  * Returns the authorized path if successful, or null if access was denied (response already sent).
  */
 async function authorizeRequest(
+  _req: Request,
   res: Response,
   filePath: string,
 ): Promise<string | null> {
@@ -177,7 +178,7 @@ export async function handleStreamRequest(
 
   try {
     // 1. Authorization Check
-    const authorizedPath = await authorizeRequest(res, filePath);
+    const authorizedPath = await authorizeRequest(req, res, filePath);
     if (!authorizedPath) return;
 
     // 2. Direct File Optimization
@@ -243,12 +244,12 @@ export async function getVideoDuration(
  * Handles metadata retrieval.
  */
 export async function serveMetadata(
-  _req: Request,
+  req: Request,
   res: Response,
   filePath: string,
   ffmpegPath: string | null,
 ) {
-  const authorizedPath = await authorizeRequest(res, filePath);
+  const authorizedPath = await authorizeRequest(req, res, filePath);
   if (!authorizedPath) return;
 
   if (!ffmpegPath && !isDrivePath(authorizedPath)) {
@@ -352,12 +353,8 @@ export async function serveHeatmap(
   res: Response,
   filePath: string,
 ) {
-  const access = await validateFileAccess(filePath);
-  if (!access.success) {
-    if (!res.headersSent) res.status(access.statusCode).send(access.error);
-    return;
-  }
-  const authorizedPath = access.path;
+  const authorizedPath = await authorizeRequest(req, res, filePath);
+  if (!authorizedPath) return;
 
   try {
     const pointsStr = getQueryParam(req.query, 'points');
@@ -376,12 +373,12 @@ export async function serveHeatmap(
  * Serves the progress of heatmap generation.
  */
 export async function serveHeatmapProgress(
-  _req: Request,
+  req: Request,
   res: Response,
   filePath: string,
 ) {
   // Authorization check is lightweight here, but good practice
-  const authorizedPath = await authorizeRequest(res, filePath);
+  const authorizedPath = await authorizeRequest(req, res, filePath);
   if (!authorizedPath) return;
 
   const analyzer = MediaAnalyzer.getInstance();
@@ -408,7 +405,7 @@ export async function serveStaticFile(
   filePath: string,
 ) {
   try {
-    const authorizedPath = await authorizeRequest(res, filePath);
+    const authorizedPath = await authorizeRequest(req, res, filePath);
     if (!authorizedPath) return;
     // If local file, use res.sendFile for optimizing range/seeking
     if (!isDrivePath(authorizedPath)) {
