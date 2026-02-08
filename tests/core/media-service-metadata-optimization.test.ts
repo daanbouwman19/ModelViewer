@@ -1,6 +1,5 @@
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { extractAndSaveMetadata } from '../../src/core/media-service';
-import { MediaRepository } from '../../src/core/repositories/media-repository';
 
 // Mock dependencies
 vi.mock('fs/promises', () => ({
@@ -27,7 +26,9 @@ vi.mock('../../src/core/database', () => ({
   cacheAlbums: vi.fn(),
   getCachedAlbums: vi.fn(),
   getMetadata: vi.fn().mockResolvedValue({}),
-  filterProcessingNeeded: vi.fn().mockImplementation((paths) => Promise.resolve(paths)),
+  filterProcessingNeeded: vi
+    .fn()
+    .mockImplementation((paths) => Promise.resolve(paths)),
 }));
 
 vi.mock('../../src/core/media-utils', async (importOriginal) => {
@@ -57,7 +58,10 @@ describe('MediaService Metadata Optimization', () => {
 
   it('should call getAllMetadataVerification (optimized) when processing > 1000 files', async () => {
     // Create > 1000 dummy file paths
-    const filePaths = Array.from({ length: 1001 }, (_, i) => `/path/to/file_${i}.mp4`);
+    const filePaths = Array.from(
+      { length: 1001 },
+      (_, i) => `/path/to/file_${i}.mp4`,
+    );
 
     await extractAndSaveMetadata(filePaths, '/usr/bin/ffmpeg');
 
@@ -68,7 +72,10 @@ describe('MediaService Metadata Optimization', () => {
   });
 
   it('should call getMetadata when processing <= 1000 files', async () => {
-    const filePaths = Array.from({ length: 1000 }, (_, i) => `/path/to/file_${i}.mp4`);
+    const filePaths = Array.from(
+      { length: 1000 },
+      (_, i) => `/path/to/file_${i}.mp4`,
+    );
 
     await extractAndSaveMetadata(filePaths, '/usr/bin/ffmpeg');
 
