@@ -234,10 +234,21 @@ export function createSystemRoutes(limiters: RateLimiters) {
       // [SECURITY] Validate path is absolute to prevent relative path traversal attacks
       validateAbsolutePath(dirPath);
 
+      // [SECURITY] Normalize path to resolve '..' segments before checking restrictions
+      // This prevents basic traversal attempts and ensures we check the intended logical path.
+      const normalizedPath = path.normalize(dirPath);
+
+      if (isRestrictedPath(normalizedPath)) {
+        console.warn(
+          `[Security] Blocked attempt to list restricted directory (pre-check): ${normalizedPath}`,
+        );
+        throw new AppError(403, 'Access denied');
+      }
+
       // [SECURITY] Resolve symlinks to prevent bypassing restricted path checks
-      let resolvedPath = dirPath;
+      let resolvedPath = normalizedPath;
       try {
-        resolvedPath = await fs.realpath(dirPath);
+        resolvedPath = await fs.realpath(normalizedPath);
       } catch {
         // If path doesn't exist or access is denied, we can't list it anyway.
         // We let listDirectory handle the error for consistency, or fail here.

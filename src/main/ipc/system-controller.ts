@@ -135,9 +135,19 @@ export function registerSystemHandlers() {
       // [SECURITY] Validate path is absolute
       validateAbsolutePath(directoryPath);
 
-      let resolvedPath = directoryPath;
+      // [SECURITY] Normalize path to resolve '..' segments before checking restrictions
+      const normalizedPath = path.normalize(directoryPath);
+
+      if (isRestrictedPath(normalizedPath)) {
+        console.warn(
+          `[Security] Blocked attempt to list restricted directory (pre-check): ${normalizedPath}`,
+        );
+        throw new Error('Access denied');
+      }
+
+      let resolvedPath = normalizedPath;
       try {
-        resolvedPath = await fs.realpath(directoryPath);
+        resolvedPath = await fs.realpath(normalizedPath);
       } catch {
         // If path cannot be resolved (e.g. doesn't exist), we can't safely check restriction.
         // It's safer to fail here than to list possibly restricted content.
