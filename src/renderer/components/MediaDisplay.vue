@@ -175,11 +175,13 @@
       :is-image="isImage"
       :is-vr-mode="isVrMode"
       :is-opening-vlc="isOpeningVlc"
+      :is-muted="isMuted"
       :current-time="currentVideoTime"
       :duration="transcodedDuration || videoElement?.duration || 0"
       @previous="handlePrevious"
       @next="handleNext"
       @toggle-play="togglePlay"
+      @toggle-mute="toggleMute"
       @open-in-vlc="openInVlc"
       @set-rating="setRating"
       @toggle-vr="toggleVrMode"
@@ -280,6 +282,7 @@ const currentTranscodeStartTime = ref(0);
 const isVrMode = ref(false); // [NEW]
 const savedCurrentTime = ref(0); // [NEW] Sync time between players
 const isOpeningVlc = ref(false);
+const isMuted = ref(false);
 
 // Use global controls visibility state
 const { isControlsVisible, isSourcesModalVisible } = uiStore;
@@ -769,11 +772,21 @@ watch(
 
 // Sync video element with global state for ambient background
 const handleVideoElementUpdate = (el: HTMLVideoElement | null) => {
+  if (el) {
+    el.muted = isMuted.value;
+  }
   videoElement.value = el;
 };
 watch(videoElement, (el) => {
   mainVideoElement.value = el;
 });
+
+const toggleMute = () => {
+  isMuted.value = !isMuted.value;
+  if (videoElement.value) {
+    videoElement.value.muted = isMuted.value;
+  }
+};
 
 /**
  * Handles the end of video playback.
