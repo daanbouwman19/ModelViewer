@@ -93,3 +93,9 @@
 **Smell:** `listDriveFiles` mixed API iteration logic with file object mapping and shortcut resolution, creating a complex loop with inline mapping and filtering.
 **Insight:** Separating the "processing" of a single item (mapping, validation) from the "iteration" logic (fetching pages) makes both parts clearer and allows independent testing of file validation rules.
 **Prevention:** When a map/filter chain inside a loop becomes complex (e.g. handling specific edge cases like shortcuts), extract the logic into a `processItem` helper function.
+
+## 2026-02-07 - Extracting Express Validation Helper
+
+**Smell:** `media-handler.ts` contained repetitive 4-5 line blocks for validating file access and sending error responses across multiple controller methods.
+**Insight:** Encapsulating common validation+response logic in a helper function (`authorizeRequest`) that handles the side effect (sending response) significantly cleans up the main controller logic and reduces cognitive load.
+**Prevention:** When you see the same error handling block copied 3+ times in a file, extract it into a helper function that returns the valid data or `null`.
