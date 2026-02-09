@@ -32,65 +32,59 @@ describe('Path Length Validation', () => {
     app = await createApp();
   });
 
-  describe('POST /api/directories', () => {
-    it('should reject paths longer than MAX_PATH_LENGTH', async () => {
-      const payload = { path: longPath };
-      vi.mocked(database.addMediaDirectory).mockResolvedValue(undefined);
+  const testCases = [
+    {
+      method: 'post',
+      url: '/api/directories',
+      payload: { path: longPath },
+      mockFn: database.addMediaDirectory,
+      name: 'POST /api/directories',
+    },
+    {
+      method: 'delete',
+      url: '/api/directories',
+      payload: { path: longPath },
+      mockFn: database.removeMediaDirectory,
+      name: 'DELETE /api/directories',
+    },
+    {
+      method: 'put',
+      url: '/api/directories/active',
+      payload: { path: longPath, isActive: true },
+      mockFn: database.setDirectoryActiveState,
+      name: 'PUT /api/directories/active',
+    },
+    {
+      method: 'get',
+      url: '/api/fs/ls',
+      query: { path: longPath },
+      name: 'GET /api/fs/ls',
+    },
+    {
+      method: 'get',
+      url: '/api/fs/parent',
+      query: { path: longPath },
+      name: 'GET /api/fs/parent',
+    },
+  ];
 
-      const response = await request(app)
-        .post('/api/directories')
-        .send(payload);
+  it.each(testCases)(
+    'should reject paths longer than MAX_PATH_LENGTH for $name',
+    async ({ method, url, payload, query, mockFn }) => {
+      if (mockFn) {
+        vi.mocked(mockFn).mockResolvedValue(undefined);
+      }
 
-      expect(response.status).toBe(400);
-      expect(database.addMediaDirectory).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('DELETE /api/directories', () => {
-    it('should reject paths longer than MAX_PATH_LENGTH', async () => {
-      const payload = { path: longPath };
-      vi.mocked(database.removeMediaDirectory).mockResolvedValue(undefined);
-
-      const response = await request(app)
-        .delete('/api/directories')
-        .send(payload);
-
-      expect(response.status).toBe(400);
-      expect(database.removeMediaDirectory).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('PUT /api/directories/active', () => {
-    it('should reject paths longer than MAX_PATH_LENGTH', async () => {
-      const payload = { path: longPath, isActive: true };
-      vi.mocked(database.setDirectoryActiveState).mockResolvedValue(undefined);
-
-      const response = await request(app)
-        .put('/api/directories/active')
-        .send(payload);
-
-      expect(response.status).toBe(400);
-      expect(database.setDirectoryActiveState).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('GET /api/fs/ls', () => {
-    it('should reject paths longer than MAX_PATH_LENGTH', async () => {
-      const response = await request(app)
-        .get('/api/fs/ls')
-        .query({ path: longPath });
-
-      expect(response.status).toBe(400);
-    });
-  });
-
-  describe('GET /api/fs/parent', () => {
-    it('should reject paths longer than MAX_PATH_LENGTH', async () => {
-      const response = await request(app)
-        .get('/api/fs/parent')
-        .query({ path: longPath });
+      // Dynamic request method invocation with chained methods
+      const response = await (request(app) as any)
+        [method](url)
+        .send(payload)
+        .query(query);
 
       expect(response.status).toBe(400);
-    });
-  });
+      if (mockFn) {
+        expect(mockFn).not.toHaveBeenCalled();
+      }
+    },
+  );
 });
