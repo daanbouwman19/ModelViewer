@@ -556,14 +556,9 @@ export function getAllMetadataVerification(): WorkerResult {
       status: string;
     }[];
 
-    const metadataMap: { [key: string]: unknown } = {};
-    for (const row of rows) {
-      if (row.filePath) {
-        metadataMap[row.filePath] = row;
-      }
-    }
-
-    return { success: true, data: metadataMap };
+    // Bolt Optimization: Return raw rows to avoid blocking worker with heavy transformation.
+    // The transformation to a map will be handled by the consumer.
+    return { success: true, data: rows };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
   }

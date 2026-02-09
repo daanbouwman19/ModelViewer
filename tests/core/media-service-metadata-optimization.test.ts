@@ -50,16 +50,17 @@ vi.mock('../../src/core/utils/ffmpeg-utils', async (importOriginal) => {
 
 // Import the mocked database functions to spy on them
 import * as db from '../../src/core/database';
+import { METADATA_VERIFICATION_THRESHOLD } from '../../src/core/constants';
 
 describe('MediaService Metadata Optimization', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('should call getAllMetadataVerification (optimized) when processing > 1000 files', async () => {
-    // Create > 1000 dummy file paths
+  it(`should call getAllMetadataVerification (optimized) when processing > ${METADATA_VERIFICATION_THRESHOLD} files`, async () => {
+    // Create > THRESHOLD dummy file paths
     const filePaths = Array.from(
-      { length: 1001 },
+      { length: METADATA_VERIFICATION_THRESHOLD + 1 },
       (_, i) => `/path/to/file_${i}.mp4`,
     );
 
@@ -71,9 +72,9 @@ describe('MediaService Metadata Optimization', () => {
     expect(db.getMetadata).not.toHaveBeenCalled();
   });
 
-  it('should call getMetadata when processing <= 1000 files', async () => {
+  it(`should call getMetadata when processing <= ${METADATA_VERIFICATION_THRESHOLD} files`, async () => {
     const filePaths = Array.from(
-      { length: 1000 },
+      { length: METADATA_VERIFICATION_THRESHOLD },
       (_, i) => `/path/to/file_${i}.mp4`,
     );
 

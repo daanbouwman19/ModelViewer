@@ -420,8 +420,23 @@ async function getAllMetadataVerification(): Promise<{
   [path: string]: MediaMetadata;
 }> {
   try {
-    return await getClient().sendMessage<{ [path: string]: MediaMetadata }>(
-      'getAllMetadataVerification',
+    const rows = await getClient().sendMessage<
+      {
+        filePath: string;
+        size: number;
+        createdAt: string;
+        status: string;
+      }[]
+    >('getAllMetadataVerification');
+
+    return rows.reduce(
+      (acc, row) => {
+        if (row.filePath) {
+          acc[row.filePath] = row;
+        }
+        return acc;
+      },
+      {} as { [path: string]: MediaMetadata },
     );
   } catch (error) {
     safeError('[database.js] Error getting all metadata verification:', error);

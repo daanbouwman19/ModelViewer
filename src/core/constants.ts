@@ -186,6 +186,11 @@ const METADATA_EXTRACTION_CONCURRENCY = 5;
 const METADATA_BATCH_SIZE = 50;
 
 /**
+ * Minimum number of files required to switch to the lightweight metadata verification query.
+ */
+const METADATA_VERIFICATION_THRESHOLD = 1000;
+
+/**
  * Scopes required for Google Drive access.
  */
 const GOOGLE_DRIVE_SCOPES = ['https://www.googleapis.com/auth/drive.readonly'];
@@ -299,6 +304,7 @@ export {
   DISK_SCAN_CONCURRENCY,
   METADATA_EXTRACTION_CONCURRENCY,
   METADATA_BATCH_SIZE,
+  METADATA_VERIFICATION_THRESHOLD,
   GOOGLE_DRIVE_SCOPES,
   GOOGLE_TOKENS_KEY,
   DEFAULT_SERVER_PORT,
