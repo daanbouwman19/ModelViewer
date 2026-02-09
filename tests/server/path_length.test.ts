@@ -75,7 +75,9 @@ describe('Path Length Validation', () => {
         vi.mocked(mockFn).mockResolvedValue(undefined);
       }
 
-      const response = await (request(app) as any)[method](url)
+      // Dynamic request method invocation with chained methods
+      const response = await (request(app) as any)
+        [method](url)
         .send(payload)
         .query(query);
 
