@@ -15,6 +15,7 @@ import PQueue from 'p-queue';
 import {
   METADATA_EXTRACTION_CONCURRENCY,
   METADATA_BATCH_SIZE,
+  METADATA_VERIFICATION_THRESHOLD,
   SUPPORTED_VIDEO_EXTENSIONS_SET,
   WORKER_SCAN_TIMEOUT_MS,
 } from './constants.ts';
@@ -290,8 +291,8 @@ export class MediaService {
 
     let existingMetadataMap: { [path: string]: MediaMetadata } = {};
     try {
-      if (filePaths.length > 1000) {
-        existingMetadataMap = await this.mediaRepo.getAllMetadata();
+      if (filePaths.length > METADATA_VERIFICATION_THRESHOLD) {
+        existingMetadataMap = await this.mediaRepo.getAllMetadataVerification();
       } else if (filePaths.length > 0) {
         existingMetadataMap = await this.mediaRepo.getMetadata(filePaths);
       }
