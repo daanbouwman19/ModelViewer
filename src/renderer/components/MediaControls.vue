@@ -125,6 +125,24 @@
             class="w-px h-6 md:h-8 bg-white/10 mx-0.5 md:mx-2 shrink-0"
           ></div>
 
+          <!-- Mute/Unmute -->
+          <button
+            v-if="!isImage && currentMediaItem"
+            class="p-1.5 md:p-2 rounded-full text-white transition-all duration-200 hover:bg-(--accent-color) focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0"
+            :title="isMuted ? 'Unmute' : 'Mute'"
+            :aria-label="isMuted ? 'Unmute audio' : 'Mute audio'"
+            @click="$emit('toggle-mute')"
+          >
+            <VolumeOffIcon v-if="isMuted" class="w-5 h-5 md:w-6 md:h-6" />
+            <VolumeUpIcon v-else class="w-5 h-5 md:w-6 md:h-6" />
+          </button>
+
+          <!-- Separator -->
+          <div
+            v-if="!isImage && currentMediaItem && !isNarrowView"
+            class="w-px h-6 md:h-8 bg-white/10 mx-0.5 md:mx-2 shrink-0"
+          ></div>
+
           <!-- VR Mode -->
           <button
             v-if="!isImage && currentMediaItem"
@@ -208,6 +226,8 @@ import ChevronLeftIcon from './icons/ChevronLeftIcon.vue';
 import ChevronRightIcon from './icons/ChevronRightIcon.vue';
 import PlayIcon from './icons/PlayIcon.vue';
 import PauseIcon from './icons/PauseIcon.vue';
+import VolumeUpIcon from './icons/VolumeUpIcon.vue';
+import VolumeOffIcon from './icons/VolumeOffIcon.vue';
 import ExpandIcon from './icons/ExpandIcon.vue';
 import StarIcon from './icons/StarIcon.vue';
 import ProgressBar from './ProgressBar.vue';
@@ -233,6 +253,7 @@ const props = withDefaults(
     duration?: number;
     canGoPrevious?: boolean;
     isOpeningVlc?: boolean;
+    isMuted?: boolean;
   }>(),
   {
     canGoPrevious: true,
@@ -445,6 +466,7 @@ defineEmits<{
   (e: 'previous'): void;
   (e: 'next'): void;
   (e: 'toggle-play'): void;
+  (e: 'toggle-mute'): void;
   (e: 'open-in-vlc'): void;
   (e: 'set-rating', star: number): void;
   (e: 'toggle-vr'): void;

@@ -175,11 +175,13 @@
       :is-image="isImage"
       :is-vr-mode="isVrMode"
       :is-opening-vlc="isOpeningVlc"
+      :is-muted="isMuted"
       :current-time="currentVideoTime"
       :duration="transcodedDuration || videoElement?.duration || 0"
       @previous="handlePrevious"
       @next="handleNext"
       @toggle-play="togglePlay"
+      @toggle-mute="toggleMute"
       @open-in-vlc="openInVlc"
       @set-rating="setRating"
       @toggle-vr="toggleVrMode"
@@ -197,7 +199,7 @@
  * It handles loading the media from the main process, displaying loading/error states,
  * and providing navigation controls to move between media items.
  */
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, watchEffect, onMounted, onUnmounted } from 'vue';
 import { useLibraryStore } from '../composables/useLibraryStore';
 import { usePlayerStore } from '../composables/usePlayerStore';
 import { useUIStore } from '../composables/useUIStore';
@@ -280,6 +282,7 @@ const currentTranscodeStartTime = ref(0);
 const isVrMode = ref(false); // [NEW]
 const savedCurrentTime = ref(0); // [NEW] Sync time between players
 const isOpeningVlc = ref(false);
+const isMuted = ref(false);
 
 // Use global controls visibility state
 const { isControlsVisible, isSourcesModalVisible } = uiStore;
@@ -774,6 +777,17 @@ const handleVideoElementUpdate = (el: HTMLVideoElement | null) => {
 watch(videoElement, (el) => {
   mainVideoElement.value = el;
 });
+
+// Sync mute state with video element
+watchEffect(() => {
+  if (videoElement.value) {
+    videoElement.value.muted = isMuted.value;
+  }
+});
+
+const toggleMute = () => {
+  isMuted.value = !isMuted.value;
+};
 
 /**
  * Handles the end of video playback.
