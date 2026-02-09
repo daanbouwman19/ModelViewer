@@ -199,7 +199,7 @@
  * It handles loading the media from the main process, displaying loading/error states,
  * and providing navigation controls to move between media items.
  */
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, watchEffect, onMounted, onUnmounted } from 'vue';
 import { useLibraryStore } from '../composables/useLibraryStore';
 import { usePlayerStore } from '../composables/usePlayerStore';
 import { useUIStore } from '../composables/useUIStore';
@@ -772,20 +772,21 @@ watch(
 
 // Sync video element with global state for ambient background
 const handleVideoElementUpdate = (el: HTMLVideoElement | null) => {
-  if (el) {
-    el.muted = isMuted.value;
-  }
   videoElement.value = el;
 };
 watch(videoElement, (el) => {
   mainVideoElement.value = el;
 });
 
-const toggleMute = () => {
-  isMuted.value = !isMuted.value;
+// Sync mute state with video element
+watchEffect(() => {
   if (videoElement.value) {
     videoElement.value.muted = isMuted.value;
   }
+});
+
+const toggleMute = () => {
+  isMuted.value = !isMuted.value;
 };
 
 /**
