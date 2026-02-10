@@ -21,13 +21,26 @@ export class InternalMediaProxy {
           url,
           `http://${req.headers.host || 'localhost'}`,
         );
-        const token = urlObj.searchParams.get('token');
+const token = urlObj.searchParams.get('token');
+const serverTokenBuffer = Buffer.from(this.authToken, 'hex');
+const userTokenBuffer = Buffer.alloc(serverTokenBuffer.length);
 
-        if (!token || token !== this.authToken) {
-          res.writeHead(403);
-          res.end('Access denied');
-          return;
-        }
+// Safely write the user-provided token into a buffer of the correct length.
+// This and the use of timingSafeEqual below prevents timing attacks.
+if (token) {
+  try {
+    userTokenBuffer.write(token, 'hex');
+  } catch (e) {
+    // If token is invalid (e.g., wrong format/length), it will result in a zero-filled buffer
+    // which will fail the comparison below, but in constant time.
+  }
+}
+
+if (!crypto.timingSafeEqual(userTokenBuffer, serverTokenBuffer)) {
+  res.writeHead(403);
+  res.end('Access denied');
+  return;
+}
 
         // Expected URL: /stream/:fileId (optional extension)
         // Capture only the ID (Base64url characters)
