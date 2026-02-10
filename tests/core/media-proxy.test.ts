@@ -91,7 +91,7 @@ describe('InternalMediaProxy', () => {
     });
   });
 
-  it('getUrlForFile starts server if needed and returns url', async () => {
+  it('getUrlForFile starts server if needed and returns url with token', async () => {
     const proxy = InternalMediaProxy.getInstance();
 
     // Setup listen callback
@@ -104,17 +104,21 @@ describe('InternalMediaProxy', () => {
 
     expect(mockListen).toHaveBeenCalled();
     expect(url).toContain('127.0.0.1:54321/stream/file1');
+    expect(url).toContain('?token=');
   });
 
   describe('Request Handling', () => {
     let handler: any;
     let req: any;
     let res: any;
+    let authToken: string;
 
     beforeEach(() => {
-      InternalMediaProxy.getInstance(); // Ensure instance created
+      (InternalMediaProxy as any).instance = null; // Reset singleton to get fresh token
+      const proxy = InternalMediaProxy.getInstance(); // Ensure instance created
+      authToken = (proxy as any).authToken;
       handler = getCallback();
-      req = { url: '', headers: {}, on: vi.fn() };
+      req = { url: '', headers: { host: 'localhost:54321' }, on: vi.fn() };
       res = {
         writeHead: vi.fn(),
         end: vi.fn(),
@@ -122,15 +126,29 @@ describe('InternalMediaProxy', () => {
       };
     });
 
-    it('returns 404 for invalid url', async () => {
-      req.url = '/invalid';
+    it('returns 403 for missing token', async () => {
+      req.url = '/stream/file-123';
+      await handler(req, res);
+      expect(res.writeHead).toHaveBeenCalledWith(403);
+      expect(res.end).toHaveBeenCalledWith('Access denied');
+    });
+
+    it('returns 403 for invalid token', async () => {
+      req.url = '/stream/file-123?token=invalid';
+      await handler(req, res);
+      expect(res.writeHead).toHaveBeenCalledWith(403);
+      expect(res.end).toHaveBeenCalledWith('Access denied');
+    });
+
+    it('returns 404 for invalid url (with valid token)', async () => {
+      req.url = `/invalid?token=${authToken}`;
       await handler(req, res);
       expect(res.writeHead).toHaveBeenCalledWith(404);
       expect(res.end).toHaveBeenCalledWith('Not Found');
     });
 
-    it('handles request processing error', async () => {
-      req.url = '/stream/file-123';
+    it('handles request processing error (with valid token)', async () => {
+      req.url = `/stream/file-123?token=${authToken}`;
       mockGetDriveFileMetadata.mockRejectedValue(new Error('API Fail'));
 
       await handler(req, res);
@@ -139,8 +157,8 @@ describe('InternalMediaProxy', () => {
       expect(res.end).toHaveBeenCalled();
     });
 
-    it('handles valid stream request', async () => {
-      req.url = '/stream/file-123';
+    it('handles valid stream request (with valid token)', async () => {
+      req.url = `/stream/file-123?token=${authToken}`;
       const mockStream = { pipe: vi.fn(), on: vi.fn(), destroy: vi.fn() };
 
       mockGetDriveFileMetadata.mockResolvedValue({
@@ -170,8 +188,8 @@ describe('InternalMediaProxy', () => {
       expect(mockStream.pipe).toHaveBeenCalledWith(res);
     });
 
-    it('handles range requests', async () => {
-      req.url = '/stream/file-123';
+    it('handles range requests (with valid token)', async () => {
+      req.url = `/stream/file-123?token=${authToken}`;
       req.headers.range = 'bytes=100-199';
       const mockStream = { pipe: vi.fn(), on: vi.fn(), destroy: vi.fn() };
 
@@ -196,8 +214,8 @@ describe('InternalMediaProxy', () => {
       );
     });
 
-    it('handles unsatisfiable range requests', async () => {
-      req.url = '/stream/file-123';
+    it('handles unsatisfiable range requests (with valid token)', async () => {
+      req.url = `/stream/file-123?token=${authToken}`;
       // bytes=2000-3000 where size is 1000
       req.headers.range = 'bytes=2000-3000';
 
@@ -215,8 +233,8 @@ describe('InternalMediaProxy', () => {
       expect(res.end).toHaveBeenCalledWith('Requested range not satisfiable.');
     });
 
-    it('ignores malformed range requests and serves full content', async () => {
-      req.url = '/stream/file-123';
+    it('ignores malformed range requests and serves full content (with valid token)', async () => {
+      req.url = `/stream/file-123?token=${authToken}`;
       req.headers.range = 'invalid-unit=0-100';
 
       mockGetDriveFileMetadata.mockResolvedValue({
@@ -244,8 +262,8 @@ describe('InternalMediaProxy', () => {
       );
     });
 
-    it('handles open-ended range requests', async () => {
-      req.url = '/stream/file-123';
+    it('handles open-ended range requests (with valid token)', async () => {
+      req.url = `/stream/file-123?token=${authToken}`;
       req.headers.range = 'bytes=100-';
       const mockStream = { pipe: vi.fn(), on: vi.fn(), destroy: vi.fn() };
 
@@ -272,8 +290,8 @@ describe('InternalMediaProxy', () => {
       );
     });
 
-    it('handles stream errors', async () => {
-      req.url = '/stream/file-123';
+    it('handles stream errors (with valid token)', async () => {
+      req.url = `/stream/file-123?token=${authToken}`;
       const mockStream = { pipe: vi.fn(), on: vi.fn(), destroy: vi.fn() };
 
       mockGetDriveFileMetadata.mockResolvedValue({ size: '1000' });
@@ -297,8 +315,8 @@ describe('InternalMediaProxy', () => {
       expect(res.end).toHaveBeenCalled();
     });
 
-    it('destroys stream on request close', async () => {
-      req.url = '/stream/file-123';
+    it('destroys stream on request close (with valid token)', async () => {
+      req.url = `/stream/file-123?token=${authToken}`;
       const mockStream = { pipe: vi.fn(), on: vi.fn(), destroy: vi.fn() };
 
       mockGetDriveFileMetadata.mockResolvedValue({ size: '1000' });
@@ -344,8 +362,11 @@ describe('InternalMediaProxy', () => {
   });
 
   it('does not send error response if headers already sent', async () => {
+    (InternalMediaProxy as any).instance = null;
+    const proxy = InternalMediaProxy.getInstance();
+    const authToken = (proxy as any).authToken;
     const handler = getCallback();
-    const req = { url: '/stream/file-error', headers: {}, on: vi.fn() };
+    const req = { url: `/stream/file-error?token=${authToken}`, headers: { host: 'localhost:54321' }, on: vi.fn() };
     const res = {
       writeHead: vi.fn(),
       end: vi.fn(),
