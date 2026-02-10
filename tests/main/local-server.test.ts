@@ -130,8 +130,8 @@ describe('Local Server', () => {
     it('should handle stop without callback', async () => {
       await startServer();
       stopLocalServer(); // No callback
-      // Give it time to close async
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Wait for server to stop
+      await vi.waitUntil(() => getServerPort() === 0);
       expect(getServerPort()).toBe(0);
     });
 
