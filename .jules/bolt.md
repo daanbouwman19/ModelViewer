@@ -68,7 +68,7 @@
 **Learning:** Fetching all metadata (potentially thousands of heavy objects) from the database worker just to filter them in the application layer creates significant IPC and memory overhead, especially for features like Smart Playlists which might only match a few items.
 **Action:** Implemented `executeSmartPlaylist` in the database worker which accepts a criteria object and constructs a dynamic SQL query. This pushes the filtering logic to SQLite, returning only the relevant rows and minimizing data transfer.
 
-## 2026-02-21 - [Vue Key Recycling in Virtual Scroller]
+## 2026-02-10 - [Vue Key Recycling in Virtual Scroller]
 
 **Learning:** Using unstable keys (like `row.startIndex + index`) inside a virtual scroller row forces Vue to destroy and recreate components on every scroll event, negating the benefits of virtualization for component instances.
 **Action:** Use stable keys relative to the row structure (e.g., column index) to allow Vue to recycle component instances and only update their props, significantly reducing GC and CPU overhead during scrolling.

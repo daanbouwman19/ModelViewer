@@ -37,15 +37,15 @@ const RecycleScrollerStub = {
   `,
   data() {
     return {
-      currentItem: { id: 'row-0', startIndex: 0 }
+      currentItem: { id: 'row-0', startIndex: 0 },
     };
   },
   props: ['items', 'itemSize', 'keyField'],
   methods: {
     updateItem(newItem: any) {
       this.currentItem = newItem;
-    }
-  }
+    },
+  },
 };
 
 describe('MediaGrid.vue (Virtualization Keys)', () => {
@@ -104,7 +104,7 @@ describe('MediaGrid.vue (Virtualization Keys)', () => {
     const items = Array.from({ length: 20 }, (_, i) => ({
       path: `/path/img${i}.jpg`,
       name: `img${i}.jpg`,
-      id: `img${i}`
+      id: `img${i}`,
     }));
     mockUIState.gridMediaFiles = items;
 
