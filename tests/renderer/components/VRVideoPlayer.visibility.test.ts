@@ -97,6 +97,8 @@ describe('VRVideoPlayer Visibility', () => {
     await wrapper.vm.$nextTick();
 
     // Check style directly to confirm display: none is applied
-    expect(controlsContainer.element.style.display).toBe('none');
+    expect((controlsContainer.element as HTMLElement).style.display).toBe(
+      'none',
+    );
   });
 });
