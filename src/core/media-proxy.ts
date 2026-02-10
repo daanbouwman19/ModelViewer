@@ -23,7 +23,19 @@ export class InternalMediaProxy {
         );
         const token = urlObj.searchParams.get('token');
 
-        if (!token || token !== this.authToken) {
+        const serverTokenBuffer = Buffer.from(this.authToken, 'hex');
+        const userTokenBuffer = Buffer.alloc(serverTokenBuffer.length);
+
+        if (token) {
+          try {
+            userTokenBuffer.write(token, 'hex');
+          } catch {
+            // Ignore write errors; userTokenBuffer remains zero-filled/partial
+            // causing timingSafeEqual to return false safely.
+          }
+        }
+
+        if (!crypto.timingSafeEqual(userTokenBuffer, serverTokenBuffer)) {
           res.writeHead(403);
           res.end('Access denied');
           return;
