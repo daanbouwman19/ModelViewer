@@ -43,7 +43,7 @@
       >
         <template #default="{ item: row }">
           <div class="grid w-full h-full" :style="gridStyle">
-            <template v-for="i in columnCount" :key="row.startIndex + i">
+            <template v-for="i in columnCount" :key="i">
               <!-- Check if item exists -->
               <MediaGridItem
                 v-if="allMediaFiles[row.startIndex + i - 1]"
