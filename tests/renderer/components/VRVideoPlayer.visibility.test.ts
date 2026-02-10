@@ -89,7 +89,9 @@ describe('VRVideoPlayer Visibility', () => {
     // Wait for initial render
     await wrapper.vm.$nextTick();
 
-    const controlsContainer = wrapper.find('.absolute.left-4.right-4.z-20');
+    const controlsContainer = wrapper.find(
+      '[data-testid="vr-controls-container"]',
+    );
     expect(controlsContainer.exists()).toBe(true);
 
     // Set isControlsVisible to false

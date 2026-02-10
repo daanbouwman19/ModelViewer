@@ -14,6 +14,7 @@
         v-show="isControlsVisible"
         class="absolute left-4 right-4 z-20 flex justify-between items-start pointer-events-none"
         :class="[isFullscreen ? 'top-6' : 'top-24']"
+        data-testid="vr-controls-container"
       >
         <div class="flex gap-2 pointer-events-auto">
           <!-- Play/Pause Button -->

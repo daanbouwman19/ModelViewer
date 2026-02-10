@@ -130,3 +130,8 @@
 
 **Learning:** Users often have to click videos to see if it's the right content. Adding a muted, autoplay preview on hover (with a debounce to prevent noise) significantly reduces cognitive load and feels much faster.
 **Action:** Always consider how to expose content "peek" capabilities in grids without requiring full navigation. Use `poster` attributes on videos for smooth transitions.
+
+## 2026-02-10 - [Invisible Controls Trap]
+
+**Learning:** Using `opacity: 0` for fading out controls leaves them interactive (keyboard & mouse), creating a confusing "invisible controls trap".
+**Action:** Use `v-show` with `<Transition>` or `inert` attribute to ensure hidden elements are removed from the accessibility tree and interaction layer.
