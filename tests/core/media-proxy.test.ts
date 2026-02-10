@@ -366,7 +366,11 @@ describe('InternalMediaProxy', () => {
     const proxy = InternalMediaProxy.getInstance();
     const authToken = (proxy as any).authToken;
     const handler = getCallback();
-    const req = { url: `/stream/file-error?token=${authToken}`, headers: { host: 'localhost:54321' }, on: vi.fn() };
+    const req = {
+      url: `/stream/file-error?token=${authToken}`,
+      headers: { host: 'localhost:54321' },
+      on: vi.fn(),
+    };
     const res = {
       writeHead: vi.fn(),
       end: vi.fn(),

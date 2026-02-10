@@ -17,7 +17,10 @@ export class InternalMediaProxy {
     this.server = http.createServer(async (req, res) => {
       try {
         const url = req.url || '';
-        const urlObj = new URL(url, `http://${req.headers.host || 'localhost'}`);
+        const urlObj = new URL(
+          url,
+          `http://${req.headers.host || 'localhost'}`,
+        );
         const token = urlObj.searchParams.get('token');
 
         if (!token || token !== this.authToken) {
