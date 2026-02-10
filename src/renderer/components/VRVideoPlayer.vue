@@ -9,71 +9,72 @@
     </div>
 
     <!-- VR Controls Overlay (Moved down to avoid Header overlap) -->
-    <div
-      class="absolute left-4 right-4 z-20 flex justify-between items-start pointer-events-none transition-opacity duration-300"
-      :class="[
-        isFullscreen ? 'top-6' : 'top-24',
-        { 'opacity-0': !isControlsVisible },
-      ]"
-    >
-      <div class="flex gap-2 pointer-events-auto">
-        <!-- Play/Pause Button -->
-        <button
-          class="bg-black/50 text-white p-3 rounded-full hover:bg-white/20 border border-white/20 backdrop-blur-sm transition-colors flex items-center justify-center pointer-events-auto"
-          :aria-label="isPlaying ? 'Pause video' : 'Play video'"
-          :title="isPlaying ? 'Pause video' : 'Play video'"
-          @click="togglePlayback"
-        >
-          <component :is="isPlaying ? PauseIcon : PlayIcon" class="w-5 h-5" />
-        </button>
-
-        <!-- Mode Toggle -->
-        <button
-          class="bg-black/50 text-white px-8 py-3 rounded-full text-sm font-medium hover:bg-black/70 border border-white/20 backdrop-blur-sm whitespace-nowrap transition-colors pointer-events-auto"
-          @click="toggleStereo"
-        >
-          {{ isStereo ? 'Mode: 3D (SBS)' : 'Mode: 2D (Mono)' }}
-        </button>
-      </div>
-
-      <div class="flex gap-2 pointer-events-auto">
-        <!-- Recenter Button (VR Motion Mode) -->
-        <button
-          class="bg-black/50 text-white p-3 rounded-full hover:bg-indigo-500/80 border border-white/20 backdrop-blur-sm transition-colors pointer-events-auto"
-          :class="{ 'text-indigo-400': isMotionControlActive }"
-          title="Recenter VR View"
-          aria-label="Recenter VR View"
-          @click="recenterVR"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            aria-hidden="true"
+    <transition name="fade">
+      <div
+        v-show="isControlsVisible"
+        class="absolute left-4 right-4 z-20 flex justify-between items-start pointer-events-none"
+        :class="[isFullscreen ? 'top-6' : 'top-24']"
+        data-testid="vr-controls-container"
+      >
+        <div class="flex gap-2 pointer-events-auto">
+          <!-- Play/Pause Button -->
+          <button
+            class="bg-black/50 text-white p-3 rounded-full hover:bg-white/20 border border-white/20 backdrop-blur-sm transition-colors flex items-center justify-center pointer-events-auto"
+            :aria-label="isPlaying ? 'Pause video' : 'Play video'"
+            :title="isPlaying ? 'Pause video' : 'Play video'"
+            @click="togglePlayback"
           >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
-            />
-          </svg>
-        </button>
+            <component :is="isPlaying ? PauseIcon : PlayIcon" class="w-5 h-5" />
+          </button>
 
-        <!-- Close / Exit Fullscreen Button (Only in Fullscreen) -->
-        <button
-          v-if="isFullscreen"
-          class="bg-black/50 text-white p-3 rounded-full hover:bg-red-500/80 border border-white/20 backdrop-blur-sm transition-colors pointer-events-auto"
-          aria-label="Exit Fullscreen"
-          title="Exit Fullscreen"
-          @click="toggleFullscreen"
-        >
-          <CloseIcon class="w-5 h-5" />
-        </button>
+          <!-- Mode Toggle -->
+          <button
+            class="bg-black/50 text-white px-8 py-3 rounded-full text-sm font-medium hover:bg-black/70 border border-white/20 backdrop-blur-sm whitespace-nowrap transition-colors pointer-events-auto"
+            @click="toggleStereo"
+          >
+            {{ isStereo ? 'Mode: 3D (SBS)' : 'Mode: 2D (Mono)' }}
+          </button>
+        </div>
+
+        <div class="flex gap-2 pointer-events-auto">
+          <!-- Recenter Button (VR Motion Mode) -->
+          <button
+            class="bg-black/50 text-white p-3 rounded-full hover:bg-indigo-500/80 border border-white/20 backdrop-blur-sm transition-colors pointer-events-auto"
+            :class="{ 'text-indigo-400': isMotionControlActive }"
+            title="Recenter VR View"
+            aria-label="Recenter VR View"
+            @click="recenterVR"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="w-5 h-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+              />
+            </svg>
+          </button>
+
+          <!-- Close / Exit Fullscreen Button (Only in Fullscreen) -->
+          <button
+            v-if="isFullscreen"
+            class="bg-black/50 text-white p-3 rounded-full hover:bg-red-500/80 border border-white/20 backdrop-blur-sm transition-colors pointer-events-auto"
+            aria-label="Exit Fullscreen"
+            title="Exit Fullscreen"
+            @click="toggleFullscreen"
+          >
+            <CloseIcon class="w-5 h-5" />
+          </button>
+        </div>
       </div>
-    </div>
+    </transition>
 
     <!-- Permission Denied Toast -->
     <transition name="fade">
