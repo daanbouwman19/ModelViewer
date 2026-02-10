@@ -94,8 +94,8 @@
 **Insight:** Separating the "processing" of a single item (mapping, validation) from the "iteration" logic (fetching pages) makes both parts clearer and allows independent testing of file validation rules.
 **Prevention:** When a map/filter chain inside a loop becomes complex (e.g. handling specific edge cases like shortcuts), extract the logic into a `processItem` helper function.
 
-## 2026-02-07 - Extracting Access Validation Helper
+## 2026-02-10 - Extracting Access Validation Helper
 
-**Smell:** `media-handler.ts` contained a recurring block of boilerplate code (6 lines repeated 5 times) for validating file access and sending error responses.
-**Insight:** Encapsulating the "validate or error" pattern into a helper function (`validateAndAuthorize`) significantly reduces noise in controller methods and ensures consistent error handling (e.g., checking `res.headersSent`).
+**Smell:** \`media-handler.ts\` contained a recurring block of boilerplate code (6 lines repeated 5 times) for validating file access and sending error responses.
+**Insight:** Encapsulating the "validate or error" pattern into a helper function (\`validateAndAuthorize\`) significantly reduces noise in controller methods and ensures consistent error handling (e.g., checking \`res.headersSent\`).
 **Prevention:** When you see the same 3+ lines of error checking/handling boilerplate in multiple controller methods, extract it into a helper that returns the valid data or handles the response.

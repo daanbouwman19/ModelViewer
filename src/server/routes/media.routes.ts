@@ -45,10 +45,12 @@ export function createMediaRoutes({
   ffmpegPath,
 }: MediaRoutesOptions) {
   const router = Router();
+  const { authLimiter, writeLimiter, readLimiter, fileLimiter, streamLimiter } =
+    limiters;
 
   router.post(
     '/api/media/view',
-    limiters.writeLimiter,
+    writeLimiter,
     asyncHandler(async (req, res) => {
       const { filePath } = req.body;
       if (!filePath || typeof filePath !== 'string') {
@@ -67,7 +69,7 @@ export function createMediaRoutes({
 
   router.post(
     '/api/media/views',
-    limiters.readLimiter,
+    readLimiter,
     asyncHandler(async (req, res) => {
       const { filePaths } = req.body;
       if (
@@ -92,7 +94,7 @@ export function createMediaRoutes({
 
   router.post(
     '/api/media/rate',
-    limiters.writeLimiter,
+    writeLimiter,
     asyncHandler(async (req, res) => {
       const { filePath, rating } = req.body;
       if (
@@ -115,7 +117,7 @@ export function createMediaRoutes({
 
   router.get(
     '/api/media/all',
-    limiters.readLimiter,
+    readLimiter,
     asyncHandler(async (_req, res) => {
       const items = await getAllMetadataAndStats();
       res.json(items);
@@ -124,7 +126,7 @@ export function createMediaRoutes({
 
   router.get(
     '/api/media/history',
-    limiters.readLimiter,
+    readLimiter,
     asyncHandler(async (req, res) => {
       const rawLimit = parseInt(
         getQueryParam(req.query, 'limit') as string,
@@ -139,7 +141,7 @@ export function createMediaRoutes({
 
   router.post(
     '/api/media/metadata',
-    limiters.writeLimiter,
+    writeLimiter,
     asyncHandler(async (req, res) => {
       const { filePath, metadata } = req.body;
       if (!filePath || typeof filePath !== 'string' || !metadata) {
@@ -158,7 +160,7 @@ export function createMediaRoutes({
 
   router.post(
     '/api/media/metadata/batch',
-    limiters.readLimiter,
+    readLimiter,
     asyncHandler(async (req, res) => {
       const { filePaths } = req.body;
       if (
@@ -183,7 +185,8 @@ export function createMediaRoutes({
 
   router.get(
     '/api/metadata',
-    limiters.fileLimiter,
+    readLimiter,
+    fileLimiter,
     asyncHandler(async (req, res) => {
       const filePath = getQueryParam(req.query, 'file');
       if (!filePath || typeof filePath !== 'string') {
@@ -195,8 +198,8 @@ export function createMediaRoutes({
 
   router.get(
     '/api/stream',
-    limiters.streamLimiter,
-    limiters.fileLimiter,
+    streamLimiter,
+    fileLimiter,
     asyncHandler(async (req, res) => {
       const filePath = getQueryParam(req.query, 'file');
       const startTime = getQueryParam(req.query, 'startTime');
@@ -257,7 +260,7 @@ export function createMediaRoutes({
 
   router.get(
     '/api/thumbnail',
-    limiters.fileLimiter,
+    fileLimiter,
     asyncHandler(async (req, res) => {
       const filePath = getQueryParam(req.query, 'file');
       if (!filePath || typeof filePath !== 'string') {
@@ -269,7 +272,7 @@ export function createMediaRoutes({
 
   router.get(
     '/api/video/heatmap',
-    limiters.fileLimiter,
+    fileLimiter,
     asyncHandler(async (req, res) => {
       const filePath = getQueryParam(req.query, 'file');
       if (!filePath || typeof filePath !== 'string') {
@@ -281,7 +284,7 @@ export function createMediaRoutes({
 
   router.get(
     '/api/video/heatmap/status',
-    limiters.fileLimiter,
+    fileLimiter,
     asyncHandler(async (req, res) => {
       const filePath = getQueryParam(req.query, 'file');
       if (!filePath || typeof filePath !== 'string') {
@@ -293,8 +296,8 @@ export function createMediaRoutes({
 
   router.get(
     '/api/hls/master.m3u8',
-    limiters.streamLimiter,
-    limiters.fileLimiter,
+    streamLimiter,
+    fileLimiter,
     asyncHandler(async (req, res) => {
       const filePath = getQueryParam(req.query, 'file');
       if (!filePath || typeof filePath !== 'string') {
@@ -306,8 +309,8 @@ export function createMediaRoutes({
 
   router.get(
     '/api/hls/playlist.m3u8',
-    limiters.streamLimiter,
-    limiters.fileLimiter,
+    streamLimiter,
+    fileLimiter,
     asyncHandler(async (req, res) => {
       const filePath = getQueryParam(req.query, 'file');
       if (!filePath || typeof filePath !== 'string') {
@@ -319,8 +322,8 @@ export function createMediaRoutes({
 
   router.get(
     '/api/hls/:segment',
-    limiters.streamLimiter,
-    limiters.fileLimiter,
+    streamLimiter,
+    fileLimiter,
     asyncHandler(async (req, res) => {
       const segmentParam = req.params.segment;
       const segment = Array.isArray(segmentParam)
@@ -336,8 +339,8 @@ export function createMediaRoutes({
 
   router.get(
     '/api/serve',
-    limiters.streamLimiter,
-    limiters.fileLimiter,
+    streamLimiter,
+    fileLimiter,
     asyncHandler(async (req, res) => {
       const filePath = getQueryParam(req.query, 'path');
       if (!filePath || typeof filePath !== 'string') {
