@@ -45,8 +45,7 @@ export function createMediaRoutes({
   ffmpegPath,
 }: MediaRoutesOptions) {
   const router = Router();
-  const { authLimiter, writeLimiter, readLimiter, fileLimiter, streamLimiter } =
-    limiters;
+  const { writeLimiter, readLimiter, fileLimiter, streamLimiter } = limiters;
 
   router.post(
     '/api/media/view',
