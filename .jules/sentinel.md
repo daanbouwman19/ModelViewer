@@ -107,3 +107,9 @@
 **Vulnerability:** The application blindly authorized any file path starting with `gdrive://` via a bypass in `validateFileAccess`. This allowed attackers to access any file in the connected Google Drive by guessing its ID, bypassing the intended restriction to specific "Media Directories".
 **Learning:** Bypass checks based on protocol/scheme (e.g. `if (isDrivePath)`) are dangerous if the underlying authorization logic (`authorizeFilePath`) relies on path hierarchy that doesn't exist for that protocol (flat IDs vs folders). Always enforce a positive authorization model (allowlist) for external resources where hierarchy cannot be trusted or verified easily.
 **Prevention:** Removed the bypass. Implemented strict authorization by requiring Drive files to be present in the scanned media library (`media_metadata` table). Updated the scanner logic (`cacheAlbums`) to ensure all valid Drive files are indexed into this table during scans.
+
+## 2026-02-10 - Unauthenticated Local Media Proxy Exposure
+
+**Vulnerability:** The `InternalMediaProxy` service, used for streaming Google Drive files to FFmpeg, started an HTTP server on `127.0.0.1` that accepted any request to `/stream/:fileId`. This allowed any local process to access any Google Drive file by ID without authentication, bypassing application access controls.
+**Learning:** Internal services bound to localhost are not automatically secure. Any process on the user's machine can access them. Sensitive internal APIs must always require authentication (e.g., a shared secret or token) even when listening on loopback interfaces.
+**Prevention:** Implemented a random 32-byte `authToken` generated at proxy startup. Required this token to be present in the `token` query parameter for all requests to the proxy. Updated `getUrlForFile` to sign the generated URLs with this token.

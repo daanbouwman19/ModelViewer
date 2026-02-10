@@ -1,4 +1,5 @@
 import http from 'http';
+import crypto from 'crypto';
 import { AddressInfo } from 'net';
 import { getDriveFileMetadata } from '../main/google-drive-service.ts';
 import { getDriveStreamWithCache } from './drive-stream.ts';
@@ -9,15 +10,40 @@ export class InternalMediaProxy {
   private server: http.Server;
   private port: number = 0;
   private isListening: boolean = false;
+  private authToken: string;
 
   private constructor() {
+    this.authToken = crypto.randomBytes(32).toString('hex');
     this.server = http.createServer(async (req, res) => {
       try {
-        // Expected URL: /stream/:fileId
         const url = req.url || '';
+        const urlObj = new URL(
+          url,
+          `http://${req.headers.host || 'localhost'}`,
+        );
+        const token = urlObj.searchParams.get('token');
+
+        const serverTokenBuffer = Buffer.from(this.authToken, 'hex');
+        const userTokenBuffer = Buffer.alloc(serverTokenBuffer.length);
+
+        if (token) {
+          try {
+            userTokenBuffer.write(token, 'hex');
+          } catch {
+            // Ignore write errors; userTokenBuffer remains zero-filled/partial
+            // causing timingSafeEqual to return false safely.
+          }
+        }
+
+        if (!crypto.timingSafeEqual(userTokenBuffer, serverTokenBuffer)) {
+          res.writeHead(403);
+          res.end('Access denied');
+          return;
+        }
+
         // Expected URL: /stream/:fileId (optional extension)
         // Capture only the ID (Base64url characters)
-        const match = url.match(/^\/stream\/([a-zA-Z0-9_\-]+)/);
+        const match = urlObj.pathname.match(/^\/stream\/([a-zA-Z0-9_\-]+)/);
 
         if (!match) {
           res.writeHead(404);
@@ -104,13 +130,14 @@ export class InternalMediaProxy {
   }
 
   public getUrlForFile(fileId: string): Promise<string> {
+    const buildUrl = () =>
+      `http://127.0.0.1:${this.port}/stream/${fileId}?token=${this.authToken}`;
+
     if (!this.isListening) {
       // Lazy start
-      return this.start().then(() => {
-        return `http://127.0.0.1:${this.port}/stream/${fileId}`;
-      });
+      return this.start().then(buildUrl);
     }
-    return Promise.resolve(`http://127.0.0.1:${this.port}/stream/${fileId}`);
+    return Promise.resolve(buildUrl());
   }
 
   public getPort(): number {
