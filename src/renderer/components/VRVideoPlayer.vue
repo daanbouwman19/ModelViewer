@@ -9,14 +9,13 @@
     </div>
 
     <!-- VR Controls Overlay (Moved down to avoid Header overlap) -->
-    <div
-      class="absolute left-4 right-4 z-20 flex justify-between items-start pointer-events-none transition-opacity duration-300"
-      :class="[
-        isFullscreen ? 'top-6' : 'top-24',
-        { 'opacity-0': !isControlsVisible },
-      ]"
-    >
-      <div class="flex gap-2 pointer-events-auto">
+    <transition name="fade">
+      <div
+        v-show="isControlsVisible"
+        class="absolute left-4 right-4 z-20 flex justify-between items-start pointer-events-none"
+        :class="[isFullscreen ? 'top-6' : 'top-24']"
+      >
+        <div class="flex gap-2 pointer-events-auto">
         <!-- Play/Pause Button -->
         <button
           class="bg-black/50 text-white p-3 rounded-full hover:bg-white/20 border border-white/20 backdrop-blur-sm transition-colors flex items-center justify-center pointer-events-auto"
@@ -74,6 +73,7 @@
         </button>
       </div>
     </div>
+    </transition>
 
     <!-- Permission Denied Toast -->
     <transition name="fade">
