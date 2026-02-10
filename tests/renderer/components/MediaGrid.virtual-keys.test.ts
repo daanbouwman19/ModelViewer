@@ -43,7 +43,7 @@ const RecycleScrollerStub = {
   props: ['items', 'itemSize', 'keyField'],
   methods: {
     updateItem(newItem: any) {
-      this.currentItem = newItem;
+      (this as any).currentItem = newItem;
     },
   },
 };
