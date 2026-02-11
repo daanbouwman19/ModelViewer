@@ -90,7 +90,7 @@ Implemented a callback-based interception mechanism for the `postMessage` mock. 
 
 **Strategy:** Refactored to use Vitest's `vi.useFakeTimers()` and `vi.runAllTimersAsync()`. This allows testing complex recursive async functions with delays instantly and deterministically, properly handling the promise chain and unhandled rejections.
 
-## 2026-02-18 - Robust Testing of Internal Database Error Handling
+## 2026-02-11 - Robust Testing of Internal Database Error Handling
 
 **Discovery:** `tests/core/database-worker.coverage.test.ts` was producing false confidence by not actually triggering the error condition in `generateFileIdsBatched`, and was polluting the test output with expected error logs.
 
