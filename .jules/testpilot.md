@@ -89,3 +89,9 @@ Implemented a callback-based interception mechanism for the `postMessage` mock. 
 **Discovery:** `tests/core/utils/async-utils.test.ts` was using real-time delays (up to 300ms) to test exponential backoff logic, making tests slow and prone to flakiness.
 
 **Strategy:** Refactored to use Vitest's `vi.useFakeTimers()` and `vi.runAllTimersAsync()`. This allows testing complex recursive async functions with delays instantly and deterministically, properly handling the promise chain and unhandled rejections.
+
+## 2026-02-11 - Robust Testing of Internal Database Error Handling
+
+**Discovery:** `tests/core/database-worker.coverage.test.ts` was producing false confidence by not actually triggering the error condition in `generateFileIdsBatched`, and was polluting the test output with expected error logs.
+
+**Strategy:** Refactored the test to use a temporary file-based database instead of in-memory, allowing a second connection to corrupt the schema (drop table) to force internal prepared statement failures. This verified the fallback logic and error handling paths (via console spies) that were previously unreachable or falsely passing.

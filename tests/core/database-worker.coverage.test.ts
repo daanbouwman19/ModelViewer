@@ -1,4 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import Database from 'better-sqlite3';
+import fs from 'fs';
+import path from 'path';
 import {
   initDatabase,
   closeDatabase,
@@ -18,13 +21,32 @@ vi.mock('worker_threads', () => ({
   default: {},
 }));
 
+const tempDbPath = path.join(__dirname, 'temp_coverage.db');
+
 describe('database-worker coverage (exported functions)', () => {
   beforeEach(() => {
-    initDatabase(':memory:');
+    // Ensure clean state
+    if (fs.existsSync(tempDbPath)) {
+      try {
+        fs.unlinkSync(tempDbPath);
+      } catch {
+        // Ignore errors if file is locked (should not happen with proper closeDatabase)
+      }
+    }
+    // Initialize with file-based DB to allow multi-connection testing (corruption)
+    initDatabase(tempDbPath);
   });
 
   afterEach(() => {
     closeDatabase();
+    if (fs.existsSync(tempDbPath)) {
+      try {
+        fs.unlinkSync(tempDbPath);
+      } catch (e) {
+        console.warn('Failed to cleanup temp DB:', e);
+      }
+    }
+    vi.restoreAllMocks();
   });
 
   it('getAllMediaViewCounts returns empty object when no views exist', () => {
@@ -90,10 +112,14 @@ describe('database-worker coverage (exported functions)', () => {
   });
 
   it('recordMediaView handles empty file path via generateFileId fallback', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
     const result = await recordMediaView('');
+
     // generateFileId catches the error and falls back to hashing the path string
     // So it should actually succeed.
     expect(result.success).toBe(true);
+    expect(consoleSpy).toHaveBeenCalled();
   });
 
   it('getMetadata handles batching and padding', async () => {
@@ -110,11 +136,29 @@ describe('database-worker coverage (exported functions)', () => {
   });
 
   it('generateFileIdsBatched handles database query failure gracefully', async () => {
-    // This tests the catch block in generateFileIdsBatched (lines 109-114)
-    // We'll call a function that uses generateFileIdsBatched internally
+    // Open a second connection to corrupt the schema (simulate failure)
+    const db2 = new Database(tempDbPath);
+    // Drop the table used by generateFileIdsBatched (via getFileIdsByPathsBatch prepared statement)
+    db2.exec('DROP TABLE media_metadata');
+    db2.close();
+
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    // This calls generateFileIdsBatched internally.
+    // The prepared statement execution inside generateFileIdsBatched should fail
+    // because the table is gone.
     const paths = Array.from({ length: 10 }, (_, i) => `/file${i}.mp4`);
     const result = await getMetadata(paths);
-    // Should still succeed even if DB query fails, falling back to generation
-    expect(result.success).toBe(true);
+
+    // The overall operation will fail because we dropped the table, so subsequent queries in getMetadata will fail.
+    // However, we are testing that generateFileIdsBatched caught its internal error (proven by the warning).
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('no such table: media_metadata');
+
+    // Verify that the fallback mechanism was triggered (warning logged)
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to query existing file IDs'),
+      expect.anything(),
+    );
   });
 });
