@@ -761,4 +761,38 @@ describe('MediaDisplay.vue', () => {
       // Should not throw
     });
   });
+
+  describe('Empty State UX', () => {
+    it('shows "Open Library" button when sidebar is hidden and no media selected', async () => {
+      // 1. Setup empty state
+      mockPlayerState.currentMediaItem = null;
+      mockLibraryState.mediaDirectories = [{ path: '/test' }]; // Ensure we are not in "Welcome" state
+
+      // 2. Hide sidebar
+      mockUIState.isSidebarVisible.value = false;
+
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      // 3. Find button
+      const openLibBtn = wrapper
+        .findAll('button')
+        .find((b) => b.text().includes('Open Library'));
+      expect(openLibBtn?.exists()).toBe(true);
+
+      // 4. Click button
+      await openLibBtn?.trigger('click');
+      expect(mockUIState.isSidebarVisible.value).toBe(true);
+
+      // 5. Verify button is gone (or text changed)
+      await wrapper.vm.$nextTick();
+      const openLibBtnAfter = wrapper
+        .findAll('button')
+        .find((b) => b.text().includes('Open Library'));
+      expect(openLibBtnAfter).toBeUndefined();
+
+      // 6. Verify "Choose from the sidebar" text
+      expect(wrapper.text()).toContain('Choose from the sidebar to begin');
+    });
+  });
 });

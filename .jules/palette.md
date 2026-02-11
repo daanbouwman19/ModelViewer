@@ -126,7 +126,7 @@
 **Learning:** Range inputs (sliders) that have a semantic "Any" or "None" value at 0 are confusing to screen reader users who just hear "0".
 **Action:** Use `aria-valuetext` to map "0" to "Any" or "None", and ensure visual labels match this state to prevent "0/5" ambiguity.
 
-## 2025-02-05 - [Hover-to-Play Video Previews]
+## 2026-02-05 - [Hover-to-Play Video Previews]
 
 **Learning:** Users often have to click videos to see if it's the right content. Adding a muted, autoplay preview on hover (with a debounce to prevent noise) significantly reduces cognitive load and feels much faster.
 **Action:** Always consider how to expose content "peek" capabilities in grids without requiring full navigation. Use `poster` attributes on videos for smooth transitions.
@@ -135,3 +135,8 @@
 
 **Learning:** Using `opacity: 0` for fading out controls leaves them interactive (keyboard & mouse), creating a confusing "invisible controls trap".
 **Action:** Use `v-show` with `<Transition>` or `inert` attribute to ensure hidden elements are removed from the accessibility tree and interaction layer.
+
+## 2026-02-11 - [Empty State Actions]
+
+**Learning:** When the sidebar is collapsible, empty states telling users to "Choose from the sidebar" become frustrating dead ends if the sidebar is hidden.
+**Action:** Empty states should always detect if the necessary UI controls (like a sidebar) are visible. If not, they must provide a direct action button to reveal them or perform the task directly.
