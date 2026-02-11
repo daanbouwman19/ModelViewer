@@ -207,6 +207,7 @@ describe('media-controller', () => {
   describe('MEDIA_EXTRACT_METADATA', () => {
     it('extracts metadata', async () => {
       const handler = getHandler(IPC_CHANNELS.MEDIA_EXTRACT_METADATA);
+      (filterAuthorizedPaths as Mock).mockResolvedValue(['/path']);
       (extractAndSaveMetadata as Mock).mockResolvedValue(undefined);
       await handler({}, ['/path']);
       expect(extractAndSaveMetadata).toHaveBeenCalledWith(
@@ -218,6 +219,7 @@ describe('media-controller', () => {
 
     it('logs error on extraction failure', async () => {
       const handler = getHandler(IPC_CHANNELS.MEDIA_EXTRACT_METADATA);
+      (filterAuthorizedPaths as Mock).mockResolvedValue(['/path']);
       (extractAndSaveMetadata as Mock).mockRejectedValue(
         new Error('Extract Fail'),
       );
