@@ -30,3 +30,26 @@ Error: connect ECONNREFUSED 127.0.0.1:3000
 5:14:45 PM [vite] (client) hmr update /src/renderer/assets/main.css?direct, /src/renderer/assets/main.css
 5:15:50 PM [vite] (client) page reload src/client/index.html
 5:15:50 PM [vite] (client) page reload src/client/index.html
+5:25:57 PM [vite] (client) hmr update /src/renderer/assets/main.css?direct, /src/renderer/assets/main.css
+5:27:50 PM [vite] (client) page reload src/client/index.html
+5:27:50 PM [vite] (client) page reload src/client/index.html
+5:27:50 PM [vite] (client) page reload src/client/index.html
+5:34:34 PM [vite] (client) hmr update /src/renderer/assets/main.css?direct, /src/renderer/assets/main.css
+5:35:38 PM [vite] (client) page reload src/client/index.html
+5:35:38 PM [vite] (client) page reload src/client/index.html
+5:38:10 PM [vite] (client) hmr update /src/renderer/assets/main.css?direct, /src/renderer/assets/main.css
+5:39:25 PM [vite] (client) page reload src/client/index.html
+5:39:25 PM [vite] (client) page reload src/client/index.html
+5:39:25 PM [vite] (client) page reload src/client/index.html
+5:41:15 PM [vite] (client) hmr update /src/renderer/assets/main.css?direct, /src/renderer/assets/main.css
+5:42:15 PM [vite] (client) page reload src/client/index.html
+5:42:15 PM [vite] (client) page reload src/client/index.html
+5:42:15 PM [vite] (client) page reload src/client/index.html
+5:49:20 PM [vite] (client) hmr update /src/renderer/assets/main.css?direct, /src/renderer/assets/main.css
+5:50:23 PM [vite] (client) page reload src/client/index.html
+5:50:23 PM [vite] (client) page reload src/client/index.html
+5:52:02 PM [vite] (client) hmr update /src/renderer/assets/main.css?direct, /src/renderer/assets/main.css
+5:53:08 PM [vite] (client) hmr update /src/renderer/components/MediaDisplay.vue, /src/renderer/assets/main.css?direct, /src/renderer/assets/main.css
+5:54:32 PM [vite] (client) page reload src/client/index.html
+5:54:32 PM [vite] (client) page reload src/client/index.html
+5:54:32 PM [vite] (client) page reload src/client/index.html

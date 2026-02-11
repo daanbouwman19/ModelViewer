@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
-import { reactive, toRefs } from 'vue';
+import { reactive, toRefs, ref } from 'vue';
 import MediaDisplay from '@/components/MediaDisplay.vue';
 import { useLibraryStore } from '@/composables/useLibraryStore';
 import { usePlayerStore } from '@/composables/usePlayerStore';
@@ -97,6 +97,7 @@ vi.mock('@/api', () => ({
     getVideoStreamUrlGenerator: vi.fn(),
     getVideoMetadata: vi.fn(),
     setRating: vi.fn(),
+    getHlsUrl: vi.fn(),
   },
 }));
 // ...
@@ -167,6 +168,7 @@ describe('MediaDisplay.vue Additional Coverage', () => {
       (path: string) => `stream/${path}`,
     );
     (api.getVideoMetadata as Mock).mockResolvedValue({ duration: 100 });
+    (api.getHlsUrl as Mock).mockResolvedValue('/api/hls/master.m3u8');
   });
 
   describe('Slideshow Prefetching', () => {
@@ -239,8 +241,16 @@ describe('MediaDisplay.vue Additional Coverage', () => {
     });
 
     it('should handle handleMediaError when item is Image', async () => {
+      // Explicitly override the store return for this test to ensure reactivity/Set presence
+      const imageSet = new Set(['.jpg']);
+      (useLibraryStore as Mock).mockReturnValue({
+        state: mockLibraryState,
+        ...toRefs(mockLibraryState),
+        imageExtensionsSet: ref(imageSet),
+      });
+
       mockPlayerState.currentMediaItem = { name: 'img.jpg', path: 'img.jpg' };
-      mockLibraryState.imageExtensionsSet = new Set(['.jpg']);
+
       const wrapper = mount(MediaDisplay);
       await flushPromises();
 
