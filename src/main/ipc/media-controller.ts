@@ -115,7 +115,11 @@ export function registerMediaHandlers() {
         console.warn('FFmpeg not found, skipping metadata extraction');
         return;
       }
-      extractAndSaveMetadata(filePaths, ffmpegPath, {
+
+      // [SECURITY] Filter out unauthorized paths to prevent arbitrary file access
+      const allowedPaths = await filterAuthorizedPaths(filePaths);
+
+      extractAndSaveMetadata(allowedPaths, ffmpegPath, {
         forceCheck: true,
       }).catch((err) => console.error('State extraction failed', err));
     },
