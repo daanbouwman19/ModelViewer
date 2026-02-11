@@ -135,3 +135,7 @@
 
 **Learning:** Using `opacity: 0` for fading out controls leaves them interactive (keyboard & mouse), creating a confusing "invisible controls trap".
 **Action:** Use `v-show` with `<Transition>` or `inert` attribute to ensure hidden elements are removed from the accessibility tree and interaction layer.
+
+## 2026-02-11 - [Empty State Actions]
+**Learning:** When the sidebar is collapsible, empty states telling users to "Choose from the sidebar" become frustrating dead ends if the sidebar is hidden.
+**Action:** Empty states should always detect if the necessary UI controls (like a sidebar) are visible. If not, they must provide a direct action button to reveal them or perform the task directly.

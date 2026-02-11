@@ -70,7 +70,23 @@
           >
             <PlaylistIcon class="w-16 h-16 opacity-50" aria-hidden="true" />
             <p class="text-lg font-medium">Select an album to start playback</p>
-            <p class="text-sm">Choose from the sidebar to begin</p>
+            <button
+              v-if="!isSidebarVisible"
+              class="glass-button px-4 py-2 mt-2 flex items-center gap-2 text-sm font-medium text-indigo-300 hover:text-white transition-colors"
+              @click="isSidebarVisible = true"
+            >
+              <MenuIcon class="w-4 h-4" />
+              Open Library
+            </button>
+            <p v-else class="text-sm">Choose from the sidebar to begin</p>
+            <p class="text-xs mt-4 text-gray-600">
+              Press
+              <kbd
+                class="px-1 py-0.5 rounded bg-gray-800 border border-gray-700 font-mono text-gray-400"
+                >?</kbd
+              >
+              for shortcuts
+            </p>
           </div>
         </template>
       </div>
@@ -208,6 +224,7 @@ import { api } from '../api';
 import VlcIcon from './icons/VlcIcon.vue';
 import SpinnerIcon from './icons/SpinnerIcon.vue';
 import PlaylistIcon from './icons/PlaylistIcon.vue';
+import MenuIcon from './icons/MenuIcon.vue';
 import TranscodingStatus from './TranscodingStatus.vue';
 import MediaControls from './MediaControls.vue';
 import VRVideoPlayer from './VRVideoPlayer.vue'; // [NEW]
@@ -285,7 +302,7 @@ const isOpeningVlc = ref(false);
 const isMuted = ref(false);
 
 // Use global controls visibility state
-const { isControlsVisible, isSourcesModalVisible } = uiStore;
+const { isControlsVisible, isSourcesModalVisible, isSidebarVisible } = uiStore;
 
 const openSourcesModal = () => {
   isSourcesModalVisible.value = true;
