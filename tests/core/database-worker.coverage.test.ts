@@ -29,7 +29,7 @@ describe('database-worker coverage (exported functions)', () => {
     if (fs.existsSync(tempDbPath)) {
       try {
         fs.unlinkSync(tempDbPath);
-      } catch (e) {
+      } catch {
         // Ignore errors if file is locked (should not happen with proper closeDatabase)
       }
     }
