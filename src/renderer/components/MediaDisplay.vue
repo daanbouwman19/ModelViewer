@@ -75,7 +75,7 @@
               class="glass-button px-4 py-2 mt-2 flex items-center gap-2 text-sm font-medium text-indigo-300 hover:text-white transition-colors"
               @click="isSidebarVisible = true"
             >
-              <MenuIcon class="w-4 h-4" />
+              <MenuIcon class="w-4 h-4" aria-hidden="true" />
               Open Library
             </button>
             <p v-else class="text-sm">Choose from the sidebar to begin</p>
@@ -218,17 +218,17 @@
 import { ref, computed, watch, watchEffect, onMounted, onUnmounted } from 'vue';
 import { useLibraryStore } from '../composables/useLibraryStore';
 import { usePlayerStore } from '../composables/usePlayerStore';
-import { useUIStore } from '../composables/useUIStore';
 import { useSlideshow } from '../composables/useSlideshow';
+import { useUIStore } from '../composables/useUIStore';
 import { api } from '../api';
-import VlcIcon from './icons/VlcIcon.vue';
-import SpinnerIcon from './icons/SpinnerIcon.vue';
-import PlaylistIcon from './icons/PlaylistIcon.vue';
 import MenuIcon from './icons/MenuIcon.vue';
-import TranscodingStatus from './TranscodingStatus.vue';
+import PlaylistIcon from './icons/PlaylistIcon.vue';
+import SpinnerIcon from './icons/SpinnerIcon.vue';
+import VlcIcon from './icons/VlcIcon.vue';
 import MediaControls from './MediaControls.vue';
-import VRVideoPlayer from './VRVideoPlayer.vue'; // [NEW]
+import TranscodingStatus from './TranscodingStatus.vue';
 import VideoPlayer from './VideoPlayer.vue';
+import VRVideoPlayer from './VRVideoPlayer.vue'; // [NEW]
 import type { MediaFile } from '../../core/types';
 import { LEGACY_VIDEO_EXTENSIONS } from '../../core/constants';
 import { isMediaFileImage } from '../utils/mediaUtils';
