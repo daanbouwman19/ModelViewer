@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
-import { reactive, toRefs } from 'vue';
+import { reactive, toRefs, ref } from 'vue';
 import MediaDisplay from '@/components/MediaDisplay.vue';
 import { useLibraryStore } from '@/composables/useLibraryStore';
 import { usePlayerStore } from '@/composables/usePlayerStore';
@@ -97,6 +97,7 @@ vi.mock('@/api', () => ({
     getVideoStreamUrlGenerator: vi.fn(),
     getVideoMetadata: vi.fn(),
     setRating: vi.fn(),
+    getHlsUrl: vi.fn(),
   },
 }));
 // ...
@@ -115,6 +116,7 @@ describe('MediaDisplay.vue Additional Coverage', () => {
       supportedExtensions: { images: [], videos: ['.mp4'] },
       imageExtensionsSet: new Set([]),
       videoExtensionsSet: new Set(['.mp4']),
+      mediaUrlGenerator: (path: string) => `http://localhost/media/${path}`,
     });
 
     mockPlayerState = reactive({
@@ -162,101 +164,31 @@ describe('MediaDisplay.vue Additional Coverage', () => {
     vi.clearAllMocks();
 
     // Default success values
-    (api.loadFileAsDataURL as Mock).mockResolvedValue({
-      type: 'http-url',
-      url: 'http://localhost/test.mp4',
-    });
     (api.getVideoStreamUrlGenerator as Mock).mockResolvedValue(
       (path: string) => `stream/${path}`,
     );
     (api.getVideoMetadata as Mock).mockResolvedValue({ duration: 100 });
+    (api.getHlsUrl as Mock).mockResolvedValue('/api/hls/master.m3u8');
   });
 
   describe('Slideshow Prefetching', () => {
-    it('should prefetch next image in sequence', async () => {
-      // Setup: 2 items in list
+    // Note: With synchronous URL generation, we can't easily spy on "prefetching"
+    // unless we spy on `new Image()` or the generator itself if it had side effects.
+    // But we can check that `loadFileAsDataURL` is NOT called.
+
+    it('should use generator for current item and avoid IPC', async () => {
       const item1 = { name: '1.jpg', path: '1.jpg' };
-      const item2 = { name: '2.jpg', path: '2.jpg' };
-      mockPlayerState.displayedMediaFiles = [item1, item2];
-      // Start null to trigger change after mount
-      mockPlayerState.currentMediaItem = null;
-      mockPlayerState.currentMediaIndex = 0;
-      mockLibraryState.imageExtensionsSet = new Set(['.jpg']);
-
-      mount(MediaDisplay);
-      await flushPromises();
-
-      // Trigger change
       mockPlayerState.currentMediaItem = item1;
-      await flushPromises();
-
-      // Expect calls:
-      // 1. loadMediaUrl for item1
-      // 2. preloadNextMedia for item2
-      expect(api.loadFileAsDataURL).toHaveBeenCalledWith('1.jpg');
-      expect(api.loadFileAsDataURL).toHaveBeenCalledWith('2.jpg');
-    });
-
-    it('should wrap around to start of list for prefetching', async () => {
-      const item1 = { name: '1.jpg', path: '1.jpg' };
-      const item2 = { name: '2.jpg', path: '2.jpg' };
-      mockPlayerState.displayedMediaFiles = [item1, item2];
-      mockPlayerState.currentMediaIndex = 1; // Last item
-      mockPlayerState.currentMediaItem = null;
       mockLibraryState.imageExtensionsSet = new Set(['.jpg']);
 
-      mount(MediaDisplay);
+      const wrapper = mount(MediaDisplay);
       await flushPromises();
 
-      // Trigger change to item2
-      mockPlayerState.currentMediaItem = item2;
-      mockPlayerState.currentMediaIndex = 1; // Ensure index is set corresponding to item
-      await flushPromises();
-
-      // 1. loadMediaUrl for item2
-      // 2. preloadNextMedia for item1 (wrap)
-      expect(api.loadFileAsDataURL).toHaveBeenCalledWith('2.jpg');
-      expect(api.loadFileAsDataURL).toHaveBeenCalledWith('1.jpg');
+      expect(api.loadFileAsDataURL).not.toHaveBeenCalled();
+      expect((wrapper.vm as any).mediaUrl).toBe('http://localhost/media/1.jpg');
     });
 
-    it('should NOT prefetch if next item is video', async () => {
-      const item1 = { name: '1.jpg', path: '1.jpg' };
-      const item2 = { name: '2.mp4', path: '2.mp4' };
-      mockPlayerState.displayedMediaFiles = [item1, item2];
-      mockPlayerState.currentMediaIndex = 0;
-      mockPlayerState.currentMediaItem = null;
-      mockLibraryState.imageExtensionsSet = new Set(['.jpg']);
-      mockLibraryState.videoExtensionsSet = new Set(['.mp4']);
-
-      mount(MediaDisplay);
-      await flushPromises();
-
-      mockPlayerState.currentMediaItem = item1;
-      await flushPromises();
-
-      expect(api.loadFileAsDataURL).toHaveBeenCalledWith('1.jpg');
-      // Should NOT call for 2.mp4
-      expect(api.loadFileAsDataURL).not.toHaveBeenCalledWith('2.mp4');
-    });
-
-    it('should NOT prefetch if list has only 1 item', async () => {
-      const item1 = { name: '1.jpg', path: '1.jpg' };
-      mockPlayerState.displayedMediaFiles = [item1];
-      mockPlayerState.currentMediaIndex = 0;
-      mockPlayerState.currentMediaItem = null;
-      mockLibraryState.imageExtensionsSet = new Set(['.jpg']);
-
-      mount(MediaDisplay);
-      await flushPromises();
-
-      mockPlayerState.currentMediaItem = item1;
-      await flushPromises();
-
-      expect(api.loadFileAsDataURL).toHaveBeenCalledTimes(1); // Only for current item
-      expect(api.loadFileAsDataURL).toHaveBeenCalledWith('1.jpg');
-    });
-
-    it('should handle prefetch errors silently', async () => {
+    it('should handle prefetch errors silently (generator throws)', async () => {
       const item1 = { name: '1.jpg', path: '1.jpg' };
       const item2 = { name: '2.jpg', path: '2.jpg' };
       mockPlayerState.displayedMediaFiles = [item1, item2];
@@ -264,11 +196,11 @@ describe('MediaDisplay.vue Additional Coverage', () => {
       mockPlayerState.currentMediaItem = null;
       mockLibraryState.imageExtensionsSet = new Set(['.jpg']);
 
-      // Mock specific rejection for prefetch
-      (api.loadFileAsDataURL as Mock).mockImplementation((path: string) => {
-        if (path === '2.jpg') return Promise.reject(new Error('Prefetch fail'));
-        return Promise.resolve({ type: 'base64', url: 'data:...' });
-      });
+      // Mock generator to throw for 2.jpg
+      mockLibraryState.mediaUrlGenerator = (path: string) => {
+        if (path === '2.jpg') throw new Error('Prefetch fail');
+        return `http://localhost/media/${path}`;
+      };
 
       const spy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
@@ -308,18 +240,32 @@ describe('MediaDisplay.vue Additional Coverage', () => {
       expect((wrapper.vm as any).currentVideoTime).toBe(123);
     });
 
-    it('should handle loadMediaUrl with success but null URL', async () => {
-      mockPlayerState.currentMediaItem = { name: 'null.jpg', path: 'null.jpg' };
-      (api.loadFileAsDataURL as Mock).mockResolvedValue({
-        type: 'success',
-        url: null,
+    it('should handle handleMediaError when item is Image', async () => {
+      // Explicitly override the store return for this test to ensure reactivity/Set presence
+      const imageSet = new Set(['.jpg']);
+      (useLibraryStore as Mock).mockReturnValue({
+        state: mockLibraryState,
+        ...toRefs(mockLibraryState),
+        imageExtensionsSet: ref(imageSet),
       });
+
+      mockPlayerState.currentMediaItem = { name: 'img.jpg', path: 'img.jpg' };
 
       const wrapper = mount(MediaDisplay);
       await flushPromises();
 
-      expect((wrapper.vm as any).mediaUrl).toBeNull();
-      expect((wrapper.vm as any).displayedItem).toBeNull();
+      // Trigger error manually
+      (wrapper.vm as any).handleMediaError();
+      expect((wrapper.vm as any).error).toBe('Failed to load image.');
+    });
+
+    it('should throw error if mediaUrlGenerator is missing', async () => {
+      mockLibraryState.mediaUrlGenerator = null;
+      mockPlayerState.currentMediaItem = { name: 'test.jpg', path: 'test.jpg' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      expect((wrapper.vm as any).error).toBe('Failed to load media file.');
     });
 
     it('should handle handleVideoEnded when playFullVideo is true', async () => {

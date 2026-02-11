@@ -43,6 +43,7 @@ describe('MediaDisplay.vue Layout', () => {
     mockLibraryState = reactive({
       totalMediaInPool: 1,
       imageExtensionsSet: new Set(['.jpg']),
+      mediaUrlGenerator: (path: string) => `http://localhost/media/${path}`,
     });
 
     mockPlayerState = reactive({

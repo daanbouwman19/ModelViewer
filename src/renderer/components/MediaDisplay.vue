@@ -237,7 +237,8 @@ const libraryStore = useLibraryStore();
 const playerStore = usePlayerStore();
 const uiStore = useUIStore();
 
-const { imageExtensionsSet, mediaDirectories } = libraryStore;
+const { imageExtensionsSet, mediaDirectories, mediaUrlGenerator } =
+  libraryStore;
 
 const {
   currentMediaItem,
@@ -506,18 +507,18 @@ const loadMediaUrl = async () => {
   }
 
   try {
-    const result = await api.loadFileAsDataURL(currentMediaItem.value.path);
+    // Bolt Optimization: Use mediaUrlGenerator directly to avoid expensive IPC calls and base64 overhead.
+    // This allows the browser to handle streaming, caching, and range requests efficiently.
+    if (mediaUrlGenerator.value) {
+      const url = mediaUrlGenerator.value(currentMediaItem.value.path);
 
-    if (requestId !== currentLoadRequestId) return;
+      if (requestId !== currentLoadRequestId) return;
 
-    if (result.type === 'error') {
-      error.value = result.message || 'Unknown error';
-      mediaUrl.value = null;
-      displayedItem.value = null;
+      const itemToLoad = currentMediaItem.value;
+      mediaUrl.value = url;
+      displayedItem.value = itemToLoad;
     } else {
-      const itemToLoad = currentMediaItem.value; // Capture valid item
-      mediaUrl.value = result.url || null;
-      displayedItem.value = mediaUrl.value ? itemToLoad : null;
+      throw new Error('Media URL generator not ready');
     }
   } catch (err) {
     if (requestId !== currentLoadRequestId) return;
@@ -680,6 +681,11 @@ const handleGlobalKeydown = (event: KeyboardEvent) => {
  * Handles errors from the <img> or <video> elements.
  */
 const handleMediaError = () => {
+  if (isImage.value) {
+    error.value = 'Failed to load image.';
+    return;
+  }
+
   if (!isTranscodingMode.value) {
     console.log('Media playback error, attempting auto-transcode...');
     tryTranscoding(0); // Uses currentLoadRequestId implicitly
@@ -754,11 +760,11 @@ const preloadNextMedia = async () => {
   if (isMediaFileImage(nextItem, imageExtensionsSet.value)) {
     // 4. Preload
     try {
-      const result = await api.loadFileAsDataURL(nextItem.path);
-      if (result.type !== 'error' && result.url) {
-        // Create a hidden image to cache the resource
+      // Bolt Optimization: Use HTTP URL for preloading to leverage browser cache
+      if (mediaUrlGenerator.value) {
+        const url = mediaUrlGenerator.value(nextItem.path);
         const img = new Image();
-        img.src = result.url;
+        img.src = url;
       }
     } catch (e) {
       // Silently fail prefetching, it's an optimization only

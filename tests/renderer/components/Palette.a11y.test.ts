@@ -106,6 +106,7 @@ describe('Palette Accessibility Improvements', () => {
       allAlbums: [],
       albumsSelectedForSlideshow: {},
       globalMediaPoolForSelection: [],
+      mediaUrlGenerator: (p: string) => `http://localhost/media${p}`,
     });
 
     mockPlayerState = reactive({

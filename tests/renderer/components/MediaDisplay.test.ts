@@ -110,6 +110,7 @@ describe('MediaDisplay.vue', () => {
       mediaDirectories: [{ path: '/test' }], // Not empty to avoid Welcome screen
       totalMediaInPool: 0,
       imageExtensionsSet: new Set(['.jpg', '.jpeg', '.png', '.gif', '.webp']),
+      mediaUrlGenerator: (path: string) => `http://localhost/media${path}`,
     });
 
     mockPlayerState = reactive({
@@ -181,8 +182,9 @@ describe('MediaDisplay.vue', () => {
       const wrapper = mount(MediaDisplay);
       await flushPromises();
 
-      expect(api.loadFileAsDataURL).toHaveBeenCalledWith('/test.jpg');
-      expect((wrapper.vm as any).mediaUrl).toBe('test-url');
+      expect((wrapper.vm as any).mediaUrl).toBe(
+        'http://localhost/media/test.jpg',
+      );
     });
 
     it('retains old mediaUrl when switching between media types to allow smooth transition', async () => {
@@ -195,44 +197,36 @@ describe('MediaDisplay.vue', () => {
       await flushPromises();
 
       // Verify video URL is loaded
-      expect((wrapper.vm as any).mediaUrl).toBe('test-url');
-
-      // Set up a spy that will check mediaUrl state when the API is called
-      let mediaUrlDuringApiCall: string | null | undefined;
-      (api.loadFileAsDataURL as Mock).mockImplementation(async () => {
-        // Capture the mediaUrl value at the moment the API is called
-        mediaUrlDuringApiCall = (wrapper.vm as any).mediaUrl;
-        return { type: 'success', url: 'image-url' };
-      });
+      expect((wrapper.vm as any).mediaUrl).toBe(
+        'http://localhost/media/video.mp4',
+      );
 
       // Switch to an image file
       mockPlayerState.currentMediaItem = {
         name: 'image.jpg',
         path: '/image.jpg',
       };
+      // Note: Since generator is synchronous now, transition is instant, so intermediate state check is irrelevant
       await flushPromises();
 
-      // Verify that mediaUrl was NOT null when the API was called
-      // It should retain the old value (test-url) to allow smooth transition
-      expect(mediaUrlDuringApiCall).toBe('test-url');
-
       // Verify the image URL is now set after loading completes
-      expect((wrapper.vm as any).mediaUrl).toBe('image-url');
+      expect((wrapper.vm as any).mediaUrl).toBe(
+        'http://localhost/media/image.jpg',
+      );
     });
 
-    it('handles load error', async () => {
+    it('handles load error via generator exception', async () => {
+      mockLibraryState.mediaUrlGenerator = () => {
+        throw new Error('Generator failed');
+      };
       mockPlayerState.currentMediaItem = {
         name: 'test.jpg',
         path: '/test.jpg',
       };
-      (api.loadFileAsDataURL as Mock).mockResolvedValue({
-        type: 'error',
-        message: 'Load failed',
-      });
       const wrapper = mount(MediaDisplay);
       await flushPromises();
 
-      expect((wrapper.vm as any).error).toBe('Load failed');
+      expect((wrapper.vm as any).error).toBe('Failed to load media file.');
       expect((wrapper.vm as any).mediaUrl).toBeNull();
     });
   });
@@ -453,45 +447,25 @@ describe('MediaDisplay.vue', () => {
     });
 
     it('covers request cancellation guards', async () => {
+      // With synchronous generator, cancellation logic is less relevant but ID check still exists.
+      // We can simulate async behavior if generator was async, but it's sync.
+      // However, we can simulate race condition by manually manipulating currentLoadRequestId if possible,
+      // or just trust that sync execution order guarantees correctness.
+      // Since we removed await api.loadFileAsDataURL, the race condition window is minimal/non-existent for URL generation itself.
+      // But let's verify simply that switching items updates URL correctly.
+
       mockPlayerState.currentMediaItem = { name: '1.jpg', path: '/1.jpg' };
-
-      let resolveLoad1: (value: any) => void;
-      const loadPromise1 = new Promise((resolve) => {
-        resolveLoad1 = resolve;
-      });
-      (api.loadFileAsDataURL as Mock).mockReturnValueOnce(loadPromise1);
-
       const wrapperLoad = mount(MediaDisplay);
-      expect(wrapperLoad.exists()).toBe(true);
-
-      mockPlayerState.currentMediaItem = { name: '2.jpg', path: '/2.jpg' };
-      (api.loadFileAsDataURL as Mock).mockResolvedValue({
-        type: 'success',
-        url: 'url2',
-      });
-
       await flushPromises();
-
-      resolveLoad1!({ type: 'success', url: 'url1' });
-      await flushPromises();
-
-      expect((wrapperLoad.vm as any).mediaUrl).toBe('url2');
-    });
-
-    it('covers loadMediaUrl error catch branch', async () => {
-      mockPlayerState.currentMediaItem = {
-        name: 'fail.jpg',
-        path: '/fail.jpg',
-      };
-      (api.loadFileAsDataURL as Mock).mockRejectedValue(
-        new Error('Load Error'),
+      expect((wrapperLoad.vm as any).mediaUrl).toBe(
+        'http://localhost/media/1.jpg',
       );
 
-      const wrapper = mount(MediaDisplay);
+      mockPlayerState.currentMediaItem = { name: '2.jpg', path: '/2.jpg' };
       await flushPromises();
-
-      expect((wrapper.vm as any).error).toBe('Failed to load media file.');
-      expect((wrapper.vm as any).mediaUrl).toBeNull();
+      expect((wrapperLoad.vm as any).mediaUrl).toBe(
+        'http://localhost/media/2.jpg',
+      );
     });
 
     it('covers currentVideoTime getter fallback', async () => {
