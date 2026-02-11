@@ -96,6 +96,12 @@
 
 ## 2026-02-10 - Extracting Access Validation Helper
 
-**Smell:** \`media-handler.ts\` contained a recurring block of boilerplate code (6 lines repeated 5 times) for validating file access and sending error responses.
-**Insight:** Encapsulating the "validate or error" pattern into a helper function (\`validateAndAuthorize\`) significantly reduces noise in controller methods and ensures consistent error handling (e.g., checking \`res.headersSent\`).
+**Smell:** `media-handler.ts` contained a recurring block of boilerplate code (6 lines repeated 5 times) for validating file access and sending error responses.
+**Insight:** Encapsulating the "validate or error" pattern into a helper function (`validateAndAuthorize`) significantly reduces noise in controller methods and ensures consistent error handling (e.g., checking `res.headersSent`).
 **Prevention:** When you see the same 3+ lines of error checking/handling boilerplate in multiple controller methods, extract it into a helper that returns the valid data or handles the response.
+
+## 2026-02-12 - Extracting Security Constants
+
+**Smell:** `security.ts` contained hardcoded lists of sensitive file prefixes and SSH key names mixed within validation logic.
+**Insight:** Embedding configuration data (what files are sensitive) inside logic functions makes it harder to audit security rules and increases the risk of accidental modification during refactoring.
+**Prevention:** Move static configuration lists (like blocklists, allowlists, or thresholds) to `constants.ts` or a dedicated config file, keeping the logic functions pure and focused on behavior.

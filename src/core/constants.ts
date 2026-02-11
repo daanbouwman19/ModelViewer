@@ -161,6 +161,55 @@ const SENSITIVE_SUBDIRECTORIES = new Set([
 ]);
 
 /**
+ * List of SSH key prefixes to block.
+ * Blocks variations like id_rsa, id_rsa.old, etc., but allows .pub files.
+ */
+const SSH_KEY_PREFIXES = [
+  'id_rsa',
+  'id_dsa',
+  'id_ecdsa',
+  'id_ed25519',
+] as const;
+
+/**
+ * List of file prefixes that should be considered sensitive.
+ * This includes configuration files, lock files, and environment files.
+ */
+const SENSITIVE_FILE_PREFIXES = [
+  // Server Certs
+  'server.key',
+  'server.crt',
+  'server.cert',
+  // Docker
+  'dockerfile',
+  'docker-compose',
+  // Package Managers
+  'package.json',
+  'package-lock.json',
+  'yarn.lock',
+  'pnpm-lock.yaml',
+  'bun.lockb',
+  '.npmrc',
+  // Env & Auth
+  '.env',
+  '.htpasswd',
+  '.netrc',
+  // Shell History & Config
+  '.bash_history',
+  '.zsh_history',
+  '.sh_history',
+  '.bashrc',
+  '.zshrc',
+  '.profile',
+  '.bash_profile',
+  // System
+  'autorun.inf',
+  'boot.ini',
+  'bootmgr',
+  'ntuser.dat',
+] as const;
+
+/**
  * Windows-specific restricted system paths.
  */
 const WINDOWS_RESTRICTED_ROOT_PATHS = [
@@ -300,6 +349,8 @@ export {
   LEGACY_VIDEO_EXTENSIONS,
   MEDIA_FILTERS,
   SENSITIVE_SUBDIRECTORIES,
+  SSH_KEY_PREFIXES,
+  SENSITIVE_FILE_PREFIXES,
   WINDOWS_RESTRICTED_ROOT_PATHS,
   DISK_SCAN_CONCURRENCY,
   METADATA_EXTRACTION_CONCURRENCY,
