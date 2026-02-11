@@ -36,14 +36,8 @@ describe('MediaDisplay Race Condition', () => {
   let mockPlayerState: any;
   let mockUIState: any;
 
-  // Helper to control promise resolution
-  let loadMediaReject: ((err: any) => void) | null = null;
-
   beforeEach(() => {
     vi.clearAllMocks();
-
-    // Reset promise controllers
-    loadMediaReject = null;
 
     mockLibraryState = reactive({
       mediaDirectories: [{ path: '/test' }], // Not empty to avoid Welcome screen
@@ -102,14 +96,6 @@ describe('MediaDisplay Race Condition', () => {
     vi.mocked(api.getVideoStreamUrlGenerator).mockResolvedValue(
       (path: string) => `http://localhost/stream/${encodeURIComponent(path)}`,
     );
-
-    // Mock loadFileAsDataURL to be controllable
-    vi.mocked(api.loadFileAsDataURL).mockImplementation(() => {
-      return new Promise((_resolve, reject) => {
-        // We only care about controlling rejection in this test suite
-        loadMediaReject = reject;
-      });
-    });
 
     // Ensure mediaUrlGenerator is available
     mockLibraryState.mediaUrlGenerator = (path: string) =>

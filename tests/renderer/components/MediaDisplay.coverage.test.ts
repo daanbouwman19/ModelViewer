@@ -238,6 +238,26 @@ describe('MediaDisplay.vue Additional Coverage', () => {
       expect((wrapper.vm as any).currentVideoTime).toBe(123);
     });
 
+    it('should handle handleMediaError when item is Image', async () => {
+      mockPlayerState.currentMediaItem = { name: 'img.jpg', path: 'img.jpg' };
+      mockLibraryState.imageExtensionsSet = new Set(['.jpg']);
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      // Trigger error manually
+      (wrapper.vm as any).handleMediaError();
+      expect((wrapper.vm as any).error).toBe('Failed to load image.');
+    });
+
+    it('should throw error if mediaUrlGenerator is missing', async () => {
+      mockLibraryState.mediaUrlGenerator = null;
+      mockPlayerState.currentMediaItem = { name: 'test.jpg', path: 'test.jpg' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      expect((wrapper.vm as any).error).toBe('Failed to load media file.');
+    });
+
     it('should handle handleVideoEnded when playFullVideo is true', async () => {
       const { navigateMedia } = useSlideshow();
       const wrapper = mount(MediaDisplay);

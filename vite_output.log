@@ -26,3 +26,7 @@ Error: connect ECONNREFUSED 127.0.0.1:3000
 5:05:24 PM [vite] (client) hmr update /src/renderer/assets/main.css?direct, /src/renderer/assets/main.css
 5:06:23 PM [vite] (client) page reload src/client/index.html
 5:06:23 PM [vite] (client) page reload src/client/index.html
+5:14:13 PM [vite] (client) hmr update /src/renderer/assets/main.css?direct, /src/renderer/assets/main.css
+5:14:45 PM [vite] (client) hmr update /src/renderer/assets/main.css?direct, /src/renderer/assets/main.css
+5:15:50 PM [vite] (client) page reload src/client/index.html
+5:15:50 PM [vite] (client) page reload src/client/index.html
