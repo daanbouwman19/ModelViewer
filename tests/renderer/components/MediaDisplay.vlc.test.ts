@@ -70,6 +70,7 @@ describe('MediaDisplay.vue - VLC Integration', () => {
       state: {},
       imageExtensionsSet: ref(new Set(['.jpg'])),
       mediaDirectories: ref([{ path: '/test' }]),
+      mediaUrlGenerator: ref((p: string) => `http://localhost/media${p}`),
     });
 
     (usePlayerStore as Mock).mockReturnValue({

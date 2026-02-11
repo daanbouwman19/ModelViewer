@@ -111,6 +111,10 @@ describe('MediaDisplay Race Condition', () => {
       });
     });
 
+    // Ensure mediaUrlGenerator is available
+    mockLibraryState.mediaUrlGenerator = (path: string) =>
+      `http://localhost/media/${path}`;
+
     // Mock getVideoMetadata to be controllable
     vi.mocked(api.getVideoMetadata).mockImplementation(() => {
       return new Promise((resolve) => {
@@ -123,70 +127,8 @@ describe('MediaDisplay Race Condition', () => {
     vi.restoreAllMocks();
   });
 
-  it('correctly handles race condition: loading persists for new item despite old item error', async () => {
-    const wrapper = mount(MediaDisplay, {
-      global: {
-        stubs: {
-          teleport: true,
-        },
-      },
-    });
-
-    // Explicitly cast vm to any to access internal state for testing
-    const vm = wrapper.vm as any;
-
-    // 1. Start loading Item A
-    mockPlayerState.currentMediaItem = {
-      name: 'videoA.mp4',
-      path: '/path/to/videoA.mp4',
-      type: 'video',
-    };
-    await wrapper.vm.$nextTick();
-    expect(vm.isLoading).toBe(true);
-
-    // Capture resolve/reject for Item A
-    const rejectItemA = loadMediaReject;
-
-    // 2. Simulate rapid navigation to Item B
-    mockPlayerState.currentMediaItem = {
-      name: 'videoB.mp4',
-      path: '/path/to/videoB.mp4',
-      type: 'video',
-    };
-    await wrapper.vm.$nextTick();
-    expect(vm.isLoading).toBe(true);
-
-    // 3. Fail Item A
-    if (rejectItemA) {
-      rejectItemA(new Error('Network Error'));
-    }
-
-    await flushPromises();
-
-    // ASSERTION:
-    // With the fix:
-    // - isLoading should remain TRUE (because Item B is still loading)
-    // - error should be NULL (because Item A's error is ignored)
-
-    expect(vm.isLoading).toBe(true);
-    expect(vm.error).toBeNull();
-
-    // Check for "Loading..." indicator (TranscodingStatus handles this)
-    // Since we mocked TranscodingStatus in previous tests, but here we don't seem to mock it explicitly in `vi.mock` factory, it should use the real one or a default stub.
-    // Wait, TranscodingStatus IS NOT mocked here. So it renders.
-    // TranscodingStatus props: isLoading
-    // If isLoading is true, it should show Loading...
-    // Let's check wrapper text.
-    // Note: TranscodingStatus might use `is-loading` prop.
-
-    // Actually TranscodingStatus is imported in MediaDisplay.vue.
-    // If not mocked, it is rendered.
-    // Let's check what TranscodingStatus renders when isLoading is true.
-    // It usually renders "Loading media...".
-
-    expect(wrapper.text()).toContain('Loading media...');
-    expect(wrapper.text()).not.toContain('Failed to load media file.');
-  });
+  // Test removed: With synchronous mediaUrlGenerator, race conditions in URL resolution are impossible.
+  // The original test simulated a slow/failing loadFileAsDataURL which is no longer used.
 
   it('correctly handles overlapping states: Transcoding text replaces Loading text', async () => {
     const wrapper = mount(MediaDisplay, {

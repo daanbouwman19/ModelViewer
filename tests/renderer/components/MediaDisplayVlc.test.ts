@@ -54,6 +54,7 @@ describe('MediaDisplay.vue', () => {
       },
       imageExtensionsSet: new Set(['.jpg', '.png', '.gif']),
       videoExtensionsSet: new Set(['.mp4', '.webm']),
+      mediaUrlGenerator: (p: string) => `http://localhost/media${p}`,
     });
 
     mockPlayerState = reactive({
