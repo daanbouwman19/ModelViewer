@@ -6,6 +6,8 @@ import { isDrivePath } from './media-utils.ts';
 import { ConcurrencyLimiter } from './utils/concurrency-limiter.ts';
 import {
   SENSITIVE_SUBDIRECTORIES,
+  SSH_KEY_PREFIXES,
+  SENSITIVE_FILE_PREFIXES,
   WINDOWS_RESTRICTED_ROOT_PATHS,
   MAX_PATH_LENGTH,
   DISK_SCAN_CONCURRENCY,
@@ -447,48 +449,16 @@ export function isSensitiveFilename(filename: string): boolean {
   // [SECURITY] Block sensitive file variations (e.g. backups, old versions)
 
   // 1. SSH Private Keys (block variations unless public key)
-  const sshKeys = ['id_rsa', 'id_dsa', 'id_ecdsa', 'id_ed25519'];
-  if (sshKeys.some((k) => lower.startsWith(k)) && !lower.endsWith('.pub')) {
+  if (
+    SSH_KEY_PREFIXES.some((k) => lower.startsWith(k)) &&
+    !lower.endsWith('.pub')
+  ) {
     return true;
   }
 
   // 2. Generic Sensitive Prefixes (block all variations)
   // This covers configs, credentials, history files, etc.
-  const sensitivePrefixes = [
-    // Server Certs
-    'server.key',
-    'server.crt',
-    'server.cert',
-    // Docker
-    'dockerfile',
-    'docker-compose',
-    // Package Managers
-    'package.json',
-    'package-lock.json',
-    'yarn.lock',
-    'pnpm-lock.yaml',
-    'bun.lockb',
-    '.npmrc',
-    // Env & Auth
-    '.env',
-    '.htpasswd',
-    '.netrc',
-    // Shell History & Config
-    '.bash_history',
-    '.zsh_history',
-    '.sh_history',
-    '.bashrc',
-    '.zshrc',
-    '.profile',
-    '.bash_profile',
-    // System
-    'autorun.inf',
-    'boot.ini',
-    'bootmgr',
-    'ntuser.dat',
-  ];
-
-  if (sensitivePrefixes.some((p) => lower.startsWith(p))) {
+  if (SENSITIVE_FILE_PREFIXES.some((p) => lower.startsWith(p))) {
     return true;
   }
 
