@@ -24,6 +24,7 @@ vi.mock('@/api', () => ({
 const mockLibraryStore = {
   imageExtensionsSet: { value: new Set(['.jpg']) },
   mediaDirectories: { value: [] },
+  mediaUrlGenerator: { value: (p: string) => `http://localhost/media/${p}` },
 };
 
 const mockPlayerStore = {

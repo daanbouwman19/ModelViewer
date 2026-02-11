@@ -182,7 +182,9 @@ describe('MediaDisplay.vue', () => {
       const wrapper = mount(MediaDisplay);
       await flushPromises();
 
-      expect((wrapper.vm as any).mediaUrl).toBe('http://localhost/media/test.jpg');
+      expect((wrapper.vm as any).mediaUrl).toBe(
+        'http://localhost/media/test.jpg',
+      );
     });
 
     it('retains old mediaUrl when switching between media types to allow smooth transition', async () => {
@@ -195,7 +197,9 @@ describe('MediaDisplay.vue', () => {
       await flushPromises();
 
       // Verify video URL is loaded
-      expect((wrapper.vm as any).mediaUrl).toBe('http://localhost/media/video.mp4');
+      expect((wrapper.vm as any).mediaUrl).toBe(
+        'http://localhost/media/video.mp4',
+      );
 
       // Switch to an image file
       mockPlayerState.currentMediaItem = {
@@ -206,11 +210,15 @@ describe('MediaDisplay.vue', () => {
       await flushPromises();
 
       // Verify the image URL is now set after loading completes
-      expect((wrapper.vm as any).mediaUrl).toBe('http://localhost/media/image.jpg');
+      expect((wrapper.vm as any).mediaUrl).toBe(
+        'http://localhost/media/image.jpg',
+      );
     });
 
     it('handles load error via generator exception', async () => {
-      mockLibraryState.mediaUrlGenerator = () => { throw new Error('Generator failed'); };
+      mockLibraryState.mediaUrlGenerator = () => {
+        throw new Error('Generator failed');
+      };
       mockPlayerState.currentMediaItem = {
         name: 'test.jpg',
         path: '/test.jpg',
@@ -449,11 +457,15 @@ describe('MediaDisplay.vue', () => {
       mockPlayerState.currentMediaItem = { name: '1.jpg', path: '/1.jpg' };
       const wrapperLoad = mount(MediaDisplay);
       await flushPromises();
-      expect((wrapperLoad.vm as any).mediaUrl).toBe('http://localhost/media/1.jpg');
+      expect((wrapperLoad.vm as any).mediaUrl).toBe(
+        'http://localhost/media/1.jpg',
+      );
 
       mockPlayerState.currentMediaItem = { name: '2.jpg', path: '/2.jpg' };
       await flushPromises();
-      expect((wrapperLoad.vm as any).mediaUrl).toBe('http://localhost/media/2.jpg');
+      expect((wrapperLoad.vm as any).mediaUrl).toBe(
+        'http://localhost/media/2.jpg',
+      );
     });
 
     it('covers currentVideoTime getter fallback', async () => {

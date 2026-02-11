@@ -220,7 +220,8 @@ const libraryStore = useLibraryStore();
 const playerStore = usePlayerStore();
 const uiStore = useUIStore();
 
-const { imageExtensionsSet, mediaDirectories, mediaUrlGenerator } = libraryStore;
+const { imageExtensionsSet, mediaDirectories, mediaUrlGenerator } =
+  libraryStore;
 
 const {
   currentMediaItem,
