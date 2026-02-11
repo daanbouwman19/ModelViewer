@@ -158,7 +158,7 @@ describe('database-worker coverage (exported functions)', () => {
     // Verify that the fallback mechanism was triggered (warning logged)
     expect(consoleSpy).toHaveBeenCalledWith(
       expect.stringContaining('Failed to query existing file IDs'),
-      expect.anything()
+      expect.anything(),
     );
   });
 });
