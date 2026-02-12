@@ -92,14 +92,13 @@ describe('auth-controller', () => {
 
       expect(startAuthServer).toHaveBeenCalled();
       // The error logging happens in the catch block.
-      // To ensure it ran, we might need to wait multiple ticks or use fake timers?
-      // But since startAuthServer is mocked to reject immediately, the catch chain should happen.
-      await new Promise((r) => setTimeout(r, 10)); // tiny wait
-
-      expect(consoleSpy).toHaveBeenCalledWith(
-        'Failed to start auth server',
-        expect.any(Error),
-      );
+      // Use waitFor to ensure we wait for the microtask/async operation to complete
+      await vi.waitFor(() => {
+        expect(consoleSpy).toHaveBeenCalledWith(
+          'Failed to start auth server',
+          expect.any(Error),
+        );
+      });
       consoleSpy.mockRestore();
     });
   });
