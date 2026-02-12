@@ -98,6 +98,18 @@ export class MediaHandler {
 export { validateFileAccess };
 
 /**
+ * Helper: Sends an error response for failed file access validation.
+ */
+function sendAccessError(
+  res: Response,
+  access: { error: string; statusCode: number },
+) {
+  if (!res.headersSent) {
+    res.status(access.statusCode).send(access.error);
+  }
+}
+
+/**
  * Helper: Attempts to serve a local file directly using Express's sendFile.
  * Returns true if the file was sent (or at least attempted without immediate error),
  * false if we should fall back to manual streaming.
@@ -163,7 +175,7 @@ export async function handleStreamRequest(
     // 1. Authorization Check
     const access = await validateFileAccess(filePath);
     if (!access.success) {
-      if (!res.headersSent) res.status(access.statusCode).send(access.error);
+      sendAccessError(res, access);
       return;
     }
     const authorizedPath = access.path;
@@ -238,7 +250,7 @@ export async function serveMetadata(
 ) {
   const access = await validateFileAccess(filePath);
   if (!access.success) {
-    if (!res.headersSent) res.status(access.statusCode).send(access.error);
+    sendAccessError(res, access);
     return;
   }
   const authorizedPath = access.path;
@@ -346,7 +358,7 @@ export async function serveHeatmap(
 ) {
   const access = await validateFileAccess(filePath);
   if (!access.success) {
-    if (!res.headersSent) res.status(access.statusCode).send(access.error);
+    sendAccessError(res, access);
     return;
   }
   const authorizedPath = access.path;
@@ -375,7 +387,7 @@ export async function serveHeatmapProgress(
   // Authorization check is lightweight here, but good practice
   const access = await validateFileAccess(filePath);
   if (!access.success) {
-    if (!res.headersSent) res.status(access.statusCode).send(access.error);
+    sendAccessError(res, access);
     return;
   }
   const authorizedPath = access.path;
@@ -406,11 +418,11 @@ export async function serveStaticFile(
   try {
     const access = await validateFileAccess(filePath);
     if (!access.success) {
-      if (!res.headersSent) res.status(access.statusCode).send(access.error);
+      sendAccessError(res, access);
       return;
     }
-
     const authorizedPath = access.path;
+
     // If local file, use res.sendFile for optimizing range/seeking
     if (!isDrivePath(authorizedPath)) {
       // [SECURITY] Explicitly re-validate/sanitize local path to prevent traversal
