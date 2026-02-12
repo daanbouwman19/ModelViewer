@@ -18,7 +18,9 @@ vi.mock('../../src/main/google-drive-service', () => ({
 // Mock WorkerFactory to avoid electron import check
 vi.mock('../../src/core/worker-factory', () => ({
   WorkerFactory: {
-    getWorkerPath: vi.fn().mockResolvedValue({ path: '/mock/worker.js', options: {} }),
+    getWorkerPath: vi
+      .fn()
+      .mockResolvedValue({ path: '/mock/worker.js', options: {} }),
   },
 }));
 
