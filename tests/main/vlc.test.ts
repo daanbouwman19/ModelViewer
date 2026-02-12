@@ -238,7 +238,7 @@ describe('Main Process IPC - open-in-vlc', () => {
     expect(result.success).toBe(true);
     expect(mocks.mockSpawn).toHaveBeenCalledWith(
       'vlc',
-      ['/home/user/video.mp4'],
+      ['--', '/home/user/video.mp4'],
       expect.anything(),
     );
   });
@@ -259,7 +259,7 @@ describe('Main Process IPC - open-in-vlc', () => {
     expect(result.success).toBe(true);
     expect(mocks.mockSpawn).toHaveBeenCalledWith(
       '/Applications/VLC.app/Contents/MacOS/VLC',
-      ['/Users/video.mp4'],
+      ['--', '/Users/video.mp4'],
       expect.anything(),
     );
   });
@@ -276,7 +276,7 @@ describe('Main Process IPC - open-in-vlc', () => {
     expect(result.success).toBe(true);
     expect(mocks.mockSpawn).toHaveBeenCalledWith(
       'vlc',
-      ['/Users/video.mp4'],
+      ['--', '/Users/video.mp4'],
       expect.anything(),
     );
   });
