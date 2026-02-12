@@ -157,6 +157,7 @@ describe('Main Process IPC - open-in-vlc', () => {
   const originalPlatform = process.platform;
 
   beforeEach(async () => {
+    vi.useFakeTimers();
     vi.clearAllMocks();
 
     // Default mocks
@@ -185,6 +186,7 @@ describe('Main Process IPC - open-in-vlc', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     Object.defineProperty(process, 'platform', {
       value: originalPlatform,
     });
@@ -217,10 +219,10 @@ describe('Main Process IPC - open-in-vlc', () => {
     const mockChild = { unref: vi.fn(), on: vi.fn() };
     mocks.mockSpawn.mockReturnValue(mockChild);
 
-    const result = await openInVlcHandler({}, 'C:\\video.mp4');
+    const promise = openInVlcHandler({}, 'C:\\video.mp4');
+    await vi.runAllTimersAsync();
+    const result = await promise;
 
-    expect(result.data.success).toBe(true);
-    expect(result.data.success).toBe(true);
     expect(result.data.success).toBe(true);
     expect(mocks.mockSpawn).toHaveBeenCalled();
     expect(mockChild.unref).toHaveBeenCalled();
@@ -232,7 +234,9 @@ describe('Main Process IPC - open-in-vlc', () => {
     const mockChild = { unref: vi.fn(), on: vi.fn() };
     mocks.mockSpawn.mockReturnValue(mockChild);
 
-    const result = await openInVlcHandler({}, '/home/user/video.mp4');
+    const promise = openInVlcHandler({}, '/home/user/video.mp4');
+    await vi.runAllTimersAsync();
+    const result = await promise;
 
     expect(result.success).toBe(true);
     expect(mocks.mockSpawn).toHaveBeenCalledWith(
@@ -253,7 +257,9 @@ describe('Main Process IPC - open-in-vlc', () => {
     const mockChild = { unref: vi.fn(), on: vi.fn() };
     mocks.mockSpawn.mockReturnValue(mockChild);
 
-    const result = await openInVlcHandler({}, '/Users/video.mp4');
+    const promise = openInVlcHandler({}, '/Users/video.mp4');
+    await vi.runAllTimersAsync();
+    const result = await promise;
 
     expect(result.success).toBe(true);
     expect(mocks.mockSpawn).toHaveBeenCalledWith(
@@ -270,7 +276,9 @@ describe('Main Process IPC - open-in-vlc', () => {
     const mockChild = { unref: vi.fn(), on: vi.fn() };
     mocks.mockSpawn.mockReturnValue(mockChild);
 
-    const result = await openInVlcHandler({}, '/Users/video.mp4');
+    const promise = openInVlcHandler({}, '/Users/video.mp4');
+    await vi.runAllTimersAsync();
+    const result = await promise;
 
     expect(result.success).toBe(true);
     expect(mocks.mockSpawn).toHaveBeenCalledWith(
@@ -287,7 +295,10 @@ describe('Main Process IPC - open-in-vlc', () => {
     const mockChild = { unref: vi.fn(), on: mockOn };
     mocks.mockSpawn.mockReturnValue(mockChild);
 
-    await openInVlcHandler({}, '/home/user/video.mp4');
+    const promise = openInVlcHandler({}, '/home/user/video.mp4');
+    await vi.runAllTimersAsync();
+    await vi.runAllTimersAsync();
+    await promise;
 
     expect(mockOn).toHaveBeenCalledWith('error', expect.any(Function));
   });

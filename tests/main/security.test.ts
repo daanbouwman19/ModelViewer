@@ -82,6 +82,10 @@ vi.mock('../../src/core/media-service', () => ({
   getAlbumsWithViewCounts: vi.fn(),
 }));
 
+vi.mock('ffmpeg-static', () => ({
+  default: '/mock/ffmpeg/path',
+}));
+
 describe('Security: load-file-as-data-url', () => {
   let handler: (event: any, ...args: any[]) => any;
 
