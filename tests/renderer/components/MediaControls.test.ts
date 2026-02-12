@@ -1,6 +1,15 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest';
 import { mount } from '@vue/test-utils';
 import MediaControls from '@/components/MediaControls.vue';
+import { api } from '@/api';
+
+vi.mock('@/api', () => ({
+  api: {
+    getHeatmapProgress: vi.fn(),
+    getHeatmap: vi.fn(),
+    getMetadata: vi.fn(),
+  },
+}));
 
 // Mock ResizeObserver
 const disconnectMock = vi.fn();
@@ -206,5 +215,27 @@ describe('MediaControls.vue', () => {
       expect(stars[1].attributes('title')).toBe('Rate 2 stars');
       expect(stars[4].attributes('title')).toBe('Rate 5 stars');
     }
+  });
+
+  it('should have accessible attributes on heatmap loading indicator', async () => {
+    vi.useFakeTimers();
+
+    // Mock getHeatmap to hang so isHeatmapLoading stays true
+    vi.mocked(api.getHeatmap).mockReturnValue(new Promise(() => {}));
+
+    const wrapper = mount(MediaControls, { props: defaultProps });
+
+    // Trigger the watcher (fetchHeatmap is called immediately)
+    // Advance time past the 1000ms debounce
+    await vi.advanceTimersByTimeAsync(1100);
+    await wrapper.vm.$nextTick();
+
+    const indicator = wrapper.find('[role="status"]');
+    expect(indicator.exists()).toBe(true);
+    expect(indicator.attributes('aria-live')).toBe('polite');
+    expect(indicator.attributes('aria-atomic')).toBe('true');
+    expect(indicator.text()).toContain('Analyzing Scene...');
+
+    vi.useRealTimers();
   });
 });
