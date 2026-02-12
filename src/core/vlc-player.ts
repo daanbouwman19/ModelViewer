@@ -42,7 +42,8 @@ export async function openMediaInVlc(
 
   return new Promise((resolve) => {
     try {
-      const child = spawn(vlcPath, [fileArg], {
+      // Use '--' to stop option parsing, preventing argument injection from filenames starting with '-'
+      const child = spawn(vlcPath, ['--', fileArg], {
         detached: true,
         stdio: 'ignore',
       });

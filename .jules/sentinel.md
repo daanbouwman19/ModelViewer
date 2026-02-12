@@ -119,3 +119,9 @@
 **Vulnerability:** The `MEDIA_EXTRACT_METADATA` IPC handler accepted an array of file paths and passed them directly to `extractAndSaveMetadata` without validation. This allowed an attacker (renderer process) to probe for file existence and extract metadata (duration) of any file on the system, bypassing the allowed media directories restriction.
 **Learning:** In Electron apps, IPC handlers are the security boundary. Services often assume trusted input. Explicit validation must happen at the IPC layer.
 **Prevention:** Always apply `filterAuthorizedPaths` (for arrays) or `validatePathAccess` (for single paths) in every IPC handler that accepts file paths.
+
+## 2026-02-13 - Argument Injection in VLC Player
+
+**Vulnerability:** The `openMediaInVlc` function passed the user-controlled file path directly to `child_process.spawn`. If a user (or attacker) named a file with a leading dash (e.g., `--plugin-path=...`), VLC could interpret it as a command-line option, potentially leading to arbitrary plugin loading or other unintended behavior (Argument Injection).
+**Learning:** When spawning external processes with user-controlled arguments, relying on array-based `spawn` is not enough if the target program parses flags indiscriminately. Using the standard end-of-options delimiter `--` is critical to ensure subsequent arguments are treated as positional arguments (filenames) rather than flags.
+**Prevention:** Updated `src/core/vlc-player.ts` to prepend `--` to the argument list passed to `spawn` (e.g., `vlc -- <filename>`).
