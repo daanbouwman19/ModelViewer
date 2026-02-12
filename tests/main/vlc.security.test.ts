@@ -86,9 +86,8 @@ describe('Security: open-in-vlc', () => {
 
   const setupHandler = async () => {
     // Import system-controller to register the handlers
-    const { registerSystemHandlers } = await import(
-      '../../src/main/ipc/system-controller'
-    );
+    const { registerSystemHandlers } =
+      await import('../../src/main/ipc/system-controller');
     registerSystemHandlers();
 
     const handleMock = ipcMain.handle as unknown as Mock;

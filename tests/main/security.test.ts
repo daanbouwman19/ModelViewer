@@ -91,9 +91,8 @@ describe('Security: load-file-as-data-url', () => {
 
   const setupHandler = async () => {
     // Import media-controller to register the handlers
-    const { registerMediaHandlers } = await import(
-      '../../src/main/ipc/media-controller'
-    );
+    const { registerMediaHandlers } =
+      await import('../../src/main/ipc/media-controller');
     registerMediaHandlers();
 
     // Find the handler for 'load-file-as-data-url'

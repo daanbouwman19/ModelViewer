@@ -98,12 +98,10 @@ describe('main.js IPC Security', () => {
     });
 
     // Import controllers to register the handlers
-    const { registerMediaHandlers } = await import(
-      '../../src/main/ipc/media-controller'
-    );
-    const { registerDatabaseHandlers } = await import(
-      '../../src/main/ipc/database-controller'
-    );
+    const { registerMediaHandlers } =
+      await import('../../src/main/ipc/media-controller');
+    const { registerDatabaseHandlers } =
+      await import('../../src/main/ipc/database-controller');
 
     registerMediaHandlers();
     registerDatabaseHandlers();
