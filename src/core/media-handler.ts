@@ -98,21 +98,15 @@ export class MediaHandler {
 export { validateFileAccess };
 
 /**
- * Helper: Validates file access and sends error response if needed.
- * Returns the authorized path on success, or null on failure.
+ * Helper: Sends an error response for failed file access validation.
  */
-async function validateAndAuthorize(
+function sendAccessError(
   res: Response,
-  filePath: string,
-): Promise<string | null> {
-  const access = await validateFileAccess(filePath);
-  if (!access.success) {
-    if (!res.headersSent) {
-      res.status(access.statusCode).send(access.error);
-    }
-    return null;
+  access: { error: string; statusCode: number },
+) {
+  if (!res.headersSent) {
+    res.status(access.statusCode).send(access.error);
   }
-  return access.path;
 }
 
 /**
@@ -179,8 +173,12 @@ export async function handleStreamRequest(
 
   try {
     // 1. Authorization Check
-    const authorizedPath = await validateAndAuthorize(res, filePath);
-    if (!authorizedPath) return;
+    const access = await validateFileAccess(filePath);
+    if (!access.success) {
+      sendAccessError(res, access);
+      return;
+    }
+    const authorizedPath = access.path;
 
     // 2. Direct File Optimization
     if (!isTranscodeForced && tryServeDirectFile(res, authorizedPath)) {
@@ -250,8 +248,12 @@ export async function serveMetadata(
   filePath: string,
   ffmpegPath: string | null,
 ) {
-  const authorizedPath = await validateAndAuthorize(res, filePath);
-  if (!authorizedPath) return;
+  const access = await validateFileAccess(filePath);
+  if (!access.success) {
+    sendAccessError(res, access);
+    return;
+  }
+  const authorizedPath = access.path;
 
   if (!ffmpegPath && !isDrivePath(authorizedPath)) {
     res.status(500).send('FFmpeg binary not found');
@@ -354,8 +356,12 @@ export async function serveHeatmap(
   res: Response,
   filePath: string,
 ) {
-  const authorizedPath = await validateAndAuthorize(res, filePath);
-  if (!authorizedPath) return;
+  const access = await validateFileAccess(filePath);
+  if (!access.success) {
+    sendAccessError(res, access);
+    return;
+  }
+  const authorizedPath = access.path;
 
   try {
     const pointsStr = getQueryParam(req.query, 'points');
@@ -379,8 +385,12 @@ export async function serveHeatmapProgress(
   filePath: string,
 ) {
   // Authorization check is lightweight here, but good practice
-  const authorizedPath = await validateAndAuthorize(res, filePath);
-  if (!authorizedPath) return;
+  const access = await validateFileAccess(filePath);
+  if (!access.success) {
+    sendAccessError(res, access);
+    return;
+  }
+  const authorizedPath = access.path;
 
   const analyzer = MediaAnalyzer.getInstance();
   const progress = analyzer.getProgress(authorizedPath);
@@ -406,8 +416,12 @@ export async function serveStaticFile(
   filePath: string,
 ) {
   try {
-    const authorizedPath = await validateAndAuthorize(res, filePath);
-    if (!authorizedPath) return;
+    const access = await validateFileAccess(filePath);
+    if (!access.success) {
+      sendAccessError(res, access);
+      return;
+    }
+    const authorizedPath = access.path;
 
     // If local file, use res.sendFile for optimizing range/seeking
     if (!isDrivePath(authorizedPath)) {
