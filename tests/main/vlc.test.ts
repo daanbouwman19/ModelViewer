@@ -157,7 +157,6 @@ describe('Main Process IPC - open-in-vlc', () => {
   const originalPlatform = process.platform;
 
   beforeEach(async () => {
-    vi.resetModules();
     vi.clearAllMocks();
 
     // Default mocks

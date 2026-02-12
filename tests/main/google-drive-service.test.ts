@@ -188,6 +188,7 @@ describe('Google Drive Service', () => {
     });
 
     it('should retry on 429', async () => {
+      vi.useFakeTimers();
       const driveService = await import('../../src/main/google-drive-service');
       const auth = await import('../../src/main/google-auth');
       (auth.getOAuth2Client as any).mockReturnValue({
@@ -198,9 +199,14 @@ describe('Google Drive Service', () => {
         .mockRejectedValueOnce({ code: 429 })
         .mockResolvedValueOnce({ data: new EventEmitter() });
 
-      await driveService.getDriveFileStream('fileId');
+      const promise = driveService.getDriveFileStream('fileId');
+
+      await vi.advanceTimersByTimeAsync(2000);
+
+      await promise;
 
       expect(mockDrive.files.get).toHaveBeenCalledTimes(2);
+      vi.useRealTimers();
     });
   });
 
