@@ -28,6 +28,9 @@
           <div
             v-if="isHeatmapLoading"
             class="flex absolute top-[-60px] right-4 z-50 bg-black/70 text-white text-xs px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-xl pointer-events-none shadow-2xl items-center gap-2"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
           >
             <div class="loader-spinner"></div>
             <span class="font-medium tracking-wide antialiased"
