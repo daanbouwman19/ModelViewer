@@ -63,10 +63,7 @@ describe('vlc-player unit tests', () => {
       expect(result).toEqual({ success: true });
       expect(mockSpawn).toHaveBeenCalledWith(
         '/usr/bin/vlc',
-        [
-          '--',
-          expect.stringContaining('http://localhost:3000/video/stream'),
-        ],
+        ['--', expect.stringContaining('http://localhost:3000/video/stream')],
         expect.anything(),
       );
     });

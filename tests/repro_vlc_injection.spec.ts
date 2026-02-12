@@ -14,7 +14,7 @@ const { spawnMock } = vi.hoisted(() => {
 vi.mock('child_process', () => {
   return {
     spawn: spawnMock,
-    default: { spawn: spawnMock }
+    default: { spawn: spawnMock },
   };
 });
 
@@ -32,7 +32,10 @@ describe('VLC Player Security', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(vlcPaths.getVlcPath).mockResolvedValue('/usr/bin/vlc');
-    vi.mocked(security.authorizeFilePath).mockResolvedValue({ isAllowed: true, realPath: '/path/to/file' });
+    vi.mocked(security.authorizeFilePath).mockResolvedValue({
+      isAllowed: true,
+      realPath: '/path/to/file',
+    });
   });
 
   it('should prevent argument injection when opening local file', async () => {
