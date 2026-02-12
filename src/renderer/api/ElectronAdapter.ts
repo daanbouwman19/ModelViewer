@@ -78,23 +78,53 @@ export class ElectronAdapter implements IMediaBackend {
 
   async getMediaUrlGenerator(): Promise<(filePath: string) => string> {
     const port = await this.invoke(this.bridge.getServerPort());
+    const cache = new Map<string, string>();
+    const MAX_CACHE_SIZE = 10000;
+
     return (filePath: string) => {
-      if (filePath.startsWith('gdrive://')) {
-        return `http://localhost:${port}/${encodeURIComponent(filePath)}`;
+      if (cache.has(filePath)) {
+        return cache.get(filePath)!;
       }
-      let pathForUrl = filePath.replace(/\\/g, '/');
-      pathForUrl = pathForUrl
-        .split('/')
-        .map((segment) => encodeURIComponent(segment))
-        .join('/');
-      return `http://localhost:${port}/${pathForUrl}`;
+
+      let url: string;
+      if (filePath.startsWith('gdrive://')) {
+        url = `http://localhost:${port}/${encodeURIComponent(filePath)}`;
+      } else {
+        // Bolt Optimization: Standardize path separators and encode segments
+        let pathForUrl = filePath.replace(/\\/g, '/');
+        pathForUrl = pathForUrl
+          .split('/')
+          .map((segment) => encodeURIComponent(segment))
+          .join('/');
+        url = `http://localhost:${port}/${pathForUrl}`;
+      }
+
+      // Simple cache eviction strategy
+      if (cache.size >= MAX_CACHE_SIZE) {
+        cache.clear();
+      }
+      cache.set(filePath, url);
+      return url;
     };
   }
 
   async getThumbnailUrlGenerator(): Promise<(filePath: string) => string> {
     const port = await this.invoke(this.bridge.getServerPort());
+    const cache = new Map<string, string>();
+    const MAX_CACHE_SIZE = 10000;
+
     return (filePath: string) => {
-      return `http://localhost:${port}/video/thumbnail?file=${encodeURIComponent(filePath)}`;
+      if (cache.has(filePath)) {
+        return cache.get(filePath)!;
+      }
+
+      const url = `http://localhost:${port}/video/thumbnail?file=${encodeURIComponent(filePath)}`;
+
+      if (cache.size >= MAX_CACHE_SIZE) {
+        cache.clear();
+      }
+      cache.set(filePath, url);
+      return url;
     };
   }
 
