@@ -28,8 +28,6 @@ import { createMediaRoutes } from './routes/media.routes.ts';
 import { createAuthRoutes } from './routes/auth.routes.ts';
 import { createSystemRoutes } from './routes/system.routes.ts';
 
-const isDev = process.env.NODE_ENV !== 'production';
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -46,6 +44,7 @@ const HLS_CACHE_DIR = path.join(CACHE_ROOT, HLS_CACHE_DIR_NAME);
 const DRIVE_CACHE_DIR = path.join(CACHE_ROOT, 'drive');
 
 export async function createApp() {
+  const isDev = process.env.NODE_ENV !== 'production';
   const app = express();
 
   app.use((_req, res, next) => {
