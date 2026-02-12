@@ -1,12 +1,32 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import request from 'supertest';
 import * as security from '../../src/core/security';
+import { createApp } from '../../src/server/server';
 
 // Mock dependencies
 vi.mock('../../src/core/database');
 vi.mock('../../src/core/media-service');
 vi.mock('../../src/core/file-system');
 vi.mock('../../src/core/security');
+
+// Mock Google Drive Service to prevent importing googleapis
+vi.mock('../../src/main/google-drive-service', () => ({
+  getDriveFileMetadata: vi.fn(),
+  getDriveFileStream: vi.fn(),
+}));
+
+// Mock WorkerFactory to avoid electron import check
+vi.mock('../../src/core/worker-factory', () => ({
+  WorkerFactory: {
+    getWorkerPath: vi.fn().mockResolvedValue({ path: '/mock/worker.js', options: {} }),
+  },
+}));
+
+// Mock ffmpeg-static to avoid binary resolution
+vi.mock('ffmpeg-static', () => ({
+  default: '/mock/ffmpeg',
+}));
+
 vi.mock('fs/promises', () => ({
   default: {
     stat: vi.fn(),
@@ -44,24 +64,18 @@ vi.mock('../../src/core/media-handler', () => ({
 
 describe('Server CORS', () => {
   let app: any;
-  let createApp: any;
 
   // Save original env
   const originalEnv = process.env.NODE_ENV;
 
   afterEach(() => {
     process.env.NODE_ENV = originalEnv;
-    vi.resetModules();
+    vi.clearAllMocks();
   });
 
   describe('Development Environment', () => {
     beforeEach(async () => {
       process.env.NODE_ENV = 'test'; // isDev = true
-      vi.resetModules();
-
-      // Re-import to pick up env change
-      const serverModule = await import('../../src/server/server');
-      createApp = serverModule.createApp;
 
       vi.mocked(security.authorizeFilePath).mockResolvedValue({
         isAllowed: true,
@@ -98,11 +112,6 @@ describe('Server CORS', () => {
   describe('Production Environment', () => {
     beforeEach(async () => {
       process.env.NODE_ENV = 'production'; // isDev = false
-      vi.resetModules();
-
-      // Re-import to pick up env change
-      const serverModule = await import('../../src/server/server');
-      createApp = serverModule.createApp;
 
       vi.mocked(security.authorizeFilePath).mockResolvedValue({
         isAllowed: true,

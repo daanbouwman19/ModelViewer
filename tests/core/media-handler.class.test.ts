@@ -18,6 +18,17 @@ const { fsMock, hlsManagerMock, analyzerMock } = vi.hoisted(() => {
   };
 });
 
+// Mock fs-provider-factory to avoid importing heavy dependencies (googleapis)
+vi.mock('../../src/core/fs-provider-factory.ts', () => ({
+  getProvider: vi.fn(),
+}));
+
+// Mock google-drive-service to avoid importing googleapis
+vi.mock('../../src/main/google-drive-service.ts', () => ({
+  getDriveFileMetadata: vi.fn(),
+  getDriveFileStream: vi.fn(),
+}));
+
 vi.mock('fs/promises', () => ({
   default: fsMock,
   ...fsMock,
