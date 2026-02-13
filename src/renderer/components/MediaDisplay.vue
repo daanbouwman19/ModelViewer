@@ -231,14 +231,19 @@ import VideoPlayer from './VideoPlayer.vue';
 import VRVideoPlayer from './VRVideoPlayer.vue'; // [NEW]
 import type { MediaFile } from '../../core/types';
 import { LEGACY_VIDEO_EXTENSIONS } from '../../core/constants';
-import { isMediaFileImage } from '../utils/mediaUtils';
+import { isMediaFileImage, isMediaFileVideo } from '../utils/mediaUtils';
 
 const libraryStore = useLibraryStore();
 const playerStore = usePlayerStore();
 const uiStore = useUIStore();
 
-const { imageExtensionsSet, mediaDirectories, mediaUrlGenerator } =
-  libraryStore;
+const {
+  imageExtensionsSet,
+  videoExtensionsSet,
+  mediaDirectories,
+  mediaUrlGenerator,
+  thumbnailUrlGenerator,
+} = libraryStore;
 
 const {
   currentMediaItem,
@@ -769,6 +774,17 @@ const preloadNextMedia = async () => {
     } catch (e) {
       // Silently fail prefetching, it's an optimization only
       console.warn('Failed to preload next item', e);
+    }
+  } else if (isMediaFileVideo(nextItem, videoExtensionsSet.value)) {
+    // 5. Preload Video Poster
+    try {
+      if (thumbnailUrlGenerator.value) {
+        const url = thumbnailUrlGenerator.value(nextItem.path);
+        const img = new Image();
+        img.src = url;
+      }
+    } catch (e) {
+      console.warn('Failed to preload next video thumbnail', e);
     }
   }
 };
