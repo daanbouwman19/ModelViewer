@@ -118,7 +118,9 @@ describe('useSlideshow additional coverage', () => {
         .mockImplementation(() => {});
 
       // We mocked api at the top level, so we can control it here.
-      vi.mocked(api.recordMediaView).mockRejectedValueOnce(new Error('API fail'));
+      vi.mocked(api.recordMediaView).mockRejectedValueOnce(
+        new Error('API fail'),
+      );
 
       mockLibraryState.globalMediaPoolForSelection = [{ path: 'a', name: 'a' }];
       mockUIState.mediaFilter = 'All';

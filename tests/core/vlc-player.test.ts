@@ -44,6 +44,21 @@ describe('vlc-player unit tests', () => {
     vi.useRealTimers();
   });
 
+  /**
+   * Helper to handle the async spawn and timeout pattern in openMediaInVlc
+   */
+  async function testOpenMediaAndAdvanceTimers(
+    filePath: string,
+    serverPort: number,
+  ) {
+    const promise = openMediaInVlc(filePath, serverPort);
+    // Wait for spawn to be called, as getVlcPath() is async
+    await vi.waitFor(() => expect(mockSpawn).toHaveBeenCalled());
+    // Fast-forward past the 300ms timeout in openMediaInVlc
+    vi.advanceTimersByTime(500);
+    return await promise;
+  }
+
   describe('openMediaInVlc', () => {
     const originalPlatform = process.platform;
     afterEach(() => {
@@ -64,15 +79,7 @@ describe('vlc-player unit tests', () => {
       const mockChild = { unref: vi.fn(), on: vi.fn() };
       mockSpawn.mockReturnValue(mockChild);
 
-      const promise = openMediaInVlc('gdrive://123', 3000);
-
-      // Wait for spawn
-      await vi.waitFor(() => expect(mockSpawn).toHaveBeenCalled());
-
-      // Fast forward timeout
-      vi.advanceTimersByTime(500);
-
-      const result = await promise;
+      const result = await testOpenMediaAndAdvanceTimers('gdrive://123', 3000);
 
       expect(result).toEqual({ success: true });
       expect(mockSpawn).toHaveBeenCalledWith(
@@ -90,15 +97,7 @@ describe('vlc-player unit tests', () => {
       const mockChild = { unref: vi.fn(), on: vi.fn() };
       mockSpawn.mockReturnValue(mockChild);
 
-      const promise = openMediaInVlc('/local.mp4', 3000);
-
-      // Wait for spawn
-      await vi.waitFor(() => expect(mockSpawn).toHaveBeenCalled());
-
-      // Fast forward timeout
-      vi.advanceTimersByTime(500);
-
-      const result = await promise;
+      const result = await testOpenMediaAndAdvanceTimers('/local.mp4', 3000);
       expect(result).toEqual({ success: true });
     });
 
@@ -109,15 +108,7 @@ describe('vlc-player unit tests', () => {
       const mockChild = { unref: vi.fn(), on: vi.fn() };
       mockSpawn.mockReturnValue(mockChild);
 
-      const promise = openMediaInVlc('/local.mp4', 3000);
-
-      // Wait for spawn
-      await vi.waitFor(() => expect(mockSpawn).toHaveBeenCalled());
-
-      // Fast forward timeout
-      vi.advanceTimersByTime(500);
-
-      const result = await promise;
+      const result = await testOpenMediaAndAdvanceTimers('/local.mp4', 3000);
       expect(result).toEqual({ success: true });
     });
 
