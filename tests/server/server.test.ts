@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../src/server/server';
 import * as database from '../../src/core/database';
@@ -10,6 +10,9 @@ import fs from 'fs/promises';
 
 // Mock dependencies
 vi.mock('../../src/core/database');
+vi.mock('../../src/core/rate-limiter', () => ({
+  createRateLimiter: vi.fn(() => (_req: any, _res: any, next: any) => next()),
+}));
 vi.mock('../../src/core/media-service');
 vi.mock('../../src/core/file-system');
 vi.mock('../../src/core/security', async (importOriginal) => {
@@ -72,6 +75,10 @@ vi.mock('../../src/main/google-auth');
 describe('Server', () => {
   let app: any;
 
+  beforeAll(async () => {
+    app = await createApp();
+  });
+
   beforeEach(async () => {
     vi.clearAllMocks();
     // Default allow
@@ -79,7 +86,6 @@ describe('Server', () => {
       isAllowed: true,
       realPath: '/resolved/path',
     });
-    app = await createApp();
   });
 
   describe('GET /api/albums', () => {

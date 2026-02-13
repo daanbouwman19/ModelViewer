@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll, Mock } from 'vitest';
 import { ipcMain } from 'electron';
 
 // Mock dependencies
@@ -87,16 +87,7 @@ vi.mock('ffmpeg-static', () => ({
 describe('main.js IPC Security', () => {
   const handlers: { [key: string]: (event: any, ...args: any[]) => any } = {};
 
-  beforeEach(async () => {
-    vi.clearAllMocks();
-
-    // Setup authorizeFilePath default to deny
-    const security = await import('../../src/core/security');
-    (security.authorizeFilePath as unknown as Mock).mockResolvedValue({
-      isAllowed: false,
-      message: 'Access denied',
-    });
-
+  beforeAll(async () => {
     // Import controllers to register the handlers
     const { registerMediaHandlers } =
       await import('../../src/main/ipc/media-controller');
@@ -110,6 +101,17 @@ describe('main.js IPC Security', () => {
     const handleMock = ipcMain.handle as unknown as Mock;
     handleMock.mock.calls.forEach((call: any[]) => {
       handlers[call[0]] = call[1];
+    });
+  });
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+
+    // Setup authorizeFilePath default to deny
+    const security = await import('../../src/core/security');
+    (security.authorizeFilePath as unknown as Mock).mockResolvedValue({
+      isAllowed: false,
+      message: 'Access denied',
     });
   });
 

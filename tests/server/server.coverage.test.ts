@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import request from 'supertest';
 import * as database from '../../src/core/database';
 import * as mediaService from '../../src/core/media-service';
@@ -12,6 +12,9 @@ import * as fileSystem from '../../src/core/file-system';
 
 // Auto-mock dependencies
 vi.mock('../../src/core/database');
+vi.mock('../../src/core/rate-limiter', () => ({
+  createRateLimiter: vi.fn(() => (_req: any, _res: any, next: any) => next()),
+}));
 vi.mock('../../src/core/media-service');
 vi.mock('../../src/core/file-system');
 vi.mock('../../src/main/google-drive-service');
@@ -92,6 +95,13 @@ vi.mock('fs/promises', () => ({
 describe('Server Coverage', () => {
   let app: any;
 
+  beforeAll(async () => {
+    // Dynamic import to create a fresh app instance if needed
+    // However, node modules are cached, so we rely on mocks being cleared.
+    const { createApp } = await import('../../src/server/server');
+    app = await createApp();
+  });
+
   beforeEach(async () => {
     vi.clearAllMocks();
 
@@ -116,11 +126,6 @@ describe('Server Coverage', () => {
 
     vi.mocked(mockFs.mkdir).mockResolvedValue(undefined as any);
     vi.mocked(mockFs.stat).mockResolvedValue({} as any);
-
-    // Dynamic import to create a fresh app instance if needed
-    // However, node modules are cached, so we rely on mocks being cleared.
-    const { createApp } = await import('../../src/server/server');
-    app = await createApp();
   });
 
   describe('Authentication & Auth Error Handling', () => {
