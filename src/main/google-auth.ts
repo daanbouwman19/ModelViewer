@@ -1,5 +1,6 @@
 import type { OAuth2Client, Credentials } from 'google-auth-library';
 import { google } from 'googleapis';
+import crypto from 'crypto';
 import {
   getGoogleClientId,
   getGoogleClientSecret,
@@ -9,6 +10,9 @@ import { getSetting, saveSetting } from '../core/database.ts';
 import { GOOGLE_DRIVE_SCOPES, GOOGLE_TOKENS_KEY } from '../core/constants.ts';
 
 let oauth2Client: OAuth2Client | null = null;
+// Store the pending code verifier for PKCE flow.
+// This assumes single-user context (local desktop app).
+let pendingCodeVerifier: string | null = null;
 
 export function initializeManualCredentials(credentials: Credentials): void {
   const client = getOAuth2Client();
@@ -56,18 +60,77 @@ export async function saveCredentials(client: OAuth2Client): Promise<void> {
   }
 }
 
+/**
+ * Encodes a buffer to Base64URL format (no padding).
+ */
+function base64UrlEncode(str: Buffer): string {
+  return str
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
+}
+
+/**
+ * Generates a random code verifier for PKCE.
+ */
+function generateCodeVerifier(): string {
+  return base64UrlEncode(crypto.randomBytes(32));
+}
+
+/**
+ * Generates a code challenge from the verifier (S256).
+ */
+function generateCodeChallenge(verifier: string): string {
+  return base64UrlEncode(crypto.createHash('sha256').update(verifier).digest());
+}
+
 export function generateAuthUrl(): string {
   const client = getOAuth2Client();
+
+  // [SECURITY] Implement PKCE (Proof Key for Code Exchange)
+  // This mitigates authorization code interception attacks.
+  const verifier = generateCodeVerifier();
+  const challenge = generateCodeChallenge(verifier);
+
+  // Store the verifier for the callback exchange step
+  pendingCodeVerifier = verifier;
+
   return client.generateAuthUrl({
     access_type: 'offline',
     scope: GOOGLE_DRIVE_SCOPES,
     prompt: 'consent',
+    code_challenge: challenge,
+    // The library uses an enum for CodeChallengeMethod, but 'S256' as a string is the underlying value.
+    // However, TypeScript requires the enum or a cast if strict.
+    // We cast to any to avoid importing the enum from deep within google-auth-library which might be fragile.
+    // @ts-expect-error - 'S256' is the correct string value for the enum expected by the library type definition
+    code_challenge_method: 'S256',
   });
 }
 
 export async function authenticateWithCode(code: string): Promise<void> {
   const client = getOAuth2Client();
-  const { tokens } = await client.getToken(code);
-  client.setCredentials(tokens);
-  await saveCredentials(client);
+
+  try {
+    const verifier = pendingCodeVerifier;
+
+    if (!verifier) {
+      throw new Error(
+        'Code verifier not found. The authentication flow may have been interrupted. Please try again.',
+      );
+    }
+
+    // Pass the stored verifier if available (it should be for this flow)
+    const { tokens } = await client.getToken({
+      code,
+      codeVerifier: verifier,
+    });
+
+    client.setCredentials(tokens);
+    await saveCredentials(client);
+  } finally {
+    // Clear the verifier after attempt (success or failure) to prevent reuse/leakage
+    pendingCodeVerifier = null;
+  }
 }
