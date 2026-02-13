@@ -126,7 +126,7 @@
 **Learning:** When spawning external processes with user-controlled arguments, relying on array-based `spawn` is not enough if the target program parses flags indiscriminately. Using the standard end-of-options delimiter `--` is critical to ensure subsequent arguments are treated as positional arguments (filenames) rather than flags.
 **Prevention:** Updated `src/core/vlc-player.ts` to prepend `--` to the argument list passed to `spawn` (e.g., `vlc -- <filename>`).
 
-## 2026-02-16 - Authorization Code Interception (PKCE)
+## 2026-02-13 - Authorization Code Interception (PKCE)
 
 **Vulnerability:** The Google OAuth callback implementation used `window.opener.postMessage(..., '*')` to return the authorization code to the application window. This could allow any malicious website that can convince a user to open the callback URL (or an attacker who can iframe it, though X-Frame-Options usually prevents that) to intercept the authorization code. In the context of Electron apps using `file://` or varying origins, securing `postMessage` target origin is difficult.
 **Learning:** Relying on `postMessage` target origin for security in complex environments (like Electron with local servers) is fragile. Implementing PKCE (Proof Key for Code Exchange) moves the security assurance from the transport channel (origin checks) to the backend logic (verifier validation). Even if the code is intercepted, it is useless without the `code_verifier` which never leaves the backend.

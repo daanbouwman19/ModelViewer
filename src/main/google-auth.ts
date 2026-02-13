@@ -111,10 +111,14 @@ export async function authenticateWithCode(code: string): Promise<void> {
   try {
     const verifier = pendingCodeVerifier;
 
+    if (!verifier) {
+      throw new Error('Code verifier not found. The authentication flow may have been interrupted. Please try again.');
+    }
+
     // Pass the stored verifier if available (it should be for this flow)
     const { tokens } = await client.getToken({
       code,
-      codeVerifier: verifier || undefined
+      codeVerifier: verifier
     });
 
     client.setCredentials(tokens);
