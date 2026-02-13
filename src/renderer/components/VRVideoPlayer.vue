@@ -103,6 +103,7 @@ const SPHERE_HEIGHT_SEGMENTS = 40;
 
 const props = defineProps<{
   src: string;
+  poster?: string;
   isPlaying: boolean;
   initialTime?: number;
   isControlsVisible: boolean;
@@ -279,6 +280,9 @@ const initThree = () => {
   // Video Element (off-screen)
   video = document.createElement('video');
   video.src = props.src;
+  if (props.poster) {
+    video.poster = props.poster;
+  }
   video.loop = true;
   video.muted = false; // Muted by default or handle volume
   video.crossOrigin = 'anonymous';
