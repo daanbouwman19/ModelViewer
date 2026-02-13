@@ -48,7 +48,10 @@ export async function checkThumbnailCache(cacheFile: string): Promise<boolean> {
  * @param filePath The raw file path from the request.
  * @param platform The platform to normalize for (defaults to process.platform).
  */
-export function normalizeFilePath(filePath: string, platform: string = process.platform): string {
+export function normalizeFilePath(
+  filePath: string,
+  platform: string = process.platform,
+): string {
   let normalized = decodeURIComponent(filePath);
   // On Windows, pathname start with a slash like /C:/Users... Express req.path preserves it.
   if (platform === 'win32' && normalized.startsWith('/')) {

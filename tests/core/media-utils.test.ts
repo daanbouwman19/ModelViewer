@@ -73,7 +73,9 @@ describe('media-utils unit tests', () => {
     });
 
     it('should normalize Windows path by removing leading slash', () => {
-      expect(normalizeFilePath('/C:/Windows/System32', 'win32')).toBe('C:/Windows/System32');
+      expect(normalizeFilePath('/C:/Windows/System32', 'win32')).toBe(
+        'C:/Windows/System32',
+      );
     });
 
     it('should not remove leading slash on non-Windows platform', () => {
