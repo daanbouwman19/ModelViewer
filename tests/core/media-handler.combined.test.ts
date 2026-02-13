@@ -248,7 +248,11 @@ describe('MediaHandler Combined Tests', () => {
       // UPDATED: Return error object instead of throwing for Auth error,
       // because serveMetadata does not catch errors.
       if (p.includes('Auth error')) {
-        return { success: false, error: 'Internal server error.', statusCode: 500 };
+        return {
+          success: false,
+          error: 'Internal server error.',
+          statusCode: 500,
+        };
       }
       if (p.includes('Boom')) {
         throw new Error('Boom');
@@ -1348,7 +1352,10 @@ describe('MediaHandler Combined Tests', () => {
       // Setup CACHE HIT logic
       mockGetThumbnailCachePath.mockReturnValue('/cache/thumb.jpg');
       mockCheckThumbnailCache.mockResolvedValue(true);
-      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true, realPath: '/allowed/image.jpg' });
+      mockAuthorizeFilePath.mockResolvedValue({
+        isAllowed: true,
+        realPath: '/allowed/image.jpg',
+      });
 
       // Override serveThumbnail to use real impl (if not already importing real one by default in this file?)
       // Wait, serveThumbnail is mocked in this file?

@@ -69,7 +69,8 @@ vi.mock('@/components/VRVideoPlayer.vue', () => ({
 vi.mock('@/components/MediaControls.vue', () => ({
   default: {
     name: 'MediaControls',
-    template: '<div class="media-controls-mock controls-bar w-full bg-linear-to-t from-black/90"><slot></slot></div>',
+    template:
+      '<div class="media-controls-mock controls-bar w-full bg-linear-to-t from-black/90"><slot></slot></div>',
     props: ['currentMediaItem', 'isControlsVisible', 'isOpeningVlc'],
   },
 }));
@@ -399,12 +400,17 @@ describe('MediaDisplay Combined Tests', () => {
       await flushPromises();
 
       (api.setRating as Mock).mockRejectedValue(new Error('fail'));
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
 
       const controls = wrapper.findComponent(MediaControls);
       await controls.vm.$emit('set-rating', 5);
 
-      expect(consoleSpy).toHaveBeenCalledWith('Failed to set rating', expect.any(Error));
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to set rating',
+        expect.any(Error),
+      );
       consoleSpy.mockRestore();
     });
 
@@ -418,14 +424,18 @@ describe('MediaDisplay Combined Tests', () => {
 
       await flushPromises();
       await flushPromises();
-      expect((wrapper.vm as any).mediaUrl).toBe('/api/hls/master.m3u8?file=test');
+      expect((wrapper.vm as any).mediaUrl).toBe(
+        '/api/hls/master.m3u8?file=test',
+      );
     });
 
     it('covers proactive transcoding for legacy formats', async () => {
       mockPlayerState.currentMediaItem = { name: 't.mov', path: '/t.mov' };
       const wrapper = mount(MediaDisplay);
       await flushPromises();
-      expect((wrapper.vm as any).mediaUrl).toBe('/api/hls/master.m3u8?file=test');
+      expect((wrapper.vm as any).mediaUrl).toBe(
+        '/api/hls/master.m3u8?file=test',
+      );
     });
 
     it('covers handleVideoPlay and handleVideoPause effects on timer', async () => {
@@ -468,7 +478,11 @@ describe('MediaDisplay Combined Tests', () => {
     });
 
     it('covers setRating unrate branch', async () => {
-      mockPlayerState.currentMediaItem = { name: 't.jpg', path: '/t.jpg', rating: 5 };
+      mockPlayerState.currentMediaItem = {
+        name: 't.jpg',
+        path: '/t.jpg',
+        rating: 5,
+      };
       const wrapper = mount(MediaDisplay);
       await flushPromises();
 
@@ -489,7 +503,11 @@ describe('MediaDisplay Combined Tests', () => {
       const wrapper = mount(MediaDisplay);
       await flushPromises();
 
-      const mockVideo = { pause: vi.fn(), removeAttribute: vi.fn(), load: vi.fn() };
+      const mockVideo = {
+        pause: vi.fn(),
+        removeAttribute: vi.fn(),
+        load: vi.fn(),
+      };
       (wrapper.vm as any).videoElement = mockVideo;
       (wrapper.vm as any).videoPlayerRef = null;
 
@@ -510,7 +528,10 @@ describe('MediaDisplay Combined Tests', () => {
       const wrapper = mount(MediaDisplay);
       await flushPromises();
 
-      (api.openInVlc as Mock).mockResolvedValue({ success: false, message: 'VLC Error' });
+      (api.openInVlc as Mock).mockResolvedValue({
+        success: false,
+        message: 'VLC Error',
+      });
       await (wrapper.vm as any).openInVlc();
       expect((wrapper.vm as any).error).toBe('VLC Error');
     });
@@ -545,9 +566,13 @@ describe('MediaDisplay Combined Tests', () => {
       (wrapper.vm as any).isTranscodingMode = false;
       await wrapper.vm.$nextTick();
 
-      const btn = wrapper.findAll('button').find((b) => b.text().includes('Try Transcoding'));
+      const btn = wrapper
+        .findAll('button')
+        .find((b) => b.text().includes('Try Transcoding'));
       await btn?.trigger('click');
-      expect((wrapper.vm as any).mediaUrl).toBe('/api/hls/master.m3u8?file=test');
+      expect((wrapper.vm as any).mediaUrl).toBe(
+        '/api/hls/master.m3u8?file=test',
+      );
     });
 
     it('does NOT resume timer when video is paused due to navigation', async () => {
@@ -594,9 +619,14 @@ describe('MediaDisplay Combined Tests', () => {
       mockPlayerState.currentMediaItem = { name: 't.mp4', path: '/t.mp4' };
       const wrapper = mount(MediaDisplay);
       await flushPromises();
-      const videoEl = { requestFullscreen: vi.fn().mockResolvedValue(undefined) };
+      const videoEl = {
+        requestFullscreen: vi.fn().mockResolvedValue(undefined),
+      };
       (wrapper.vm as any).videoElement = videoEl;
-      Object.defineProperty(document, 'fullscreenElement', { value: null, writable: true });
+      Object.defineProperty(document, 'fullscreenElement', {
+        value: null,
+        writable: true,
+      });
       (wrapper.vm as any).toggleFullscreen();
       expect(videoEl.requestFullscreen).toHaveBeenCalled();
     });
@@ -607,7 +637,10 @@ describe('MediaDisplay Combined Tests', () => {
       await flushPromises();
       const videoEl = { requestFullscreen: vi.fn() };
       (wrapper.vm as any).videoElement = videoEl;
-      Object.defineProperty(document, 'fullscreenElement', { value: {}, writable: true });
+      Object.defineProperty(document, 'fullscreenElement', {
+        value: {},
+        writable: true,
+      });
       document.exitFullscreen = vi.fn();
       (wrapper.vm as any).toggleFullscreen();
       expect(document.exitFullscreen).toHaveBeenCalled();
@@ -617,9 +650,14 @@ describe('MediaDisplay Combined Tests', () => {
       mockPlayerState.currentMediaItem = { name: 't.mp4', path: '/t.mp4' };
       const wrapper = mount(MediaDisplay);
       await flushPromises();
-      const videoEl = { requestFullscreen: vi.fn().mockRejectedValue(new Error('FS Fail')) };
+      const videoEl = {
+        requestFullscreen: vi.fn().mockRejectedValue(new Error('FS Fail')),
+      };
       (wrapper.vm as any).videoElement = videoEl;
-      Object.defineProperty(document, 'fullscreenElement', { value: null, writable: true });
+      Object.defineProperty(document, 'fullscreenElement', {
+        value: null,
+        writable: true,
+      });
       const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
       await (wrapper.vm as any).toggleFullscreen();
       expect(spy).toHaveBeenCalled();
@@ -632,8 +670,12 @@ describe('MediaDisplay Combined Tests', () => {
       await flushPromises();
       const mockVideo = {
         duration: NaN,
-        get currentTime() { return 10; },
-        set currentTime(val: number) { if (!Number.isFinite(val)) throw new Error('non-finite'); },
+        get currentTime() {
+          return 10;
+        },
+        set currentTime(val: number) {
+          if (!Number.isFinite(val)) throw new Error('non-finite');
+        },
       };
       (wrapper.vm as any).videoElement = mockVideo;
       const event = new KeyboardEvent('keydown', { code: 'ArrowRight' });
@@ -646,8 +688,12 @@ describe('MediaDisplay Combined Tests', () => {
       await flushPromises();
       const mockVideo = {
         duration: NaN,
-        get currentTime() { return 10; },
-        set currentTime(val: number) { if (!Number.isFinite(val)) throw new Error('non-finite'); },
+        get currentTime() {
+          return 10;
+        },
+        set currentTime(val: number) {
+          if (!Number.isFinite(val)) throw new Error('non-finite');
+        },
       };
       (wrapper.vm as any).videoElement = mockVideo;
       const event = new KeyboardEvent('keydown', { code: 'ArrowLeft' });
@@ -661,7 +707,9 @@ describe('MediaDisplay Combined Tests', () => {
       mockUIState.isSidebarVisible = false;
       const wrapper = mount(MediaDisplay);
       await flushPromises();
-      const openLibBtn = wrapper.findAll('button').find((b) => b.text().includes('Open Library'));
+      const openLibBtn = wrapper
+        .findAll('button')
+        .find((b) => b.text().includes('Open Library'));
       expect(openLibBtn?.exists()).toBe(true);
       await openLibBtn?.trigger('click');
       expect(mockUIState.isSidebarVisible).toBe(true);
@@ -671,7 +719,10 @@ describe('MediaDisplay Combined Tests', () => {
   describe('Layout & Styles', () => {
     it('should have correct layout classes on desktop', async () => {
       // Need to ensure an item is loaded to render controls
-      mockPlayerState.currentMediaItem = { name: 'test.jpg', path: '/test.jpg' };
+      mockPlayerState.currentMediaItem = {
+        name: 'test.jpg',
+        path: '/test.jpg',
+      };
       const wrapper = mount(MediaDisplay);
       await flushPromises();
       const controls = wrapper.find('.controls-bar');

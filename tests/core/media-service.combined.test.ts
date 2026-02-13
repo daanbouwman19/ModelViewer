@@ -105,7 +105,11 @@ vi.mock('worker_threads', () => {
 });
 
 // Helper to simulate worker reply
-const mockWorkerReply = async (action: () => Promise<any>, replyData: any, success = true) => {
+const mockWorkerReply = async (
+  action: () => Promise<any>,
+  replyData: any,
+  success = true,
+) => {
   let msgId: string | undefined;
   const postMessagePromise = new Promise<void>((resolve) => {
     sharedState.postMessageCallback = (msg: any) => {
@@ -127,7 +131,9 @@ const mockWorkerReply = async (action: () => Promise<any>, replyData: any, succe
   if (onMessage && msgId !== undefined) {
     onMessage({
       id: msgId,
-      result: success ? { success: true, data: replyData } : { success: false, error: replyData },
+      result: success
+        ? { success: true, data: replyData }
+        : { success: false, error: replyData },
     });
   }
 
@@ -147,19 +153,25 @@ describe('MediaService Combined Tests', () => {
     vi.mocked(database.getAllMetadataVerification).mockResolvedValue({});
     vi.mocked(database.getCachedAlbums).mockResolvedValue([]);
     vi.mocked(database.getPendingMetadata).mockResolvedValue([]);
-    vi.mocked(database.filterProcessingNeeded).mockImplementation(async (paths) => paths);
-    vi.mocked(database.getMediaDirectories).mockResolvedValue([{ path: '/dir', isActive: true }] as any);
+    vi.mocked(database.filterProcessingNeeded).mockImplementation(
+      async (paths) => paths,
+    );
+    vi.mocked(database.getMediaDirectories).mockResolvedValue([
+      { path: '/dir', isActive: true },
+    ] as any);
 
     // Default FS Mock
     vi.mocked(fs.stat).mockResolvedValue({
-        size: 1024,
-        birthtime: new Date(),
-        mtime: new Date(),
-        isFile: () => true,
+      size: 1024,
+      birthtime: new Date(),
+      mtime: new Date(),
+      isFile: () => true,
     } as any);
 
     // Default Utils Mock
-    vi.mocked(isDrivePath).mockImplementation((path) => path.startsWith('gdrive://'));
+    vi.mocked(isDrivePath).mockImplementation((path) =>
+      path.startsWith('gdrive://'),
+    );
     vi.mocked(ffmpegUtils.getFFmpegDuration).mockResolvedValue(100);
 
     sharedState.lastWorker = null;
@@ -202,220 +214,262 @@ describe('MediaService Combined Tests', () => {
     });
 
     it('handles worker SCAN_ERROR', async () => {
-      await expect(mockWorkerReply(() => scanDiskForAlbumsAndCache(), 'Worker error', false)).rejects.toThrow('Worker error');
+      await expect(
+        mockWorkerReply(
+          () => scanDiskForAlbumsAndCache(),
+          'Worker error',
+          false,
+        ),
+      ).rejects.toThrow('Worker error');
     });
 
     it('triggers background metadata extraction and handles its failure', async () => {
-        vi.mocked(database.getPendingMetadata).mockRejectedValue(new Error('Background error'));
-        const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-        const albums = [{ id: 1, textures: [{ path: '/v.mp4' }] }];
+      vi.mocked(database.getPendingMetadata).mockRejectedValue(
+        new Error('Background error'),
+      );
+      const consoleErrorSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+      const albums = [{ id: 1, textures: [{ path: '/v.mp4' }] }];
 
-        await mockWorkerReply(() => scanDiskForAlbumsAndCache('/ffmpeg'), albums);
+      await mockWorkerReply(() => scanDiskForAlbumsAndCache('/ffmpeg'), albums);
 
-        await vi.waitFor(() => {
-          expect(consoleErrorSpy).toHaveBeenCalledWith(
-            expect.stringContaining('Background metadata extraction failed'),
-            expect.any(Error),
-          );
-        });
-        consoleErrorSpy.mockRestore();
+      await vi.waitFor(() => {
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Background metadata extraction failed'),
+          expect.any(Error),
+        );
+      });
+      consoleErrorSpy.mockRestore();
     });
   });
 
   // --- Filter Optimization ---
   describe('Filter Optimization', () => {
-      it('should call filterProcessingNeeded with all found paths', async () => {
-        const albums = [
-            {
-              id: '1',
-              textures: [{ path: '/a.mp4' }, { path: '/b.mp4' }],
-              children: [
-                { id: '2', textures: [{ path: '/c.mp4' }], children: [] },
-              ],
-            },
-        ];
+    it('should call filterProcessingNeeded with all found paths', async () => {
+      const albums = [
+        {
+          id: '1',
+          textures: [{ path: '/a.mp4' }, { path: '/b.mp4' }],
+          children: [{ id: '2', textures: [{ path: '/c.mp4' }], children: [] }],
+        },
+      ];
 
-        await mockWorkerReply(() => scanDiskForAlbumsAndCache('/ffmpeg'), albums);
+      await mockWorkerReply(() => scanDiskForAlbumsAndCache('/ffmpeg'), albums);
 
-        await vi.waitFor(() => {
-             expect(database.filterProcessingNeeded).toHaveBeenCalledWith(
-                expect.arrayContaining(['/a.mp4', '/b.mp4', '/c.mp4'])
-             );
-        });
+      await vi.waitFor(() => {
+        expect(database.filterProcessingNeeded).toHaveBeenCalledWith(
+          expect.arrayContaining(['/a.mp4', '/b.mp4', '/c.mp4']),
+        );
       });
+    });
 
-      it('should only pass needed paths to extractAndSaveMetadata', async () => {
-        const albums = [
-            {
-              id: '1',
-              textures: [{ path: '/success.mp4' }, { path: '/new.mp4' }],
-              children: [],
-            },
-        ];
+    it('should only pass needed paths to extractAndSaveMetadata', async () => {
+      const albums = [
+        {
+          id: '1',
+          textures: [{ path: '/success.mp4' }, { path: '/new.mp4' }],
+          children: [],
+        },
+      ];
 
-        vi.mocked(database.filterProcessingNeeded).mockResolvedValue(['/new.mp4']);
+      vi.mocked(database.filterProcessingNeeded).mockResolvedValue([
+        '/new.mp4',
+      ]);
 
-        await mockWorkerReply(() => scanDiskForAlbumsAndCache('/ffmpeg'), albums);
+      await mockWorkerReply(() => scanDiskForAlbumsAndCache('/ffmpeg'), albums);
 
-        await vi.waitFor(() => {
-            expect(database.getMetadata).toHaveBeenCalledWith(expect.arrayContaining(['/new.mp4']));
-            expect(database.getMetadata).not.toHaveBeenCalledWith(expect.arrayContaining(['/success.mp4']));
-        });
+      await vi.waitFor(() => {
+        expect(database.getMetadata).toHaveBeenCalledWith(
+          expect.arrayContaining(['/new.mp4']),
+        );
+        expect(database.getMetadata).not.toHaveBeenCalledWith(
+          expect.arrayContaining(['/success.mp4']),
+        );
       });
+    });
   });
 
   // --- Metadata Optimization ---
   describe('Metadata Optimization', () => {
-      it(`should call getAllMetadataVerification when processing > ${METADATA_VERIFICATION_THRESHOLD} files`, async () => {
-        const filePaths = Array.from({ length: METADATA_VERIFICATION_THRESHOLD + 1 }, (_, i) => `/path/${i}.mp4`);
-        await extractAndSaveMetadata(filePaths, 'ffmpeg');
+    it(`should call getAllMetadataVerification when processing > ${METADATA_VERIFICATION_THRESHOLD} files`, async () => {
+      const filePaths = Array.from(
+        { length: METADATA_VERIFICATION_THRESHOLD + 1 },
+        (_, i) => `/path/${i}.mp4`,
+      );
+      await extractAndSaveMetadata(filePaths, 'ffmpeg');
 
-        expect(database.getAllMetadataVerification).toHaveBeenCalled();
-        expect(database.getMetadata).not.toHaveBeenCalled();
+      expect(database.getAllMetadataVerification).toHaveBeenCalled();
+      expect(database.getMetadata).not.toHaveBeenCalled();
+    });
+
+    it(`should call getMetadata when processing <= ${METADATA_VERIFICATION_THRESHOLD} files`, async () => {
+      const filePaths = Array.from(
+        { length: METADATA_VERIFICATION_THRESHOLD },
+        (_, i) => `/path/${i}.mp4`,
+      );
+      await extractAndSaveMetadata(filePaths, 'ffmpeg');
+
+      expect(database.getAllMetadataVerification).not.toHaveBeenCalled();
+      expect(database.getMetadata).toHaveBeenCalled();
+    });
+
+    it('should skip fs.stat if metadata exists and forceCheck is false', async () => {
+      const filePath = '/existing.mp4';
+      vi.mocked(database.getMetadata).mockResolvedValue({
+        [filePath]: {
+          status: 'success',
+          size: 1024,
+          createdAt: new Date().toISOString(),
+        },
       });
 
-      it(`should call getMetadata when processing <= ${METADATA_VERIFICATION_THRESHOLD} files`, async () => {
-        const filePaths = Array.from({ length: METADATA_VERIFICATION_THRESHOLD }, (_, i) => `/path/${i}.mp4`);
-        await extractAndSaveMetadata(filePaths, 'ffmpeg');
+      // Ensure stat matches db
+      vi.mocked(fs.stat).mockResolvedValue({
+        size: 1024,
+        birthtime: new Date(),
+      } as any);
 
-        expect(database.getAllMetadataVerification).not.toHaveBeenCalled();
-        expect(database.getMetadata).toHaveBeenCalled();
-      });
+      await extractAndSaveMetadata([filePath], 'ffmpeg', { forceCheck: false });
 
-      it('should skip fs.stat if metadata exists and forceCheck is false', async () => {
-        const filePath = '/existing.mp4';
-        vi.mocked(database.getMetadata).mockResolvedValue({
-          [filePath]: { status: 'success', size: 1024, createdAt: new Date().toISOString() },
-        });
+      // It fetches metadata, checks against stat?
+      // Wait, extractAndSaveMetadata calls fs.stat to COMPARE with DB.
+      // It does: `const stats = await fs.stat(filePath);`
+      // Then compares with existing.
+      // So fs.stat IS called.
+      // Wait, let's re-read the optimization test logic.
+      // `media-service-optimization.test.ts`:
+      // "should skip fs.stat if metadata exists and forceCheck is false"
+      // Implementation:
+      // `if (!forceCheck && existingMetadataMap[filePath]?.status === 'success') { continue; }`
+      // Ah! If status is success, it continues loop WITHOUT calling fs.stat.
+      // BUT my test above mocked getMetadata correctly.
+      // However, I need to make sure `getMetadata` returns the data such that `existingMetadataMap` is populated.
 
-        // Ensure stat matches db
-        vi.mocked(fs.stat).mockResolvedValue({
-            size: 1024,
-            birthtime: new Date(),
-        } as any);
+      // `extractAndSaveMetadata` logic:
+      // `existingMetadataMap = await this.mediaRepo.getMetadata(filePaths);`
+      // Loop:
+      // `if (!forceCheck && existingMetadataMap[filePath]?.status === 'success') { continue; }`
 
-        await extractAndSaveMetadata([filePath], 'ffmpeg', { forceCheck: false });
+      // So yes, it should SKIP fs.stat.
 
-        // It fetches metadata, checks against stat?
-        // Wait, extractAndSaveMetadata calls fs.stat to COMPARE with DB.
-        // It does: `const stats = await fs.stat(filePath);`
-        // Then compares with existing.
-        // So fs.stat IS called.
-        // Wait, let's re-read the optimization test logic.
-        // `media-service-optimization.test.ts`:
-        // "should skip fs.stat if metadata exists and forceCheck is false"
-        // Implementation:
-        // `if (!forceCheck && existingMetadataMap[filePath]?.status === 'success') { continue; }`
-        // Ah! If status is success, it continues loop WITHOUT calling fs.stat.
-        // BUT my test above mocked getMetadata correctly.
-        // However, I need to make sure `getMetadata` returns the data such that `existingMetadataMap` is populated.
+      // But wait, the date needs to match?
+      // No, the "skip if success" check happens BEFORE fs.stat.
+      // The "check if changed" logic happens AFTER fs.stat (if we didn't skip).
 
-        // `extractAndSaveMetadata` logic:
-        // `existingMetadataMap = await this.mediaRepo.getMetadata(filePaths);`
-        // Loop:
-        // `if (!forceCheck && existingMetadataMap[filePath]?.status === 'success') { continue; }`
-
-        // So yes, it should SKIP fs.stat.
-
-        // But wait, the date needs to match?
-        // No, the "skip if success" check happens BEFORE fs.stat.
-        // The "check if changed" logic happens AFTER fs.stat (if we didn't skip).
-
-        // So I need to mock `database.getMetadata` to return success.
-        expect(fs.stat).not.toHaveBeenCalled();
-      });
+      // So I need to mock `database.getMetadata` to return success.
+      expect(fs.stat).not.toHaveBeenCalled();
+    });
   });
 
   // --- Mutation ---
   describe('Mutation & Enrichment', () => {
-      it('should mutate albums in-place', async () => {
-        const mockAlbum = {
-            id: 'album-1',
-            name: 'Test Album',
-            textures: [{ name: 'video.mp4', path: '/video.mp4', rating: 0 } as any],
-            children: [
-              {
-                id: 'child-1',
-                name: 'Child Album',
-                textures: [{ name: 'image.jpg', path: '/image.jpg' }],
-                children: [],
-              },
-            ],
-        };
+    it('should mutate albums in-place', async () => {
+      const mockAlbum = {
+        id: 'album-1',
+        name: 'Test Album',
+        textures: [{ name: 'video.mp4', path: '/video.mp4', rating: 0 } as any],
+        children: [
+          {
+            id: 'child-1',
+            name: 'Child Album',
+            textures: [{ name: 'image.jpg', path: '/image.jpg' }],
+            children: [],
+          },
+        ],
+      };
 
-        vi.mocked(database.getAllMediaViewCounts).mockResolvedValue({ '/video.mp4': 5 });
-        vi.mocked(database.getAllMetadataStats).mockResolvedValue({ '/video.mp4': { duration: 120, rating: 4 } });
-
-        const result = await mockWorkerReply(() => getAlbumsWithViewCountsAfterScan(), [mockAlbum]);
-
-        // Check Referential Equality (Mutation)
-        // Note: mockWorkerReply returns the result of the action.
-        // The action `getAlbumsWithViewCountsAfterScan` calls `scanDisk...` which returns albums.
-        // `scanDisk...` returns the result from worker.
-        // The worker mock returns a COPY of the data passed to `mockWorkerReply` usually?
-        // No, `mockWorkerReply` calls `onMessage` with `replyData`.
-        // `onMessage` passes `replyData` to `resolve`.
-        // So `scanDisk...` returns `replyData` (reference).
-        // So `getAlbumsWithViewCountsAfterScan` enriches THAT reference.
-
-        expect(result[0]).toBe(mockAlbum);
-
-        expect(mockAlbum.textures[0].viewCount).toBe(5);
-        expect(mockAlbum.textures[0].duration).toBe(120);
-        expect(mockAlbum.textures[0].rating).toBe(4);
-
-        expect(result[0].children[0].textures[0].viewCount).toBe(0);
+      vi.mocked(database.getAllMediaViewCounts).mockResolvedValue({
+        '/video.mp4': 5,
       });
+      vi.mocked(database.getAllMetadataStats).mockResolvedValue({
+        '/video.mp4': { duration: 120, rating: 4 },
+      });
+
+      const result = await mockWorkerReply(
+        () => getAlbumsWithViewCountsAfterScan(),
+        [mockAlbum],
+      );
+
+      // Check Referential Equality (Mutation)
+      // Note: mockWorkerReply returns the result of the action.
+      // The action `getAlbumsWithViewCountsAfterScan` calls `scanDisk...` which returns albums.
+      // `scanDisk...` returns the result from worker.
+      // The worker mock returns a COPY of the data passed to `mockWorkerReply` usually?
+      // No, `mockWorkerReply` calls `onMessage` with `replyData`.
+      // `onMessage` passes `replyData` to `resolve`.
+      // So `scanDisk...` returns `replyData` (reference).
+      // So `getAlbumsWithViewCountsAfterScan` enriches THAT reference.
+
+      expect(result[0]).toBe(mockAlbum);
+
+      expect(mockAlbum.textures[0].viewCount).toBe(5);
+      expect(mockAlbum.textures[0].duration).toBe(120);
+      expect(mockAlbum.textures[0].rating).toBe(4);
+
+      expect(result[0].children[0].textures[0].viewCount).toBe(0);
+    });
   });
 
   // --- Recursion ---
   describe('Recursion', () => {
-      it('should attach view counts and metadata to nested files', async () => {
-        const nestedAlbum = {
-            id: 'child',
-            name: 'Child',
-            textures: [{ path: '/child/file.mp4', name: 'file.mp4' }],
-            children: [],
-        };
-        const rootAlbum = { id: 'root', name: 'Root', textures: [], children: [nestedAlbum] };
+    it('should attach view counts and metadata to nested files', async () => {
+      const nestedAlbum = {
+        id: 'child',
+        name: 'Child',
+        textures: [{ path: '/child/file.mp4', name: 'file.mp4' }],
+        children: [],
+      };
+      const rootAlbum = {
+        id: 'root',
+        name: 'Root',
+        textures: [],
+        children: [nestedAlbum],
+      };
 
-        vi.mocked(database.getCachedAlbums).mockResolvedValue([rootAlbum] as any);
-        vi.mocked(database.getAllMediaViewCounts).mockResolvedValue({ '/child/file.mp4': 42 });
-        vi.mocked(database.getAllMetadataStats).mockResolvedValue({ '/child/file.mp4': { duration: 120 } as any });
-
-        const result = await getAlbumsWithViewCounts();
-
-        expect(result[0].children[0].textures[0].viewCount).toBe(42);
-        expect(result[0].children[0].textures[0].duration).toBe(120);
+      vi.mocked(database.getCachedAlbums).mockResolvedValue([rootAlbum] as any);
+      vi.mocked(database.getAllMediaViewCounts).mockResolvedValue({
+        '/child/file.mp4': 42,
       });
+      vi.mocked(database.getAllMetadataStats).mockResolvedValue({
+        '/child/file.mp4': { duration: 120 } as any,
+      });
+
+      const result = await getAlbumsWithViewCounts();
+
+      expect(result[0].children[0].textures[0].viewCount).toBe(42);
+      expect(result[0].children[0].textures[0].duration).toBe(120);
+    });
   });
 
   // --- Performance ---
   describe('Performance', () => {
-      it('should call fs.stat ONCE for a local video file (redundant check removed)', async () => {
-        const filePath = '/path/to/video.mp4';
-        // Ensure not in DB
-        vi.mocked(database.getMetadata).mockResolvedValue({});
-        // Mock getVideoDuration to return a valid result so we can verify it was called
-        vi.mocked(mediaHandler.getVideoDuration).mockResolvedValue({ duration: 100 });
-
-        await extractAndSaveMetadata([filePath], 'ffmpeg');
-
-        expect(fs.stat).toHaveBeenCalledTimes(1);
-        // Verify we call the handler for duration, instead of checking internal ffmpeg calls
-        // since media-handler is mocked.
-        expect(mediaHandler.getVideoDuration).toHaveBeenCalled();
+    it('should call fs.stat ONCE for a local video file (redundant check removed)', async () => {
+      const filePath = '/path/to/video.mp4';
+      // Ensure not in DB
+      vi.mocked(database.getMetadata).mockResolvedValue({});
+      // Mock getVideoDuration to return a valid result so we can verify it was called
+      vi.mocked(mediaHandler.getVideoDuration).mockResolvedValue({
+        duration: 100,
       });
 
-      it('should call fs.stat ONCE for image files and SKIP video duration check', async () => {
-        const filePath = '/path/to/image.jpg';
-        vi.mocked(database.getMetadata).mockResolvedValue({});
+      await extractAndSaveMetadata([filePath], 'ffmpeg');
 
-        await extractAndSaveMetadata([filePath], 'ffmpeg');
+      expect(fs.stat).toHaveBeenCalledTimes(1);
+      // Verify we call the handler for duration, instead of checking internal ffmpeg calls
+      // since media-handler is mocked.
+      expect(mediaHandler.getVideoDuration).toHaveBeenCalled();
+    });
 
-        expect(fs.stat).toHaveBeenCalledTimes(1);
-        expect(mediaHandler.getVideoDuration).not.toHaveBeenCalled();
-      });
+    it('should call fs.stat ONCE for image files and SKIP video duration check', async () => {
+      const filePath = '/path/to/image.jpg';
+      vi.mocked(database.getMetadata).mockResolvedValue({});
+
+      await extractAndSaveMetadata([filePath], 'ffmpeg');
+
+      expect(fs.stat).toHaveBeenCalledTimes(1);
+      expect(mediaHandler.getVideoDuration).not.toHaveBeenCalled();
+    });
   });
 
   // --- Coverage (from tests/main/media-service.coverage.test.ts) ---
@@ -437,7 +491,7 @@ describe('MediaService Combined Tests', () => {
             filePath: testFile,
             status: 'failed',
           }),
-        ])
+        ]),
       );
       consoleSpy.mockRestore();
     });
@@ -447,10 +501,16 @@ describe('MediaService Combined Tests', () => {
         size: 1000,
         birthtime: new Date(),
       } as any);
-      vi.mocked(mediaHandler.getVideoDuration).mockResolvedValue({ duration: 60 });
-      vi.mocked(database.bulkUpsertMetadata).mockRejectedValue(new Error('DB Error'));
+      vi.mocked(mediaHandler.getVideoDuration).mockResolvedValue({
+        duration: 60,
+      });
+      vi.mocked(database.bulkUpsertMetadata).mockRejectedValue(
+        new Error('DB Error'),
+      );
 
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
       const testFile = '/path/to/video.mp4';
 
       await extractAndSaveMetadata([testFile], 'ffmpeg');
@@ -467,7 +527,9 @@ describe('MediaService Combined Tests', () => {
         size: 1000,
         birthtime: new Date('2023-01-01'),
       } as any);
-      vi.mocked(mediaHandler.getVideoDuration).mockResolvedValue({ duration: 120 });
+      vi.mocked(mediaHandler.getVideoDuration).mockResolvedValue({
+        duration: 120,
+      });
       const testFile = '/path/to/video.mp4';
 
       await extractAndSaveMetadata([testFile], 'ffmpeg');
@@ -479,7 +541,7 @@ describe('MediaService Combined Tests', () => {
             duration: 120,
             size: 1000,
           }),
-        ])
+        ]),
       );
     });
 
@@ -501,13 +563,15 @@ describe('MediaService Combined Tests', () => {
             filePath: testFile,
             size: 500,
           }),
-        ])
+        ]),
       );
 
       // Ensure duration is NOT present in the payload object for this file
-      const call = vi.mocked(database.bulkUpsertMetadata).mock.calls.find(args =>
-          args[0].some((item: any) => item.filePath === testFile)
-      );
+      const call = vi
+        .mocked(database.bulkUpsertMetadata)
+        .mock.calls.find((args) =>
+          args[0].some((item: any) => item.filePath === testFile),
+        );
       const item = call?.[0].find((item: any) => item.filePath === testFile);
       expect(item).toBeDefined();
       expect(item).not.toHaveProperty('duration');

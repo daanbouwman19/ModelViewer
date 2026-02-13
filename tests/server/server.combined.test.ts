@@ -54,9 +54,12 @@ vi.mock('fs', () => ({
     writeFileSync: vi.fn(),
     unlinkSync: vi.fn(),
     createReadStream: vi.fn(() => {
-        const stream = new (require('events').EventEmitter)();
-        stream.pipe = (dest: any) => { dest.end(); return dest; };
-        return stream;
+      const stream = new (require('events').EventEmitter)();
+      stream.pipe = (dest: any) => {
+        dest.end();
+        return dest;
+      };
+      return stream;
     }),
   },
   existsSync: vi.fn(),
@@ -64,9 +67,12 @@ vi.mock('fs', () => ({
   writeFileSync: vi.fn(),
   unlinkSync: vi.fn(),
   createReadStream: vi.fn(() => {
-        const stream = new (require('events').EventEmitter)();
-        stream.pipe = (dest: any) => { dest.end(); return dest; };
-        return stream;
+    const stream = new (require('events').EventEmitter)();
+    stream.pipe = (dest: any) => {
+      dest.end();
+      return dest;
+    };
+    return stream;
   }),
 }));
 
@@ -79,7 +85,8 @@ vi.mock('../../src/core/utils/mime-types');
 
 // Mock security
 vi.mock('../../src/core/security', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../src/core/security')>();
+  const actual =
+    await importOriginal<typeof import('../../src/core/security')>();
   return {
     ...actual,
     authorizeFilePath: vi.fn(),
@@ -133,7 +140,9 @@ vi.mock('../../src/core/media-handler', () => ({
   serveRawStream: vi.fn((_req, res) => res.end()),
   serveThumbnail: vi.fn((_req, res) => res.end()),
   serveStaticFile: vi.fn((_req, res) => res.end()),
-  validateFileAccess: vi.fn().mockResolvedValue({ success: true, path: '/resolved/path' }),
+  validateFileAccess: vi
+    .fn()
+    .mockResolvedValue({ success: true, path: '/resolved/path' }),
   generateFileUrl: vi.fn(),
   createMediaApp: vi.fn(),
   getVideoDuration: vi.fn(),
@@ -183,8 +192,13 @@ describe('Server Combined Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Security Defaults
-    vi.mocked(security.authorizeFilePath).mockResolvedValue({ isAllowed: true, realPath: '/resolved/path' });
-    vi.mocked(security.filterAuthorizedPaths).mockImplementation(async (paths) => paths);
+    vi.mocked(security.authorizeFilePath).mockResolvedValue({
+      isAllowed: true,
+      realPath: '/resolved/path',
+    });
+    vi.mocked(security.filterAuthorizedPaths).mockImplementation(
+      async (paths) => paths,
+    );
     vi.mocked(security.isRestrictedPath).mockReturnValue(false);
     vi.mocked(security.isSensitiveDirectory).mockReturnValue(false);
 
@@ -200,7 +214,9 @@ describe('Server Combined Tests', () => {
 
     // Media Utils Defaults
     vi.mocked(mediaUtils.checkThumbnailCache).mockResolvedValue(false);
-    vi.mocked(mediaUtils.getThumbnailCachePath).mockReturnValue('/tmp/thumb.jpg');
+    vi.mocked(mediaUtils.getThumbnailCachePath).mockReturnValue(
+      '/tmp/thumb.jpg',
+    );
     vi.mocked(mediaUtils.isDrivePath).mockReturnValue(false);
     vi.mocked(mimeTypes.getMimeType).mockReturnValue('image/jpeg');
   });
@@ -210,14 +226,18 @@ describe('Server Combined Tests', () => {
     describe('GET /api/albums', () => {
       it('should return albums', async () => {
         const mockAlbums = [{ id: 1, name: 'Album 1' }];
-        vi.mocked(mediaService.getAlbumsWithViewCounts).mockResolvedValue(mockAlbums as any);
+        vi.mocked(mediaService.getAlbumsWithViewCounts).mockResolvedValue(
+          mockAlbums as any,
+        );
         const response = await request(app).get('/api/albums');
         expect(response.status).toBe(200);
         expect(response.body).toEqual(mockAlbums);
       });
 
       it('should handle errors', async () => {
-        vi.mocked(mediaService.getAlbumsWithViewCounts).mockRejectedValue(new Error('Test error'));
+        vi.mocked(mediaService.getAlbumsWithViewCounts).mockRejectedValue(
+          new Error('Test error'),
+        );
         const response = await request(app).get('/api/albums');
         expect(response.status).toBe(500);
       });
@@ -226,7 +246,9 @@ describe('Server Combined Tests', () => {
     describe('POST /api/albums/reindex', () => {
       it('should reindex and return albums', async () => {
         const mockAlbums = [{ id: 1, name: 'Album 1' }];
-        vi.mocked(mediaService.getAlbumsWithViewCountsAfterScan).mockResolvedValue(mockAlbums as any);
+        vi.mocked(
+          mediaService.getAlbumsWithViewCountsAfterScan,
+        ).mockResolvedValue(mockAlbums as any);
         const response = await request(app).post('/api/albums/reindex');
         expect(response.status).toBe(200);
         expect(response.body).toEqual(mockAlbums);
@@ -236,7 +258,9 @@ describe('Server Combined Tests', () => {
     describe('POST /api/media/view', () => {
       it('should record media view', async () => {
         const filePath = '/path/to/file.jpg';
-        const response = await request(app).post('/api/media/view').send({ filePath });
+        const response = await request(app)
+          .post('/api/media/view')
+          .send({ filePath });
         expect(response.status).toBe(200);
         expect(database.recordMediaView).toHaveBeenCalledWith(filePath);
       });
@@ -247,8 +271,13 @@ describe('Server Combined Tests', () => {
       });
 
       it('should return 403 if access is denied', async () => {
-        vi.mocked(security.authorizeFilePath).mockResolvedValue({ isAllowed: false, message: 'Denied' });
-        const response = await request(app).post('/api/media/view').send({ filePath: '/secret' });
+        vi.mocked(security.authorizeFilePath).mockResolvedValue({
+          isAllowed: false,
+          message: 'Denied',
+        });
+        const response = await request(app)
+          .post('/api/media/view')
+          .send({ filePath: '/secret' });
         expect(response.status).toBe(403);
       });
     });
@@ -258,7 +287,9 @@ describe('Server Combined Tests', () => {
         const filePaths = ['/path/to/file.jpg'];
         const mockCounts = { '/path/to/file.jpg': 5 };
         vi.mocked(database.getMediaViewCounts).mockResolvedValue(mockCounts);
-        const response = await request(app).post('/api/media/views').send({ filePaths });
+        const response = await request(app)
+          .post('/api/media/views')
+          .send({ filePaths });
         expect(response.status).toBe(200);
         expect(response.body).toEqual(mockCounts);
       });
@@ -267,7 +298,9 @@ describe('Server Combined Tests', () => {
     describe('GET /api/directories', () => {
       it('should return directories', async () => {
         const mockDirs = ['/dir1', '/dir2'];
-        vi.mocked(database.getMediaDirectories).mockResolvedValue(mockDirs as any);
+        vi.mocked(database.getMediaDirectories).mockResolvedValue(
+          mockDirs as any,
+        );
         const response = await request(app).get('/api/directories');
         expect(response.status).toBe(200);
         expect(response.body).toEqual(mockDirs);
@@ -278,7 +311,9 @@ describe('Server Combined Tests', () => {
       it('should add a directory', async () => {
         const dirPath = '/new/dir';
         vi.mocked(fs.realpath).mockResolvedValue(dirPath);
-        const response = await request(app).post('/api/directories').send({ path: dirPath });
+        const response = await request(app)
+          .post('/api/directories')
+          .send({ path: dirPath });
         expect(response.status).toBe(200);
         expect(database.addMediaDirectory).toHaveBeenCalledWith(dirPath);
       });
@@ -287,7 +322,9 @@ describe('Server Combined Tests', () => {
     describe('DELETE /api/directories', () => {
       it('should remove a directory', async () => {
         const dirPath = '/dir/to/remove';
-        const response = await request(app).delete('/api/directories').send({ path: dirPath });
+        const response = await request(app)
+          .delete('/api/directories')
+          .send({ path: dirPath });
         expect(response.status).toBe(200);
         expect(database.removeMediaDirectory).toHaveBeenCalledWith(dirPath);
       });
@@ -297,9 +334,14 @@ describe('Server Combined Tests', () => {
       it('should set directory active state', async () => {
         const dirPath = '/dir';
         const isActive = false;
-        const response = await request(app).put('/api/directories/active').send({ path: dirPath, isActive });
+        const response = await request(app)
+          .put('/api/directories/active')
+          .send({ path: dirPath, isActive });
         expect(response.status).toBe(200);
-        expect(database.setDirectoryActiveState).toHaveBeenCalledWith(dirPath, isActive);
+        expect(database.setDirectoryActiveState).toHaveBeenCalledWith(
+          dirPath,
+          isActive,
+        );
       });
     });
 
@@ -327,134 +369,226 @@ describe('Server Combined Tests', () => {
     let transcodeStartedCount = 0;
 
     beforeEach(async () => {
-        transcodeStartedCount = 0;
-        transcodeBarrier = new Promise((resolve) => {
-            releaseTranscode = resolve;
-        });
+      transcodeStartedCount = 0;
+      transcodeBarrier = new Promise((resolve) => {
+        releaseTranscode = resolve;
+      });
 
-        // Override mock implementation for this test suite
-        vi.mocked(mediaHandler.serveTranscodedStream).mockImplementation(async (_req, res) => {
-            transcodeStartedCount++;
-            res.write('chunk');
-            await transcodeBarrier;
-            res.end();
-        });
+      // Override mock implementation for this test suite
+      vi.mocked(mediaHandler.serveTranscodedStream).mockImplementation(
+        async (_req, res) => {
+          transcodeStartedCount++;
+          res.write('chunk');
+          await transcodeBarrier;
+          res.end();
+        },
+      );
 
-        // Ensure validation passes
-        vi.mocked(mediaHandler.validateFileAccess).mockResolvedValue({ success: true, path: 'test.mp4' });
+      // Ensure validation passes
+      vi.mocked(mediaHandler.validateFileAccess).mockResolvedValue({
+        success: true,
+        path: 'test.mp4',
+      });
     });
 
     it('should limit concurrent transcoding requests', async () => {
-        const LIMIT = 3;
-        const pendingRequests: Promise<any>[] = [];
+      const LIMIT = 3;
+      const pendingRequests: Promise<any>[] = [];
 
-        for (let i = 0; i < LIMIT; i++) {
-            const p = request(app).get('/api/stream?file=test.mp4&transcode=true').then(r => r);
-            pendingRequests.push(p);
-        }
+      for (let i = 0; i < LIMIT; i++) {
+        const p = request(app)
+          .get('/api/stream?file=test.mp4&transcode=true')
+          .then((r) => r);
+        pendingRequests.push(p);
+      }
 
-        await vi.waitUntil(() => transcodeStartedCount === LIMIT);
+      await vi.waitUntil(() => transcodeStartedCount === LIMIT);
 
-        const blockedRes = await request(app).get('/api/stream?file=test.mp4&transcode=true');
-        expect(blockedRes.status).toBe(503);
-        expect(blockedRes.text).toMatch(/server too busy/i);
+      const blockedRes = await request(app).get(
+        '/api/stream?file=test.mp4&transcode=true',
+      );
+      expect(blockedRes.status).toBe(503);
+      expect(blockedRes.text).toMatch(/server too busy/i);
 
-        releaseTranscode();
+      releaseTranscode();
 
-        const results = await Promise.all(pendingRequests);
-        results.forEach(res => expect(res.status).toBe(200));
+      const results = await Promise.all(pendingRequests);
+      results.forEach((res) => expect(res.status).toBe(200));
 
-        const successRes = await request(app).get('/api/stream?file=test.mp4&transcode=true');
-        expect(successRes.status).toBe(200);
+      const successRes = await request(app).get(
+        '/api/stream?file=test.mp4&transcode=true',
+      );
+      expect(successRes.status).toBe(200);
     });
   });
 
   // --- Input Validation (from server.validation.test.ts) ---
   describe('Server Input Validation', () => {
-      beforeEach(() => {
-          // Validation middleware uses authorizeFilePath internally which does type checking sometimes
-          // but mainly we want the schema validation middleware to fail before that.
-          // The combined file already has authorizeFilePath mocked.
+    beforeEach(() => {
+      // Validation middleware uses authorizeFilePath internally which does type checking sometimes
+      // but mainly we want the schema validation middleware to fail before that.
+      // The combined file already has authorizeFilePath mocked.
 
-          // Re-mock authorizeFilePath to throw if not string, matching validation test expectation if applicable
-          vi.mocked(security.authorizeFilePath).mockImplementation(async (p: any) => {
-              if (typeof p !== 'string') throw new TypeError('Path must be a string');
-              return { isAllowed: true, realPath: p };
-          });
-      });
+      // Re-mock authorizeFilePath to throw if not string, matching validation test expectation if applicable
+      vi.mocked(security.authorizeFilePath).mockImplementation(
+        async (p: any) => {
+          if (typeof p !== 'string')
+            throw new TypeError('Path must be a string');
+          return { isAllowed: true, realPath: p };
+        },
+      );
+    });
 
-      const testCases = [
-        { method: 'post', path: '/api/media/view', payload: {}, description: 'fails when filePath is missing' },
-        { method: 'post', path: '/api/media/view', payload: { filePath: 123 }, description: 'fails when filePath is not a string' },
-        { method: 'post', path: '/api/media/views', payload: {}, description: 'fails when filePaths is missing' },
-        { method: 'post', path: '/api/media/views', payload: { filePaths: 'string' }, description: 'fails when filePaths is not an array' },
-        { method: 'post', path: '/api/media/views', payload: { filePaths: Array(MAX_API_BATCH_SIZE + 1).fill('/path') }, description: 'fails when batch size exceeds limit' },
-        { method: 'post', path: '/api/media/rate', payload: {}, description: 'fails when body is empty' },
-        { method: 'post', path: '/api/media/rate', payload: { filePath: '/path' }, description: 'fails when rating is missing' },
-        { method: 'post', path: '/api/media/rate', payload: { rating: 5 }, description: 'fails when filePath is missing' },
-        { method: 'post', path: '/api/media/metadata', payload: {}, description: 'fails when body is empty' },
-        { method: 'get', path: '/api/stream', query: {}, description: 'fails when file param is missing' },
-        { method: 'get', path: '/api/metadata', query: {}, description: 'fails when file param is missing' },
-        { method: 'get', path: '/api/thumbnail', query: {}, description: 'fails when file param is missing' },
-      ];
+    const testCases = [
+      {
+        method: 'post',
+        path: '/api/media/view',
+        payload: {},
+        description: 'fails when filePath is missing',
+      },
+      {
+        method: 'post',
+        path: '/api/media/view',
+        payload: { filePath: 123 },
+        description: 'fails when filePath is not a string',
+      },
+      {
+        method: 'post',
+        path: '/api/media/views',
+        payload: {},
+        description: 'fails when filePaths is missing',
+      },
+      {
+        method: 'post',
+        path: '/api/media/views',
+        payload: { filePaths: 'string' },
+        description: 'fails when filePaths is not an array',
+      },
+      {
+        method: 'post',
+        path: '/api/media/views',
+        payload: { filePaths: Array(MAX_API_BATCH_SIZE + 1).fill('/path') },
+        description: 'fails when batch size exceeds limit',
+      },
+      {
+        method: 'post',
+        path: '/api/media/rate',
+        payload: {},
+        description: 'fails when body is empty',
+      },
+      {
+        method: 'post',
+        path: '/api/media/rate',
+        payload: { filePath: '/path' },
+        description: 'fails when rating is missing',
+      },
+      {
+        method: 'post',
+        path: '/api/media/rate',
+        payload: { rating: 5 },
+        description: 'fails when filePath is missing',
+      },
+      {
+        method: 'post',
+        path: '/api/media/metadata',
+        payload: {},
+        description: 'fails when body is empty',
+      },
+      {
+        method: 'get',
+        path: '/api/stream',
+        query: {},
+        description: 'fails when file param is missing',
+      },
+      {
+        method: 'get',
+        path: '/api/metadata',
+        query: {},
+        description: 'fails when file param is missing',
+      },
+      {
+        method: 'get',
+        path: '/api/thumbnail',
+        query: {},
+        description: 'fails when file param is missing',
+      },
+    ];
 
-      it.each(testCases)('$method $path $description', async ({ method, path, payload, query }) => {
-          let req = (request(app) as any)[method](path);
-          if (payload) req = req.send(payload);
-          if (query) req = req.query(query);
-          const response = await req;
-          expect(response.status).toBe(400);
-      });
+    it.each(testCases)(
+      '$method $path $description',
+      async ({ method, path, payload, query }) => {
+        let req = (request(app) as any)[method](path);
+        if (payload) req = req.send(payload);
+        if (query) req = req.query(query);
+        const response = await req;
+        expect(response.status).toBe(400);
+      },
+    );
   });
 
   // --- IDOR (from server.idor.test.ts) ---
   describe('Server Security: Metadata & Rating Protection (IDOR)', () => {
-      it('should allow rating media if file is authorized', async () => {
-          vi.mocked(security.authorizeFilePath).mockResolvedValue({ isAllowed: true, realPath: '/allowed/file.mp4' });
-          const response = await request(app).post('/api/media/rate').send({ filePath: '/allowed/file.mp4', rating: 5 });
-          expect(response.status).toBe(200);
-          expect(database.setRating).toHaveBeenCalledWith('/allowed/file.mp4', 5);
+    it('should allow rating media if file is authorized', async () => {
+      vi.mocked(security.authorizeFilePath).mockResolvedValue({
+        isAllowed: true,
+        realPath: '/allowed/file.mp4',
       });
+      const response = await request(app)
+        .post('/api/media/rate')
+        .send({ filePath: '/allowed/file.mp4', rating: 5 });
+      expect(response.status).toBe(200);
+      expect(database.setRating).toHaveBeenCalledWith('/allowed/file.mp4', 5);
+    });
 
-      it('should BLOCK rating media if file is unauthorized', async () => {
-          vi.mocked(security.authorizeFilePath).mockResolvedValue({ isAllowed: false, message: 'Access denied' });
-          const response = await request(app).post('/api/media/rate').send({ filePath: '/secret.mp4', rating: 5 });
-          expect(response.status).toBe(403);
-          expect(database.setRating).not.toHaveBeenCalled();
+    it('should BLOCK rating media if file is unauthorized', async () => {
+      vi.mocked(security.authorizeFilePath).mockResolvedValue({
+        isAllowed: false,
+        message: 'Access denied',
       });
+      const response = await request(app)
+        .post('/api/media/rate')
+        .send({ filePath: '/secret.mp4', rating: 5 });
+      expect(response.status).toBe(403);
+      expect(database.setRating).not.toHaveBeenCalled();
+    });
   });
 
   // --- Batch Limit (from server.batch-limit.test.ts) ---
   describe('Server Batch Limit', () => {
-      it('should reject /api/media/views requests with more than limit', async () => {
-          const hugeArray = new Array(MAX_API_BATCH_SIZE + 1).fill('/path');
-          const res = await request(app).post('/api/media/views').send({ filePaths: hugeArray });
-          expect(res.status).toBe(400);
-      });
+    it('should reject /api/media/views requests with more than limit', async () => {
+      const hugeArray = new Array(MAX_API_BATCH_SIZE + 1).fill('/path');
+      const res = await request(app)
+        .post('/api/media/views')
+        .send({ filePaths: hugeArray });
+      expect(res.status).toBe(400);
+    });
   });
 
   // --- Path Length (from path_length.test.ts) ---
   describe('Path Length Validation', () => {
-      const longPath = '/' + 'a'.repeat(MAX_PATH_LENGTH + 100);
-      const testCases = [
-          { method: 'post', url: '/api/directories', payload: { path: longPath } },
-          { method: 'get', url: '/api/fs/ls', query: { path: longPath } },
-      ];
+    const longPath = '/' + 'a'.repeat(MAX_PATH_LENGTH + 100);
+    const testCases = [
+      { method: 'post', url: '/api/directories', payload: { path: longPath } },
+      { method: 'get', url: '/api/fs/ls', query: { path: longPath } },
+    ];
 
-      it.each(testCases)('should reject long paths for $url', async ({ method, url, payload, query }) => {
-          const req = (request(app) as any)[method](url);
-          if (payload) req.send(payload);
-          if (query) req.query(query);
-          const response = await req;
-          expect(response.status).toBe(400);
-      });
+    it.each(testCases)(
+      'should reject long paths for $url',
+      async ({ method, url, payload, query }) => {
+        const req = (request(app) as any)[method](url);
+        if (payload) req.send(payload);
+        if (query) req.query(query);
+        const response = await req;
+        expect(response.status).toBe(400);
+      },
+    );
   });
 
   // --- CSP ---
   describe('Server CSP', () => {
-      it('should have Content-Security-Policy header', async () => {
-          const response = await request(app).get('/api/config/extensions');
-          expect(response.headers['content-security-policy']).toBeDefined();
-      });
+    it('should have Content-Security-Policy header', async () => {
+      const response = await request(app).get('/api/config/extensions');
+      expect(response.headers['content-security-policy']).toBeDefined();
+    });
   });
 });

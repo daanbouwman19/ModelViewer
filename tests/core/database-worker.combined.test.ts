@@ -75,13 +75,13 @@ const sendMessage = (
 };
 
 const safeCleanup = (dir: string) => {
-    try {
-        if (fs.existsSync(dir)) {
-             fs.rmSync(dir, { recursive: true, force: true });
-        }
-    } catch {
-        // ignore
+  try {
+    if (fs.existsSync(dir)) {
+      fs.rmSync(dir, { recursive: true, force: true });
     }
+  } catch {
+    // ignore
+  }
 };
 
 describe('Database Worker Combined Tests', () => {
@@ -98,7 +98,9 @@ describe('Database Worker Combined Tests', () => {
 
     // Clear any previous listeners on workerMessage to avoid leaks
     if (parentPort) {
-        (parentPort as unknown as import('events').EventEmitter).removeAllListeners('workerMessage');
+      (
+        parentPort as unknown as import('events').EventEmitter
+      ).removeAllListeners('workerMessage');
     }
 
     // Important: The WORKER'S listener on 'message' (setup by import) persists.
@@ -109,10 +111,10 @@ describe('Database Worker Combined Tests', () => {
     try {
       await sendMessage('close', {});
     } catch {
-       // ignore
+      // ignore
     }
     try {
-        closeDatabase(); // Ensure closed for direct tests
+      closeDatabase(); // Ensure closed for direct tests
     } catch {}
     safeCleanup(tempDir);
     vi.restoreAllMocks();
@@ -121,301 +123,349 @@ describe('Database Worker Combined Tests', () => {
   // --- From database-worker.test.ts ---
   describe('Message Passing Interface', () => {
     describe('Initialization and Basic Operations', () => {
-        it('should initialize the database', async () => {
-          const result = await sendMessage('init', { dbPath });
-          expect(result.success).toBe(true);
-        });
+      it('should initialize the database', async () => {
+        const result = await sendMessage('init', { dbPath });
+        expect(result.success).toBe(true);
+      });
 
-        it('should handle re-initialization', async () => {
-          await sendMessage('init', { dbPath });
-          const newDbPath = path.join(tempDir, 'new.sqlite');
-          const result = await sendMessage('init', { dbPath: newDbPath });
-          expect(result.success).toBe(true);
-        });
+      it('should handle re-initialization', async () => {
+        await sendMessage('init', { dbPath });
+        const newDbPath = path.join(tempDir, 'new.sqlite');
+        const result = await sendMessage('init', { dbPath: newDbPath });
+        expect(result.success).toBe(true);
+      });
 
-        it('should close the database', async () => {
-          await sendMessage('init', { dbPath });
-          const result = await sendMessage('close', {});
-          expect(result.success).toBe(true);
-        });
+      it('should close the database', async () => {
+        await sendMessage('init', { dbPath });
+        const result = await sendMessage('close', {});
+        expect(result.success).toBe(true);
+      });
 
-        it('should migrate old media_directories schema', async () => {
-          const migrationDbPath = path.join(tempDir, 'migration_old_schema.sqlite');
-          const tempDb = new Database(migrationDbPath);
-          tempDb.prepare(`CREATE TABLE media_directories (path TEXT UNIQUE, is_active INTEGER DEFAULT 1)`).run();
-          tempDb.prepare('INSERT INTO media_directories (path, is_active) VALUES (?, ?)').run('/old/path', 1);
-          tempDb.close();
+      it('should migrate old media_directories schema', async () => {
+        const migrationDbPath = path.join(
+          tempDir,
+          'migration_old_schema.sqlite',
+        );
+        const tempDb = new Database(migrationDbPath);
+        tempDb
+          .prepare(
+            `CREATE TABLE media_directories (path TEXT UNIQUE, is_active INTEGER DEFAULT 1)`,
+          )
+          .run();
+        tempDb
+          .prepare(
+            'INSERT INTO media_directories (path, is_active) VALUES (?, ?)',
+          )
+          .run('/old/path', 1);
+        tempDb.close();
 
-          const result = await sendMessage('init', { dbPath: migrationDbPath });
-          expect(result.success).toBe(true);
+        const result = await sendMessage('init', { dbPath: migrationDbPath });
+        expect(result.success).toBe(true);
 
-          const dirsResult = await sendMessage('getMediaDirectories', {});
-          expect(dirsResult.success).toBe(true);
-          const dirs = dirsResult.data as Directory[];
-          expect(dirs).toHaveLength(1);
-          expect(dirs[0].path).toBe('/old/path');
-        });
+        const dirsResult = await sendMessage('getMediaDirectories', {});
+        expect(dirsResult.success).toBe(true);
+        const dirs = dirsResult.data as Directory[];
+        expect(dirs).toHaveLength(1);
+        expect(dirs[0].path).toBe('/old/path');
+      });
     });
 
     describe('Media Views', () => {
-        beforeEach(async () => {
-            await sendMessage('init', { dbPath });
-        });
+      beforeEach(async () => {
+        await sendMessage('init', { dbPath });
+      });
 
-        it('should record a media view', async () => {
-            const filePath = path.join(tempDir, 'file.jpg');
-            fs.writeFileSync(filePath, 'test data');
-            const result = await sendMessage('recordMediaView', { filePath });
-            expect(result.success).toBe(true);
-        });
+      it('should record a media view', async () => {
+        const filePath = path.join(tempDir, 'file.jpg');
+        fs.writeFileSync(filePath, 'test data');
+        const result = await sendMessage('recordMediaView', { filePath });
+        expect(result.success).toBe(true);
+      });
 
-        it('should increment view count', async () => {
-            const filePath = path.join(tempDir, 'file.jpg');
-            fs.writeFileSync(filePath, 'test data');
-            await sendMessage('recordMediaView', { filePath });
-            await sendMessage('recordMediaView', { filePath });
-            const result = await sendMessage('getMediaViewCounts', { filePaths: [filePath] });
-            expect(result.success).toBe(true);
-            expect((result.data as any)[filePath]).toBe(2);
+      it('should increment view count', async () => {
+        const filePath = path.join(tempDir, 'file.jpg');
+        fs.writeFileSync(filePath, 'test data');
+        await sendMessage('recordMediaView', { filePath });
+        await sendMessage('recordMediaView', { filePath });
+        const result = await sendMessage('getMediaViewCounts', {
+          filePaths: [filePath],
         });
+        expect(result.success).toBe(true);
+        expect((result.data as any)[filePath]).toBe(2);
+      });
 
-        it('should handle special characters', async () => {
-            const filePath = path.join(tempDir, 'file & chars.png');
-            fs.writeFileSync(filePath, 'data');
-            const result = await sendMessage('recordMediaView', { filePath });
-            expect(result.success).toBe(true);
-        });
+      it('should handle special characters', async () => {
+        const filePath = path.join(tempDir, 'file & chars.png');
+        fs.writeFileSync(filePath, 'data');
+        const result = await sendMessage('recordMediaView', { filePath });
+        expect(result.success).toBe(true);
+      });
 
-        it('should generate ID from path for GDrive files', async () => {
-            const filePath = 'gdrive://12345';
-            const result = await sendMessage('recordMediaView', { filePath });
-            expect(result.success).toBe(true);
-        });
+      it('should generate ID from path for GDrive files', async () => {
+        const filePath = 'gdrive://12345';
+        const result = await sendMessage('recordMediaView', { filePath });
+        expect(result.success).toBe(true);
+      });
     });
 
     describe('Media Directories', () => {
-        beforeEach(async () => {
-            await sendMessage('init', { dbPath });
-        });
+      beforeEach(async () => {
+        await sendMessage('init', { dbPath });
+      });
 
-        it('should add and get media directories', async () => {
-            await sendMessage('addMediaDirectory', { directoryObj: { path: '/test/dir' } });
-            const result = await sendMessage('getMediaDirectories', {});
-            expect(result.success).toBe(true);
-            const dirs = result.data as Directory[];
-            expect(dirs[0].path).toBe('/test/dir');
-            expect(dirs[0].isActive).toBe(true);
+      it('should add and get media directories', async () => {
+        await sendMessage('addMediaDirectory', {
+          directoryObj: { path: '/test/dir' },
         });
+        const result = await sendMessage('getMediaDirectories', {});
+        expect(result.success).toBe(true);
+        const dirs = result.data as Directory[];
+        expect(dirs[0].path).toBe('/test/dir');
+        expect(dirs[0].isActive).toBe(true);
+      });
 
-        it('should remove media directory', async () => {
-            await sendMessage('addMediaDirectory', { directoryObj: { path: '/test/dir' } });
-            await sendMessage('removeMediaDirectory', { directoryPath: '/test/dir' });
-            const result = await sendMessage('getMediaDirectories', {});
-            expect((result.data as any[]).length).toBe(0);
+      it('should remove media directory', async () => {
+        await sendMessage('addMediaDirectory', {
+          directoryObj: { path: '/test/dir' },
         });
+        await sendMessage('removeMediaDirectory', {
+          directoryPath: '/test/dir',
+        });
+        const result = await sendMessage('getMediaDirectories', {});
+        expect((result.data as any[]).length).toBe(0);
+      });
     });
 
     describe('Smart Playlists & Metadata', () => {
-        beforeEach(async () => {
-            await sendMessage('init', { dbPath });
+      beforeEach(async () => {
+        await sendMessage('init', { dbPath });
+      });
+
+      it('should handle smart playlists CRUD', async () => {
+        const createRes = await sendMessage('createSmartPlaylist', {
+          name: 'List',
+          criteria: '{}',
         });
+        expect(createRes.success).toBe(true);
+        const id = (createRes.data as any).id;
 
-        it('should handle smart playlists CRUD', async () => {
-            const createRes = await sendMessage('createSmartPlaylist', { name: 'List', criteria: '{}' });
-            expect(createRes.success).toBe(true);
-            const id = (createRes.data as any).id;
-
-            await sendMessage('updateSmartPlaylist', { id, name: 'Updated', criteria: '{}' });
-            const listRes = await sendMessage('getSmartPlaylists', {});
-            expect((listRes.data as any)[0].name).toBe('Updated');
-
-            await sendMessage('deleteSmartPlaylist', { id });
-            const emptyRes = await sendMessage('getSmartPlaylists', {});
-            expect((emptyRes.data as any).length).toBe(0);
+        await sendMessage('updateSmartPlaylist', {
+          id,
+          name: 'Updated',
+          criteria: '{}',
         });
+        const listRes = await sendMessage('getSmartPlaylists', {});
+        expect((listRes.data as any)[0].name).toBe('Updated');
 
-        it('should handle metadata upsert and retrieval', async () => {
-            const filePath = path.join(tempDir, 'meta.mp4');
-            fs.writeFileSync(filePath, 'data');
+        await sendMessage('deleteSmartPlaylist', { id });
+        const emptyRes = await sendMessage('getSmartPlaylists', {});
+        expect((emptyRes.data as any).length).toBe(0);
+      });
 
-            await sendMessage('upsertMetadata', { filePath, duration: 120 });
-            const getRes = await sendMessage('getMetadata', { filePaths: [filePath] });
-            expect((getRes.data as any)[filePath].duration).toBe(120);
+      it('should handle metadata upsert and retrieval', async () => {
+        const filePath = path.join(tempDir, 'meta.mp4');
+        fs.writeFileSync(filePath, 'data');
+
+        await sendMessage('upsertMetadata', { filePath, duration: 120 });
+        const getRes = await sendMessage('getMetadata', {
+          filePaths: [filePath],
         });
+        expect((getRes.data as any)[filePath].duration).toBe(120);
+      });
 
-        it('should handle bulk upsert', async () => {
-            const filePath = path.join(tempDir, 'bulk.mp4');
-            fs.writeFileSync(filePath, 'data');
-            await sendMessage('bulkUpsertMetadata', [{ filePath, duration: 300 }]);
-            const getRes = await sendMessage('getMetadata', { filePaths: [filePath] });
-            expect((getRes.data as any)[filePath].duration).toBe(300);
+      it('should handle bulk upsert', async () => {
+        const filePath = path.join(tempDir, 'bulk.mp4');
+        fs.writeFileSync(filePath, 'data');
+        await sendMessage('bulkUpsertMetadata', [{ filePath, duration: 300 }]);
+        const getRes = await sendMessage('getMetadata', {
+          filePaths: [filePath],
         });
+        expect((getRes.data as any)[filePath].duration).toBe(300);
+      });
     });
 
     describe('Edge Cases', () => {
-         it('should return error for unknown message type', async () => {
-            const result = await sendMessage('unknownType', {});
-            expect(result.success).toBe(false);
-         });
+      it('should return error for unknown message type', async () => {
+        const result = await sendMessage('unknownType', {});
+        expect(result.success).toBe(false);
+      });
 
-         it('should fail gracefully before init', async () => {
-            const result = await sendMessage('getMetadata', { filePaths: [] });
-            expect(result.success).toBe(false);
-            expect(result.error).toBe('Database not initialized');
-         });
+      it('should fail gracefully before init', async () => {
+        const result = await sendMessage('getMetadata', { filePaths: [] });
+        expect(result.success).toBe(false);
+        expect(result.error).toBe('Database not initialized');
+      });
     });
   });
 
   // --- From database-worker.batch-optimization.test.ts ---
   describe('Batch Optimization (Direct)', () => {
-      let statSpy: any;
+    let statSpy: any;
 
-      beforeEach(() => {
-          // Direct init
-          initDatabase(dbPath);
+    beforeEach(() => {
+      // Direct init
+      initDatabase(dbPath);
 
-          let statCounter = 0;
-          // Spy on fs.promises.stat
-          statSpy = vi.spyOn(fs.promises, 'stat').mockImplementation(async () => ({
-              size: 1000,
-              mtime: new Date(Date.now() + statCounter++ * 1000),
-              isFile: () => true
-          }) as any);
-      });
+      let statCounter = 0;
+      // Spy on fs.promises.stat
+      statSpy = vi.spyOn(fs.promises, 'stat').mockImplementation(
+        async () =>
+          ({
+            size: 1000,
+            mtime: new Date(Date.now() + statCounter++ * 1000),
+            isFile: () => true,
+          }) as any,
+      );
+    });
 
-      afterEach(() => {
-          closeDatabase();
-      });
+    afterEach(() => {
+      closeDatabase();
+    });
 
-      it('getMetadata: should skip fs.stat for files already in database', async () => {
-        const file1 = '/path/to/existing1.mp4';
-        await upsertMetadata({ filePath: file1, size: 100 });
+    it('getMetadata: should skip fs.stat for files already in database', async () => {
+      const file1 = '/path/to/existing1.mp4';
+      await upsertMetadata({ filePath: file1, size: 100 });
 
-        // Reset spies
-        vi.mocked(fs.promises.stat).mockClear();
+      // Reset spies
+      vi.mocked(fs.promises.stat).mockClear();
 
-        const result = await getMetadata([file1]);
-        expect(result.success).toBe(true);
-        expect(fs.promises.stat).not.toHaveBeenCalled();
-      });
+      const result = await getMetadata([file1]);
+      expect(result.success).toBe(true);
+      expect(fs.promises.stat).not.toHaveBeenCalled();
+    });
 
-      it('bulkUpsertMetadata: should use batched ID lookup', async () => {
-          const file1 = '/batch/1.mp4';
-          const file2 = '/batch/2.mp4';
+    it('bulkUpsertMetadata: should use batched ID lookup', async () => {
+      const file1 = '/batch/1.mp4';
+      const file2 = '/batch/2.mp4';
 
-          // Pre-insert file1
-          await upsertMetadata({ filePath: file1 });
-          vi.mocked(fs.promises.stat).mockClear();
+      // Pre-insert file1
+      await upsertMetadata({ filePath: file1 });
+      vi.mocked(fs.promises.stat).mockClear();
 
-          // Bulk upsert
-          const payloads = [
-              { filePath: file1, rating: 5 },
-              { filePath: file2, rating: 3 }
-          ];
+      // Bulk upsert
+      const payloads = [
+        { filePath: file1, rating: 5 },
+        { filePath: file2, rating: 3 },
+      ];
 
-          await bulkUpsertMetadata(payloads);
+      await bulkUpsertMetadata(payloads);
 
-          // Should only stat file2
-          expect(fs.promises.stat).toHaveBeenCalledTimes(1);
-      });
+      // Should only stat file2
+      expect(fs.promises.stat).toHaveBeenCalledTimes(1);
+    });
   });
 
   // --- From database-worker.coverage.test.ts ---
   describe('Coverage (Exported Functions)', () => {
-      beforeEach(() => {
-          initDatabase(dbPath);
-      });
+    beforeEach(() => {
+      initDatabase(dbPath);
+    });
 
-      afterEach(() => {
-          closeDatabase();
-      });
+    afterEach(() => {
+      closeDatabase();
+    });
 
-      it('getAllMediaViewCounts returns correct counts', async () => {
-          await recordMediaView('/vid1.mp4');
-          await recordMediaView('/vid1.mp4');
+    it('getAllMediaViewCounts returns correct counts', async () => {
+      await recordMediaView('/vid1.mp4');
+      await recordMediaView('/vid1.mp4');
 
-          const result = getAllMediaViewCounts();
-          expect(result.success).toBe(true);
-          expect((result.data as any)['/vid1.mp4']).toBe(2);
-      });
+      const result = getAllMediaViewCounts();
+      expect(result.success).toBe(true);
+      expect((result.data as any)['/vid1.mp4']).toBe(2);
+    });
 
-      it('getAllMetadata returns correct metadata', async () => {
-          await upsertMetadata({ filePath: '/vid1.mp4', duration: 100 });
-          const result = getAllMetadata();
-          expect(result.success).toBe(true);
-          expect((result.data as any)['/vid1.mp4'].duration).toBe(100);
-      });
+    it('getAllMetadata returns correct metadata', async () => {
+      await upsertMetadata({ filePath: '/vid1.mp4', duration: 100 });
+      const result = getAllMetadata();
+      expect(result.success).toBe(true);
+      expect((result.data as any)['/vid1.mp4'].duration).toBe(100);
+    });
 
-      it('handles uninitialized DB for getAll functions', () => {
-          closeDatabase();
-          expect(getAllMediaViewCounts().success).toBe(false);
-          expect(getAllMetadata().success).toBe(false);
-      });
+    it('handles uninitialized DB for getAll functions', () => {
+      closeDatabase();
+      expect(getAllMediaViewCounts().success).toBe(false);
+      expect(getAllMetadata().success).toBe(false);
+    });
   });
 
   // --- From database-worker.filter.test.ts ---
   describe('Filter Logic', () => {
-      beforeEach(async () => {
-          await sendMessage('init', { dbPath });
+    beforeEach(async () => {
+      await sendMessage('init', { dbPath });
+    });
+
+    it('should filter out paths that are already success', async () => {
+      const fileA = '/path/a.mp4';
+      const fileB = '/path/b.mp4';
+
+      await sendMessage('upsertMetadata', {
+        filePath: fileA,
+        status: 'success',
+      });
+      await sendMessage('upsertMetadata', {
+        filePath: fileB,
+        status: 'pending',
       });
 
-      it('should filter out paths that are already success', async () => {
-          const fileA = '/path/a.mp4';
-          const fileB = '/path/b.mp4';
-
-          await sendMessage('upsertMetadata', { filePath: fileA, status: 'success' });
-          await sendMessage('upsertMetadata', { filePath: fileB, status: 'pending' });
-
-          const result = await sendMessage('filterProcessingNeeded', { filePaths: [fileA, fileB, '/path/c.mp4'] });
-          expect(result.success).toBe(true);
-          const needed = result.data as string[];
-          expect(needed).not.toContain(fileA);
-          expect(needed).toContain(fileB);
-          expect(needed).toContain('/path/c.mp4');
+      const result = await sendMessage('filterProcessingNeeded', {
+        filePaths: [fileA, fileB, '/path/c.mp4'],
       });
+      expect(result.success).toBe(true);
+      const needed = result.data as string[];
+      expect(needed).not.toContain(fileA);
+      expect(needed).toContain(fileB);
+      expect(needed).toContain('/path/c.mp4');
+    });
   });
 
   // --- From database-worker.optimization.test.ts & smart-playlist-optimization.test.ts ---
   describe('Optimization Tests', () => {
-      beforeEach(async () => {
-           await sendMessage('init', { dbPath });
+    beforeEach(async () => {
+      await sendMessage('init', { dbPath });
+    });
+
+    it('executeSmartPlaylist should not return heavy fields', async () => {
+      const filePath = path.join(tempDir, 'heavy.mp4');
+      fs.writeFileSync(filePath, 'data');
+
+      await sendMessage('upsertMetadata', {
+        filePath,
+        duration: 100,
+        size: 99999,
+        status: 'success',
+        watchedSegments: JSON.stringify(Array(100).fill(1)),
       });
 
-      it('executeSmartPlaylist should not return heavy fields', async () => {
-          const filePath = path.join(tempDir, 'heavy.mp4');
-          fs.writeFileSync(filePath, 'data');
+      const result = await sendMessage('executeSmartPlaylist', {
+        criteria: '{}',
+      });
+      expect(result.success).toBe(true);
+      const item = (result.data as any[])[0];
+      expect(item.file_path).toBe(filePath);
+      expect(item.size).toBeUndefined();
+      expect(item.watched_segments).toBeUndefined();
+    });
 
-          await sendMessage('upsertMetadata', {
-              filePath,
-              duration: 100,
-              size: 99999,
-              status: 'success',
-              watchedSegments: JSON.stringify(Array(100).fill(1))
-          });
+    it('executeSmartPlaylist should ignore ghost files (viewed but no metadata)', async () => {
+      const validPath = '/valid.mp4';
+      const ghostPath = '/ghost.mp4';
 
-          const result = await sendMessage('executeSmartPlaylist', { criteria: '{}' });
-          expect(result.success).toBe(true);
-          const item = (result.data as any[])[0];
-          expect(item.file_path).toBe(filePath);
-          expect(item.size).toBeUndefined();
-          expect(item.watched_segments).toBeUndefined();
+      // Valid file
+      await sendMessage('upsertMetadata', {
+        filePath: validPath,
+        status: 'success',
       });
 
-      it('executeSmartPlaylist should ignore ghost files (viewed but no metadata)', async () => {
-          const validPath = '/valid.mp4';
-          const ghostPath = '/ghost.mp4';
+      // Ghost file (only viewed)
+      await sendMessage('recordMediaView', { filePath: ghostPath });
 
-          // Valid file
-          await sendMessage('upsertMetadata', { filePath: validPath, status: 'success' });
-
-          // Ghost file (only viewed)
-          await sendMessage('recordMediaView', { filePath: ghostPath });
-
-          const result = await sendMessage('executeSmartPlaylist', { criteria: '{}' });
-          const items = result.data as any[];
-
-          expect(items.find(i => i.file_path === validPath)).toBeDefined();
-          expect(items.find(i => i.file_path === ghostPath)).toBeUndefined();
+      const result = await sendMessage('executeSmartPlaylist', {
+        criteria: '{}',
       });
+      const items = result.data as any[];
+
+      expect(items.find((i) => i.file_path === validPath)).toBeDefined();
+      expect(items.find((i) => i.file_path === ghostPath)).toBeUndefined();
+    });
   });
 });
