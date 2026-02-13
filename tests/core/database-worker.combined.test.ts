@@ -18,7 +18,6 @@ import {
   getAllMediaViewCounts,
   getAllMetadata,
   bulkUpsertMetadata,
-  executeSmartPlaylist,
 } from '../../src/core/database-worker';
 
 // --- Constants & Types ---
@@ -75,12 +74,26 @@ const sendMessage = (
 };
 
 const safeCleanup = (dir: string) => {
-  try {
-    if (fs.existsSync(dir)) {
-      fs.rmSync(dir, { recursive: true, force: true });
+  const maxRetries = 3;
+  let attempts = 0;
+  while (attempts < maxRetries) {
+    try {
+      if (fs.existsSync(dir)) {
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+      break;
+    } catch (e) {
+      attempts++;
+      if (attempts >= maxRetries) {
+        console.warn(
+          `Failed to cleanup ${dir} after ${maxRetries} attempts:`,
+          e,
+        );
+      } else {
+        const start = Date.now();
+        while (Date.now() - start < 100) {}
+      }
     }
-  } catch {
-    // ignore
   }
 };
 
@@ -300,15 +313,13 @@ describe('Database Worker Combined Tests', () => {
 
   // --- From database-worker.batch-optimization.test.ts ---
   describe('Batch Optimization (Direct)', () => {
-    let statSpy: any;
-
     beforeEach(() => {
       // Direct init
       initDatabase(dbPath);
 
       let statCounter = 0;
       // Spy on fs.promises.stat
-      statSpy = vi.spyOn(fs.promises, 'stat').mockImplementation(
+      vi.spyOn(fs.promises, 'stat').mockImplementation(
         async () =>
           ({
             size: 1000,

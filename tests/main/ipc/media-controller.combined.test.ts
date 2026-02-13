@@ -1,5 +1,4 @@
-import { describe, it, expect, vi, beforeEach, Mock, afterEach } from 'vitest';
-import { registerMediaHandlers } from '../../../src/main/ipc/media-controller';
+import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { IPC_CHANNELS } from '../../../src/shared/ipc-channels';
 import { handleIpc } from '../../../src/main/utils/ipc-helper';
 import { getServerPort } from '../../../src/main/local-server';

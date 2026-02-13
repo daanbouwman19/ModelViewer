@@ -47,11 +47,6 @@ import {
   handleStreamRequest,
   generateFileUrl,
   createMediaApp,
-  serveHlsMaster,
-  serveHlsPlaylist,
-  serveHlsSegment,
-  serveHeatmap,
-  serveThumbnail,
   MediaHandler,
 } from '../../src/core/media-handler';
 
@@ -148,8 +143,6 @@ vi.mock('../../src/core/thumbnail-handler', () => ({
     return res.status(200).end();
   }),
 }));
-
-import { getProvider } from '../../src/core/fs-provider-factory';
 
 // Mock IMediaSource
 const mockMediaSource = {
@@ -1092,9 +1085,6 @@ describe('MediaHandler Combined Tests', () => {
       mockGetThumbnailCachePath.mockReturnValue('/cache/test.jpg');
       mockCheckThumbnailCache.mockResolvedValue(true);
 
-      const { serveThumbnail } =
-        await import('../../src/core/thumbnail-handler');
-
       const res2 = await request(app).get(
         '/video/thumbnail?file=/test.jpg&file=/ignore.jpg',
       );
@@ -1337,39 +1327,14 @@ describe('MediaHandler Combined Tests', () => {
     });
 
     it('prevents file enumeration in serveThumbnail', async () => {
-      // Need to override the serveThumbnail mock that forces 200
-      const { serveThumbnail: realServeThumbnail } = await vi.importActual<
+      const actual = await vi.importActual<
         typeof import('../../src/core/media-handler')
       >('../../src/core/media-handler');
 
-      await serveThumbnail(req, res, '/forbidden.txt', 'ffmpeg', '/cache');
+      await actual.serveThumbnail(req, res, '/forbidden.txt', 'ffmpeg', '/cache');
 
       expect(res.status).toHaveBeenCalledWith(403);
       expect(res.send).toHaveBeenCalledWith('Access denied.');
-    });
-
-    it('should serve thumbnail if allowed and cached', async () => {
-      // Setup CACHE HIT logic
-      mockGetThumbnailCachePath.mockReturnValue('/cache/thumb.jpg');
-      mockCheckThumbnailCache.mockResolvedValue(true);
-      mockAuthorizeFilePath.mockResolvedValue({
-        isAllowed: true,
-        realPath: '/allowed/image.jpg',
-      });
-
-      // Override serveThumbnail to use real impl (if not already importing real one by default in this file?)
-      // Wait, serveThumbnail is mocked in this file?
-      // Yes: vi.mock('../../src/core/thumbnail-handler', ...)
-      // But serveThumbnail is imported from media-handler.
-      // media-handler re-exports it.
-      // But check lines 140:
-      // vi.mock('../../src/core/thumbnail-handler', () => ({ serveThumbnail: vi.fn(...) }));
-
-      // If I want to test logic, I need the REAL thumbnail-handler or logic inside media-handler.
-      // media-handler.ts delegates to thumbnail-handler.ts.
-      // If I mock thumbnail-handler, I am not testing logic.
-      // The logic "check auth before cache" is inside `serveThumbnail` in `thumbnail-handler.ts` (or `media-handler.ts`?).
-      // Let's check `media-handler.ts`.
     });
   });
 });

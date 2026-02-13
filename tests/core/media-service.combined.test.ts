@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import path from 'path';
 import fs from 'fs/promises';
 import { Worker } from 'worker_threads';
 import * as database from '../../src/core/database';
@@ -8,7 +7,6 @@ import * as ffmpegUtils from '../../src/core/utils/ffmpeg-utils';
 import { isDrivePath } from '../../src/core/media-utils';
 import {
   scanDiskForAlbumsAndCache,
-  getAlbumsFromCacheOrDisk,
   getAlbumsWithViewCountsAfterScan,
   getAlbumsWithViewCounts,
   extractAndSaveMetadata,
@@ -332,32 +330,6 @@ describe('MediaService Combined Tests', () => {
 
       await extractAndSaveMetadata([filePath], 'ffmpeg', { forceCheck: false });
 
-      // It fetches metadata, checks against stat?
-      // Wait, extractAndSaveMetadata calls fs.stat to COMPARE with DB.
-      // It does: `const stats = await fs.stat(filePath);`
-      // Then compares with existing.
-      // So fs.stat IS called.
-      // Wait, let's re-read the optimization test logic.
-      // `media-service-optimization.test.ts`:
-      // "should skip fs.stat if metadata exists and forceCheck is false"
-      // Implementation:
-      // `if (!forceCheck && existingMetadataMap[filePath]?.status === 'success') { continue; }`
-      // Ah! If status is success, it continues loop WITHOUT calling fs.stat.
-      // BUT my test above mocked getMetadata correctly.
-      // However, I need to make sure `getMetadata` returns the data such that `existingMetadataMap` is populated.
-
-      // `extractAndSaveMetadata` logic:
-      // `existingMetadataMap = await this.mediaRepo.getMetadata(filePaths);`
-      // Loop:
-      // `if (!forceCheck && existingMetadataMap[filePath]?.status === 'success') { continue; }`
-
-      // So yes, it should SKIP fs.stat.
-
-      // But wait, the date needs to match?
-      // No, the "skip if success" check happens BEFORE fs.stat.
-      // The "check if changed" logic happens AFTER fs.stat (if we didn't skip).
-
-      // So I need to mock `database.getMetadata` to return success.
       expect(fs.stat).not.toHaveBeenCalled();
     });
   });

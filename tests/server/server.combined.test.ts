@@ -5,26 +5,17 @@ import {
   vi,
   beforeEach,
   beforeAll,
-  afterAll,
-  Mock,
 } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../src/server/server';
 import * as database from '../../src/core/database';
 import * as mediaService from '../../src/core/media-service';
-import * as fileSystem from '../../src/core/file-system';
 import * as mediaHandler from '../../src/core/media-handler';
 import * as security from '../../src/core/security';
-import * as googleAuth from '../../src/main/google-auth';
-import * as googleDriveService from '../../src/main/google-drive-service';
-import * as driveCacheManager from '../../src/main/drive-cache-manager';
 import * as mediaUtils from '../../src/core/media-utils';
 import * as mimeTypes from '../../src/core/utils/mime-types';
 import { MAX_API_BATCH_SIZE, MAX_PATH_LENGTH } from '../../src/core/constants';
 import fs from 'fs/promises';
-import path from 'path';
-import os from 'os';
-import { EventEmitter } from 'events';
 
 // --- Global Mocks ---
 
@@ -47,34 +38,59 @@ vi.mock('fs/promises', () => ({
 }));
 
 // Mock fs (sync)
-vi.mock('fs', () => ({
-  default: {
+vi.mock('fs', () => {
+  const createMockStream = () => {
+    const listeners: Record<string, ((...args: any[]) => any)[]> = {};
+    const stream: any = {
+      on: (event: string, cb: (...args: any[]) => any) => {
+        listeners[event] = listeners[event] || [];
+        listeners[event].push(cb);
+        return stream;
+      },
+      once: (event: string, cb: (...args: any[]) => any) => {
+        const onceCb = (...args: any[]) => {
+          cb(...args);
+          stream.removeListener(event, onceCb);
+        };
+        return stream.on(event, onceCb);
+      },
+      emit: (event: string, ...args: any[]) => {
+        if (listeners[event]) {
+          listeners[event].forEach((cb) => cb(...args));
+          return true;
+        }
+        return false;
+      },
+      removeListener: (event: string, cb: (...args: any[]) => any) => {
+        if (listeners[event]) {
+          listeners[event] = listeners[event].filter((l) => l !== cb);
+        }
+        return stream;
+      },
+      pipe: (dest: any) => {
+        dest.end();
+        return dest;
+      },
+      destroy: () => {},
+    };
+    return stream;
+  };
+
+  return {
+    default: {
+      existsSync: vi.fn(),
+      mkdirSync: vi.fn(),
+      writeFileSync: vi.fn(),
+      unlinkSync: vi.fn(),
+      createReadStream: vi.fn(createMockStream),
+    },
     existsSync: vi.fn(),
     mkdirSync: vi.fn(),
     writeFileSync: vi.fn(),
     unlinkSync: vi.fn(),
-    createReadStream: vi.fn(() => {
-      const stream = new (require('events').EventEmitter)();
-      stream.pipe = (dest: any) => {
-        dest.end();
-        return dest;
-      };
-      return stream;
-    }),
-  },
-  existsSync: vi.fn(),
-  mkdirSync: vi.fn(),
-  writeFileSync: vi.fn(),
-  unlinkSync: vi.fn(),
-  createReadStream: vi.fn(() => {
-    const stream = new (require('events').EventEmitter)();
-    stream.pipe = (dest: any) => {
-      dest.end();
-      return dest;
-    };
-    return stream;
-  }),
-}));
+    createReadStream: vi.fn(createMockStream),
+  };
+});
 
 // Mock core modules
 vi.mock('../../src/core/database');

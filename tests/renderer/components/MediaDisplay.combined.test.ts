@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, Mock, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import { ref, reactive, toRefs } from 'vue';
 import MediaDisplay from '@/components/MediaDisplay.vue';
@@ -323,14 +323,37 @@ describe('MediaDisplay Combined Tests', () => {
       await flushPromises();
 
       expect(vm.isLoading).toBe(false);
-      // Note: In some test logic isTranscodingLoading might toggle quickly.
-      // We assume it settles to true if it entered transcoding.
-      // With mocks, getHlsUrl is called.
-      // The implementation calls tryTranscoding which sets isTranscodingLoading=true
-      // and awaits getHlsUrl.
-      // Since we mock resolved getHlsUrl instantly, it might finish fast?
-      // But the test expects it to be true.
-      // If it fails, we might need to slow down the mock.
+    });
+
+    it('ignores stale loadMediaUrl results if media item changes during load', async () => {
+      mockPlayerState.currentMediaItem = {
+        name: 'slow.jpg',
+        path: '/slow.jpg',
+      };
+
+      let resolveLoad: (val: any) => void;
+      const loadPromise = new Promise((resolve) => {
+        resolveLoad = resolve;
+      });
+      (api.loadFileAsDataURL as Mock).mockReturnValue(loadPromise);
+
+      const wrapper = mount(MediaDisplay);
+      await wrapper.vm.$nextTick(); // trigger watcher
+
+      // Change item while loading
+      mockPlayerState.currentMediaItem = {
+        name: 'fast.jpg',
+        path: '/fast.jpg',
+      };
+      await wrapper.vm.$nextTick();
+
+      // Resolve old promise
+      resolveLoad!({ type: 'success', url: 'slow-url' });
+      await flushPromises();
+
+      // Should not be slow-url (it might be null or fast-url depending on fast load)
+      // Since fast load mock default is success/test-url (from beforeEach), it should be test-url or loading.
+      expect((wrapper.vm as any).mediaUrl).not.toBe('slow-url');
     });
   });
 
@@ -385,7 +408,7 @@ describe('MediaDisplay Combined Tests', () => {
   describe('Keyboard & Interactions', () => {
     it('covers Space key to toggle play', async () => {
       mockPlayerState.currentMediaItem = { name: 't.mp4', path: '/t.mp4' };
-      const wrapper = mount(MediaDisplay);
+      mount(MediaDisplay);
       await flushPromises();
 
       const event = new KeyboardEvent('keydown', { code: 'Space' });
@@ -554,7 +577,7 @@ describe('MediaDisplay Combined Tests', () => {
       mockPlayerState.playFullVideo = true;
       mockPlayerState.isTimerRunning = false;
 
-      const wrapper = mount(MediaDisplay);
+      mount(MediaDisplay);
       await flushPromises();
       expect(slideshowMock.resumeSlideshowTimer).toHaveBeenCalled();
     });
