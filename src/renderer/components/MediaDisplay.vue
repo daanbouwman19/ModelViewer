@@ -217,7 +217,15 @@
  * It handles loading the media from the main process, displaying loading/error states,
  * and providing navigation controls to move between media items.
  */
-import { ref, computed, watch, watchEffect, onMounted, onUnmounted } from 'vue';
+import {
+  ref,
+  computed,
+  watch,
+  watchEffect,
+  onMounted,
+  onUnmounted,
+  onBeforeUnmount,
+} from 'vue';
 import { useLibraryStore } from '../composables/useLibraryStore';
 import { usePlayerStore } from '../composables/usePlayerStore';
 import { useSlideshow } from '../composables/useSlideshow';
@@ -623,7 +631,7 @@ const persistWatchedSegments = async () => {
   }
 };
 
-onUnmounted(() => {
+onBeforeUnmount(() => {
   persistWatchedSegments();
 });
 

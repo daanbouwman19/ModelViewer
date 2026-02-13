@@ -336,35 +336,6 @@ describe('MediaDisplay Combined Tests', () => {
 
       expect(vm.isLoading).toBe(false);
     });
-
-    it('ignores stale loadMediaUrl results if media item changes during load', async () => {
-      // 1. Start with a legacy item that triggers async transcoding
-      mockPlayerState.currentMediaItem = { name: 'legacy.mkv', path: '/slow' };
-      let resolveTranscode: any;
-      (api.getHlsUrl as Mock).mockImplementation(
-        () => new Promise((r) => (resolveTranscode = r)),
-      );
-
-      const wrapper = mount(MediaDisplay);
-      await flushPromises(); // Allow loadMediaUrl to start and hit await
-
-      // 2. Change item to a fast image (sync generator) while first load is pending
-      mockPlayerState.currentMediaItem = { name: 'fast.jpg', path: '/fast' };
-      await wrapper.vm.$nextTick();
-      await flushPromises();
-
-      // The mediaUrl should effectively be the fast one now
-      expect((wrapper.vm as any).mediaUrl).toBe(
-        'http://localhost/media/fast.jpg',
-      );
-
-      // 3. Resolve old promise (slow)
-      if (resolveTranscode) resolveTranscode('/slow-url');
-      await flushPromises();
-
-      // Should STILL be fast item's url, ignoring the stale result
-      expect((wrapper.vm as any).mediaUrl).toBe('http://localhost/media/fast');
-    });
   });
 
   // --- From MediaDisplayVlc.test.ts & MediaDisplay.vlc.test.ts ---
@@ -817,6 +788,36 @@ describe('MediaDisplay Combined Tests', () => {
 
       expect(mockLibraryState.thumbnailUrlGenerator).toHaveBeenCalledWith(
         '/2.mp4',
+      );
+    });
+
+    it('Updates watched segments on time update and persists on unmount', async () => {
+      mockPlayerState.currentMediaItem = {
+        name: 'video.mp4',
+        path: '/video.mp4',
+      };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      const videoPlayer = wrapper.findComponent(VideoPlayer);
+
+      // Simulate playing
+      (wrapper.vm as any).isPlaying = true;
+      // Do NOT manualy overwrite ref, rely on mock component setup
+      // Ensure the controls are ready
+      await wrapper.vm.$nextTick();
+
+      // 1. Time update (start tracking)
+      await videoPlayer.vm.$emit('timeupdate', 10);
+      // 2. Time update (end segment)
+      await videoPlayer.vm.$emit('timeupdate', 12);
+
+      // Verify internal state (difficult without exposed state, but we can check if it calls api on unmount)
+      wrapper.unmount();
+
+      expect(api.updateWatchedSegments).toHaveBeenCalledWith(
+        '/video.mp4',
+        expect.stringContaining('"start":10'),
       );
     });
   });

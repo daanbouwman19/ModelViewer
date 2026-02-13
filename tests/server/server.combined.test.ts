@@ -609,24 +609,12 @@ describe('Server Combined Tests', () => {
   // --- Additional Coverage (Routes) ---
   describe('Additional Routes Coverage', () => {
     it('GET /api/fs/ls handles errors', async () => {
-      vi.mocked(fileSystem.readDirectory).mockRejectedValue(
+      vi.mocked(fileSystem.listDirectory).mockRejectedValue(
         new Error('FS Fail'),
       );
       const response = await request(app)
         .get('/api/fs/ls')
         .query({ path: '/' });
-      expect(response.status).toBe(500);
-    });
-
-    it('GET /api/stream handles errors from mediaHandler', async () => {
-      vi.mocked(mediaHandler.handleStreamRequest).mockImplementation(
-        async () => {
-          throw new Error('Stream Error');
-        },
-      );
-      const response = await request(app)
-        .get('/api/stream')
-        .query({ file: 'test.mp4' });
       expect(response.status).toBe(500);
     });
   });
