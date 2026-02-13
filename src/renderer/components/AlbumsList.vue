@@ -385,7 +385,10 @@
                 step="1"
                 placeholder="5"
                 aria-label="Slideshow timer duration in seconds"
-                class="w-full glass-input text-sm pl-3 pr-10 py-2 rounded-lg"
+                class="w-full glass-input text-sm pl-3 pr-10 py-2 rounded-lg no-spinner"
+                @blur="
+                  timerDuration = Math.max(1, Math.floor(timerDuration) || 5)
+                "
               />
               <span
                 class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none"
@@ -701,3 +704,18 @@ const handleHistorySlideshow = async () => {
   }
 };
 </script>
+
+<style scoped>
+/* Chrome, Safari, Edge, Opera */
+.no-spinner::-webkit-outer-spin-button,
+.no-spinner::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox */
+.no-spinner {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+</style>
