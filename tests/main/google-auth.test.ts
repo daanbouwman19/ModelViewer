@@ -138,7 +138,7 @@ describe('Google Auth Service', () => {
         expect.objectContaining({
           code: 'test-code',
           codeVerifier: expect.any(String),
-        })
+        }),
       );
       expect(mockOAuth2Client.setCredentials).toHaveBeenCalledWith(mockTokens);
       expect(database.saveSetting).toHaveBeenCalled();
@@ -159,7 +159,7 @@ describe('Google Auth Service', () => {
         expect.objectContaining({
           code: 'test-code-2',
           codeVerifier: undefined,
-        })
+        }),
       );
     });
   });
