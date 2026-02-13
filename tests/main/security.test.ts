@@ -82,6 +82,27 @@ vi.mock('../../src/core/media-service', () => ({
   getAlbumsWithViewCounts: vi.fn(),
 }));
 
+// Mock heavy dependencies of media-handler to speed up tests
+vi.mock('express', () => ({
+  default: vi.fn(),
+}));
+vi.mock('../../src/core/analysis/media-analyzer.ts', () => ({
+  MediaAnalyzer: {
+    getInstance: vi.fn().mockReturnValue({
+      generateHeatmap: vi.fn(),
+      getProgress: vi.fn(),
+    }),
+  },
+}));
+vi.mock('../../src/core/hls-handler.ts', () => ({
+  serveHlsMaster: vi.fn(),
+  serveHlsPlaylist: vi.fn(),
+  serveHlsSegment: vi.fn(),
+}));
+vi.mock('../../src/core/thumbnail-handler.ts', () => ({
+  serveThumbnail: vi.fn(),
+}));
+
 vi.mock('ffmpeg-static', () => ({
   default: '/mock/ffmpeg/path',
 }));

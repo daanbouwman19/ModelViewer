@@ -37,7 +37,27 @@ describe('vlc-player unit tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSpawn.mockReset();
+    vi.useFakeTimers();
   });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /**
+   * Helper to handle the async spawn and timeout pattern in openMediaInVlc
+   */
+  async function testOpenMediaAndAdvanceTimers(
+    filePath: string,
+    serverPort: number,
+  ) {
+    const promise = openMediaInVlc(filePath, serverPort);
+    // Wait for spawn to be called, as getVlcPath() is async
+    await vi.waitFor(() => expect(mockSpawn).toHaveBeenCalled());
+    // Fast-forward past the 300ms timeout in openMediaInVlc
+    vi.advanceTimersByTime(500);
+    return await promise;
+  }
 
   describe('openMediaInVlc', () => {
     const originalPlatform = process.platform;
@@ -59,7 +79,8 @@ describe('vlc-player unit tests', () => {
       const mockChild = { unref: vi.fn(), on: vi.fn() };
       mockSpawn.mockReturnValue(mockChild);
 
-      const result = await openMediaInVlc('gdrive://123', 3000);
+      const result = await testOpenMediaAndAdvanceTimers('gdrive://123', 3000);
+
       expect(result).toEqual({ success: true });
       expect(mockSpawn).toHaveBeenCalledWith(
         '/usr/bin/vlc',
@@ -76,7 +97,7 @@ describe('vlc-player unit tests', () => {
       const mockChild = { unref: vi.fn(), on: vi.fn() };
       mockSpawn.mockReturnValue(mockChild);
 
-      const result = await openMediaInVlc('/local.mp4', 3000);
+      const result = await testOpenMediaAndAdvanceTimers('/local.mp4', 3000);
       expect(result).toEqual({ success: true });
     });
 
@@ -87,7 +108,7 @@ describe('vlc-player unit tests', () => {
       const mockChild = { unref: vi.fn(), on: vi.fn() };
       mockSpawn.mockReturnValue(mockChild);
 
-      const result = await openMediaInVlc('/local.mp4', 3000);
+      const result = await testOpenMediaAndAdvanceTimers('/local.mp4', 3000);
       expect(result).toEqual({ success: true });
     });
 
@@ -99,9 +120,6 @@ describe('vlc-player unit tests', () => {
       const consoleSpy = vi
         .spyOn(console, 'error')
         .mockImplementation(() => {});
-
-      // Use fake timers to control the 300ms delay
-      vi.useFakeTimers();
 
       const promise = openMediaInVlc('gdrive://123', 3000);
 
@@ -122,7 +140,6 @@ describe('vlc-player unit tests', () => {
         message: 'Failed to launch VLC: Spawn Error',
       });
       consoleSpy.mockRestore();
-      vi.useRealTimers();
     });
 
     it('should resolve with success after timeout if no error', async () => {
@@ -130,8 +147,6 @@ describe('vlc-player unit tests', () => {
       const mockChild = new EventEmitter();
       (mockChild as any).unref = vi.fn();
       mockSpawn.mockReturnValue(mockChild);
-
-      vi.useFakeTimers();
 
       const promise = openMediaInVlc('gdrive://123', 3000);
 
@@ -144,8 +159,6 @@ describe('vlc-player unit tests', () => {
       const result = await promise;
       expect(result).toEqual({ success: true });
       expect((mockChild as any).unref).toHaveBeenCalled();
-
-      vi.useRealTimers();
     });
   });
 });

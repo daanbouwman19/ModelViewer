@@ -56,6 +56,27 @@ vi.mock('../../src/main/database', () => ({
   setDirectoryActiveState: vi.fn(),
 }));
 
+// Mock heavy dependencies of media-handler to speed up tests (media-controller imports media-handler)
+vi.mock('express', () => ({
+  default: vi.fn(),
+}));
+vi.mock('../../src/core/analysis/media-analyzer.ts', () => ({
+  MediaAnalyzer: {
+    getInstance: vi.fn().mockReturnValue({
+      generateHeatmap: vi.fn(),
+      getProgress: vi.fn(),
+    }),
+  },
+}));
+vi.mock('../../src/core/hls-handler.ts', () => ({
+  serveHlsMaster: vi.fn(),
+  serveHlsPlaylist: vi.fn(),
+  serveHlsSegment: vi.fn(),
+}));
+vi.mock('../../src/core/thumbnail-handler.ts', () => ({
+  serveThumbnail: vi.fn(),
+}));
+
 // Mock security module
 vi.mock('../../src/core/security', () => ({
   authorizeFilePath: vi.fn(),
