@@ -13,14 +13,14 @@ describe('Smart Playlist SQL Generation', () => {
   const TEST_DB_PATH = path.join(__dirname, 'test_smart_playlist.sqlite');
 
   beforeAll(async () => {
-    // Clean up previous run
+    // Arrange: Clean up previous run
     if (fs.existsSync(TEST_DB_PATH)) {
       fs.unlinkSync(TEST_DB_PATH);
     }
 
     initDatabase(TEST_DB_PATH);
 
-    // Seed Data
+    // Arrange: Seed Data
     // Item 1: High rating, long duration
     await upsertMetadata({
       filePath: '/high-rating.mp4',
@@ -43,7 +43,7 @@ describe('Smart Playlist SQL Generation', () => {
       size: 750,
     });
 
-    // Record views for Item 3 (viewed now)
+    // Arrange: Record views for Item 3 (viewed now)
     await recordMediaView('/viewed.mp4');
     await recordMediaView('/viewed.mp4'); // 2 views
   });
@@ -55,84 +55,94 @@ describe('Smart Playlist SQL Generation', () => {
     }
   });
 
-  it('should filter by minRating', async () => {
-    const result = await executeSmartPlaylist(JSON.stringify({ minRating: 4 }));
-    expect(result.success).toBe(true);
-    const rows = result.data as any[];
-    expect(rows.length).toBe(1);
-    expect(rows[0].file_path).toBe('/high-rating.mp4');
-  });
+  interface TestCase {
+    name: string;
+    criteria: Record<string, unknown>;
+    expectedCount: number;
+    shouldContain?: string[];
+    shouldNotContain?: string[];
+  }
 
-  it('should filter by minDuration', async () => {
-    const result = await executeSmartPlaylist(
-      JSON.stringify({ minDuration: 100 }),
-    );
-    expect(result.success).toBe(true);
-    const rows = result.data as any[];
-    // high-rating (500) and viewed (200) match
-    expect(rows.length).toBe(2);
-    expect(rows.find((r) => r.file_path === '/high-rating.mp4')).toBeDefined();
-    expect(rows.find((r) => r.file_path === '/viewed.mp4')).toBeDefined();
-  });
+  const testCases: TestCase[] = [
+    {
+      name: 'filter by minRating',
+      criteria: { minRating: 4 },
+      expectedCount: 1,
+      shouldContain: ['/high-rating.mp4'],
+    },
+    {
+      name: 'filter by minDuration',
+      criteria: { minDuration: 100 },
+      expectedCount: 2,
+      shouldContain: ['/high-rating.mp4', '/viewed.mp4'],
+    },
+    {
+      name: 'filter by minViews',
+      criteria: { minViews: 1 },
+      expectedCount: 1,
+      shouldContain: ['/viewed.mp4'],
+    },
+    {
+      name: 'filter by maxViews',
+      criteria: { maxViews: 0 },
+      expectedCount: 2,
+      shouldContain: ['/high-rating.mp4', '/low-rating.mp4'],
+    },
+    {
+      name: 'handle multiple criteria',
+      criteria: { minRating: 2, minDuration: 100 },
+      expectedCount: 2,
+      shouldContain: ['/high-rating.mp4', '/viewed.mp4'],
+    },
+    {
+      name: 'handle minDaysSinceView = 1 (exclude recently viewed)',
+      criteria: { minDaysSinceView: 1 },
+      expectedCount: 2, // /high-rating.mp4 (never viewed) and /low-rating.mp4 (never viewed)
+      shouldNotContain: ['/viewed.mp4'],
+    },
+    {
+      name: 'handle minDaysSinceView = 0 (include everything)',
+      criteria: { minDaysSinceView: 0 },
+      expectedCount: 3,
+    },
+    {
+      name: 'handle empty criteria (return all)',
+      criteria: {},
+      expectedCount: 3,
+    },
+  ];
 
-  it('should filter by minViews', async () => {
-    const result = await executeSmartPlaylist(JSON.stringify({ minViews: 1 }));
-    expect(result.success).toBe(true);
-    const rows = result.data as any[];
-    expect(rows.length).toBe(1);
-    expect(rows[0].file_path).toBe('/viewed.mp4');
-  });
+  it.each(testCases)(
+    'should $name',
+    async ({ criteria, expectedCount, shouldContain, shouldNotContain }) => {
+      // Act
+      const result = await executeSmartPlaylist(JSON.stringify(criteria));
 
-  it('should filter by maxViews', async () => {
-    const result = await executeSmartPlaylist(JSON.stringify({ maxViews: 0 }));
-    expect(result.success).toBe(true);
-    const rows = result.data as any[];
-    // high-rating (0) and low-rating (0) match
-    expect(rows.length).toBe(2);
-    expect(rows.find((r) => r.file_path === '/high-rating.mp4')).toBeDefined();
-    expect(rows.find((r) => r.file_path === '/low-rating.mp4')).toBeDefined();
-  });
+      // Assert
+      expect(result.success).toBe(true);
+      const rows = result.data as any[];
+      expect(rows.length).toBe(expectedCount);
 
-  it('should handle multiple criteria', async () => {
-    const result = await executeSmartPlaylist(
-      JSON.stringify({ minRating: 2, minDuration: 100 }),
-    );
-    expect(result.success).toBe(true);
-    const rows = result.data as any[];
-    // high-rating (5, 500) matches
-    // viewed (3, 200) matches
-    expect(rows.length).toBe(2);
-  });
+      if (shouldContain) {
+        shouldContain.forEach((filePath) => {
+          expect(rows.find((r) => r.file_path === filePath)).toBeDefined();
+        });
+      }
 
-  it('should handle minDaysSinceView correctly', async () => {
-    // viewed.mp4 was viewed just now (diffDays ~ 0)
-    // unviewed items (last_viewed is null) should match "not viewed in X days" logic?
-    // Wait, let's verify logic:
-    // JS: if (diffDays < minDays) match = false;
-    // SQL: (v.last_viewed IS NULL OR (now - last_viewed) >= minDays)
+      if (shouldNotContain) {
+        shouldNotContain.forEach((filePath) => {
+          expect(rows.find((r) => r.file_path === filePath)).toBeUndefined();
+        });
+      }
+    },
+  );
 
-    // Test 1: minDaysSinceView = 1 (should exclude viewed.mp4, include others)
-    let result = await executeSmartPlaylist(
-      JSON.stringify({ minDaysSinceView: 1 }),
-    );
-    expect(result.success).toBe(true);
-    let rows = result.data as any[];
-    expect(rows.find((r) => r.file_path === '/viewed.mp4')).toBeUndefined();
-    expect(rows.find((r) => r.file_path === '/high-rating.mp4')).toBeDefined(); // Never viewed -> Matches
+  it('should return error for invalid JSON', async () => {
+    // Act
+    const result = await executeSmartPlaylist('{ invalid json }');
 
-    // Test 2: minDaysSinceView = 0 (should include everything)
-    result = await executeSmartPlaylist(
-      JSON.stringify({ minDaysSinceView: 0 }),
-    );
-    expect(result.success).toBe(true);
-    rows = result.data as any[];
-    expect(rows.length).toBe(3);
-  });
-
-  it('should handle empty criteria (return all)', async () => {
-    const result = await executeSmartPlaylist('{}');
-    expect(result.success).toBe(true);
-    const rows = result.data as any[];
-    expect(rows.length).toBe(3);
+    // Assert
+    expect(result.success).toBe(false);
+    expect(result.error).toBeDefined();
   });
 });
