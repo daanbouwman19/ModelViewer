@@ -64,11 +64,7 @@ export async function saveCredentials(client: OAuth2Client): Promise<void> {
  * Encodes a buffer to Base64URL format (no padding).
  */
 function base64UrlEncode(str: Buffer): string {
-  return str
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=/g, '');
+  return str.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 }
 
 /**
@@ -104,7 +100,7 @@ export function generateAuthUrl(): string {
     // The library uses an enum for CodeChallengeMethod, but 'S256' as a string is the underlying value.
     // However, TypeScript requires the enum or a cast if strict.
     // We cast to any to avoid importing the enum from deep within google-auth-library which might be fragile.
-    // @ts-ignore
+    // @ts-expect-error - 'S256' is the correct string value for the enum expected by the library type definition
     code_challenge_method: 'S256',
   });
 }
@@ -118,7 +114,7 @@ export async function authenticateWithCode(code: string): Promise<void> {
     // Pass the stored verifier if available (it should be for this flow)
     const { tokens } = await client.getToken({
       code,
-      codeVerifier: verifier || undefined,
+      codeVerifier: verifier || undefined
     });
 
     client.setCredentials(tokens);
