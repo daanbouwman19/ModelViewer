@@ -42,3 +42,20 @@ export async function checkThumbnailCache(cacheFile: string): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Normalizes a file path, handling platform-specific quirks (e.g., Windows drive letters in URLs).
+ * @param filePath The raw file path from the request.
+ * @param platform The platform to normalize for (defaults to process.platform).
+ */
+export function normalizeFilePath(
+  filePath: string,
+  platform: string = process.platform,
+): string {
+  let normalized = decodeURIComponent(filePath);
+  // On Windows, pathname start with a slash like /C:/Users... Express req.path preserves it.
+  if (platform === 'win32' && normalized.startsWith('/')) {
+    normalized = normalized.substring(1);
+  }
+  return normalized;
+}

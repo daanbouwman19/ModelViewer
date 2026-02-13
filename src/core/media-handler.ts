@@ -12,7 +12,7 @@ import path from 'path';
 import { createMediaSource } from './media-source.ts';
 
 import { IMediaSource } from './media-source-types.ts';
-import { isDrivePath } from './media-utils.ts';
+import { isDrivePath, normalizeFilePath } from './media-utils.ts';
 import { getTranscodeArgs, getFFmpegDuration } from './utils/ffmpeg-utils.ts';
 import { parseHttpRange, getQueryParam } from './utils/http-utils.ts';
 import { FileSystemProvider } from './fs-provider.ts';
@@ -520,13 +520,7 @@ export function createMediaApp(options: MediaHandlerOptions) {
 
   // Static File Serving (Fallback)
   app.use(fileLimiter, async (req, res) => {
-    let requestedPath = decodeURIComponent(req.path);
-    // On Windows, pathname start with a slash like /C:/Users... Express req.path preserves it.
-    // parseHttpRange logic handles paths.
-    // However, for serveStaticFile we need physical path.
-    if (process.platform === 'win32' && requestedPath.startsWith('/')) {
-      requestedPath = requestedPath.substring(1);
-    }
+    const requestedPath = normalizeFilePath(req.path);
     await serveStaticFile(req, res, requestedPath);
   });
 

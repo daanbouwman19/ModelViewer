@@ -5,6 +5,7 @@ import {
   createDrivePath,
   getThumbnailCachePath,
   checkThumbnailCache,
+  normalizeFilePath,
 } from '../../src/core/media-utils';
 import fs from 'fs'; // Import for spyOn
 import path from 'path';
@@ -63,6 +64,26 @@ describe('media-utils unit tests', () => {
     it('checkThumbnailCache returns false if file access fails', async () => {
       mockFsAccess.mockRejectedValue(new Error('ENOENT'));
       expect(await checkThumbnailCache('/path/to/thumb.jpg')).toBe(false);
+    });
+  });
+
+  describe('normalizeFilePath', () => {
+    it('should normalize standard path', () => {
+      expect(normalizeFilePath('/path/to/file', 'linux')).toBe('/path/to/file');
+    });
+
+    it('should normalize Windows path by removing leading slash', () => {
+      expect(normalizeFilePath('/C:/Windows/System32', 'win32')).toBe(
+        'C:/Windows/System32',
+      );
+    });
+
+    it('should not remove leading slash on non-Windows platform', () => {
+      expect(normalizeFilePath('/path/to/file', 'linux')).toBe('/path/to/file');
+    });
+
+    it('should decode URI components', () => {
+      expect(normalizeFilePath('/path%20to/file')).toBe('/path to/file');
     });
   });
 });
