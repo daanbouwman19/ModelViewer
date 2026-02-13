@@ -5,6 +5,7 @@
       ref="videoElement"
       class="w-full h-full object-contain rounded-xl"
       :src="effectiveSrc"
+      :poster="poster"
       autoplay
       @error="handleError"
       @ended="handleEnded"
@@ -45,6 +46,7 @@ import Hls from 'hls.js';
 
 const props = defineProps<{
   src: string | null;
+  poster?: string;
   isTranscodingMode: boolean;
   isControlsVisible: boolean;
   transcodedDuration: number;

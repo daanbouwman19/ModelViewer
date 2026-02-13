@@ -144,6 +144,7 @@
             ref="vrPlayerRef"
             :key="(displayedItem?.path || '') + '-vr'"
             :src="mediaUrl"
+            :poster="posterUrl"
             :is-playing="isPlaying"
             :initial-time="savedCurrentTime"
             :is-controls-visible="isControlsVisible"
@@ -157,6 +158,7 @@
             ref="videoPlayerRef"
             :key="(displayedItem?.path || '') + '-video'"
             :src="mediaUrl"
+            :poster="posterUrl"
             :is-transcoding-mode="isTranscodingMode"
             :is-controls-visible="isControlsVisible"
             :transcoded-duration="transcodedDuration"
@@ -306,6 +308,17 @@ const isVrMode = ref(false); // [NEW]
 const savedCurrentTime = ref(0); // [NEW] Sync time between players
 const isOpeningVlc = ref(false);
 const isMuted = ref(false);
+
+const posterUrl = computed(() => {
+  if (displayedItem.value && thumbnailUrlGenerator?.value) {
+    try {
+      return thumbnailUrlGenerator.value(displayedItem.value.path);
+    } catch (e) {
+      console.warn('Failed to generate poster URL', e);
+    }
+  }
+  return undefined;
+});
 
 // Use global controls visibility state
 const { isControlsVisible, isSourcesModalVisible, isSidebarVisible } = uiStore;
@@ -775,10 +788,13 @@ const preloadNextMedia = async () => {
       // Silently fail prefetching, it's an optimization only
       console.warn('Failed to preload next item', e);
     }
-  } else if (isMediaFileVideo(nextItem, videoExtensionsSet.value)) {
+  } else if (
+    videoExtensionsSet?.value &&
+    isMediaFileVideo(nextItem, videoExtensionsSet.value)
+  ) {
     // 5. Preload Video Poster
     try {
-      if (thumbnailUrlGenerator.value) {
+      if (thumbnailUrlGenerator?.value) {
         const url = thumbnailUrlGenerator.value(nextItem.path);
         const img = new Image();
         img.src = url;
