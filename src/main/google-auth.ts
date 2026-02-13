@@ -101,6 +101,10 @@ export function generateAuthUrl(): string {
     scope: GOOGLE_DRIVE_SCOPES,
     prompt: 'consent',
     code_challenge: challenge,
+    // The library uses an enum for CodeChallengeMethod, but 'S256' as a string is the underlying value.
+    // However, TypeScript requires the enum or a cast if strict.
+    // We cast to any to avoid importing the enum from deep within google-auth-library which might be fragile.
+    // @ts-ignore
     code_challenge_method: 'S256',
   });
 }
