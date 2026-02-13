@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, Mock } from 'vitest';
 import { ipcMain } from 'electron';
 
 // Hoist the mock function so it's accessible in the factory and the test
@@ -156,6 +156,20 @@ describe('Main Process IPC - open-in-vlc', () => {
   let openInVlcHandler: (event: any, filePath: string) => Promise<any>;
   const originalPlatform = process.platform;
 
+  beforeAll(async () => {
+    // Register system handlers directly
+    await import('../../src/main/ipc/system-controller').then((mod) => {
+      mod.registerSystemHandlers();
+    });
+
+    // Find the handler
+    const handleCalls = (ipcMain.handle as unknown as Mock).mock.calls;
+    const call = handleCalls.find((call: any[]) => call[0] === 'open-in-vlc');
+    if (call) {
+      openInVlcHandler = call[1];
+    }
+  });
+
   beforeEach(async () => {
     vi.useFakeTimers();
     vi.clearAllMocks();
@@ -170,19 +184,6 @@ describe('Main Process IPC - open-in-vlc', () => {
       { path: '/Users', isActive: true },
       { path: '/', isActive: true },
     ]);
-
-    // Register system handlers directly
-    await import('../../src/main/ipc/system-controller').then((mod) => {
-      mod.registerSystemHandlers();
-    });
-
-    // Find the handler
-    const handleCalls = (ipcMain.handle as unknown as Mock).mock.calls;
-
-    const call = handleCalls.find((call: any[]) => call[0] === 'open-in-vlc');
-    if (call) {
-      openInVlcHandler = call[1];
-    }
   });
 
   afterEach(() => {
