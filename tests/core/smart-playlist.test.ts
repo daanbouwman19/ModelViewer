@@ -98,6 +98,7 @@ describe('Smart Playlist SQL Generation', () => {
       name: 'handle minDaysSinceView = 1 (exclude recently viewed)',
       criteria: { minDaysSinceView: 1 },
       expectedCount: 2, // /high-rating.mp4 (never viewed) and /low-rating.mp4 (never viewed)
+      shouldContain: ['/high-rating.mp4', '/low-rating.mp4'],
       shouldNotContain: ['/viewed.mp4'],
     },
     {
@@ -120,7 +121,7 @@ describe('Smart Playlist SQL Generation', () => {
 
       // Assert
       expect(result.success).toBe(true);
-      const rows = result.data as any[];
+      const rows = result.data as { file_path: string }[];
       expect(rows.length).toBe(expectedCount);
 
       if (shouldContain) {
