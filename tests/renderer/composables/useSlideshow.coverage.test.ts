@@ -10,6 +10,13 @@ vi.mock('@/composables/useLibraryStore');
 vi.mock('@/composables/usePlayerStore');
 vi.mock('@/composables/useUIStore');
 
+// Mock the api module directly to avoid WebAdapter network calls
+vi.mock('@/api', () => ({
+  api: {
+    recordMediaView: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
 // Mock the global window.electronAPI
 global.window.electronAPI = createMockElectronAPI();
 
@@ -103,19 +110,15 @@ describe('useSlideshow additional coverage', () => {
     });
 
     it('displayMedia handles API errors gracefully', async () => {
+      // Import api to mock it for this specific test
+      const { api } = await import('@/api');
       const { pickAndDisplayNextMediaItem } = useSlideshow();
       const consoleSpy = vi
         .spyOn(console, 'error')
         .mockImplementation(() => {});
-      vi.mocked(global.window.electronAPI.recordMediaView).mockRejectedValue(
-        new Error('API fail'),
-      );
-      // We also need to mock api.ts if it's used directly
-      // In this test file, api is not mocked globally at top level, but windows.electronAPI is.
-      // useSlideshow imports 'api' from '../api'. 'api' calls window.electronAPI.
-      // So mocking window.electronAPI should be sufficient if api wrapper is thin.
-      // Actually checking imports... import { api } from '../api';
-      // ../api/index.ts usually wraps it.
+
+      // We mocked api at the top level, so we can control it here.
+      vi.mocked(api.recordMediaView).mockRejectedValueOnce(new Error('API fail'));
 
       mockLibraryState.globalMediaPoolForSelection = [{ path: 'a', name: 'a' }];
       mockUIState.mediaFilter = 'All';
