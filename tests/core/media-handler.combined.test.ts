@@ -1331,7 +1331,13 @@ describe('MediaHandler Combined Tests', () => {
         typeof import('../../src/core/media-handler')
       >('../../src/core/media-handler');
 
-      await actual.serveThumbnail(req, res, '/forbidden.txt', 'ffmpeg', '/cache');
+      await actual.serveThumbnail(
+        req,
+        res,
+        '/forbidden.txt',
+        'ffmpeg',
+        '/cache',
+      );
 
       expect(res.status).toHaveBeenCalledWith(403);
       expect(res.send).toHaveBeenCalledWith('Access denied.');

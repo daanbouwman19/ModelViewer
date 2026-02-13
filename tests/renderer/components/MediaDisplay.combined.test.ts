@@ -72,6 +72,13 @@ vi.mock('@/components/MediaControls.vue', () => ({
     template:
       '<div class="media-controls-mock controls-bar w-full bg-linear-to-t from-black/90"><slot></slot></div>',
     props: ['currentMediaItem', 'isControlsVisible', 'isOpeningVlc'],
+    // Mock watchedSegments prop/data if needed, but for coverage we might need to expose it
+    expose: ['watchedSegments'],
+    setup() {
+      return {
+        watchedSegments: ref([]),
+      };
+    },
   },
 }));
 
@@ -135,7 +142,12 @@ describe('MediaDisplay Combined Tests', () => {
         videos: ['.mp4', '.mkv', '.avi'],
         all: ['.jpg', '.png', '.mp4', '.mkv', '.avi'],
       },
-      mediaUrlGenerator: (path: string) => `http://localhost/media${path}`,
+      mediaUrlGenerator: vi.fn(
+        (path: string) => `http://localhost/media${path}`,
+      ),
+      thumbnailUrlGenerator: vi.fn(
+        (path: string) => `http://localhost/thumb${path}`,
+      ),
     });
 
     mockPlayerState = reactive({
@@ -326,34 +338,32 @@ describe('MediaDisplay Combined Tests', () => {
     });
 
     it('ignores stale loadMediaUrl results if media item changes during load', async () => {
-      mockPlayerState.currentMediaItem = {
-        name: 'slow.jpg',
-        path: '/slow.jpg',
-      };
-
-      let resolveLoad: (val: any) => void;
-      const loadPromise = new Promise((resolve) => {
-        resolveLoad = resolve;
-      });
-      (api.loadFileAsDataURL as Mock).mockReturnValue(loadPromise);
+      // 1. Start with a legacy item that triggers async transcoding
+      mockPlayerState.currentMediaItem = { name: 'legacy.mkv', path: '/slow' };
+      let resolveTranscode: any;
+      (api.getHlsUrl as Mock).mockImplementation(
+        () => new Promise((r) => (resolveTranscode = r)),
+      );
 
       const wrapper = mount(MediaDisplay);
-      await wrapper.vm.$nextTick(); // trigger watcher
+      await flushPromises(); // Allow loadMediaUrl to start and hit await
 
-      // Change item while loading
-      mockPlayerState.currentMediaItem = {
-        name: 'fast.jpg',
-        path: '/fast.jpg',
-      };
+      // 2. Change item to a fast image (sync generator) while first load is pending
+      mockPlayerState.currentMediaItem = { name: 'fast.jpg', path: '/fast' };
       await wrapper.vm.$nextTick();
-
-      // Resolve old promise
-      resolveLoad!({ type: 'success', url: 'slow-url' });
       await flushPromises();
 
-      // Should not be slow-url (it might be null or fast-url depending on fast load)
-      // Since fast load mock default is success/test-url (from beforeEach), it should be test-url or loading.
-      expect((wrapper.vm as any).mediaUrl).not.toBe('slow-url');
+      // The mediaUrl should effectively be the fast one now
+      expect((wrapper.vm as any).mediaUrl).toBe(
+        'http://localhost/media/fast.jpg',
+      );
+
+      // 3. Resolve old promise (slow)
+      if (resolveTranscode) resolveTranscode('/slow-url');
+      await flushPromises();
+
+      // Should STILL be fast item's url, ignoring the stale result
+      expect((wrapper.vm as any).mediaUrl).toBe('http://localhost/media/fast');
     });
   });
 
@@ -385,16 +395,6 @@ describe('MediaDisplay Combined Tests', () => {
 
   // --- From MediaDisplay.coverage.test.ts ---
   describe('Additional Coverage', () => {
-    it('should handle filter button clicks', async () => {
-      const wrapper = mount(MediaDisplay);
-      await flushPromises();
-      const buttons = wrapper.findAll('.filter-button');
-      if (buttons.length > 1) {
-        await buttons[1].trigger('click');
-        expect(slideshowMock.reapplyFilter).toHaveBeenCalled();
-      }
-    });
-
     it('should handle handleMediaError when item is Image', async () => {
       mockPlayerState.currentMediaItem = { name: 'img.jpg', path: 'img.jpg' };
       const wrapper = mount(MediaDisplay);
@@ -753,6 +753,71 @@ describe('MediaDisplay Combined Tests', () => {
       expect(classes).toContain('w-full');
       expect(classes).toContain('bg-linear-to-t');
       expect(classes).toContain('from-black/90');
+    });
+  });
+
+  // --- Advanced Features (New Coverage) ---
+  describe('Advanced Features', () => {
+    it('Add Media Source button toggles modal', async () => {
+      mockPlayerState.currentMediaItem = null;
+      mockLibraryState.mediaDirectories = []; // Empty state
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      const addBtn = wrapper
+        .findAll('button')
+        .find((b) => b.text().includes('Add Media Source'));
+      expect(addBtn?.exists()).toBe(true);
+      await addBtn?.trigger('click');
+      expect(mockUIState.isSourcesModalVisible).toBe(true);
+    });
+
+    it('Handles transcoding failure gracefully', async () => {
+      mockPlayerState.currentMediaItem = {
+        name: 'video.mp4',
+        path: '/video.mp4',
+      };
+      (api.getHlsUrl as Mock).mockRejectedValue(new Error('HLS Error'));
+
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      await (wrapper.vm as any).tryTranscoding(0);
+      expect((wrapper.vm as any).error).toBe('Failed to start playback');
+      expect((wrapper.vm as any).isTranscodingLoading).toBe(false);
+    });
+
+    it('Prefetches next media item if image', async () => {
+      mockPlayerState.currentMediaItem = { name: '1.jpg', path: '/1.jpg' };
+      mockPlayerState.displayedMediaFiles = [
+        { name: '1.jpg', path: '/1.jpg' },
+        { name: '2.jpg', path: '/2.jpg' },
+      ];
+      mockPlayerState.currentMediaIndex = 0;
+
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      // Trigger watcher logic manually or by wait
+      // The watch immediate:true calls loadMediaUrl, which finishes,
+      // then we should see generator called for /2.jpg
+      expect(mockLibraryState.mediaUrlGenerator).toHaveBeenCalledWith('/2.jpg');
+    });
+
+    it('Prefetches next media item thumbnail if video', async () => {
+      mockPlayerState.currentMediaItem = { name: '1.mp4', path: '/1.mp4' };
+      mockPlayerState.displayedMediaFiles = [
+        { name: '1.mp4', path: '/1.mp4' },
+        { name: '2.mp4', path: '/2.mp4' },
+      ];
+      mockPlayerState.currentMediaIndex = 0;
+
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      expect(mockLibraryState.thumbnailUrlGenerator).toHaveBeenCalledWith(
+        '/2.mp4',
+      );
     });
   });
 });

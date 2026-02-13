@@ -1,16 +1,10 @@
-import {
-  describe,
-  it,
-  expect,
-  vi,
-  beforeEach,
-  beforeAll,
-} from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../src/server/server';
 import * as database from '../../src/core/database';
 import * as mediaService from '../../src/core/media-service';
 import * as mediaHandler from '../../src/core/media-handler';
+import * as fileSystem from '../../src/core/file-system'; // Added import
 import * as security from '../../src/core/security';
 import * as mediaUtils from '../../src/core/media-utils';
 import * as mimeTypes from '../../src/core/utils/mime-types';
@@ -28,6 +22,7 @@ vi.mock('fs/promises', () => ({
     writeFile: vi.fn(),
     access: vi.fn(),
     realpath: vi.fn((p) => Promise.resolve(p)),
+    readdir: vi.fn(),
   },
   stat: vi.fn(),
   mkdir: vi.fn(),
@@ -35,6 +30,7 @@ vi.mock('fs/promises', () => ({
   writeFile: vi.fn(),
   access: vi.fn(),
   realpath: vi.fn((p) => Promise.resolve(p)),
+  readdir: vi.fn(),
 }));
 
 // Mock fs (sync)
@@ -156,6 +152,7 @@ vi.mock('../../src/core/media-handler', () => ({
   serveRawStream: vi.fn((_req, res) => res.end()),
   serveThumbnail: vi.fn((_req, res) => res.end()),
   serveStaticFile: vi.fn((_req, res) => res.end()),
+  handleStreamRequest: vi.fn((_req, res) => res.end()),
   validateFileAccess: vi
     .fn()
     .mockResolvedValue({ success: true, path: '/resolved/path' }),
@@ -227,6 +224,7 @@ describe('Server Combined Tests', () => {
 
     // FS Defaults
     vi.mocked(fs.realpath).mockImplementation((p) => Promise.resolve(p));
+    vi.mocked(fs.readdir).mockResolvedValue([] as any);
 
     // Media Utils Defaults
     vi.mocked(mediaUtils.checkThumbnailCache).mockResolvedValue(false);
@@ -605,6 +603,31 @@ describe('Server Combined Tests', () => {
     it('should have Content-Security-Policy header', async () => {
       const response = await request(app).get('/api/config/extensions');
       expect(response.headers['content-security-policy']).toBeDefined();
+    });
+  });
+
+  // --- Additional Coverage (Routes) ---
+  describe('Additional Routes Coverage', () => {
+    it('GET /api/fs/ls handles errors', async () => {
+      vi.mocked(fileSystem.readDirectory).mockRejectedValue(
+        new Error('FS Fail'),
+      );
+      const response = await request(app)
+        .get('/api/fs/ls')
+        .query({ path: '/' });
+      expect(response.status).toBe(500);
+    });
+
+    it('GET /api/stream handles errors from mediaHandler', async () => {
+      vi.mocked(mediaHandler.handleStreamRequest).mockImplementation(
+        async () => {
+          throw new Error('Stream Error');
+        },
+      );
+      const response = await request(app)
+        .get('/api/stream')
+        .query({ file: 'test.mp4' });
+      expect(response.status).toBe(500);
     });
   });
 });
