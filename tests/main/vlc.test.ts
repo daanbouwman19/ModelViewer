@@ -1,4 +1,13 @@
-import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, Mock } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+  beforeAll,
+  Mock,
+} from 'vitest';
 import { ipcMain } from 'electron';
 
 // Hoist the mock function so it's accessible in the factory and the test
