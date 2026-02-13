@@ -64,7 +64,11 @@ export async function saveCredentials(client: OAuth2Client): Promise<void> {
  * Encodes a buffer to Base64URL format (no padding).
  */
 function base64UrlEncode(str: Buffer): string {
-  return str.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  return str
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
 }
 
 /**
@@ -112,13 +116,15 @@ export async function authenticateWithCode(code: string): Promise<void> {
     const verifier = pendingCodeVerifier;
 
     if (!verifier) {
-      throw new Error('Code verifier not found. The authentication flow may have been interrupted. Please try again.');
+      throw new Error(
+        'Code verifier not found. The authentication flow may have been interrupted. Please try again.',
+      );
     }
 
     // Pass the stored verifier if available (it should be for this flow)
     const { tokens } = await client.getToken({
       code,
-      codeVerifier: verifier
+      codeVerifier: verifier,
     });
 
     client.setCredentials(tokens);

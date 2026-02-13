@@ -138,7 +138,7 @@ describe('Google Auth Service', () => {
         expect.objectContaining({
           code: 'test-code',
           codeVerifier: expect.any(String),
-        })
+        }),
       );
       expect(mockOAuth2Client.setCredentials).toHaveBeenCalledWith(mockTokens);
       expect(database.saveSetting).toHaveBeenCalled();
@@ -151,9 +151,9 @@ describe('Google Auth Service', () => {
       const mockTokens = { refresh_token: 'new-token-no-pkce' };
       mockOAuth2Client.getToken.mockResolvedValue({ tokens: mockTokens });
 
-      await expect(googleAuth.authenticateWithCode('test-code-2')).rejects.toThrow(
-        'Code verifier not found',
-      );
+      await expect(
+        googleAuth.authenticateWithCode('test-code-2'),
+      ).rejects.toThrow('Code verifier not found');
 
       expect(mockOAuth2Client.getToken).not.toHaveBeenCalled();
     });
