@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll, Mock } from 'vitest';
 import { ipcMain } from 'electron';
 import path from 'path';
 import { Readable } from 'stream';
@@ -89,11 +89,7 @@ vi.mock('ffmpeg-static', () => ({
 describe('Security: load-file-as-data-url', () => {
   let handler: (event: any, ...args: any[]) => any;
 
-  beforeEach(async () => {
-    vi.clearAllMocks();
-  });
-
-  const setupHandler = async () => {
+  beforeAll(async () => {
     // Import media-controller to register the handlers
     const { registerMediaHandlers } =
       await import('../../src/main/ipc/media-controller');
@@ -109,10 +105,13 @@ describe('Security: load-file-as-data-url', () => {
     } else {
       throw new Error('Handler not found');
     }
-  };
+  });
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+  });
 
   it('should allow access to files within allowed media directories', async () => {
-    await setupHandler();
     const fsPromises = await import('fs/promises');
     const db = await import('../../src/core/database');
 
@@ -143,7 +142,6 @@ describe('Security: load-file-as-data-url', () => {
   });
 
   it('should deny access to files outside allowed media directories', async () => {
-    await setupHandler();
     const fsPromises = await import('fs/promises');
     const db = await import('../../src/core/database');
 
@@ -172,7 +170,6 @@ describe('Security: load-file-as-data-url', () => {
   });
 
   it('should deny path traversal attempts', async () => {
-    await setupHandler();
     const fsPromises = await import('fs/promises');
     const db = await import('../../src/core/database');
 
@@ -203,7 +200,6 @@ describe('Security: load-file-as-data-url', () => {
   });
 
   it('should deny symlink traversal attacks', async () => {
-    await setupHandler();
     const fsPromises = await import('fs/promises');
     const db = await import('../../src/core/database');
 
