@@ -109,7 +109,7 @@ describe('Google Auth Service', () => {
   });
 
   describe('generateAuthUrl', () => {
-    it('should call generateAuthUrl on client', () => {
+    it('should call generateAuthUrl on client with PKCE params', () => {
       mockOAuth2Client.generateAuthUrl.mockReturnValue('http://auth-url');
       const url = googleAuth.generateAuthUrl();
       expect(url).toBe('http://auth-url');
@@ -117,21 +117,50 @@ describe('Google Auth Service', () => {
         expect.objectContaining({
           access_type: 'offline',
           scope: expect.any(Array),
+          code_challenge: expect.any(String),
+          code_challenge_method: 'S256',
         }),
       );
     });
   });
 
   describe('authenticateWithCode', () => {
-    it('should exchange code for tokens and save them', async () => {
+    it('should exchange code for tokens and save them using PKCE verifier', async () => {
+      // 1. Generate auth URL first to set the pending verifier
+      googleAuth.generateAuthUrl();
+
       const mockTokens = { refresh_token: 'new-token' };
       mockOAuth2Client.getToken.mockResolvedValue({ tokens: mockTokens });
 
       await googleAuth.authenticateWithCode('test-code');
 
-      expect(mockOAuth2Client.getToken).toHaveBeenCalledWith('test-code');
+      expect(mockOAuth2Client.getToken).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'test-code',
+          codeVerifier: expect.any(String),
+        })
+      );
       expect(mockOAuth2Client.setCredentials).toHaveBeenCalledWith(mockTokens);
       expect(database.saveSetting).toHaveBeenCalled();
+    });
+
+    it('should pass undefined verifier if generateAuthUrl was not called', async () => {
+      // Need to ensure pendingCodeVerifier is null.
+      // Since modules are singletons in tests, previous tests might have set it.
+      // However, authenticateWithCode clears it in finally block.
+      // So assuming previous test finished, it should be null.
+
+      const mockTokens = { refresh_token: 'new-token-no-pkce' };
+      mockOAuth2Client.getToken.mockResolvedValue({ tokens: mockTokens });
+
+      await googleAuth.authenticateWithCode('test-code-2');
+
+      expect(mockOAuth2Client.getToken).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'test-code-2',
+          codeVerifier: undefined,
+        })
+      );
     });
   });
 });
