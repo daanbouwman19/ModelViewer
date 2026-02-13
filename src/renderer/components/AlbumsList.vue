@@ -374,15 +374,27 @@
             <label
               for="timer-input"
               class="text-[10px] font-bold text-gray-500 uppercase tracking-widest"
-              >Timer (s)</label
+              >Timer Duration</label
             >
-            <input
-              id="timer-input"
-              v-model.number="timerDuration"
-              type="number"
-              min="1"
-              class="w-full glass-input text-sm px-3 py-2 rounded-lg"
-            />
+            <div class="relative">
+              <input
+                id="timer-input"
+                v-model.number="timerDuration"
+                type="number"
+                min="1"
+                step="1"
+                placeholder="5"
+                aria-label="Slideshow timer duration in seconds"
+                class="w-full glass-input text-sm pl-3 pr-10 py-2 rounded-lg no-spinner"
+                @blur="
+                  timerDuration = Math.max(1, Math.floor(timerDuration) || 5)
+                "
+              />
+              <span
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none"
+                >sec</span
+              >
+            </div>
           </div>
 
           <!-- Primary Play Action -->
@@ -692,3 +704,18 @@ const handleHistorySlideshow = async () => {
   }
 };
 </script>
+
+<style scoped>
+/* Chrome, Safari, Edge, Opera */
+.no-spinner::-webkit-outer-spin-button,
+.no-spinner::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox */
+.no-spinner {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+</style>
