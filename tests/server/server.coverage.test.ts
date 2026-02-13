@@ -96,8 +96,7 @@ describe('Server Coverage', () => {
   let app: any;
 
   beforeAll(async () => {
-    // Dynamic import to create a fresh app instance if needed
-    // However, node modules are cached, so we rely on mocks being cleared.
+    // Create the app instance once for the test suite.
     const { createApp } = await import('../../src/server/server');
     app = await createApp();
   });
