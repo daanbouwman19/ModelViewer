@@ -82,17 +82,23 @@ vi.mock('../../src/core/media-service', () => ({
   getAlbumsWithViewCounts: vi.fn(),
 }));
 
+vi.mock('ffmpeg-static', () => ({
+  default: '/mock/ffmpeg/path',
+}));
+
 describe('Security: load-file-as-data-url', () => {
   let handler: (event: any, ...args: any[]) => any;
 
   beforeEach(async () => {
-    vi.resetModules();
     vi.clearAllMocks();
   });
 
   const setupHandler = async () => {
-    // Import main.js to register the handlers
-    await import('../../src/main/main');
+    // Import media-controller to register the handlers
+    const { registerMediaHandlers } =
+      await import('../../src/main/ipc/media-controller');
+    registerMediaHandlers();
+
     // Find the handler for 'load-file-as-data-url'
     const handleMock = ipcMain.handle as unknown as Mock;
     const call = handleMock.mock.calls.find(

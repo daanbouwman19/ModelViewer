@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { google } from 'googleapis';
 import { EventEmitter } from 'events';
+import * as driveService from '../../src/main/google-drive-service';
+import * as googleAuth from '../../src/main/google-auth';
 
 // We need to mock imports BEFORE importing the module under test
 vi.mock('../../src/main/google-auth');
 vi.mock('googleapis');
-
-// Import the module under test dynamically to support resetting
 
 const mockDrive = {
   files: {
@@ -19,16 +19,12 @@ const mockDrive = {
 
 describe('Google Drive Service', () => {
   beforeEach(() => {
-    vi.resetModules();
     vi.clearAllMocks();
+    driveService.resetDriveClient();
   });
 
   describe('getDriveClient', () => {
     it('should initialize drive client if auth is valid', async () => {
-      // Re-import to reset module state (driveClient = null)
-      const driveService = await import('../../src/main/google-drive-service');
-      const googleAuth = await import('../../src/main/google-auth');
-
       (googleAuth.getOAuth2Client as any).mockReturnValue({
         credentials: { refresh_token: 'valid' },
       });
@@ -39,9 +35,6 @@ describe('Google Drive Service', () => {
     });
 
     it('should try to load credentials if not authenticated', async () => {
-      const driveService = await import('../../src/main/google-drive-service');
-      const googleAuth = await import('../../src/main/google-auth');
-
       (googleAuth.getOAuth2Client as any).mockReturnValue({
         credentials: {}, // empty
       });
@@ -53,9 +46,6 @@ describe('Google Drive Service', () => {
     });
 
     it('should throw if authentication fails', async () => {
-      const driveService = await import('../../src/main/google-drive-service');
-      const googleAuth = await import('../../src/main/google-auth');
-
       (googleAuth.getOAuth2Client as any).mockReturnValue({
         credentials: {},
       });
@@ -69,9 +59,6 @@ describe('Google Drive Service', () => {
 
   describe('listDriveFiles', () => {
     it('should return album structure recursively', async () => {
-      const driveService = await import('../../src/main/google-drive-service');
-      const googleAuth = await import('../../src/main/google-auth');
-
       (googleAuth.getOAuth2Client as any).mockReturnValue({
         credentials: { refresh_token: 'valid' },
       });
@@ -123,9 +110,6 @@ describe('Google Drive Service', () => {
 
   describe('getDriveFileStream', () => {
     it('should return a stream', async () => {
-      const driveService = await import('../../src/main/google-drive-service');
-      const googleAuth = await import('../../src/main/google-auth');
-
       (googleAuth.getOAuth2Client as any).mockReturnValue({
         credentials: { refresh_token: 'valid' },
       });
@@ -141,9 +125,7 @@ describe('Google Drive Service', () => {
     });
 
     it('should use Range header if start/end provided', async () => {
-      const driveService = await import('../../src/main/google-drive-service');
-      const auth = await import('../../src/main/google-auth');
-      (auth.getOAuth2Client as any).mockReturnValue({
+      (googleAuth.getOAuth2Client as any).mockReturnValue({
         credentials: { refresh_token: 'valid' },
       });
 
@@ -160,9 +142,7 @@ describe('Google Drive Service', () => {
     });
 
     it('should log stream events', async () => {
-      const driveService = await import('../../src/main/google-drive-service');
-      const auth = await import('../../src/main/google-auth');
-      (auth.getOAuth2Client as any).mockReturnValue({
+      (googleAuth.getOAuth2Client as any).mockReturnValue({
         credentials: { refresh_token: 'valid' },
       });
 
@@ -188,9 +168,8 @@ describe('Google Drive Service', () => {
     });
 
     it('should retry on 429', async () => {
-      const driveService = await import('../../src/main/google-drive-service');
-      const auth = await import('../../src/main/google-auth');
-      (auth.getOAuth2Client as any).mockReturnValue({
+      vi.useFakeTimers();
+      (googleAuth.getOAuth2Client as any).mockReturnValue({
         credentials: { refresh_token: 'valid' },
       });
 
@@ -198,17 +177,19 @@ describe('Google Drive Service', () => {
         .mockRejectedValueOnce({ code: 429 })
         .mockResolvedValueOnce({ data: new EventEmitter() });
 
-      await driveService.getDriveFileStream('fileId');
+      const promise = driveService.getDriveFileStream('fileId');
+
+      await vi.advanceTimersByTimeAsync(2000);
+
+      await promise;
 
       expect(mockDrive.files.get).toHaveBeenCalledTimes(2);
+      vi.useRealTimers();
     });
   });
 
   describe('getDriveFileMetadata', () => {
     it('should return metadata', async () => {
-      const driveService = await import('../../src/main/google-drive-service');
-      const googleAuth = await import('../../src/main/google-auth');
-
       (googleAuth.getOAuth2Client as any).mockReturnValue({
         credentials: { refresh_token: 'valid' },
       });
@@ -222,9 +203,6 @@ describe('Google Drive Service', () => {
 
   describe('getDriveFileThumbnail', () => {
     it('should return thumbnail stream if link exists', async () => {
-      const driveService = await import('../../src/main/google-drive-service');
-      const googleAuth = await import('../../src/main/google-auth');
-
       (googleAuth.getOAuth2Client as any).mockReturnValue({
         credentials: { refresh_token: 'valid' },
         getAccessToken: vi.fn().mockResolvedValue({ token: 'access_token' }),
@@ -269,9 +247,6 @@ describe('Google Drive Service', () => {
     });
 
     it('should throw if no thumbnail link', async () => {
-      const driveService = await import('../../src/main/google-drive-service');
-      const googleAuth = await import('../../src/main/google-auth');
-
       (googleAuth.getOAuth2Client as any).mockReturnValue({
         credentials: { refresh_token: 'valid' },
       });
@@ -285,9 +260,6 @@ describe('Google Drive Service', () => {
     });
 
     it('should throw if fetch fails', async () => {
-      const driveService = await import('../../src/main/google-drive-service');
-      const googleAuth = await import('../../src/main/google-auth');
-
       (googleAuth.getOAuth2Client as any).mockReturnValue({
         credentials: { refresh_token: 'valid' },
         getAccessToken: vi.fn().mockResolvedValue({ token: 'access_token' }),
@@ -311,9 +283,6 @@ describe('Google Drive Service', () => {
 
   describe('listDriveDirectory', () => {
     it('should list files and folders flatly', async () => {
-      const driveService = await import('../../src/main/google-drive-service');
-      const googleAuth = await import('../../src/main/google-auth');
-
       (googleAuth.getOAuth2Client as any).mockReturnValue({
         credentials: { refresh_token: 'valid' },
       });
@@ -354,9 +323,6 @@ describe('Google Drive Service', () => {
     });
 
     it('should handle shortcuts to folders', async () => {
-      const driveService = await import('../../src/main/google-drive-service');
-      const googleAuth = await import('../../src/main/google-auth');
-
       (googleAuth.getOAuth2Client as any).mockReturnValue({
         credentials: { refresh_token: 'valid' },
       });
@@ -388,8 +354,6 @@ describe('Google Drive Service', () => {
     });
 
     it('should ignore shortcuts to non-folders (or treat as files if supported)', async () => {
-      const driveService = await import('../../src/main/google-drive-service');
-
       const mockFiles = [
         {
           id: 'shortcut1',
@@ -415,7 +379,6 @@ describe('Google Drive Service', () => {
     });
 
     it('should handle errors', async () => {
-      const driveService = await import('../../src/main/google-drive-service');
       (mockDrive.files.list as any).mockRejectedValue(new Error('API Error'));
       await expect(driveService.listDriveDirectory('root')).rejects.toThrow(
         'API Error',
@@ -425,7 +388,6 @@ describe('Google Drive Service', () => {
 
   describe('getDriveParent', () => {
     it('should return parent id', async () => {
-      const driveService = await import('../../src/main/google-drive-service');
       (mockDrive.files.get as any).mockResolvedValue({
         data: { parents: ['parentId'] },
       });
@@ -442,7 +404,6 @@ describe('Google Drive Service', () => {
     });
 
     it('should return null if no parents', async () => {
-      const driveService = await import('../../src/main/google-drive-service');
       (mockDrive.files.get as any).mockResolvedValue({
         data: { parents: [] },
       });
@@ -451,13 +412,11 @@ describe('Google Drive Service', () => {
     });
 
     it('should return null for root', async () => {
-      const driveService = await import('../../src/main/google-drive-service');
       const parent = await driveService.getDriveParent('root');
       expect(parent).toBeNull();
     });
 
     it('should return null on error', async () => {
-      const driveService = await import('../../src/main/google-drive-service');
       (mockDrive.files.get as any).mockRejectedValue(new Error('API Error'));
       const parent = await driveService.getDriveParent('childId');
       expect(parent).toBeNull();

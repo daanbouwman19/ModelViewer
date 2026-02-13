@@ -27,7 +27,7 @@ export default defineConfig({
       'cache/**',
     ],
     coverage: {
-      provider: 'istanbul',
+      provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],
       all: false,
       include: [

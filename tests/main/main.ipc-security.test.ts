@@ -88,7 +88,6 @@ describe('main.js IPC Security', () => {
   const handlers: { [key: string]: (event: any, ...args: any[]) => any } = {};
 
   beforeEach(async () => {
-    vi.resetModules();
     vi.clearAllMocks();
 
     // Setup authorizeFilePath default to deny
@@ -98,8 +97,14 @@ describe('main.js IPC Security', () => {
       message: 'Access denied',
     });
 
-    // Import main.js to register the handlers
-    await import('../../src/main/main.js');
+    // Import controllers to register the handlers
+    const { registerMediaHandlers } =
+      await import('../../src/main/ipc/media-controller');
+    const { registerDatabaseHandlers } =
+      await import('../../src/main/ipc/database-controller');
+
+    registerMediaHandlers();
+    registerDatabaseHandlers();
 
     // Collect all registered handlers
     const handleMock = ipcMain.handle as unknown as Mock;

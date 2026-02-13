@@ -81,13 +81,15 @@ describe('Security: open-in-vlc', () => {
   let handler: (event: any, ...args: any[]) => any;
 
   beforeEach(async () => {
-    vi.resetModules();
     vi.clearAllMocks();
   });
 
   const setupHandler = async () => {
-    // We need to re-import main to trigger the ipcMain.handle calls again
-    await import('../../src/main/main');
+    // Import system-controller to register the handlers
+    const { registerSystemHandlers } =
+      await import('../../src/main/ipc/system-controller');
+    registerSystemHandlers();
+
     const handleMock = ipcMain.handle as unknown as Mock;
     const call = handleMock.mock.calls.find(
       (c: any[]) => c[0] === 'open-in-vlc',

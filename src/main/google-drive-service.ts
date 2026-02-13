@@ -23,6 +23,10 @@ const DRIVE_RETRY_OPTIONS = {
 
 let driveClient: drive_v3.Drive | null = null;
 
+export function resetDriveClient() {
+  driveClient = null;
+}
+
 export async function getDriveClient(): Promise<drive_v3.Drive> {
   if (driveClient) return driveClient;
 

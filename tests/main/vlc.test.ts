@@ -1,4 +1,13 @@
-import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+  beforeAll,
+  Mock,
+} from 'vitest';
 import { ipcMain } from 'electron';
 
 // Hoist the mock function so it's accessible in the factory and the test
@@ -156,8 +165,22 @@ describe('Main Process IPC - open-in-vlc', () => {
   let openInVlcHandler: (event: any, filePath: string) => Promise<any>;
   const originalPlatform = process.platform;
 
+  beforeAll(async () => {
+    // Register system handlers directly
+    await import('../../src/main/ipc/system-controller').then((mod) => {
+      mod.registerSystemHandlers();
+    });
+
+    // Find the handler
+    const handleCalls = (ipcMain.handle as unknown as Mock).mock.calls;
+    const call = handleCalls.find((call: any[]) => call[0] === 'open-in-vlc');
+    if (call) {
+      openInVlcHandler = call[1];
+    }
+  });
+
   beforeEach(async () => {
-    vi.resetModules();
+    vi.useFakeTimers();
     vi.clearAllMocks();
 
     // Default mocks
@@ -170,22 +193,10 @@ describe('Main Process IPC - open-in-vlc', () => {
       { path: '/Users', isActive: true },
       { path: '/', isActive: true },
     ]);
-
-    // Register system handlers directly
-    await import('../../src/main/ipc/system-controller').then((mod) => {
-      mod.registerSystemHandlers();
-    });
-
-    // Find the handler
-    const handleCalls = (ipcMain.handle as unknown as Mock).mock.calls;
-
-    const call = handleCalls.find((call: any[]) => call[0] === 'open-in-vlc');
-    if (call) {
-      openInVlcHandler = call[1];
-    }
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     Object.defineProperty(process, 'platform', {
       value: originalPlatform,
     });
@@ -218,10 +229,10 @@ describe('Main Process IPC - open-in-vlc', () => {
     const mockChild = { unref: vi.fn(), on: vi.fn() };
     mocks.mockSpawn.mockReturnValue(mockChild);
 
-    const result = await openInVlcHandler({}, 'C:\\video.mp4');
+    const promise = openInVlcHandler({}, 'C:\\video.mp4');
+    await vi.runAllTimersAsync();
+    const result = await promise;
 
-    expect(result.data.success).toBe(true);
-    expect(result.data.success).toBe(true);
     expect(result.data.success).toBe(true);
     expect(mocks.mockSpawn).toHaveBeenCalled();
     expect(mockChild.unref).toHaveBeenCalled();
@@ -233,7 +244,9 @@ describe('Main Process IPC - open-in-vlc', () => {
     const mockChild = { unref: vi.fn(), on: vi.fn() };
     mocks.mockSpawn.mockReturnValue(mockChild);
 
-    const result = await openInVlcHandler({}, '/home/user/video.mp4');
+    const promise = openInVlcHandler({}, '/home/user/video.mp4');
+    await vi.runAllTimersAsync();
+    const result = await promise;
 
     expect(result.success).toBe(true);
     expect(mocks.mockSpawn).toHaveBeenCalledWith(
@@ -254,7 +267,9 @@ describe('Main Process IPC - open-in-vlc', () => {
     const mockChild = { unref: vi.fn(), on: vi.fn() };
     mocks.mockSpawn.mockReturnValue(mockChild);
 
-    const result = await openInVlcHandler({}, '/Users/video.mp4');
+    const promise = openInVlcHandler({}, '/Users/video.mp4');
+    await vi.runAllTimersAsync();
+    const result = await promise;
 
     expect(result.success).toBe(true);
     expect(mocks.mockSpawn).toHaveBeenCalledWith(
@@ -271,7 +286,9 @@ describe('Main Process IPC - open-in-vlc', () => {
     const mockChild = { unref: vi.fn(), on: vi.fn() };
     mocks.mockSpawn.mockReturnValue(mockChild);
 
-    const result = await openInVlcHandler({}, '/Users/video.mp4');
+    const promise = openInVlcHandler({}, '/Users/video.mp4');
+    await vi.runAllTimersAsync();
+    const result = await promise;
 
     expect(result.success).toBe(true);
     expect(mocks.mockSpawn).toHaveBeenCalledWith(
@@ -288,7 +305,10 @@ describe('Main Process IPC - open-in-vlc', () => {
     const mockChild = { unref: vi.fn(), on: mockOn };
     mocks.mockSpawn.mockReturnValue(mockChild);
 
-    await openInVlcHandler({}, '/home/user/video.mp4');
+    const promise = openInVlcHandler({}, '/home/user/video.mp4');
+    await vi.runAllTimersAsync();
+    await vi.runAllTimersAsync();
+    await promise;
 
     expect(mockOn).toHaveBeenCalledWith('error', expect.any(Function));
   });
