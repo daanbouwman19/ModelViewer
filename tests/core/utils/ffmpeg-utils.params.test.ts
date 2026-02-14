@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   getTranscodeArgs,
   getThumbnailArgs,
+  getHlsTranscodeArgs,
 } from '../../../src/core/utils/ffmpeg-utils';
 
 describe('getTranscodeArgs', () => {
@@ -83,5 +84,52 @@ describe('getThumbnailArgs', () => {
     // Core inputs
     expect(args).toContain(INPUT_PATH);
     expect(args).toContain(CACHE_FILE);
+  });
+});
+
+describe('getHlsTranscodeArgs', () => {
+  const INPUT_PATH = '/path/to/video.mp4';
+  const OUTPUT_SEGMENT = '/path/to/segment_%03d.ts';
+  const OUTPUT_PLAYLIST = '/path/to/playlist.m3u8';
+  const SEGMENT_DURATION = 4;
+
+  it('generates correct HLS arguments', () => {
+    const args = getHlsTranscodeArgs(
+      INPUT_PATH,
+      OUTPUT_SEGMENT,
+      OUTPUT_PLAYLIST,
+      SEGMENT_DURATION,
+    );
+
+    // Performance and logging
+    expect(args).toContain('-hide_banner');
+    expect(args).toContain('-loglevel');
+    expect(args).toContain('error');
+
+    // Input options
+    expect(args).toContain('-analyzeduration');
+    expect(args).toContain('100M');
+    expect(args).toContain(INPUT_PATH);
+
+    // Codecs and format
+    expect(args).toContain('libx264');
+    expect(args).toContain('aac');
+    expect(args).toContain('hls');
+    expect(args).toContain('yuv420p');
+
+    // HLS specific
+    const hlsTimeIndex = args.indexOf('-hls_time');
+    expect(hlsTimeIndex).toBeGreaterThan(-1);
+    expect(args[hlsTimeIndex + 1]).toBe(SEGMENT_DURATION.toString());
+
+    expect(args).toContain('-hls_list_size');
+    expect(args).toContain('0'); // Verify we keep all segments
+
+    expect(args).toContain('-hls_segment_filename');
+    const segmentIndex = args.indexOf('-hls_segment_filename');
+    expect(args[segmentIndex + 1]).toBe(OUTPUT_SEGMENT);
+
+    // Ensure playlist is the last argument (or at least present)
+    expect(args).toContain(OUTPUT_PLAYLIST);
   });
 });
