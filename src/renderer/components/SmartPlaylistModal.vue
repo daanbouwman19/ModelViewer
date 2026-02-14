@@ -197,7 +197,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue';
+import { ref, watch, computed, onMounted, onUnmounted } from 'vue';
 import { useUIStore } from '../composables/useUIStore';
 import { useLibraryStore } from '../composables/useLibraryStore';
 import { api } from '../api';
@@ -295,4 +295,18 @@ const save = async () => {
     console.error('Failed to save playlist:', err);
   }
 };
+
+const handleKeydown = (e: KeyboardEvent) => {
+  if (isSmartPlaylistModalVisible.value && e.key === 'Escape') {
+    close();
+  }
+};
+
+onMounted(() => {
+  window.addEventListener('keydown', handleKeydown);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown);
+});
 </script>

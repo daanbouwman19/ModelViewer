@@ -140,3 +140,8 @@
 
 **Learning:** When the sidebar is collapsible, empty states telling users to "Choose from the sidebar" become frustrating dead ends if the sidebar is hidden.
 **Action:** Empty states should always detect if the necessary UI controls (like a sidebar) are visible. If not, they must provide a direct action button to reveal them or perform the task directly.
+
+## 2026-02-14 - [Modal Accessibility Gap]
+
+**Learning:** Found that `SmartPlaylistModal` lacked Escape key support for closing, which is a standard accessibility requirement for modals. Other modals might also be missing this.
+**Action:** When implementing or refactoring modals, always include an `Escape` key listener attached to the window or a focus trap that handles `Escape`.
