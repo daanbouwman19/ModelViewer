@@ -9,8 +9,8 @@ const {
   mockDatabaseConstructor,
   mockSpawnProcess,
   mockWorkerClientInstance,
-  mockMediaSource,
-  mockStream
+  mockMediaSource
+
 } = vi.hoisted(() => {
   const mockStatement = {
     run: vi.fn(),
@@ -27,7 +27,7 @@ const {
 
   const mockDatabaseConstructor = vi.fn();
 
-  const listeners: Record<string, Function[]> = {};
+  const listeners: Record<string, (...args: any[]) => void> = {};
   const mockSpawnProcess: any = {
     stdout: { pipe: vi.fn(), on: vi.fn() },
     stderr: { pipe: vi.fn(), on: vi.fn() },

@@ -3,10 +3,8 @@ import request from 'supertest';
 import express from 'express';
 import bodyParser from 'body-parser';
 import * as mediaRoutes from '../../../src/server/routes/media.routes';
-import * as database from '../../../src/core/database';
 import * as security from '../../../src/core/security';
 import * as mediaHandler from '../../../src/core/media-handler';
-import { AppError } from '../../../src/core/errors';
 import { MAX_API_BATCH_SIZE } from '../../../src/core/constants';
 
 // Mocks
@@ -15,7 +13,7 @@ vi.mock('../../../src/core/security');
 vi.mock('../../../src/core/media-handler', () => ({
     MediaHandler: vi.fn(),
     serveRawStream: vi.fn(),
-    serveTranscodedStream: vi.fn((req, res) => {
+    serveTranscodedStream: vi.fn((_req, res) => {
         res.end('done');
         return Promise.resolve();
     }),
@@ -25,10 +23,10 @@ vi.mock('../../../src/core/media-source');
 
 // Mock Limiters
 const mockLimiters = {
-  readLimiter: (req: any, res: any, next: any) => next(),
-  writeLimiter: (req: any, res: any, next: any) => next(),
-  fileLimiter: (req: any, res: any, next: any) => next(),
-  streamLimiter: (req: any, res: any, next: any) => next(),
+  readLimiter: (_req: any, _res: any, next: any) => next(),
+  writeLimiter: (_req: any, _res: any, next: any) => next(),
+  fileLimiter: (_req: any, _res: any, next: any) => next(),
+  streamLimiter: (_req: any, _res: any, next: any) => next(),
 };
 
 describe('Media Routes Coverage', () => {
@@ -59,7 +57,8 @@ describe('Media Routes Coverage', () => {
     }));
 
     // Error handler
-    app.use((err: any, req: any, res: any, next: any) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    app.use((err: any, _req: any, res: any, _next: any) => {
         res.status(err.statusCode || 500).json({ error: err.message });
     });
 
@@ -145,12 +144,8 @@ describe('Media Routes Coverage', () => {
       });
 
       it('GET /api/stream transcode success updates state', async () => {
-          const res = await request(app).get('/api/stream?file=/v.mp4&transcode=true');
-          // Since serveTranscodedStream is mocked and likely returns/resolves, the request finishes.
-          // However, the route handler attaches listeners to 'finish'/'close' to decrement count.
-          // In supertest, the response finishes immediately if we don't hold it open.
-          // We can check if serveTranscodedStream was called.
-          expect(mediaHandler.serveTranscodedStream).toHaveBeenCalled();
+          await request(app).get('/api/stream?file=/v.mp4&transcode=true');
+          expect(vi.mocked(mediaHandler.serveTranscodedStream)).toHaveBeenCalled();
       });
   });
 

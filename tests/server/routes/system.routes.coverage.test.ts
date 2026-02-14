@@ -3,11 +3,8 @@ import request from 'supertest';
 import express from 'express';
 import bodyParser from 'body-parser';
 import * as systemRoutes from '../../../src/server/routes/system.routes';
-import * as database from '../../../src/core/database';
-import * as fileSystem from '../../../src/core/file-system';
 import * as security from '../../../src/core/security';
 import fs from 'fs/promises';
-import { AppError } from '../../../src/core/errors';
 
 // Mocks
 vi.mock('../../../src/core/database');
@@ -22,10 +19,10 @@ vi.mock('fs/promises', () => ({
 
 // Mock Limiters
 const mockLimiters = {
-  readLimiter: (req: any, res: any, next: any) => next(),
-  writeLimiter: (req: any, res: any, next: any) => next(),
-  fileLimiter: (req: any, res: any, next: any) => next(),
-  streamLimiter: (req: any, res: any, next: any) => next(),
+  readLimiter: (_req: any, _res: any, _next: any) => { _next(); },
+  writeLimiter: (_req: any, _res: any, _next: any) => { _next(); },
+  fileLimiter: (_req: any, _res: any, _next: any) => { _next(); },
+  streamLimiter: (_req: any, _res: any, _next: any) => { _next(); },
 };
 
 describe('System Routes Coverage', () => {
@@ -38,7 +35,8 @@ describe('System Routes Coverage', () => {
     app.use(systemRoutes.createSystemRoutes(mockLimiters as any));
 
     // Error handler
-    app.use((err: any, req: any, res: any, next: any) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    app.use((err: any, _req: any, res: any, _next: any) => {
         res.status(err.statusCode || 500).json({ error: err.message });
     });
 

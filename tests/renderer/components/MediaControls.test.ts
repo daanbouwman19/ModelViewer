@@ -263,7 +263,7 @@ describe('MediaControls.vue', () => {
     // So polling loop might exit or not trigger depending on microtasks order.
 
     // Verify watched segments updated
-    expect(wrapper.vm.watchedSegments).toEqual([{ start: 0, end: 10 }]);
+    expect((wrapper.vm as any).watchedSegments).toEqual([{ start: 0, end: 10 }]);
 
     vi.useRealTimers();
   });

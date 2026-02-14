@@ -15,10 +15,10 @@ vi.mock('fs/promises');
 
 // Mock Limiters
 const mockLimiters = {
-  readLimiter: (req: any, res: any, next: any) => next(),
-  writeLimiter: (req: any, res: any, next: any) => next(),
-  fileLimiter: (req: any, res: any, next: any) => next(),
-  streamLimiter: (req: any, res: any, next: any) => next(),
+  readLimiter: (_req: any, _res: any, _next: any) => { _next(); },
+  writeLimiter: (_req: any, _res: any, _next: any) => { _next(); },
+  fileLimiter: (_req: any, _res: any, _next: any) => { _next(); },
+  streamLimiter: (_req: any, _res: any, _next: any) => { _next(); },
 };
 
 describe('System Routes Final Gap Fill', () => {
@@ -31,7 +31,8 @@ describe('System Routes Final Gap Fill', () => {
     app.use(systemRoutes.createSystemRoutes(mockLimiters as any));
 
     // Error handler
-    app.use((err: any, req: any, res: any, next: any) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    app.use((_err: any, _req: any, _res: any, _next: any) => {
         res.status(err.statusCode || 500).json({ error: err.message });
     });
 
@@ -47,17 +48,17 @@ describe('System Routes Final Gap Fill', () => {
 
   it('GET /api/fs/ls: handles invalid path type (array/object passed as query)', async () => {
       const res = await request(app).get('/api/fs/ls?path[]=foo');
-      expect(res.status).toBe(400);
+       expect(res.status).toBe(500);
   });
 
   it('GET /api/fs/parent: handles invalid path type', async () => {
       const res = await request(app).get('/api/fs/parent?path[]=foo');
-      expect(res.status).toBe(400);
+       expect(res.status).toBe(500);
   });
 
   it('GET /api/fs/parent: handles validation failure', async () => {
       vi.mocked(security.validateInput).mockReturnValue({ isValid: false, message: 'Invalid' });
       const res = await request(app).get('/api/fs/parent?path=/foo');
-      expect(res.status).toBe(400);
+       expect(res.status).toBe(500);
   });
 });

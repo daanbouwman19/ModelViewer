@@ -202,7 +202,7 @@ describe('Coverage Boost - MediaHandler', () => {
       };
       factorySpy.mockReturnValue(mockProvider as any);
 
-      const result = await handler.serveMetadata(req, res, 'gdrive://123');
+      await await handler.serveMetadata(req, res, 'gdrive://123');
 
       expect(res.json).toHaveBeenCalledWith({ error: 'Duration not available' });
   });
