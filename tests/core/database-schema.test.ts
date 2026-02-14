@@ -1,87 +1,166 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
-import Database from 'better-sqlite3';
 import {
   initializeSchema,
   createIndexes,
+  migrateMediaDirectories,
   migrateMediaMetadata,
+  DB_SCHEMA,
 } from '../../src/core/database-schema';
 
-describe('Database Schema Optimization', () => {
-  let dbPath: string;
-  let tempDir: string;
+describe('Database Schema', () => {
   let db: Database.Database;
+  let tempDir: string;
+  let dbPath: string;
 
   beforeEach(() => {
-    const testDir = path.join(process.cwd(), 'tests', 'temp-schema');
-    if (!fs.existsSync(testDir)) {
-      fs.mkdirSync(testDir, { recursive: true });
-    }
-    tempDir = fs.mkdtempSync(path.join(testDir, 'test-db-'));
-    dbPath = path.join(tempDir, 'test.sqlite');
+    tempDir = fs.mkdtempSync(path.join(process.cwd(), 'tests', 'temp', 'schema-'));
+    dbPath = path.join(tempDir, 'test.db');
     db = new Database(dbPath);
   });
 
   afterEach(() => {
-    if (db && db.open) {
-      db.close();
-    }
-    try {
-      fs.rmSync(tempDir, { recursive: true, force: true });
-    } catch (e) {
-      console.warn(`Failed to clean up temp dir ${tempDir}:`, e);
-    }
+    if (db) db.close();
+    fs.rmSync(tempDir, { recursive: true, force: true });
+    vi.restoreAllMocks();
   });
 
-  it('should create performance indexes', () => {
-    // 1. Initialize Schema (Creates tables)
-    initializeSchema(db);
-
-    // 2. Ensure columns exist (in case schema needs migration logic to run)
-    // initializeSchema creates the LATEST schema, so columns should be there.
-    // But let's run migration just to be consistent with worker flow.
-    migrateMediaMetadata(db);
-
-    // 3. Create Indexes
-    createIndexes(db);
-
-    // 4. Inspect DB
-    const indexes = db
-      .prepare(
-        `
-      SELECT name FROM sqlite_master
-      WHERE type='index' AND name LIKE 'idx_%'
-    `,
-      )
-      .all() as { name: string }[];
-
-    const indexNames = indexes.map((i) => i.name);
-
-    // Verify specific indexes
-    expect(indexNames).toContain('idx_media_metadata_status');
-    expect(indexNames).toContain('idx_media_views_last_viewed');
+  describe('Initialization', () => {
+    it('initializes all tables', () => {
+      initializeSchema(db);
+      const tables = db
+        .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+        .all() as { name: string }[];
+      const tableNames = tables.map((t) => t.name);
+      expect(tableNames).toContain('media_views');
+      expect(tableNames).toContain('app_cache');
+      expect(tableNames).toContain('media_directories');
+      expect(tableNames).toContain('media_metadata');
+      expect(tableNames).toContain('smart_playlists');
+      expect(tableNames).toContain('settings');
+    });
   });
 
-  it('should be idempotent (safe to run multiple times)', () => {
-    initializeSchema(db);
-    createIndexes(db);
+  describe('Indexes', () => {
+    it('creates indexes correctly', () => {
+      initializeSchema(db);
+      createIndexes(db);
+      const indexes = db
+        .prepare("SELECT name FROM sqlite_master WHERE type='index'")
+        .all() as { name: string }[];
+      const indexNames = indexes.map((i) => i.name);
+      expect(indexNames).toContain('idx_media_metadata_status');
+      expect(indexNames).toContain('idx_media_metadata_file_path');
+      expect(indexNames).toContain('idx_media_views_last_viewed');
+    });
 
-    // Run again
-    expect(() => createIndexes(db)).not.toThrow();
+    it('handles index creation failure gracefully', () => {
+      initializeSchema(db);
+      const spy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      // Mock db.prepare to throw for index creation
+      const originalPrepare = db.prepare.bind(db);
+      vi.spyOn(db, 'prepare').mockImplementation((sql: string) => {
+        if (sql.includes('CREATE INDEX')) {
+          throw new Error('Index Error');
+        }
+        return originalPrepare(sql);
+      });
 
-    const indexes = db
-      .prepare(
-        `
-      SELECT name FROM sqlite_master
-      WHERE type='index' AND name LIKE 'idx_%'
-    `,
-      )
-      .all() as { name: string }[];
+      createIndexes(db);
+      expect(spy).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to create index'),
+        expect.any(Error),
+      );
+    });
+  });
 
-    // Should still have unique indexes (not duplicated or errored)
-    const indexNames = indexes.map((i) => i.name);
-    expect(indexNames).toContain('idx_media_metadata_status');
-    expect(indexNames).toContain('idx_media_views_last_viewed');
+  describe('Migrations', () => {
+    describe('media_directories', () => {
+      it('migrates from old schema (no id) to new schema', () => {
+        // Create old schema
+        db.prepare(
+          'CREATE TABLE media_directories (path TEXT UNIQUE, is_active INTEGER DEFAULT 1)',
+        ).run();
+        db.prepare(
+          'INSERT INTO media_directories (path, is_active) VALUES (?, ?)',
+        ).run('/old/path', 1);
+
+        migrateMediaDirectories(db);
+
+        // Verify new schema
+        const columns = db
+          .prepare("PRAGMA table_info('media_directories')")
+          .all() as { name: string }[];
+        const columnNames = columns.map((c) => c.name);
+        expect(columnNames).toContain('id');
+        expect(columnNames).toContain('type');
+        expect(columnNames).toContain('name');
+
+        // Verify data
+        const row = db
+          .prepare('SELECT * FROM media_directories WHERE path = ?')
+          .get('/old/path') as any;
+        expect(row).toBeDefined();
+        expect(row.id).toBeDefined();
+        expect(row.type).toBe('local');
+        expect(row.name).toBe('path'); // basename of /old/path
+      });
+
+      it('skips migration if table does not exist', () => {
+        // Do nothing (table doesn't exist)
+        migrateMediaDirectories(db);
+        const tables = db
+          .prepare(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='media_directories'",
+          )
+          .all();
+        expect(tables).toHaveLength(0);
+      });
+
+      it('skips migration if already migrated', () => {
+        initializeSchema(db); // Creates new schema
+        const spy = vi.spyOn(console, 'log');
+        migrateMediaDirectories(db);
+        expect(spy).not.toHaveBeenCalledWith(
+          expect.stringContaining('Migrating media_directories table'),
+        );
+      });
+    });
+
+    describe('media_metadata', () => {
+      it('adds missing columns', () => {
+        // Create table with missing columns
+        db.prepare(
+          'CREATE TABLE media_metadata (file_path_hash TEXT PRIMARY KEY)',
+        ).run();
+
+        migrateMediaMetadata(db);
+
+        const columns = db
+          .prepare("PRAGMA table_info('media_metadata')")
+          .all() as { name: string }[];
+        const columnNames = columns.map((c) => c.name);
+        expect(columnNames).toContain('file_path');
+        expect(columnNames).toContain('size');
+        expect(columnNames).toContain('rating');
+        expect(columnNames).toContain('watched_segments');
+      });
+
+      it('handles migration errors gracefully', () => {
+        const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        // Mock prepare to throw
+        vi.spyOn(db, 'prepare').mockImplementation(() => {
+          throw new Error('Migration Error');
+        });
+
+        migrateMediaMetadata(db);
+        expect(spy).toHaveBeenCalledWith(
+          expect.stringContaining('Error migrating media_metadata table'),
+          expect.any(Error),
+        );
+      });
+    });
   });
 });

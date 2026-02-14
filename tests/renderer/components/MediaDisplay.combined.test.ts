@@ -766,7 +766,7 @@ describe('MediaDisplay Combined Tests', () => {
       ];
       mockPlayerState.currentMediaIndex = 0;
 
-      const wrapper = mount(MediaDisplay);
+      mount(MediaDisplay);
       await flushPromises();
 
       // Trigger watcher logic manually or by wait
@@ -783,7 +783,7 @@ describe('MediaDisplay Combined Tests', () => {
       ];
       mockPlayerState.currentMediaIndex = 0;
 
-      const wrapper = mount(MediaDisplay);
+      mount(MediaDisplay);
       await flushPromises();
 
       expect(mockLibraryState.thumbnailUrlGenerator).toHaveBeenCalledWith(
