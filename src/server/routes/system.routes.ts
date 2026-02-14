@@ -36,8 +36,8 @@ import type { RateLimiters } from '../middleware/rate-limiters.ts';
 import { asyncHandler } from '../middleware/async-handler.ts';
 import { createRateLimiter } from '../../core/rate-limiter.ts';
 import {
-  RATE_LIMIT_FILE_MAX_REQUESTS,
   RATE_LIMIT_FILE_WINDOW_MS,
+  RATE_LIMIT_FS_READ_MAX_REQUESTS,
 } from '../../core/constants.ts';
 
 function validateMediaDirectoryPath(dirPath: string): void {
@@ -205,7 +205,7 @@ export function createSystemRoutes(limiters: RateLimiters) {
 
   const fsRateLimiter = createRateLimiter(
     RATE_LIMIT_FILE_WINDOW_MS,
-    RATE_LIMIT_FILE_MAX_REQUESTS,
+    RATE_LIMIT_FS_READ_MAX_REQUESTS,
     'Too many file system requests. Please slow down.',
   );
 
@@ -237,7 +237,7 @@ export function createSystemRoutes(limiters: RateLimiters) {
 
   router.get(
     '/api/fs/parent',
-    limiters.fileLimiter,
+    fsRateLimiter,
     asyncHandler(async (req, res) => {
       const dirPath = getQueryParam(req.query, 'path');
       if (!dirPath || typeof dirPath !== 'string') {
@@ -292,7 +292,7 @@ export function createSystemRoutes(limiters: RateLimiters) {
 
   router.get(
     '/api/drive/files',
-    limiters.fileLimiter,
+    fsRateLimiter,
     asyncHandler(async (req, res) => {
       const folderId = getQueryParam(req.query, 'folderId');
       const files = await listDriveDirectory(folderId || 'root');
@@ -302,7 +302,7 @@ export function createSystemRoutes(limiters: RateLimiters) {
 
   router.get(
     '/api/drive/parent',
-    limiters.fileLimiter,
+    fsRateLimiter,
     asyncHandler(async (req, res) => {
       const folderId = getQueryParam(req.query, 'folderId');
       if (!folderId) {

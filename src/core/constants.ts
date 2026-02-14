@@ -289,6 +289,9 @@ const RATE_LIMIT_READ_MAX_REQUESTS = 600;
 const RATE_LIMIT_FILE_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_FILE_MAX_REQUESTS = 3_000;
 
+// Filesystem/Browsing: Very strict limit (60 req / 1 min) for directory listing
+const RATE_LIMIT_FS_READ_MAX_REQUESTS = 60;
+
 /**
  * Maximum number of concurrent transcoding streams allowed.
  * Used to prevent CPU exhaustion (DoS).
@@ -370,6 +373,7 @@ export {
   RATE_LIMIT_READ_MAX_REQUESTS,
   RATE_LIMIT_FILE_WINDOW_MS,
   RATE_LIMIT_FILE_MAX_REQUESTS,
+  RATE_LIMIT_FS_READ_MAX_REQUESTS,
   MAX_CONCURRENT_TRANSCODES,
   MAX_API_BATCH_SIZE,
   HLS_SEGMENT_DURATION,
