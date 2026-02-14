@@ -103,7 +103,8 @@
     "googleapis": "^171.4.0",
     "helmet": "^8.1.0",
     "p-queue": "^9.1.0",
-    "range-parser": "^1.2.1"
+    "range-parser": "^1.2.1",
+    "typescript-eslint": "^8.55.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
@@ -124,7 +125,6 @@
     "electron": "^40.4.1",
     "electron-builder": "^26.8.0",
     "electron-vite": "^5.0.0",
-    "eslint": "^10.0.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-vue": "^10.8.0",
     "execa": "^9.6.1",
