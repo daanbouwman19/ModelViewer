@@ -1,4 +1,3 @@
-
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   initDatabase,
@@ -55,7 +54,7 @@ describe('Database Worker Bulk Upsert Coverage', () => {
     // We can infer coverage will hit the "if (payloadsToProcess.length === 0)" branch.
   });
 
-  it('should handle partial filtering (some exist, some don\'t)', async () => {
+  it("should handle partial filtering (some exist, some don't)", async () => {
     initDatabase(DB_PATH);
 
     // 1. Insert one file
@@ -64,7 +63,7 @@ describe('Database Worker Bulk Upsert Coverage', () => {
     // 2. Bulk upsert: one existing (skip), one new (process)
     const payloads = [
       { filePath: '/existing.mp4' }, // Should be skipped
-      { filePath: '/new.mp4' }       // Should be processed
+      { filePath: '/new.mp4' }, // Should be processed
     ];
 
     const result = await bulkUpsertMetadata(payloads);
@@ -94,19 +93,19 @@ describe('Database Worker Bulk Upsert Coverage', () => {
   });
 
   it('should handle db error in bulkUpsertMetadata', async () => {
-      initDatabase(DB_PATH);
-      // Mock generateFileIdsBatched to throw? Or just pass invalid data that DB rejects?
-      // Since generateFileIdsBatched is internal, difficult to mock directly without rewiring.
-      // But we can try to make transaction fail.
+    initDatabase(DB_PATH);
+    // Mock generateFileIdsBatched to throw? Or just pass invalid data that DB rejects?
+    // Since generateFileIdsBatched is internal, difficult to mock directly without rewiring.
+    // But we can try to make transaction fail.
 
-      // We can close DB *during* operation if possible, but that's racy.
-      // Easier: rely on "Database not initialized" check above.
-      // For the try/catch block inside:
+    // We can close DB *during* operation if possible, but that's racy.
+    // Easier: rely on "Database not initialized" check above.
+    // For the try/catch block inside:
 
-      const result = await bulkUpsertMetadata([
-          // @ts-ignore - Invalid payload to potentially trigger SQL error?
-          { filePath: null }
-      ]);
-      expect(result.success).toBe(false);
+    const result = await bulkUpsertMetadata([
+      // @ts-ignore - Invalid payload to potentially trigger SQL error?
+      { filePath: null },
+    ]);
+    expect(result.success).toBe(false);
   });
 });
