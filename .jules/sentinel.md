@@ -133,6 +133,7 @@
 **Prevention:** Implemented PKCE in the OAuth flow. `generateAuthUrl` now generates and stores a `code_verifier` and sends a `code_challenge`. `authenticateWithCode` requires and validates the `code_verifier` during token exchange.
 
 ## 2025-02-15 - [Unauthenticated Filesystem Access]
+
 **Vulnerability:** The application exposes `/api/fs/ls` and `/api/directories` endpoints without authentication. This allows any network user to list server directories and add arbitrary directories (like `/home/user`) to the media library, potentially exposing sensitive user files.
 **Learning:** Local-first applications that also offer "Server Mode" often lack proper authentication boundaries by default, assuming a trusted network.
 **Prevention:** Implement mandatory authentication for all administrative actions (like adding media sources) and restrict filesystem browsing to predefined safe roots.
