@@ -6,7 +6,6 @@ import {
   upsertMetadata,
 } from '../../src/core/database-worker';
 import fs from 'fs/promises';
-import path from 'path';
 
 // Mock worker_threads since we are importing the worker file which has side effects (parentPort usage)
 vi.mock('worker_threads', () => ({
@@ -103,7 +102,7 @@ describe('Database Worker Bulk Upsert Coverage', () => {
     // For the try/catch block inside:
 
     const result = await bulkUpsertMetadata([
-      // @ts-ignore - Invalid payload to potentially trigger SQL error?
+      // @ts-expect-error - Invalid payload to potentially trigger SQL error?
       { filePath: null },
     ]);
     expect(result.success).toBe(false);
