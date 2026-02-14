@@ -26,7 +26,14 @@ vi.mock('@/components/VideoPlayer.vue', () => ({
       'isTranscodingLoading',
       'isBuffering',
     ],
-    emits: ['update:video-element', 'buffering', 'error', 'play', 'pause', 'timeupdate'],
+    emits: [
+      'update:video-element',
+      'buffering',
+      'error',
+      'play',
+      'pause',
+      'timeupdate',
+    ],
     expose: ['reset', 'togglePlay', 'currentVideoTime'],
     setup(_: any, { emit }: any) {
       // Emit a mock video element if needed
@@ -803,12 +810,12 @@ describe('MediaDisplay Combined Tests', () => {
 
       // Simulate playing
       (wrapper.vm as any).isPlaying = true;
-      // Do NOT manualy overwrite ref, rely on mock component setup
-      // Ensure the controls are ready
       await wrapper.vm.$nextTick();
 
       // 1. Time update (start tracking)
       await videoPlayer.vm.$emit('timeupdate', 10);
+      expect((wrapper.vm as any).savedCurrentTime).toBe(10);
+
       // 2. Time update (end segment)
       await videoPlayer.vm.$emit('timeupdate', 12);
 
@@ -819,6 +826,121 @@ describe('MediaDisplay Combined Tests', () => {
         '/video.mp4',
         expect.stringContaining('"start":10'),
       );
+    });
+
+    it('Toggles mute state', async () => {
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      const vm = wrapper.vm as any;
+      expect(vm.isMuted).toBe(false);
+
+      vm.toggleMute();
+      expect(vm.isMuted).toBe(true);
+
+      vm.toggleMute();
+      expect(vm.isMuted).toBe(false);
+    });
+
+    it('Toggles VR mode', async () => {
+      const wrapper = mount(MediaDisplay);
+      const vm = wrapper.vm as any;
+
+      expect(vm.isVrMode).toBe(false);
+      vm.toggleVrMode();
+      expect(vm.isVrMode).toBe(true);
+    });
+
+    it('Handles keyboard shortcuts', async () => {
+      mockPlayerState.currentMediaItem = { name: 'vid.mp4', path: '/vid.mp4' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      const vm = wrapper.vm as any;
+      const videoEl = {
+        currentTime: 10,
+        duration: 100,
+        paused: false,
+        play: vi.fn(),
+        pause: vi.fn(),
+      };
+      vm.videoElement = videoEl;
+
+      // Arrow Right -> Seek Forward
+      const arrowRight = new KeyboardEvent('keydown', { code: 'ArrowRight' });
+      window.dispatchEvent(arrowRight);
+      expect(videoEl.currentTime).toBe(15);
+
+      // Arrow Left -> Seek Backward
+      const arrowLeft = new KeyboardEvent('keydown', { code: 'ArrowLeft' });
+      window.dispatchEvent(arrowLeft);
+      expect(videoEl.currentTime).toBe(10);
+    });
+
+    it('Handles keyboard shortcuts in Transcoding Mode', async () => {
+      mockPlayerState.currentMediaItem = { name: 'vid.mp4', path: '/vid.mp4' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      const vm = wrapper.vm as any;
+      vm.isTranscodingMode = true;
+      vm.transcodedDuration = 100;
+      vm.savedCurrentTime = 10;
+      // We cannot mock internal function easily, so we check side effects
+      // tryTranscoding updates currentTranscodeStartTime
+
+      // Arrow Right -> Seek Forward (+5s) => 15
+      const arrowRight = new KeyboardEvent('keydown', { code: 'ArrowRight' });
+      window.dispatchEvent(arrowRight);
+      expect(vm.currentTranscodeStartTime).toBe(15);
+
+      // tryTranscoding disables isTranscodingMode (as it assumes HLS takeover).
+      // We must reset it to true to test the 'ArrowLeft' transcoding branch logic again.
+      vm.isTranscodingMode = true;
+
+      // Arrow Left -> Seek Backward (-5s) => 5
+      const arrowLeft = new KeyboardEvent('keydown', { code: 'ArrowLeft' });
+      window.dispatchEvent(arrowLeft);
+      expect(vm.currentTranscodeStartTime).toBe(5);
+    });
+
+    it('Handles Space key for Slideshow vs Video', async () => {
+      // 1. Image Mode
+      mockPlayerState.currentMediaItem = { name: 'img.jpg', path: '/img.jpg' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      const space = new KeyboardEvent('keydown', { code: 'Space' });
+      window.dispatchEvent(space);
+      expect(slideshowMock.toggleSlideshowTimer).toHaveBeenCalled();
+
+      // 2. Video Mode
+      mockPlayerState.currentMediaItem = { name: 'vid.mp4', path: '/vid.mp4' };
+      await flushPromises();
+
+      const vm = wrapper.vm as any;
+      vm.videoPlayerRef = { togglePlay: vi.fn() };
+
+      window.dispatchEvent(space);
+      expect(vm.videoPlayerRef.togglePlay).toHaveBeenCalled();
+    });
+
+    it('handles persisted watched segments update failure gracefully', async () => {
+      mockPlayerState.currentMediaItem = { name: 'vid.mp4', path: '/vid.mp4' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      (api.updateWatchedSegments as Mock).mockRejectedValue(
+        new Error('Update failed'),
+      );
+      const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      await (wrapper.vm as any).persistWatchedSegments();
+      expect(spy).toHaveBeenCalledWith(
+        'Failed to persist segments',
+        expect.any(Error),
+      );
+      spy.mockRestore();
     });
 
     it('covers Unsupported Format branch', async () => {

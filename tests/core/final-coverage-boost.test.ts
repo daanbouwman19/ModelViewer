@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import fs from 'fs/promises';
 
@@ -9,8 +10,7 @@ const {
   mockDatabaseConstructor,
   mockSpawnProcess,
   mockWorkerClientInstance,
-  mockMediaSource
-
+  mockMediaSource,
 } = vi.hoisted(() => {
   const mockStatement = {
     run: vi.fn(),
@@ -27,21 +27,21 @@ const {
 
   const mockDatabaseConstructor = vi.fn();
 
-  const listeners: Record<string, (...args: any[]) => void> = {};
+  const listeners: Record<string, Array<(...args: any[]) => void>> = {};
   const mockSpawnProcess: any = {
     stdout: { pipe: vi.fn(), on: vi.fn() },
     stderr: { pipe: vi.fn(), on: vi.fn() },
     kill: vi.fn(),
     on: vi.fn((event, listener) => {
-        listeners[event] = listeners[event] || [];
-        listeners[event].push(listener);
-        return mockSpawnProcess;
+      listeners[event] = listeners[event] || [];
+      listeners[event].push(listener);
+      return mockSpawnProcess;
     }),
     emit: (event: string, ...args: any[]) => {
-        if (listeners[event]) {
-            listeners[event].forEach((fn: any) => fn(...args));
-        }
-    }
+      if (listeners[event]) {
+        listeners[event].forEach((fn: any) => fn(...args));
+      }
+    },
   };
 
   const mockWorkerClientInstance = {
@@ -51,9 +51,9 @@ const {
   };
 
   const mockStream = {
-      pipe: vi.fn((dest) => dest),
-      on: vi.fn(),
-      destroy: vi.fn(),
+    pipe: vi.fn((dest) => dest),
+    on: vi.fn(),
+    destroy: vi.fn(),
   };
 
   const mockMediaSource = {
@@ -70,7 +70,7 @@ const {
     mockSpawnProcess,
     mockWorkerClientInstance,
     mockMediaSource,
-    mockStream
+    mockStream,
   };
 });
 
@@ -121,10 +121,10 @@ vi.mock('../../src/core/access-validator', () => ({
 vi.mock('../../src/core/worker-client', () => {
   return {
     WorkerClient: class {
-        init = mockWorkerClientInstance.init;
-        sendMessage = mockWorkerClientInstance.sendMessage;
-        terminate = mockWorkerClientInstance.terminate;
-    }
+      init = mockWorkerClientInstance.init;
+      sendMessage = mockWorkerClientInstance.sendMessage;
+      terminate = mockWorkerClientInstance.terminate;
+    },
   };
 });
 
@@ -135,24 +135,25 @@ vi.mock('../../src/core/media-source', () => ({
 
 // 8. Mock readline
 vi.mock('readline', () => {
-    const createInterface = vi.fn(() => ({
-        on: vi.fn(),
-        close: vi.fn(),
-    }));
-    return {
-        createInterface,
-        default: { createInterface },
-        __esModule: true,
-    };
+  const createInterface = vi.fn(() => ({
+    on: vi.fn(),
+    close: vi.fn(),
+  }));
+  return {
+    createInterface,
+    default: { createInterface },
+    __esModule: true,
+  };
 });
 
 // 9. Mock media-utils (partial)
 vi.mock('../../src/core/media-utils', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('../../src/core/media-utils')>();
-    return {
-        ...actual,
-        isDrivePath: vi.fn((p) => actual.isDrivePath(p)),
-    };
+  const actual =
+    await importOriginal<typeof import('../../src/core/media-utils')>();
+  return {
+    ...actual,
+    isDrivePath: vi.fn((p) => actual.isDrivePath(p)),
+  };
 });
 
 // Import modules
@@ -168,7 +169,9 @@ describe('Final Coverage Boost', () => {
     vi.clearAllMocks();
 
     // Reset mock Db behavior
-    mockDatabaseConstructor.mockImplementation(function() { return mockDbInstance; });
+    mockDatabaseConstructor.mockImplementation(function () {
+      return mockDbInstance;
+    });
     mockDbInstance.prepare.mockReturnValue(mockStatement);
     mockStatement.run.mockReset();
     mockStatement.all.mockReset();
@@ -176,13 +179,16 @@ describe('Final Coverage Boost', () => {
     mockStatement.get.mockReset();
 
     // Default valid access
-    vi.mocked(validateFileAccess).mockResolvedValue({ success: true, path: '/file.mp4' });
+    vi.mocked(validateFileAccess).mockResolvedValue({
+      success: true,
+      path: '/file.mp4',
+    });
 
     // Default fs.stat
     vi.mocked(fs.stat).mockResolvedValue({
-        size: 100,
-        mtime: new Date(),
-        birthtime: new Date()
+      size: 100,
+      mtime: new Date(),
+      birthtime: new Date(),
     } as any);
 
     // Default worker client
@@ -192,13 +198,13 @@ describe('Final Coverage Boost', () => {
 
     // Default media-utils
     if (vi.isMockFunction(mediaUtils.isDrivePath)) {
-        vi.mocked(mediaUtils.isDrivePath).mockReturnValue(false);
+      vi.mocked(mediaUtils.isDrivePath).mockReturnValue(false);
     }
   });
 
   afterEach(() => {
-      dbWorker.closeDatabase();
-      vi.restoreAllMocks();
+    dbWorker.closeDatabase();
+    vi.restoreAllMocks();
   });
 
   // --- Database Worker Coverage ---
@@ -211,7 +217,9 @@ describe('Final Coverage Boost', () => {
       err.code = 'EACCES';
       vi.mocked(fs.stat).mockRejectedValue(err);
 
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
 
       await dbWorker.upsertMetadata({ filePath: '/test/file.mp4' });
 
@@ -242,260 +250,336 @@ describe('Final Coverage Boost', () => {
     });
 
     it('recordMediaView: throws on non-constraint error', async () => {
-        const initRes = dbWorker.initDatabase(':memory:');
-        if (!initRes.success) throw new Error(`Init failed: ${initRes.error}`);
+      const initRes = dbWorker.initDatabase(':memory:');
+      if (!initRes.success) throw new Error(`Init failed: ${initRes.error}`);
 
-        mockStatement.run.mockClear();
+      mockStatement.run.mockClear();
 
-        mockStatement.run
-          .mockImplementationOnce(() => {})
-          .mockImplementationOnce(() => {
-            throw new Error('Random DB Error');
-          });
+      mockStatement.run
+        .mockImplementationOnce(() => {})
+        .mockImplementationOnce(() => {
+          throw new Error('Random DB Error');
+        });
 
-        const result = await dbWorker.recordMediaView('/test/view.mp4');
-        expect(result.success).toBe(false);
-        expect(result.error).toContain('Random DB Error');
+      const result = await dbWorker.recordMediaView('/test/view.mp4');
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Random DB Error');
+    });
+
+    it('initDatabase: handles initialization failure', () => {
+      // Use standard function for constructor mock
+      mockDatabaseConstructor.mockImplementationOnce(function () {
+        throw new Error('Init Fail');
+      } as any);
+
+      const result = dbWorker.initDatabase(':memory:');
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Init Fail');
+    });
+
+    it('closeDatabase: handles error', () => {
+      dbWorker.initDatabase(':memory:');
+      mockDbInstance.close.mockImplementationOnce(() => {
+        throw new Error('Close Fail');
       });
+      const result = dbWorker.closeDatabase();
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Close Fail');
+    });
 
-      it('initDatabase: handles initialization failure', () => {
-        // Use standard function for constructor mock
-        mockDatabaseConstructor.mockImplementationOnce(function() {
-            throw new Error('Init Fail');
-        } as any);
-
-        const result = dbWorker.initDatabase(':memory:');
-        expect(result.success).toBe(false);
-        expect(result.error).toBe('Init Fail');
+    it('addMediaDirectory: handles error', () => {
+      dbWorker.initDatabase(':memory:');
+      mockStatement.run.mockImplementationOnce(() => {
+        throw new Error('Add Fail');
       });
+      const result = dbWorker.addMediaDirectory({ path: '/foo' });
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Add Fail');
+    });
 
-      it('closeDatabase: handles error', () => {
-          dbWorker.initDatabase(':memory:');
-          mockDbInstance.close.mockImplementationOnce(() => { throw new Error('Close Fail'); });
-          const result = dbWorker.closeDatabase();
-          expect(result.success).toBe(false);
-          expect(result.error).toBe('Close Fail');
+    it('getMediaDirectories: handles error', () => {
+      dbWorker.initDatabase(':memory:');
+      mockStatement.all.mockImplementationOnce(() => {
+        throw new Error('Get Fail');
       });
+      const result = dbWorker.getMediaDirectories();
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Get Fail');
+    });
 
-      it('addMediaDirectory: handles error', () => {
-          dbWorker.initDatabase(':memory:');
-          mockStatement.run.mockImplementationOnce(() => { throw new Error('Add Fail'); });
-          const result = dbWorker.addMediaDirectory({ path: '/foo' });
-          expect(result.success).toBe(false);
-          expect(result.error).toBe('Add Fail');
-      });
+    it('getMetadata: returns empty object for empty array', async () => {
+      dbWorker.initDatabase(':memory:');
+      const result = await dbWorker.getMetadata([]);
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual({});
+    });
 
-      it('getMediaDirectories: handles error', () => {
-          dbWorker.initDatabase(':memory:');
-          mockStatement.all.mockImplementationOnce(() => { throw new Error('Get Fail'); });
-          const result = dbWorker.getMediaDirectories();
-          expect(result.success).toBe(false);
-          expect(result.error).toBe('Get Fail');
-      });
+    it('getMetadata: handles large batches (900+)', async () => {
+      dbWorker.initDatabase(':memory:');
+      mockStatement.all.mockClear(); // Clear init calls
 
-      it('getMetadata: returns empty object for empty array', async () => {
-          dbWorker.initDatabase(':memory:');
-          const result = await dbWorker.getMetadata([]);
-          expect(result.success).toBe(true);
-          expect(result.data).toEqual({});
-      });
+      const largeBatch = Array.from({ length: 905 }, (_, i) => `/file${i}.mp4`);
+      mockStatement.all.mockReturnValue([]);
 
-      it('getMetadata: handles large batches (900+)', async () => {
-          dbWorker.initDatabase(':memory:');
-          mockStatement.all.mockClear(); // Clear init calls
-
-          const largeBatch = Array.from({ length: 905 }, (_, i) => `/file${i}.mp4`);
-          mockStatement.all.mockReturnValue([]);
-
-          const result = await dbWorker.getMetadata(largeBatch);
-          expect(result.success).toBe(true);
-          // 2 calls for ID generation (check), 2 calls for metadata fetch = 4
-          expect(mockStatement.all.mock.calls.length).toBeGreaterThanOrEqual(2);
-      });
+      const result = await dbWorker.getMetadata(largeBatch);
+      expect(result.success).toBe(true);
+      // 2 calls for ID generation (check), 2 calls for metadata fetch = 4
+      expect(mockStatement.all.mock.calls.length).toBeGreaterThanOrEqual(2);
+    });
   });
 
   // --- Media Service Coverage ---
   describe('Media Service Edge Cases', () => {
     it('scanDiskForAlbumsAndCache: handles token parse error', async () => {
-        // Mock MediaRepository.prototype methods
-        const getSettingSpy = vi.spyOn(MediaRepository.prototype, 'getSetting')
-            .mockResolvedValue('invalid-json');
-        const getDirsSpy = vi.spyOn(MediaRepository.prototype, 'getMediaDirectories')
-            .mockResolvedValue([{ path: '/dir', isActive: true }] as any);
-        const cacheSpy = vi.spyOn(MediaRepository.prototype, 'cacheAlbums')
-            .mockResolvedValue();
+      // Mock MediaRepository.prototype methods
+      const getSettingSpy = vi
+        .spyOn(MediaRepository.prototype, 'getSetting')
+        .mockResolvedValue('invalid-json');
+      const getDirsSpy = vi
+        .spyOn(MediaRepository.prototype, 'getMediaDirectories')
+        .mockResolvedValue([{ path: '/dir', isActive: true }] as any);
+      const cacheSpy = vi
+        .spyOn(MediaRepository.prototype, 'cacheAlbums')
+        .mockResolvedValue();
 
-        const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-        await mediaService.scanDiskForAlbumsAndCache();
+      await mediaService.scanDiskForAlbumsAndCache();
 
-        expect(consoleSpy).toHaveBeenCalledWith(
-            expect.stringContaining('Failed to fetch google tokens'),
-            expect.any(Error)
-        );
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to fetch google tokens'),
+        expect.any(Error),
+      );
 
-        getSettingSpy.mockRestore();
-        getDirsSpy.mockRestore();
-        cacheSpy.mockRestore();
-        consoleSpy.mockRestore();
+      getSettingSpy.mockRestore();
+      getDirsSpy.mockRestore();
+      cacheSpy.mockRestore();
+      consoleSpy.mockRestore();
     });
 
     it('extractAndSaveMetadata: optimization skips if metadata matches', async () => {
-        const getMetaSpy = vi.spyOn(MediaRepository.prototype, 'getMetadata').mockResolvedValue({
-            '/file.mp4': { status: 'success', size: 100, createdAt: '2023-01-01T00:00:00.000Z' }
+      const getMetaSpy = vi
+        .spyOn(MediaRepository.prototype, 'getMetadata')
+        .mockResolvedValue({
+          '/file.mp4': {
+            status: 'success',
+            size: 100,
+            createdAt: '2023-01-01T00:00:00.000Z',
+          },
         });
 
-        vi.mocked(fs.stat).mockResolvedValue({
-            size: 100,
-            birthtime: { toISOString: () => '2023-01-01T00:00:00.000Z' }
-        } as any);
+      vi.mocked(fs.stat).mockResolvedValue({
+        size: 100,
+        birthtime: { toISOString: () => '2023-01-01T00:00:00.000Z' },
+      } as any);
 
-        const upsertSpy = vi.spyOn(MediaRepository.prototype, 'bulkUpsertMetadata');
+      const upsertSpy = vi.spyOn(
+        MediaRepository.prototype,
+        'bulkUpsertMetadata',
+      );
 
-        await mediaService.extractAndSaveMetadata(['/file.mp4'], 'ffmpeg', { forceCheck: false });
+      await mediaService.extractAndSaveMetadata(['/file.mp4'], 'ffmpeg', {
+        forceCheck: false,
+      });
 
-        expect(upsertSpy).not.toHaveBeenCalled();
-        getMetaSpy.mockRestore();
-        upsertSpy.mockRestore();
+      expect(upsertSpy).not.toHaveBeenCalled();
+      getMetaSpy.mockRestore();
+      upsertSpy.mockRestore();
     });
 
     it('extractAndSaveMetadata: skips drive paths', async () => {
-        vi.mocked(mediaUtils.isDrivePath).mockReturnValue(true);
-        const upsertSpy = vi.spyOn(MediaRepository.prototype, 'bulkUpsertMetadata');
+      vi.mocked(mediaUtils.isDrivePath).mockReturnValue(true);
+      const upsertSpy = vi.spyOn(
+        MediaRepository.prototype,
+        'bulkUpsertMetadata',
+      );
 
-        await mediaService.extractAndSaveMetadata(['gdrive://file.mp4'], 'ffmpeg');
+      await mediaService.extractAndSaveMetadata(
+        ['gdrive://file.mp4'],
+        'ffmpeg',
+      );
 
-        expect(upsertSpy).not.toHaveBeenCalled();
+      expect(upsertSpy).not.toHaveBeenCalled();
     });
   });
 
   // --- Media Handler Coverage ---
   describe('Media Handler Edge Cases', () => {
     it('sendAccessError: does not send if headers sent', async () => {
-        vi.mocked(validateFileAccess).mockResolvedValue({ success: false, statusCode: 403, error: 'Denied' });
+      vi.mocked(validateFileAccess).mockResolvedValue({
+        success: false,
+        statusCode: 403,
+        error: 'Denied',
+      });
 
-        const req = { query: { file: '/test.mp4' } } as any;
-        const res = {
-            headersSent: true, // Key: Headers already sent
-            status: vi.fn().mockReturnThis(),
-            send: vi.fn(),
-        } as any;
+      const req = { query: { file: '/test.mp4' } } as any;
+      const res = {
+        headersSent: true, // Key: Headers already sent
+        status: vi.fn().mockReturnThis(),
+        send: vi.fn(),
+      } as any;
 
-        const handler = new mediaHandler.MediaHandler({ ffmpegPath: 'ffmpeg', cacheDir: '/tmp' });
-        await handler.handleStreamRequest(req, res);
+      const handler = new mediaHandler.MediaHandler({
+        ffmpegPath: 'ffmpeg',
+        cacheDir: '/tmp',
+      });
+      await handler.handleStreamRequest(req, res);
 
-        expect(res.status).not.toHaveBeenCalled();
-        expect(res.send).not.toHaveBeenCalled();
+      expect(res.status).not.toHaveBeenCalled();
+      expect(res.send).not.toHaveBeenCalled();
     });
 
     it('tryServeDirectFile: handles sendFile error', async () => {
-        vi.mocked(validateFileAccess).mockResolvedValue({ success: true, path: '/local/file.mp4' });
+      vi.mocked(validateFileAccess).mockResolvedValue({
+        success: true,
+        path: '/local/file.mp4',
+      });
 
-        const req = { query: { file: '/local/file.mp4' }, on: vi.fn(), headers: {} } as any;
-        const res = {
-            sendFile: vi.fn(() => { throw new Error('SendFile Failed'); }),
-            status: vi.fn().mockReturnThis(),
-            set: vi.fn(),
-            send: vi.fn(),
-            end: vi.fn(),
-        } as any;
+      const req = {
+        query: { file: '/local/file.mp4' },
+        on: vi.fn(),
+        headers: {},
+      } as any;
+      const res = {
+        sendFile: vi.fn(() => {
+          throw new Error('SendFile Failed');
+        }),
+        status: vi.fn().mockReturnThis(),
+        set: vi.fn(),
+        send: vi.fn(),
+        end: vi.fn(),
+      } as any;
 
-        const handler = new mediaHandler.MediaHandler({ ffmpegPath: 'ffmpeg', cacheDir: '/tmp' });
+      const handler = new mediaHandler.MediaHandler({
+        ffmpegPath: 'ffmpeg',
+        cacheDir: '/tmp',
+      });
 
-        await handler.handleStreamRequest(req, res);
+      await handler.handleStreamRequest(req, res);
 
-        expect(res.sendFile).toHaveBeenCalled();
-        // Should fall through to raw stream (status 206)
-        expect(res.status).toHaveBeenCalledWith(206);
+      expect(res.sendFile).toHaveBeenCalled();
+      // Should fall through to raw stream (status 206)
+      expect(res.status).toHaveBeenCalledWith(206);
     });
 
     it('processStream: handles missing ffmpegPath when forced', async () => {
-        vi.mocked(validateFileAccess).mockResolvedValue({ success: true, path: '/file.mp4' });
+      vi.mocked(validateFileAccess).mockResolvedValue({
+        success: true,
+        path: '/file.mp4',
+      });
 
-        const req = { query: { file: '/file.mp4', transcode: 'true' } } as any;
-        const res = {
-            status: vi.fn().mockReturnThis(),
-            send: vi.fn(),
-        } as any;
+      const req = { query: { file: '/file.mp4', transcode: 'true' } } as any;
+      const res = {
+        status: vi.fn().mockReturnThis(),
+        send: vi.fn(),
+      } as any;
 
-        // Force ffmpegPath to null
-        const handler = new mediaHandler.MediaHandler({ ffmpegPath: null, cacheDir: '/tmp' });
-        await handler.handleStreamRequest(req, res);
+      // Force ffmpegPath to null
+      const handler = new mediaHandler.MediaHandler({
+        ffmpegPath: null,
+        cacheDir: '/tmp',
+      });
+      await handler.handleStreamRequest(req, res);
 
-        expect(res.status).toHaveBeenCalledWith(500);
-        expect(res.send).toHaveBeenCalledWith('FFmpeg binary not found');
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.send).toHaveBeenCalledWith('FFmpeg binary not found');
     });
 
     it('serveTranscodedStream: handles spawn error', async () => {
-        vi.mocked(validateFileAccess).mockResolvedValue({ success: true, path: '/file.mp4' });
+      vi.mocked(validateFileAccess).mockResolvedValue({
+        success: true,
+        path: '/file.mp4',
+      });
 
-        const req = { query: { file: '/file.mp4', transcode: 'true' }, on: vi.fn() } as any;
-        const res = {
-            set: vi.fn(),
-            status: vi.fn().mockReturnThis(),
-            send: vi.fn(),
-        } as any;
+      const req = {
+        query: { file: '/file.mp4', transcode: 'true' },
+        on: vi.fn(),
+      } as any;
+      const res = {
+        set: vi.fn(),
+        status: vi.fn().mockReturnThis(),
+        send: vi.fn(),
+      } as any;
 
-        const handler = new mediaHandler.MediaHandler({ ffmpegPath: 'ffmpeg', cacheDir: '/tmp' });
+      const handler = new mediaHandler.MediaHandler({
+        ffmpegPath: 'ffmpeg',
+        cacheDir: '/tmp',
+      });
 
-        // Capture console error
-        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      // Capture console error
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
 
-        // Start request
-        await handler.handleStreamRequest(req, res);
+      // Start request
+      await handler.handleStreamRequest(req, res);
 
-        // Emit error on the mock process
-        await new Promise(r => setTimeout(r, 0));
-        mockSpawnProcess.emit('error', new Error('Spawn failed'));
+      // Emit error on the mock process
+      await new Promise((r) => setTimeout(r, 0));
+      mockSpawnProcess.emit('error', new Error('Spawn failed'));
 
-        expect(consoleSpy).toHaveBeenCalledWith(
-            expect.stringContaining('[Transcode] Spawn Error'),
-            expect.any(Error)
-        );
-        consoleSpy.mockRestore();
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('[Transcode] Spawn Error'),
+        expect.any(Error),
+      );
+      consoleSpy.mockRestore();
     });
 
     it('serveMetadata: handles missing ffmpegPath', async () => {
-        vi.mocked(validateFileAccess).mockResolvedValue({ success: true, path: '/local.mp4' });
-        // Mock isDrivePath -> false
+      vi.mocked(validateFileAccess).mockResolvedValue({
+        success: true,
+        path: '/local.mp4',
+      });
+      // Mock isDrivePath -> false
 
-        const req = { query: { file: '/local.mp4' } } as any;
-        const res = {
-            status: vi.fn().mockReturnThis(),
-            send: vi.fn(),
-            json: vi.fn(),
-        } as any;
+      const req = { query: { file: '/local.mp4' } } as any;
+      const res = {
+        status: vi.fn().mockReturnThis(),
+        send: vi.fn(),
+        json: vi.fn(),
+      } as any;
 
-        const handler = new mediaHandler.MediaHandler({ ffmpegPath: null, cacheDir: '/tmp' });
-        await handler.serveMetadata(req, res, '/local.mp4');
+      const handler = new mediaHandler.MediaHandler({
+        ffmpegPath: null,
+        cacheDir: '/tmp',
+      });
+      await handler.serveMetadata(req, res, '/local.mp4');
 
-        expect(res.status).toHaveBeenCalledWith(500);
-        expect(res.send).toHaveBeenCalledWith('FFmpeg binary not found');
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.send).toHaveBeenCalledWith('FFmpeg binary not found');
     });
 
     it('serveHeatmap: handles error', async () => {
-        vi.mocked(validateFileAccess).mockResolvedValue({ success: true, path: '/local.mp4' });
-        // Mock MediaAnalyzer
-        vi.mock('../../src/core/analysis/media-analyzer', () => ({
-            MediaAnalyzer: {
-                getInstance: () => ({
-                    generateHeatmap: vi.fn().mockRejectedValue(new Error('Heatmap Fail')),
-                    setCacheDir: vi.fn(),
-                })
-            }
-        }));
+      vi.mocked(validateFileAccess).mockResolvedValue({
+        success: true,
+        path: '/local.mp4',
+      });
+      // Mock MediaAnalyzer
+      vi.mock('../../src/core/analysis/media-analyzer', () => ({
+        MediaAnalyzer: {
+          getInstance: () => ({
+            generateHeatmap: vi
+              .fn()
+              .mockRejectedValue(new Error('Heatmap Fail')),
+            setCacheDir: vi.fn(),
+          }),
+        },
+      }));
 
-        const req = { query: { file: '/local.mp4' } } as any;
-        const res = {
-            status: vi.fn().mockReturnThis(),
-            send: vi.fn(),
-        } as any;
+      const req = { query: { file: '/local.mp4' } } as any;
+      const res = {
+        status: vi.fn().mockReturnThis(),
+        send: vi.fn(),
+      } as any;
 
-        const handler = new mediaHandler.MediaHandler({ ffmpegPath: 'ffmpeg', cacheDir: '/tmp' });
-        await handler.serveHeatmap(req, res, '/local.mp4');
+      const handler = new mediaHandler.MediaHandler({
+        ffmpegPath: 'ffmpeg',
+        cacheDir: '/tmp',
+      });
+      await handler.serveHeatmap(req, res, '/local.mp4');
 
-        expect(res.status).toHaveBeenCalledWith(500);
-        expect(res.send).toHaveBeenCalledWith('Heatmap generation failed');
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.send).toHaveBeenCalledWith('Heatmap generation failed');
     });
   });
 });

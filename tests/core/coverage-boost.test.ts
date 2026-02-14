@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MediaHandler } from '../../src/core/media-handler';
 import { MediaService } from '../../src/core/media-service';
@@ -32,30 +33,31 @@ vi.mock('../../src/core/worker-client', () => ({
 
 // Mock media-utils to control isDrivePath
 vi.mock('../../src/core/media-utils', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('../../src/core/media-utils')>();
-    return {
-        ...actual,
-        isDrivePath: vi.fn((p) => p && p.startsWith('gdrive://')),
-    };
+  const actual =
+    await importOriginal<typeof import('../../src/core/media-utils')>();
+  return {
+    ...actual,
+    isDrivePath: vi.fn((p) => p && p.startsWith('gdrive://')),
+  };
 });
 
 // Mock child_process for spawn
 vi.mock('child_process', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('child_process')>();
-    const mockSpawn = vi.fn().mockReturnValue({
-        stdout: { pipe: vi.fn(), on: vi.fn(), resume: vi.fn() },
-        stderr: { on: vi.fn(), resume: vi.fn() }, // resume needed for readline
-        on: vi.fn(),
-        kill: vi.fn(),
-    });
-    return {
-        ...actual,
-        spawn: mockSpawn,
-        default: {
-            ...actual,
-            spawn: mockSpawn,
-        },
-    };
+  const actual = await importOriginal<typeof import('child_process')>();
+  const mockSpawn = vi.fn().mockReturnValue({
+    stdout: { pipe: vi.fn(), on: vi.fn(), resume: vi.fn() },
+    stderr: { on: vi.fn(), resume: vi.fn() }, // resume needed for readline
+    on: vi.fn(),
+    kill: vi.fn(),
+  });
+  return {
+    ...actual,
+    spawn: mockSpawn,
+    default: {
+      ...actual,
+      spawn: mockSpawn,
+    },
+  };
 });
 
 // Mock fs/promises
@@ -129,28 +131,31 @@ describe('Coverage Boost - MediaHandler', () => {
   });
 
   it('handleStreamRequest - handles forced transcoding', async () => {
-      // Mock validateFileAccess
-      const validateSpy = vi.spyOn(
-        await import('../../src/core/access-validator'),
-        'validateFileAccess',
-      );
-      validateSpy.mockResolvedValueOnce({ success: true, path: '/test.mp4' });
+    // Mock validateFileAccess
+    const validateSpy = vi.spyOn(
+      await import('../../src/core/access-validator'),
+      'validateFileAccess',
+    );
+    validateSpy.mockResolvedValueOnce({ success: true, path: '/test.mp4' });
 
-      // Mock createMediaSource
-      const sourceMock = {
-          getFFmpegInput: vi.fn().mockResolvedValue('/test.mp4'),
-      };
-      const sourceSpy = vi.spyOn(await import('../../src/core/media-source'), 'createMediaSource');
-      sourceSpy.mockReturnValue(sourceMock as any);
+    // Mock createMediaSource
+    const sourceMock = {
+      getFFmpegInput: vi.fn().mockResolvedValue('/test.mp4'),
+    };
+    const sourceSpy = vi.spyOn(
+      await import('../../src/core/media-source'),
+      'createMediaSource',
+    );
+    sourceSpy.mockReturnValue(sourceMock as any);
 
-      req.query.file = '/test.mp4';
-      req.query.transcode = 'true';
+    req.query.file = '/test.mp4';
+    req.query.transcode = 'true';
 
-      await handler.handleStreamRequest(req, res);
+    await handler.handleStreamRequest(req, res);
 
-      expect(res.set).toHaveBeenCalledWith({ 'Content-Type': 'video/mp4' });
-      const childProcess = await import('child_process');
-      expect(childProcess.spawn).toHaveBeenCalled();
+    expect(res.set).toHaveBeenCalledWith({ 'Content-Type': 'video/mp4' });
+    const childProcess = await import('child_process');
+    expect(childProcess.spawn).toHaveBeenCalled();
   });
 
   it('serveRawStream - handles stream error', async () => {
@@ -187,64 +192,70 @@ describe('Coverage Boost - MediaHandler', () => {
   });
 
   it('getVideoDuration - handles drive paths and missing metadata', async () => {
-      // Mock validateFileAccess to succeed for a drive path
-      const validateSpy = vi.spyOn(
-        await import('../../src/core/access-validator'),
-        'validateFileAccess',
-      );
-      // Use gdrive:// protocol
-      validateSpy.mockResolvedValueOnce({ success: true, path: 'gdrive://123' });
+    // Mock validateFileAccess to succeed for a drive path
+    const validateSpy = vi.spyOn(
+      await import('../../src/core/access-validator'),
+      'validateFileAccess',
+    );
+    // Use gdrive:// protocol
+    validateSpy.mockResolvedValueOnce({ success: true, path: 'gdrive://123' });
 
-      // We need to mock getProvider to return a mock provider that returns partial metadata
-      const factorySpy = vi.spyOn(await import('../../src/core/fs-provider-factory'), 'getProvider');
-      const mockProvider = {
-          getMetadata: vi.fn().mockResolvedValue({ size: 1000 }), // No duration
-      };
-      factorySpy.mockReturnValue(mockProvider as any);
+    // We need to mock getProvider to return a mock provider that returns partial metadata
+    const factorySpy = vi.spyOn(
+      await import('../../src/core/fs-provider-factory'),
+      'getProvider',
+    );
+    const mockProvider = {
+      getMetadata: vi.fn().mockResolvedValue({ size: 1000 }), // No duration
+    };
+    factorySpy.mockReturnValue(mockProvider as any);
 
-      await await handler.serveMetadata(req, res, 'gdrive://123');
+    await await handler.serveMetadata(req, res, 'gdrive://123');
 
-      expect(res.json).toHaveBeenCalledWith({ error: 'Duration not available' });
+    expect(res.json).toHaveBeenCalledWith({ error: 'Duration not available' });
   });
 
   it('serveMetadata - handles missing ffmpeg path', async () => {
-      // Create handler with no ffmpeg
-      const noFfmpegHandler = new MediaHandler({
-          ffmpegPath: null,
-          cacheDir: '/tmp',
-      });
+    // Create handler with no ffmpeg
+    const noFfmpegHandler = new MediaHandler({
+      ffmpegPath: null,
+      cacheDir: '/tmp',
+    });
 
-      const validateSpy = vi.spyOn(
-        await import('../../src/core/access-validator'),
-        'validateFileAccess',
-      );
-      validateSpy.mockResolvedValueOnce({ success: true, path: '/local/file' });
+    const validateSpy = vi.spyOn(
+      await import('../../src/core/access-validator'),
+      'validateFileAccess',
+    );
+    validateSpy.mockResolvedValueOnce({ success: true, path: '/local/file' });
 
-      await noFfmpegHandler.serveMetadata(req, res, '/local/file');
+    await noFfmpegHandler.serveMetadata(req, res, '/local/file');
 
-      expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.send).toHaveBeenCalledWith('FFmpeg binary not found');
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.send).toHaveBeenCalledWith('FFmpeg binary not found');
   });
 
   it('serveStaticFile - handles re-validation failure for local files', async () => {
-      // Mock validateFileAccess to succeed
-      const validateSpy = vi.spyOn(
-        await import('../../src/core/access-validator'),
-        'validateFileAccess',
-      );
-      validateSpy.mockResolvedValueOnce({ success: true, path: '/local/file' });
+    // Mock validateFileAccess to succeed
+    const validateSpy = vi.spyOn(
+      await import('../../src/core/access-validator'),
+      'validateFileAccess',
+    );
+    validateSpy.mockResolvedValueOnce({ success: true, path: '/local/file' });
 
-      // Mock authorizeFilePath to fail
-      const authSpy = vi.spyOn(
-          await import('../../src/core/security'),
-          'authorizeFilePath'
-      );
-      authSpy.mockResolvedValueOnce({ isAllowed: false, message: 'Re-validation failed' });
+    // Mock authorizeFilePath to fail
+    const authSpy = vi.spyOn(
+      await import('../../src/core/security'),
+      'authorizeFilePath',
+    );
+    authSpy.mockResolvedValueOnce({
+      isAllowed: false,
+      message: 'Re-validation failed',
+    });
 
-      await handler.serveStaticFile(req, res, '/local/file');
+    await handler.serveStaticFile(req, res, '/local/file');
 
-      expect(res.status).toHaveBeenCalledWith(403);
-      expect(res.send).toHaveBeenCalledWith('Access denied.');
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.send).toHaveBeenCalledWith('Access denied.');
   });
 });
 
@@ -255,17 +266,17 @@ describe('Coverage Boost - MediaService', () => {
   beforeEach(() => {
     // Manual mock for MediaRepository
     repoMock = {
-        getMediaDirectories: vi.fn(),
-        getSetting: vi.fn(),
-        getCachedAlbums: vi.fn(),
-        cacheAlbums: vi.fn(),
-        getAllMediaViewCounts: vi.fn(),
-        getAllMetadataStats: vi.fn(),
-        filterProcessingNeeded: vi.fn(),
-        getPendingMetadata: vi.fn(),
-        getAllMetadataVerification: vi.fn(),
-        getMetadata: vi.fn(),
-        bulkUpsertMetadata: vi.fn(),
+      getMediaDirectories: vi.fn(),
+      getSetting: vi.fn(),
+      getCachedAlbums: vi.fn(),
+      cacheAlbums: vi.fn(),
+      getAllMediaViewCounts: vi.fn(),
+      getAllMetadataStats: vi.fn(),
+      filterProcessingNeeded: vi.fn(),
+      getPendingMetadata: vi.fn(),
+      getAllMetadataVerification: vi.fn(),
+      getMetadata: vi.fn(),
+      bulkUpsertMetadata: vi.fn(),
     };
     service = new MediaService(repoMock);
     // Reset MockWorkerClient
@@ -293,55 +304,68 @@ describe('Coverage Boost - MediaService', () => {
   });
 
   it('getAlbumsWithViewCounts - handles recursion', async () => {
-      const albums = [{
-          id: '1',
-          name: 'Root',
-          textures: [{ path: '/1.jpg', rating: 0 }],
-          children: [{
-              id: '2',
-              name: 'Child',
-              textures: [{ path: '/2.jpg', rating: 0 }],
-              children: []
-          }]
-      }];
+    const albums = [
+      {
+        id: '1',
+        name: 'Root',
+        textures: [{ path: '/1.jpg', rating: 0 }],
+        children: [
+          {
+            id: '2',
+            name: 'Child',
+            textures: [{ path: '/2.jpg', rating: 0 }],
+            children: [],
+          },
+        ],
+      },
+    ];
 
-      repoMock.getCachedAlbums.mockResolvedValue(albums);
-      repoMock.getAllMediaViewCounts.mockResolvedValue({ '/1.jpg': 5, '/2.jpg': 10 });
-      repoMock.getAllMetadataStats.mockResolvedValue({
-          '/1.jpg': { rating: 5, duration: 10 },
-          '/2.jpg': { rating: 4, duration: 20 }
-      });
+    repoMock.getCachedAlbums.mockResolvedValue(albums);
+    repoMock.getAllMediaViewCounts.mockResolvedValue({
+      '/1.jpg': 5,
+      '/2.jpg': 10,
+    });
+    repoMock.getAllMetadataStats.mockResolvedValue({
+      '/1.jpg': { rating: 5, duration: 10 },
+      '/2.jpg': { rating: 4, duration: 20 },
+    });
 
-      const result = await service.getAlbumsWithViewCounts();
+    const result = await service.getAlbumsWithViewCounts();
 
-      expect(result[0].textures[0].viewCount).toBe(5);
-      expect(result[0].textures[0].rating).toBe(5);
-      expect(result[0].children![0].textures[0].viewCount).toBe(10);
+    expect(result[0].textures[0].viewCount).toBe(5);
+    expect(result[0].textures[0].rating).toBe(5);
+    expect(result[0].children![0].textures[0].viewCount).toBe(10);
   });
 
   it('extractAndSaveMetadata - skips existing successful metadata', async () => {
-      // Setup repo mocks for both getAllMetadataVerification AND getMetadata
-      const metadata = {
-          '/test.mp4': { status: 'success', size: 1000, createdAt: '2023-01-01T00:00:00.000Z' }
-      };
-      repoMock.getAllMetadataVerification.mockResolvedValue(metadata);
-      repoMock.getMetadata.mockResolvedValue(metadata);
+    // Setup repo mocks for both getAllMetadataVerification AND getMetadata
+    const metadata = {
+      '/test.mp4': {
+        status: 'success',
+        size: 1000,
+        createdAt: '2023-01-01T00:00:00.000Z',
+      },
+    };
+    repoMock.getAllMetadataVerification.mockResolvedValue(metadata);
+    repoMock.getMetadata.mockResolvedValue(metadata);
 
-      repoMock.bulkUpsertMetadata.mockResolvedValue({ success: true });
+    repoMock.bulkUpsertMetadata.mockResolvedValue({ success: true });
 
-      // Mock fs.stat to return matching stats
-      // Spy on default export
-      const fsModule = await import('fs/promises');
-      const fsSpy = vi.spyOn(fsModule.default, 'stat');
-      fsSpy.mockResolvedValue({
-          size: 1000,
-          birthtime: new Date('2023-01-01T00:00:00.000Z'),
-          mtime: new Date()
-      } as any);
+    // Mock fs.stat to return matching stats
+    // Spy on default export
+    const fsModule = await import('fs/promises');
+    const fsSpy = vi.spyOn(fsModule.default, 'stat');
+    fsSpy.mockResolvedValue({
+      size: 1000,
+      birthtime: new Date('2023-01-01T00:00:00.000Z'),
+      mtime: new Date(),
+    } as any);
 
-      await service.extractAndSaveMetadata(['/test.mp4'], '/ffmpeg', { forceCheck: false });
+    await service.extractAndSaveMetadata(['/test.mp4'], '/ffmpeg', {
+      forceCheck: false,
+    });
 
-      // Should not call bulkUpsertMetadata because it skipped
-      expect(repoMock.bulkUpsertMetadata).not.toHaveBeenCalled();
+    // Should not call bulkUpsertMetadata because it skipped
+    expect(repoMock.bulkUpsertMetadata).not.toHaveBeenCalled();
   });
 });

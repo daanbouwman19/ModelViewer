@@ -83,7 +83,9 @@ describe('media-utils unit tests', () => {
     });
 
     it('should decode URI components', () => {
-      expect(normalizeFilePath('/path%20to/file')).toBe('/path to/file');
+      expect(normalizeFilePath('/path%20to/file', 'linux')).toBe(
+        '/path to/file',
+      );
     });
   });
 });

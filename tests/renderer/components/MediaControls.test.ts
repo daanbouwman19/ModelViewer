@@ -69,9 +69,10 @@ vi.mock('@/components/icons/SpinnerIcon.vue', () => ({
 // Mock ProgressBar to avoid deep rendering issues or to simplify
 vi.mock('@/components/ProgressBar.vue', () => ({
   default: {
-    template: '<div class="progress-bar-mock" @click="$emit(\'seek\', 10)"></div>',
+    template:
+      '<div class="progress-bar-mock" @click="$emit(\'seek\', 10)"></div>',
     props: ['currentTime', 'duration', 'heatmap', 'watchedSegments'],
-  }
+  },
 }));
 
 vi.mock('@/composables/useUIStore', () => ({
@@ -240,9 +241,15 @@ describe('MediaControls.vue', () => {
 
   it('fetches heatmap and metadata after debounce', async () => {
     vi.useFakeTimers();
-    vi.mocked(api.getHeatmap).mockResolvedValue([{ time: 10, value: 0.5 }]);
+    vi.mocked(api.getHeatmap).mockResolvedValue({
+      audio: [0.5],
+      motion: [0.5],
+      points: 1,
+    } as any);
     vi.mocked(api.getMetadata).mockResolvedValue({
-        '/test.jpg': { watchedSegments: JSON.stringify([{ start: 0, end: 10 }]) } as any
+      '/test.jpg': {
+        watchedSegments: JSON.stringify([{ start: 0, end: 10 }]),
+      } as any,
     });
     vi.mocked(api.getHeatmapProgress).mockResolvedValue(50);
 
@@ -263,7 +270,9 @@ describe('MediaControls.vue', () => {
     // So polling loop might exit or not trigger depending on microtasks order.
 
     // Verify watched segments updated
-    expect((wrapper.vm as any).watchedSegments).toEqual([{ start: 0, end: 10 }]);
+    expect((wrapper.vm as any).watchedSegments).toEqual([
+      { start: 0, end: 10 },
+    ]);
 
     vi.useRealTimers();
   });
@@ -296,14 +305,17 @@ describe('MediaControls.vue', () => {
   });
 
   it('handles heatmap fetch error', async () => {
-      vi.useFakeTimers();
-      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-      vi.mocked(api.getHeatmap).mockRejectedValue(new Error('Fetch failed'));
+    vi.useFakeTimers();
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.mocked(api.getHeatmap).mockRejectedValue(new Error('Fetch failed'));
 
-      const wrapper = mount(MediaControls, { props: defaultProps });
-      await vi.advanceTimersByTimeAsync(1100);
+    mount(MediaControls, { props: defaultProps });
+    await vi.advanceTimersByTimeAsync(1100);
 
-      expect(consoleSpy).toHaveBeenCalledWith('Failed to fetch heatmap/metadata', expect.any(Error));
-      vi.useRealTimers();
+    expect(consoleSpy).toHaveBeenCalledWith(
+      'Failed to fetch heatmap/metadata',
+      expect.any(Error),
+    );
+    vi.useRealTimers();
   });
 });

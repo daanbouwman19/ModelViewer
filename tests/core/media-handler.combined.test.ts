@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, it, expect, vi, beforeEach, Mock, afterEach } from 'vitest';
 import { IMediaSource } from '../../src/core/media-source-types';
 import { PassThrough, EventEmitter } from 'stream';
@@ -287,7 +288,7 @@ describe('MediaHandler Combined Tests', () => {
       send: vi.fn(),
       json: vi.fn(),
       set: vi.fn().mockReturnThis(),
-      end: vi.fn(),
+
       sendFile: vi.fn(
         (
           _path: string,

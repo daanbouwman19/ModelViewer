@@ -10,6 +10,11 @@ import * as mediaUtils from '../../src/core/media-utils';
 import * as mimeTypes from '../../src/core/utils/mime-types';
 import { MAX_API_BATCH_SIZE, MAX_PATH_LENGTH } from '../../src/core/constants';
 import fs from 'fs/promises';
+import {
+  getDriveClient,
+  listDriveDirectory,
+  getDriveParent,
+} from '../../src/main/google-drive-service';
 
 // --- Global Mocks ---
 
@@ -170,6 +175,8 @@ vi.mock('../../src/main/google-auth', () => ({
 // Mock google-drive-service
 vi.mock('../../src/main/google-drive-service', () => ({
   getDriveClient: vi.fn(),
+  listDriveDirectory: vi.fn(),
+  getDriveParent: vi.fn(),
 }));
 
 // Mock media-source (for Transcode Concurrency test mainly)
@@ -221,9 +228,21 @@ describe('Server Combined Tests', () => {
     vi.mocked(database.getRecentlyPlayed).mockResolvedValue([]);
     vi.mocked(database.getMediaDirectories).mockResolvedValue([]);
     vi.mocked(database.addMediaDirectory).mockResolvedValue(undefined);
+    vi.mocked(database.getSmartPlaylists).mockResolvedValue([]);
+    vi.mocked(database.createSmartPlaylist).mockResolvedValue({
+      id: 1,
+    });
+    vi.mocked(database.updateSmartPlaylist).mockResolvedValue(undefined);
+    vi.mocked(database.deleteSmartPlaylist).mockResolvedValue(undefined);
+    vi.mocked(database.removeMediaDirectory).mockResolvedValue(undefined);
+    vi.mocked(database.setDirectoryActiveState).mockResolvedValue(undefined);
+    vi.mocked(database.getAllMetadataAndStats).mockResolvedValue([]);
+    vi.mocked(database.upsertMetadata).mockResolvedValue(undefined);
 
     // FS Defaults
-    vi.mocked(fs.realpath).mockImplementation((p) => Promise.resolve(p));
+    vi.mocked(fs.realpath).mockImplementation((p) =>
+      Promise.resolve(p as string),
+    );
     vi.mocked(fs.readdir).mockResolvedValue([] as any);
 
     // Media Utils Defaults
@@ -616,6 +635,171 @@ describe('Server Combined Tests', () => {
         .get('/api/fs/ls')
         .query({ path: '/' });
       expect(response.status).toBe(500);
+    });
+  });
+
+  // --- Smart Playlists ---
+  describe('Smart Playlists Routes', () => {
+    it('GET /api/smart-playlists should return playlists', async () => {
+      const mockPlaylists = [
+        { id: 1, name: 'List', criteria: '[]', createdAt: '2023-01-01' },
+      ];
+      vi.mocked(database.getSmartPlaylists).mockResolvedValue(mockPlaylists);
+      const res = await request(app).get('/api/smart-playlists');
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual(mockPlaylists);
+    });
+
+    it('POST /api/smart-playlists should create playlist', async () => {
+      const payload = {
+        name: 'My List',
+        criteria: JSON.stringify({ rating: 5 }),
+      };
+      const res = await request(app).post('/api/smart-playlists').send(payload);
+      expect(res.status).toBe(200);
+      expect(database.createSmartPlaylist).toHaveBeenCalledWith(
+        payload.name,
+        payload.criteria,
+      );
+    });
+
+    it('PUT /api/smart-playlists/:id should update playlist', async () => {
+      const payload = { name: 'Updated', criteria: '[]' };
+      const res = await request(app)
+        .put('/api/smart-playlists/1')
+        .send(payload);
+      expect(res.status).toBe(200);
+      expect(database.updateSmartPlaylist).toHaveBeenCalledWith(
+        1,
+        payload.name,
+        payload.criteria,
+      );
+    });
+
+    it('DELETE /api/smart-playlists/:id should delete playlist', async () => {
+      const res = await request(app).delete('/api/smart-playlists/1');
+      expect(res.status).toBe(200);
+      expect(database.deleteSmartPlaylist).toHaveBeenCalledWith(1);
+    });
+  });
+
+  // --- Drive Routes ---
+  describe('Drive Routes', () => {
+    beforeEach(() => {
+      vi.mocked(getDriveClient).mockResolvedValue({
+        files: {
+          get: vi
+            .fn()
+            .mockResolvedValue({ data: { id: 'f1', name: 'Folder' } }),
+        },
+      } as any);
+      vi.mocked(listDriveDirectory).mockResolvedValue([]);
+      vi.mocked(getDriveParent).mockResolvedValue('parent-id');
+    });
+
+    it('POST /api/sources/google-drive should add source', async () => {
+      const res = await request(app)
+        .post('/api/sources/google-drive')
+        .send({ folderId: 'xyz' });
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ success: true, name: 'Folder' });
+      expect(database.addMediaDirectory).toHaveBeenCalledWith('gdrive://f1');
+    });
+
+    it('GET /api/drive/files should list files', async () => {
+      const mockFiles = [
+        { id: 'f1', name: 'File', path: '/p', isDirectory: false },
+      ];
+      vi.mocked(listDriveDirectory).mockResolvedValue(mockFiles);
+      const res = await request(app)
+        .get('/api/drive/files')
+        .query({ folderId: 'root' });
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual(mockFiles);
+    });
+
+    it('GET /api/drive/parent should return parent', async () => {
+      const res = await request(app)
+        .get('/api/drive/parent')
+        .query({ folderId: 'child' });
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ parent: 'parent-id' });
+    });
+  });
+
+  // --- Media Routes ---
+  describe('Media Routes', () => {
+    it('GET /api/media/all should return all items', async () => {
+      const mockItems = [{ path: '/a.mp4' }];
+      vi.mocked(database.getAllMetadataAndStats).mockResolvedValue(
+        mockItems as any,
+      );
+      const res = await request(app).get('/api/media/all');
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual(mockItems);
+    });
+
+    it('GET /api/media/history should return history', async () => {
+      const mockHistory = [{ path: '/b.mp4' }];
+      vi.mocked(database.getRecentlyPlayed).mockResolvedValue(
+        mockHistory as any,
+      );
+      const res = await request(app).get('/api/media/history');
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual(mockHistory);
+    });
+
+    it('POST /api/media/metadata should upsert metadata', async () => {
+      const payload = { filePath: '/file.mp4', metadata: { title: 'T' } };
+      const res = await request(app).post('/api/media/metadata').send(payload);
+      expect(res.status).toBe(200);
+      expect(database.upsertMetadata).toHaveBeenCalledWith(
+        payload.filePath,
+        payload.metadata,
+      );
+    });
+
+    it('POST /api/media/metadata/batch should return metadata', async () => {
+      const payload = { filePaths: ['/a.mp4'] };
+      const mockMeta = { '/a.mp4': {} };
+      vi.mocked(database.getMetadata).mockResolvedValue(mockMeta);
+      const res = await request(app)
+        .post('/api/media/metadata/batch')
+        .send(payload);
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual(mockMeta);
+    });
+
+    it('GET /api/hls/master.m3u8 should serve master', async () => {
+      await request(app).get('/api/hls/master.m3u8').query({ file: 'v.mp4' });
+      const handler = getLastMediaHandler();
+      expect(handler!.serveHlsMaster).toHaveBeenCalled();
+    });
+
+    it('GET /api/hls/playlist.m3u8 should serve playlist', async () => {
+      await request(app).get('/api/hls/playlist.m3u8').query({ file: 'v.mp4' });
+      const handler = getLastMediaHandler();
+      expect(handler!.serveHlsPlaylist).toHaveBeenCalled();
+    });
+
+    it('GET /api/hls/:segment should serve segment', async () => {
+      await request(app).get('/api/hls/seg1.ts').query({ file: 'v.mp4' });
+      const handler = getLastMediaHandler();
+      expect(handler!.serveHlsSegment).toHaveBeenCalled();
+    });
+
+    it('GET /api/video/heatmap should serve heatmap', async () => {
+      await request(app).get('/api/video/heatmap').query({ file: 'v.mp4' });
+      const handler = getLastMediaHandler();
+      expect(handler!.serveHeatmap).toHaveBeenCalled();
+    });
+
+    it('GET /api/video/heatmap/status should serve status', async () => {
+      await request(app)
+        .get('/api/video/heatmap/status')
+        .query({ file: 'v.mp4' });
+      const handler = getLastMediaHandler();
+      expect(handler!.serveHeatmapProgress).toHaveBeenCalled();
     });
   });
 });
