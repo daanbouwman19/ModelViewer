@@ -16,7 +16,9 @@ describe('Database Schema', () => {
   let dbPath: string;
 
   beforeEach(() => {
-    tempDir = fs.mkdtempSync(path.join(process.cwd(), 'tests', 'temp', 'schema-'));
+    tempDir = fs.mkdtempSync(
+      path.join(process.cwd(), 'tests', 'temp', 'schema-'),
+    );
     dbPath = path.join(tempDir, 'test.db');
     db = new Database(dbPath);
   });
