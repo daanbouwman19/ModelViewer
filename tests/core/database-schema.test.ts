@@ -7,7 +7,6 @@ import {
   createIndexes,
   migrateMediaDirectories,
   migrateMediaMetadata,
-  DB_SCHEMA,
 } from '../../src/core/database-schema';
 
 describe('Database Schema', () => {

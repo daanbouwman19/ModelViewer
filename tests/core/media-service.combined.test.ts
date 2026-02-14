@@ -364,15 +364,6 @@ describe('MediaService Combined Tests', () => {
       );
 
       // Check Referential Equality (Mutation)
-      // Note: mockWorkerReply returns the result of the action.
-      // The action `getAlbumsWithViewCountsAfterScan` calls `scanDisk...` which returns albums.
-      // `scanDisk...` returns the result from worker.
-      // The worker mock returns a COPY of the data passed to `mockWorkerReply` usually?
-      // No, `mockWorkerReply` calls `onMessage` with `replyData`.
-      // `onMessage` passes `replyData` to `resolve`.
-      // So `scanDisk...` returns `replyData` (reference).
-      // So `getAlbumsWithViewCountsAfterScan` enriches THAT reference.
-
       expect(result[0]).toBe(mockAlbum);
 
       expect(mockAlbum.textures[0].viewCount).toBe(5);

@@ -26,7 +26,7 @@ vi.mock('@/components/VideoPlayer.vue', () => ({
       'isTranscodingLoading',
       'isBuffering',
     ],
-    emits: ['update:video-element', 'buffering', 'error', 'play', 'pause'],
+    emits: ['update:video-element', 'buffering', 'error', 'play', 'pause', 'timeupdate'],
     expose: ['reset', 'togglePlay', 'currentVideoTime'],
     setup(_: any, { emit }: any) {
       // Emit a mock video element if needed
@@ -819,6 +819,45 @@ describe('MediaDisplay Combined Tests', () => {
         '/video.mp4',
         expect.stringContaining('"start":10'),
       );
+    });
+
+    it('covers Unsupported Format branch', async () => {
+      mockPlayerState.currentMediaItem = { name: 't.hevc', path: '/t.hevc' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      // Manually set flags to trigger the block
+      (wrapper.vm as any).isVideoSupported = false;
+      (wrapper.vm as any).isLoading = false;
+      (wrapper.vm as any).isTranscodingMode = false;
+      await wrapper.vm.$nextTick();
+
+      const text = wrapper.text();
+      expect(text).toContain('Video Format Not Supported');
+      expect(text).toContain('Try Transcoding');
+    });
+
+    it('covers handleSeek in transcoding mode', async () => {
+      mockPlayerState.currentMediaItem = { name: 't.mp4', path: '/t.mp4' };
+      const wrapper = mount(MediaDisplay);
+      await flushPromises();
+
+      (wrapper.vm as any).isTranscodingMode = true;
+      (wrapper.vm as any).currentTranscodeStartTime = 0;
+
+      const controls = wrapper.findComponent(MediaControls);
+      await controls.vm.$emit('seek', 50);
+
+      expect((wrapper.vm as any).currentTranscodeStartTime).toBe(50);
+    });
+
+    it('covers handleScrubStart and handleScrubEnd', async () => {
+      const wrapper = mount(MediaDisplay);
+      const controls = wrapper.findComponent(MediaControls);
+
+      await controls.vm.$emit('scrub-start');
+      await controls.vm.$emit('scrub-end');
+      // Mostly ensuring no error throw, as implementation logic is commented out in component
     });
   });
 });
