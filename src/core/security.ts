@@ -1,4 +1,5 @@
 import fs from 'fs/promises';
+import { realpathSync } from 'fs';
 import path from 'path';
 import { getMediaDirectories, isFileInLibrary } from './database.ts';
 import { MediaDirectory } from './types.ts';
@@ -370,8 +371,22 @@ function checkPathRestrictions(
   restrictedRoots: string[],
 ): boolean {
   if (!dirPath) return true;
+
+  // Select path module based on platform (supports mocking in tests)
   const p = process.platform === 'win32' ? path.win32 : path.posix;
-  const normalized = p.resolve(dirPath);
+
+  let normalized: string;
+  try {
+    // Attempt to resolve real path to handle symlinks (security bypass)
+    // Note: realpathSync uses native OS behavior, so it may fail if
+    // process.platform is mocked (e.g. testing Win32 on Linux).
+    normalized = realpathSync(path.resolve(dirPath));
+  } catch (e) {
+    // Fallback if file doesn't exist (yet), permission denied,
+    // or if running in a test environment where platform is mocked.
+    normalized = p.resolve(dirPath);
+  }
+
   const segments = normalized.split(p.sep);
 
   // Check if any segment is a sensitive directory (e.g. .ssh)
@@ -382,6 +397,10 @@ function checkPathRestrictions(
   if (process.platform === 'win32') {
     // Windows: Case-insensitive check
     const normalizedLower = normalized.toLowerCase();
+
+    // Block UNC paths to prevent bypass of drive-letter based restrictions
+    if (normalizedLower.startsWith('\\\\')) return true;
+
     return restrictedRoots.some(
       (r) =>
         normalizedLower === r.toLowerCase() ||
@@ -402,14 +421,11 @@ function checkPathRestrictions(
  * @returns True if the path is restricted.
  */
 export function isRestrictedPath(dirPath: string): boolean {
-  let restricted: string[];
-  if (process.platform === 'win32') {
-    // Allow C:\ (to navigate), but block C:\Windows etc.
-    restricted = getWindowsRestrictedPaths();
-  } else {
-    // Allow / (to navigate), but block /etc, /proc, /root, etc.
-    restricted = LINUX_RESTRICTED_PATHS;
-  }
+  const restricted =
+    process.platform === 'win32'
+      ? getWindowsRestrictedPaths()
+      : LINUX_RESTRICTED_PATHS;
+
   return checkPathRestrictions(dirPath, restricted);
 }
 
@@ -420,15 +436,11 @@ export function isRestrictedPath(dirPath: string): boolean {
  * @returns True if the path is sensitive.
  */
 export function isSensitiveDirectory(dirPath: string): boolean {
-  let restricted: string[];
-  if (process.platform === 'win32') {
-    // Block C:\, C:\Windows, C:\Program Files, etc.
-    const drive = process.env.SystemDrive || 'C:';
-    restricted = [`${drive}\\`, ...getWindowsRestrictedPaths()];
-  } else {
-    // Block /, and all other restricted paths
-    restricted = ['/', ...LINUX_RESTRICTED_PATHS];
-  }
+  const restricted =
+    process.platform === 'win32'
+      ? [`${process.env.SystemDrive || 'C:'}\\`, ...getWindowsRestrictedPaths()]
+      : ['/', ...LINUX_RESTRICTED_PATHS];
+
   return checkPathRestrictions(dirPath, restricted);
 }
 
