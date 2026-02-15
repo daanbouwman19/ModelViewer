@@ -197,11 +197,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, onMounted, onUnmounted } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useUIStore } from '../composables/useUIStore';
 import { useLibraryStore } from '../composables/useLibraryStore';
 import { api } from '../api';
 import CloseIcon from './icons/CloseIcon.vue';
+import { useEscapeKey } from '../composables/useEscapeKey';
 
 const props = defineProps<{
   playlistToEdit?: {
@@ -296,17 +297,5 @@ const save = async () => {
   }
 };
 
-const handleKeydown = (e: KeyboardEvent) => {
-  if (isSmartPlaylistModalVisible.value && e.key === 'Escape') {
-    close();
-  }
-};
-
-onMounted(() => {
-  window.addEventListener('keydown', handleKeydown);
-});
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeydown);
-});
+useEscapeKey(isSmartPlaylistModalVisible, close);
 </script>
