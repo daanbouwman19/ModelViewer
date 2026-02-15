@@ -181,21 +181,16 @@ function getExistingPathsBatch(filePaths: string[]): Set<string> {
     const batchPaths = filePaths.slice(i, i + SQL_BATCH_SIZE);
     if (batchPaths.length === 0) continue;
 
-    let rows: { file_path: string }[];
+    let rows: { file_path: string; file_path_hash: string }[];
     try {
-      if (batchPaths.length === SQL_BATCH_SIZE) {
-        rows = statements.getFileIdsByPathsBatch.all(...batchPaths) as {
-          file_path: string;
-        }[];
-      } else {
-        const args = new Array(SQL_BATCH_SIZE).fill(null);
-        for (let k = 0; k < batchPaths.length; k++) {
-          args[k] = batchPaths[k];
-        }
-        rows = statements.getFileIdsByPathsBatch.all(...args) as {
-          file_path: string;
-        }[];
+      const args = new Array(SQL_BATCH_SIZE).fill(null);
+      for (let k = 0; k < batchPaths.length; k++) {
+        args[k] = batchPaths[k];
       }
+      rows = statements.getFileIdsByPathsBatch.all(...args) as {
+        file_path: string;
+        file_path_hash: string;
+      }[];
 
       for (const row of rows) {
         if (row.file_path) {
@@ -511,13 +506,10 @@ export async function bulkUpsertMetadata(
     const updatePayloads: MetadataPayload[] = [];
 
     for (const p of payloads) {
-      const hasData =
-        p.duration !== undefined ||
-        p.size !== undefined ||
-        p.createdAt !== undefined ||
-        p.rating !== undefined ||
-        p.status !== undefined ||
-        p.watchedSegments !== undefined;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { filePath, ...metadata } = p;
+      // Check if any property in metadata is defined
+      const hasData = Object.values(metadata).some((v) => v !== undefined);
 
       if (hasData) {
         updatePayloads.push(p);
@@ -532,11 +524,9 @@ export async function bulkUpsertMetadata(
       const paths = pathOnlyPayloads.map((p) => p.filePath);
       const existingPaths = getExistingPathsBatch(paths);
 
-      for (const p of pathOnlyPayloads) {
-        if (!existingPaths.has(p.filePath)) {
-          payloadsToProcess.push(p);
-        }
-      }
+      payloadsToProcess.push(
+        ...pathOnlyPayloads.filter((p) => !existingPaths.has(p.filePath)),
+      );
     }
 
     if (payloadsToProcess.length === 0) {
