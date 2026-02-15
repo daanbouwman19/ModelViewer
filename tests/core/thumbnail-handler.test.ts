@@ -12,14 +12,16 @@ const {
   mockAuthorizeFilePath,
   mockGetThumbnailCachePath,
   mockCheckThumbnailCache,
-  mockEnsureAuthorizedAccess,
+  mockValidateFileAccess,
+  mockHandleAccessCheck,
 } = vi.hoisted(() => ({
   mockRunFFmpeg: vi.fn(),
   mockGetDriveFileThumbnail: vi.fn(),
   mockAuthorizeFilePath: vi.fn(),
   mockGetThumbnailCachePath: vi.fn(),
   mockCheckThumbnailCache: vi.fn(),
-  mockEnsureAuthorizedAccess: vi.fn(),
+  mockValidateFileAccess: vi.fn(),
+  mockHandleAccessCheck: vi.fn(),
 }));
 
 // REMOVED vi.mock('fs') and vi.mock('fs/promises')
@@ -34,8 +36,8 @@ vi.mock('../../src/core/security', () => ({
 }));
 
 vi.mock('../../src/core/access-validator', () => ({
-  validateFileAccess: vi.fn(),
-  ensureAuthorizedAccess: mockEnsureAuthorizedAccess,
+  validateFileAccess: mockValidateFileAccess,
+  handleAccessCheck: mockHandleAccessCheck,
 }));
 
 vi.mock('../../src/core/media-utils', async (importOriginal) => {
@@ -103,7 +105,11 @@ describe('thumbnail-handler unit tests', () => {
     });
 
     // Default mock for ensureAuthorizedAccess
-    mockEnsureAuthorizedAccess.mockResolvedValue('/test/path');
+    mockValidateFileAccess.mockResolvedValue({
+      success: true,
+      path: '/test/path',
+    });
+    mockHandleAccessCheck.mockReturnValue(false);
 
     req = {};
     res = {
@@ -123,7 +129,11 @@ describe('thumbnail-handler unit tests', () => {
   describe('serveThumbnail', () => {
     it('serves from cache if available', async () => {
       // Must allow file access first
-      mockEnsureAuthorizedAccess.mockResolvedValue('/local/file');
+      mockValidateFileAccess.mockResolvedValue({
+        success: true,
+        path: '/local/file',
+      });
+      mockHandleAccessCheck.mockReturnValue(false);
 
       const cachePath = '/cache/thumb.jpg';
       mockGetThumbnailCachePath.mockReturnValue(cachePath);
@@ -168,9 +178,10 @@ describe('thumbnail-handler unit tests', () => {
 
     it('should BLOCK thumbnail if file is unauthorized EVEN IF cached', async () => {
       // 1. Setup unauthorized file access
-      mockEnsureAuthorizedAccess.mockImplementation(async (res) => {
+      mockValidateFileAccess.mockResolvedValue({ success: false });
+      mockHandleAccessCheck.mockImplementation((res) => {
         res.status(403).send('Access denied.');
-        return null;
+        return true;
       });
 
       // 2. Setup CACHE HIT
@@ -186,7 +197,11 @@ describe('thumbnail-handler unit tests', () => {
     });
 
     it('generates thumbnail for gdrive file', async () => {
-      mockEnsureAuthorizedAccess.mockResolvedValue('gdrive://123');
+      mockValidateFileAccess.mockResolvedValue({
+        success: true,
+        path: 'gdrive://123',
+      });
+      mockHandleAccessCheck.mockReturnValue(false);
       mockCheckThumbnailCache.mockResolvedValue(false);
       mockGetThumbnailCachePath.mockReturnValue('/cache/gdrive.jpg');
 
@@ -204,7 +219,11 @@ describe('thumbnail-handler unit tests', () => {
     });
 
     it('returns 404 if drive fetch fails', async () => {
-      mockEnsureAuthorizedAccess.mockResolvedValue('gdrive://123');
+      mockValidateFileAccess.mockResolvedValue({
+        success: true,
+        path: 'gdrive://123',
+      });
+      mockHandleAccessCheck.mockReturnValue(false);
       mockCheckThumbnailCache.mockResolvedValue(false);
       mockGetThumbnailCachePath.mockReturnValue('/cache/gdrive.jpg');
       mockGetDriveFileThumbnail.mockRejectedValue(new Error('Drive error'));
@@ -217,9 +236,10 @@ describe('thumbnail-handler unit tests', () => {
 
     it('returns 500 if local file access denied', async () => {
       mockCheckThumbnailCache.mockResolvedValue(false);
-      mockEnsureAuthorizedAccess.mockImplementation(async (res) => {
+      mockValidateFileAccess.mockResolvedValue({ success: false });
+      mockHandleAccessCheck.mockImplementation((res) => {
         res.status(403).send('Access denied.');
-        return null;
+        return true;
       });
 
       await serveThumbnail(req, res, '/local/vid.mp4', 'ffmpeg', '/cache');
@@ -230,13 +250,10 @@ describe('thumbnail-handler unit tests', () => {
 
     it('returns 500 if auth threw error', async () => {
       mockCheckThumbnailCache.mockResolvedValue(false);
-      // We don't test auth throwing error inside ensureAuthorizedAccess here because we mock it.
-      // But we can test if ensureAuthorizedAccess handles response.
-      // Assuming ensureAuthorizedAccess works as expected (tested elsewhere).
-      // We can simulate ensureAuthorizedAccess calling status 500.
-      mockEnsureAuthorizedAccess.mockImplementation(async (res) => {
+      mockValidateFileAccess.mockResolvedValue({ success: false });
+      mockHandleAccessCheck.mockImplementation((res) => {
         res.status(500).send('Internal server error.');
-        return null;
+        return true;
       });
 
       await serveThumbnail(req, res, '/local/vid.mp4', 'ffmpeg', '/cache');
@@ -246,7 +263,11 @@ describe('thumbnail-handler unit tests', () => {
 
     it('handles ffmpg generation for local file', async () => {
       mockCheckThumbnailCache.mockResolvedValue(false);
-      mockEnsureAuthorizedAccess.mockResolvedValue('/local/file');
+      mockValidateFileAccess.mockResolvedValue({
+        success: true,
+        path: '/local/file',
+      });
+      mockHandleAccessCheck.mockReturnValue(false);
       mockGetThumbnailCachePath.mockReturnValue('/cache/local.jpg');
 
       // Mock runFFmpeg success
@@ -269,7 +290,11 @@ describe('thumbnail-handler unit tests', () => {
 
     it('handles ffmpeg failure (non-zero exit)', async () => {
       mockCheckThumbnailCache.mockResolvedValue(false);
-      mockEnsureAuthorizedAccess.mockResolvedValue('/local/file');
+      mockValidateFileAccess.mockResolvedValue({
+        success: true,
+        path: '/local/file',
+      });
+      mockHandleAccessCheck.mockReturnValue(false);
 
       // Mock runFFmpeg failure
       mockRunFFmpeg.mockResolvedValue({ code: 1, stderr: 'Error' });
@@ -282,7 +307,11 @@ describe('thumbnail-handler unit tests', () => {
 
     it('handles ffmpeg close success but file missing', async () => {
       mockCheckThumbnailCache.mockResolvedValue(false);
-      mockEnsureAuthorizedAccess.mockResolvedValue('/local/file');
+      mockValidateFileAccess.mockResolvedValue({
+        success: true,
+        path: '/local/file',
+      });
+      mockHandleAccessCheck.mockReturnValue(false);
 
       // Success but no file created
       mockRunFFmpeg.mockResolvedValue({ code: 0, stderr: '' });
@@ -306,7 +335,11 @@ describe('thumbnail-handler unit tests', () => {
 
     it('handles runFFmpeg error (e.g. timeout)', async () => {
       mockCheckThumbnailCache.mockResolvedValue(false);
-      mockEnsureAuthorizedAccess.mockResolvedValue('/local/file');
+      mockValidateFileAccess.mockResolvedValue({
+        success: true,
+        path: '/local/file',
+      });
+      mockHandleAccessCheck.mockReturnValue(false);
 
       mockRunFFmpeg.mockRejectedValue(new Error('Process timed out'));
 
@@ -318,7 +351,11 @@ describe('thumbnail-handler unit tests', () => {
 
     it('returns 500 if ffmpeg binary is not found', async () => {
       mockCheckThumbnailCache.mockResolvedValue(false);
-      mockEnsureAuthorizedAccess.mockResolvedValue('/local/file');
+      mockValidateFileAccess.mockResolvedValue({
+        success: true,
+        path: '/local/file',
+      });
+      mockHandleAccessCheck.mockReturnValue(false);
 
       await serveThumbnail(req, res, '/video.mp4', null, '/cache');
 
@@ -364,7 +401,11 @@ describe('thumbnail-handler unit tests', () => {
 
     it('handles stream error during sending generated file', async () => {
       mockCheckThumbnailCache.mockResolvedValue(false);
-      mockEnsureAuthorizedAccess.mockResolvedValue('/local/file');
+      mockValidateFileAccess.mockResolvedValue({
+        success: true,
+        path: '/local/file',
+      });
+      mockHandleAccessCheck.mockReturnValue(false);
       mockGetThumbnailCachePath.mockReturnValue('/cache/local.jpg');
 
       mockRunFFmpeg.mockResolvedValue({ code: 0, stderr: '' });
@@ -394,9 +435,10 @@ describe('thumbnail-handler unit tests', () => {
 
   describe('generateLocalThumbnail', () => {
     it('returns error if file access fails', async () => {
-      mockEnsureAuthorizedAccess.mockImplementation(async (res) => {
+      mockValidateFileAccess.mockResolvedValue({ success: false });
+      mockHandleAccessCheck.mockImplementation((res) => {
         res.status(403).send('Access denied.');
-        return null;
+        return true;
       });
       await generateLocalThumbnail(res, '/denied.mp4', '/cache.jpg', 'ffmpeg');
       expect(res.status).toHaveBeenCalledWith(403);

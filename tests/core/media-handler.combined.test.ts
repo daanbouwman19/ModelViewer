@@ -76,13 +76,12 @@ vi.mock('../../src/core/access-validator', async (importOriginal) => {
   return {
     ...actual,
     validateFileAccess: mockValidateFileAccess,
-    ensureAuthorizedAccess: vi.fn(async (res, path) => {
-      const access = await mockValidateFileAccess(path);
+    handleAccessCheck: vi.fn((res, access) => {
       if (!access.success) {
         if (!res.headersSent) res.status(access.statusCode).send(access.error);
-        return null;
+        return true;
       }
-      return access.path;
+      return false;
     }),
   };
 });

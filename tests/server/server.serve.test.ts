@@ -74,13 +74,12 @@ vi.mock('../../src/main/google-drive-service', () => ({
 
 vi.mock('../../src/core/access-validator', () => ({
   validateFileAccess: mockValidateFileAccess,
-  ensureAuthorizedAccess: vi.fn().mockImplementation(async (res, path) => {
-    const access = await mockValidateFileAccess(path);
+  handleAccessCheck: vi.fn((res, access) => {
     if (!access.success) {
       if (!res.headersSent) res.status(access.statusCode).send(access.error);
-      return null;
+      return true;
     }
-    return access.path;
+    return false;
   }),
 }));
 
@@ -144,6 +143,12 @@ describe('Server Endpoint Security', () => {
         error: 'Access denied',
         statusCode: 403,
       });
+
+      // Since we mock validateFileAccess directly, and MediaHandler uses handleAccessCheck,
+      // we need to ensure handleAccessCheck behaves correctly given the mockValidateFileAccess return.
+      // However, handleAccessCheck is implemented in the real code, not mocked here unless we mock access-validator entirely.
+      // In this test file we did: vi.mock('../../src/core/access-validator', ...
+      // Let's check the mock implementation at the top of the file.
 
       const response = await request(app)
         .get('/api/video/heatmap')

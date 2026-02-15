@@ -8,15 +8,16 @@ import { HlsManager } from '../../src/core/hls-manager.ts';
 import fs from 'fs/promises';
 import path from 'path';
 
-const { mockEnsureAuthorizedAccess } = vi.hoisted(() => ({
-  mockEnsureAuthorizedAccess: vi.fn(),
+const { mockValidateFileAccess, mockHandleAccessCheck } = vi.hoisted(() => ({
+  mockValidateFileAccess: vi.fn(),
+  mockHandleAccessCheck: vi.fn(),
 }));
 
 // Mock dependencies
 vi.mock('../../src/core/hls-manager.ts');
 vi.mock('../../src/core/access-validator.ts', () => ({
-  validateFileAccess: vi.fn(),
-  ensureAuthorizedAccess: mockEnsureAuthorizedAccess,
+  validateFileAccess: mockValidateFileAccess,
+  handleAccessCheck: mockHandleAccessCheck,
 }));
 vi.mock('fs/promises', () => ({
   default: {
@@ -58,7 +59,11 @@ describe('hls-handler', () => {
 
   describe('serveHlsMaster', () => {
     it('should serve master playlist if access is granted', async () => {
-      mockEnsureAuthorizedAccess.mockResolvedValue('/resolved/video.mp4');
+      mockValidateFileAccess.mockResolvedValue({
+        success: true,
+        path: '/resolved/video.mp4',
+      });
+      mockHandleAccessCheck.mockReturnValue(false);
 
       await serveHlsMaster(req, res, '/path/to/video.mp4');
 
@@ -73,9 +78,10 @@ describe('hls-handler', () => {
     });
 
     it('should handle access denied', async () => {
-      mockEnsureAuthorizedAccess.mockImplementation(async (res) => {
+      mockValidateFileAccess.mockResolvedValue({ success: false });
+      mockHandleAccessCheck.mockImplementation((res) => {
         res.status(403).send('Access denied');
-        return null;
+        return true;
       });
 
       await serveHlsMaster(req, res, '/path/to/video.mp4');
@@ -86,11 +92,8 @@ describe('hls-handler', () => {
 
     it('should not send response if headers already sent', async () => {
       res.headersSent = true;
-      mockEnsureAuthorizedAccess.mockImplementation(async (res) => {
-        // ensureAuthorizedAccess should check headersSent, but here we mock it
-        if (!res.headersSent) res.status(403).send('Access denied');
-        return null;
-      });
+      mockValidateFileAccess.mockResolvedValue({ success: false });
+      mockHandleAccessCheck.mockReturnValue(true);
 
       await serveHlsMaster(req, res, '/path/to/video.mp4');
 
@@ -101,7 +104,11 @@ describe('hls-handler', () => {
 
   describe('serveHlsPlaylist', () => {
     it('should serve playlist if session exists', async () => {
-      mockEnsureAuthorizedAccess.mockResolvedValue('/resolved/video.mp4');
+      mockValidateFileAccess.mockResolvedValue({
+        success: true,
+        path: '/resolved/video.mp4',
+      });
+      mockHandleAccessCheck.mockReturnValue(false);
 
       const mockHlsManager = {
         ensureSession: vi.fn().mockResolvedValue(undefined),
@@ -128,9 +135,10 @@ describe('hls-handler', () => {
     });
 
     it('should handle access denied', async () => {
-      mockEnsureAuthorizedAccess.mockImplementation(async (res) => {
+      mockValidateFileAccess.mockResolvedValue({ success: false });
+      mockHandleAccessCheck.mockImplementation((res) => {
         res.status(403).send('Access denied');
-        return null;
+        return true;
       });
 
       await serveHlsPlaylist(req, res, '/path/to/video.mp4');
@@ -140,7 +148,11 @@ describe('hls-handler', () => {
     });
 
     it('should throw error if session dir not found', async () => {
-      mockEnsureAuthorizedAccess.mockResolvedValue('/resolved/video.mp4');
+      mockValidateFileAccess.mockResolvedValue({
+        success: true,
+        path: '/resolved/video.mp4',
+      });
+      mockHandleAccessCheck.mockReturnValue(false);
 
       const mockHlsManager = {
         ensureSession: vi.fn().mockResolvedValue(undefined),
@@ -168,7 +180,11 @@ describe('hls-handler', () => {
 
   describe('serveHlsSegment', () => {
     it('should serve segment if valid name and session exists', async () => {
-      mockEnsureAuthorizedAccess.mockResolvedValue('/resolved/video.mp4');
+      mockValidateFileAccess.mockResolvedValue({
+        success: true,
+        path: '/resolved/video.mp4',
+      });
+      mockHandleAccessCheck.mockReturnValue(false);
 
       const mockHlsManager = {
         getSessionDir: vi.fn().mockReturnValue('/tmp/hls/mock-session-id'),
@@ -187,9 +203,10 @@ describe('hls-handler', () => {
     });
 
     it('should handle access denied', async () => {
-      mockEnsureAuthorizedAccess.mockImplementation(async (res) => {
+      mockValidateFileAccess.mockResolvedValue({ success: false });
+      mockHandleAccessCheck.mockImplementation((res) => {
         res.status(403).send('Access denied');
-        return null;
+        return true;
       });
 
       await serveHlsSegment(req, res, '/path/to/video.mp4', 'segment_001.ts');
@@ -199,7 +216,11 @@ describe('hls-handler', () => {
     });
 
     it('should reject invalid segment names (Security)', async () => {
-      mockEnsureAuthorizedAccess.mockResolvedValue('/resolved/video.mp4');
+      mockValidateFileAccess.mockResolvedValue({
+        success: true,
+        path: '/resolved/video.mp4',
+      });
+      mockHandleAccessCheck.mockReturnValue(false);
 
       const invalidNames = [
         '../passwd',
@@ -219,7 +240,11 @@ describe('hls-handler', () => {
     });
 
     it('should return 404 if session expired', async () => {
-      mockEnsureAuthorizedAccess.mockResolvedValue('/resolved/video.mp4');
+      mockValidateFileAccess.mockResolvedValue({
+        success: true,
+        path: '/resolved/video.mp4',
+      });
+      mockHandleAccessCheck.mockReturnValue(false);
 
       const mockHlsManager = {
         getSessionDir: vi.fn().mockReturnValue(undefined),
@@ -236,7 +261,11 @@ describe('hls-handler', () => {
     });
 
     it('should return 404 if segment file does not exist', async () => {
-      mockEnsureAuthorizedAccess.mockResolvedValue('/resolved/video.mp4');
+      mockValidateFileAccess.mockResolvedValue({
+        success: true,
+        path: '/resolved/video.mp4',
+      });
+      mockHandleAccessCheck.mockReturnValue(false);
 
       const mockHlsManager = {
         getSessionDir: vi.fn().mockReturnValue('/tmp/hls/mock-session-id'),

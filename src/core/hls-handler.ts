@@ -9,7 +9,10 @@ import path from 'path';
 import fs from 'fs/promises';
 
 import { HlsManager } from './hls-manager.ts';
-import { ensureAuthorizedAccess } from './access-validator.ts';
+import {
+  validateFileAccess,
+  handleAccessCheck,
+} from './access-validator.ts';
 import { getQueryParam } from './utils/http-utils.ts';
 
 const HLS_BANDWIDTH = 2000000;
@@ -30,8 +33,8 @@ export async function serveHlsMaster(
   res: Response,
   filePath: string,
 ) {
-  const authorizedPath = await ensureAuthorizedAccess(res, filePath);
-  if (!authorizedPath) return;
+  const access = await validateFileAccess(filePath);
+  if (handleAccessCheck(res, access)) return;
 
   const fileQuery = getQueryParam(req.query, 'file');
   const encodedFile = encodeURIComponent(fileQuery || '');
@@ -51,8 +54,9 @@ export async function serveHlsPlaylist(
   res: Response,
   filePath: string,
 ) {
-  const authorizedPath = await ensureAuthorizedAccess(res, filePath);
-  if (!authorizedPath) return;
+  const access = await validateFileAccess(filePath);
+  if (handleAccessCheck(res, access)) return;
+  const authorizedPath = access.success ? access.path : '';
 
   const sessionId = generateSessionId(authorizedPath);
 
@@ -100,8 +104,9 @@ export async function serveHlsSegment(
   filePath: string,
   segmentName: string,
 ) {
-  const authorizedPath = await ensureAuthorizedAccess(res, filePath);
-  if (!authorizedPath) return;
+  const access = await validateFileAccess(filePath);
+  if (handleAccessCheck(res, access)) return;
+  const authorizedPath = access.success ? access.path : '';
 
   // Security check: segmentName must match the expected pattern strictly
   if (!/^segment_\d+\.ts$/.test(segmentName)) {

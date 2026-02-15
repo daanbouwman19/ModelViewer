@@ -12,6 +12,7 @@ const {
   mockWorkerClientInstance,
   mockMediaSource,
   mockValidateFileAccess,
+  mockHandleAccessCheck,
 } = vi.hoisted(() => {
   const mockStatement = {
     run: vi.fn(),
@@ -65,6 +66,7 @@ const {
   };
 
   const mockValidateFileAccess = vi.fn();
+  const mockHandleAccessCheck = vi.fn();
 
   return {
     mockDbInstance,
@@ -75,6 +77,7 @@ const {
     mockMediaSource,
     mockStream,
     mockValidateFileAccess,
+    mockHandleAccessCheck,
   };
 });
 
@@ -119,14 +122,7 @@ vi.mock('child_process', () => {
 // 5. Mock access-validator
 vi.mock('../../src/core/access-validator', () => ({
   validateFileAccess: mockValidateFileAccess,
-  ensureAuthorizedAccess: vi.fn(async (res, path) => {
-    const access = await mockValidateFileAccess(path);
-    if (!access.success) {
-      if (!res.headersSent) res.status(access.statusCode).send(access.error);
-      return null;
-    }
-    return access.path;
-  }),
+  handleAccessCheck: mockHandleAccessCheck,
 }));
 
 // 6. Mock worker-client
@@ -174,7 +170,6 @@ import * as mediaService from '../../src/core/media-service';
 import * as mediaHandler from '../../src/core/media-handler';
 import * as mediaUtils from '../../src/core/media-utils';
 import { MediaRepository } from '../../src/core/repositories/media-repository';
-import { validateFileAccess } from '../../src/core/access-validator';
 
 describe('Final Coverage Boost', () => {
   beforeEach(() => {
@@ -195,6 +190,7 @@ describe('Final Coverage Boost', () => {
       success: true,
       path: '/file.mp4',
     });
+    mockHandleAccessCheck.mockReturnValue(false);
 
     // Default fs.stat
     vi.mocked(fs.stat).mockResolvedValue({
@@ -423,6 +419,14 @@ describe('Final Coverage Boost', () => {
         statusCode: 403,
         error: 'Denied',
       });
+      // Mock handleAccessCheck implementation for this test to replicate behavior
+      mockHandleAccessCheck.mockImplementation((res, access) => {
+        if (!access.success) {
+          if (!res.headersSent) res.status(access.statusCode).send(access.error);
+          return true;
+        }
+        return false;
+      });
 
       const req = { query: { file: '/test.mp4' } } as any;
       const res = {
@@ -446,6 +450,7 @@ describe('Final Coverage Boost', () => {
         success: true,
         path: '/local/file.mp4',
       });
+      mockHandleAccessCheck.mockReturnValue(false);
 
       const req = {
         query: { file: '/local/file.mp4' },
@@ -479,6 +484,7 @@ describe('Final Coverage Boost', () => {
         success: true,
         path: '/file.mp4',
       });
+      mockHandleAccessCheck.mockReturnValue(false);
 
       const req = { query: { file: '/file.mp4', transcode: 'true' } } as any;
       const res = {
@@ -502,6 +508,7 @@ describe('Final Coverage Boost', () => {
         success: true,
         path: '/file.mp4',
       });
+      mockHandleAccessCheck.mockReturnValue(false);
 
       const req = {
         query: { file: '/file.mp4', transcode: 'true' },
@@ -542,6 +549,7 @@ describe('Final Coverage Boost', () => {
         success: true,
         path: '/local.mp4',
       });
+      mockHandleAccessCheck.mockReturnValue(false);
       // Mock isDrivePath -> false
 
       const req = { query: { file: '/local.mp4' } } as any;
@@ -566,6 +574,7 @@ describe('Final Coverage Boost', () => {
         success: true,
         path: '/local.mp4',
       });
+      mockHandleAccessCheck.mockReturnValue(false);
       // Mock MediaAnalyzer
       vi.mock('../../src/core/analysis/media-analyzer', () => ({
         MediaAnalyzer: {

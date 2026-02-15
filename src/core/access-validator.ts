@@ -28,23 +28,18 @@ export async function validateFileAccess(
 }
 
 /**
- * Validates file access and sends an error response if access is denied.
- * Returns the authorized path if successful, or null if an error response was sent.
- *
- * @param res - The Express Response object.
- * @param filePath - The path to the file to check.
- * @returns The authorized path string or null.
+ * Helper to handle the response when access is denied.
+ * Returns true if access failed and response was handled, false otherwise.
  */
-export async function ensureAuthorizedAccess(
+export function handleAccessCheck(
   res: Response,
-  filePath: string,
-): Promise<string | null> {
-  const access = await validateFileAccess(filePath);
+  access: FileAccessResult,
+): boolean {
   if (!access.success) {
     if (!res.headersSent) {
       res.status(access.statusCode).send(access.error);
     }
-    return null;
+    return true;
   }
-  return access.path;
+  return false;
 }
