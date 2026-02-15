@@ -422,7 +422,8 @@ describe('Final Coverage Boost', () => {
       // Mock handleAccessCheck implementation for this test to replicate behavior
       mockHandleAccessCheck.mockImplementation((res, access) => {
         if (!access.success) {
-          if (!res.headersSent) res.status(access.statusCode).send(access.error);
+          if (!res.headersSent)
+            res.status(access.statusCode).send(access.error);
           return true;
         }
         return false;

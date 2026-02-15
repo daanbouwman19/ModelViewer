@@ -9,10 +9,7 @@ import path from 'path';
 import fs from 'fs/promises';
 
 import { HlsManager } from './hls-manager.ts';
-import {
-  validateFileAccess,
-  handleAccessCheck,
-} from './access-validator.ts';
+import { validateFileAccess, handleAccessCheck } from './access-validator.ts';
 import { getQueryParam } from './utils/http-utils.ts';
 
 const HLS_BANDWIDTH = 2000000;

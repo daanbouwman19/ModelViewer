@@ -8,10 +8,7 @@ import {
 } from './media-utils.ts';
 import { getThumbnailArgs, runFFmpeg } from './utils/ffmpeg-utils.ts';
 import { getProvider } from './fs-provider-factory.ts';
-import {
-  validateFileAccess,
-  handleAccessCheck,
-} from './access-validator.ts';
+import { validateFileAccess, handleAccessCheck } from './access-validator.ts';
 
 let thumbnailQueue: InstanceType<typeof import('p-queue').default> | null =
   null;
