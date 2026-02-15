@@ -202,6 +202,7 @@ import { useUIStore } from '../composables/useUIStore';
 import { useLibraryStore } from '../composables/useLibraryStore';
 import { api } from '../api';
 import CloseIcon from './icons/CloseIcon.vue';
+import { useEscapeKey } from '../composables/useEscapeKey';
 
 const props = defineProps<{
   playlistToEdit?: {
@@ -295,4 +296,6 @@ const save = async () => {
     console.error('Failed to save playlist:', err);
   }
 };
+
+useEscapeKey(isSmartPlaylistModalVisible, close);
 </script>
