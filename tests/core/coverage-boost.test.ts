@@ -5,7 +5,7 @@ import { MediaService } from '../../src/core/media-service';
 import { EventEmitter } from 'events';
 
 // Hoist the mock implementation
-const { MockWorkerClient } = vi.hoisted(() => {
+const { MockWorkerClient, mockValidateFileAccess } = vi.hoisted(() => {
   return {
     MockWorkerClient: vi.fn(function () {
       return {
@@ -14,8 +14,22 @@ const { MockWorkerClient } = vi.hoisted(() => {
         terminate: vi.fn().mockResolvedValue(undefined),
       };
     }),
+    mockValidateFileAccess: vi.fn(),
   };
 });
+
+// Mock access-validator
+vi.mock('../../src/core/access-validator', () => ({
+  validateFileAccess: mockValidateFileAccess,
+  ensureAuthorizedAccess: vi.fn(async (res, path) => {
+    const access = await mockValidateFileAccess(path);
+    if (!access.success) {
+      if (!res.headersSent) res.status(access.statusCode).send(access.error);
+      return null;
+    }
+    return access.path;
+  }),
+}));
 
 // Mock dependencies
 vi.mock('../../src/core/media-source');
@@ -103,11 +117,7 @@ describe('Coverage Boost - MediaHandler', () => {
 
   it('handleStreamRequest - handles Access Denied error', async () => {
     // Mock validateFileAccess to throw
-    const validateSpy = vi.spyOn(
-      await import('../../src/core/access-validator'),
-      'validateFileAccess',
-    );
-    validateSpy.mockRejectedValueOnce(new Error('Access denied'));
+    mockValidateFileAccess.mockRejectedValueOnce(new Error('Access denied'));
 
     req.query.file = '/test.mp4';
     await handler.handleStreamRequest(req, res);
@@ -117,11 +127,7 @@ describe('Coverage Boost - MediaHandler', () => {
   });
 
   it('handleStreamRequest - handles generic error', async () => {
-    const validateSpy = vi.spyOn(
-      await import('../../src/core/access-validator'),
-      'validateFileAccess',
-    );
-    validateSpy.mockRejectedValueOnce(new Error('Random error'));
+    mockValidateFileAccess.mockRejectedValueOnce(new Error('Random error'));
 
     req.query.file = '/test.mp4';
     await handler.handleStreamRequest(req, res);
@@ -132,11 +138,10 @@ describe('Coverage Boost - MediaHandler', () => {
 
   it('handleStreamRequest - handles forced transcoding', async () => {
     // Mock validateFileAccess
-    const validateSpy = vi.spyOn(
-      await import('../../src/core/access-validator'),
-      'validateFileAccess',
-    );
-    validateSpy.mockResolvedValueOnce({ success: true, path: '/test.mp4' });
+    mockValidateFileAccess.mockResolvedValueOnce({
+      success: true,
+      path: '/test.mp4',
+    });
 
     // Mock createMediaSource
     const sourceMock = {
@@ -193,12 +198,11 @@ describe('Coverage Boost - MediaHandler', () => {
 
   it('getVideoDuration - handles drive paths and missing metadata', async () => {
     // Mock validateFileAccess to succeed for a drive path
-    const validateSpy = vi.spyOn(
-      await import('../../src/core/access-validator'),
-      'validateFileAccess',
-    );
     // Use gdrive:// protocol
-    validateSpy.mockResolvedValueOnce({ success: true, path: 'gdrive://123' });
+    mockValidateFileAccess.mockResolvedValueOnce({
+      success: true,
+      path: 'gdrive://123',
+    });
 
     // We need to mock getProvider to return a mock provider that returns partial metadata
     const factorySpy = vi.spyOn(
@@ -222,11 +226,10 @@ describe('Coverage Boost - MediaHandler', () => {
       cacheDir: '/tmp',
     });
 
-    const validateSpy = vi.spyOn(
-      await import('../../src/core/access-validator'),
-      'validateFileAccess',
-    );
-    validateSpy.mockResolvedValueOnce({ success: true, path: '/local/file' });
+    mockValidateFileAccess.mockResolvedValueOnce({
+      success: true,
+      path: '/local/file',
+    });
 
     await noFfmpegHandler.serveMetadata(req, res, '/local/file');
 
@@ -236,11 +239,10 @@ describe('Coverage Boost - MediaHandler', () => {
 
   it('serveStaticFile - handles re-validation failure for local files', async () => {
     // Mock validateFileAccess to succeed
-    const validateSpy = vi.spyOn(
-      await import('../../src/core/access-validator'),
-      'validateFileAccess',
-    );
-    validateSpy.mockResolvedValueOnce({ success: true, path: '/local/file' });
+    mockValidateFileAccess.mockResolvedValueOnce({
+      success: true,
+      path: '/local/file',
+    });
 
     // Mock authorizeFilePath to fail
     const authSpy = vi.spyOn(

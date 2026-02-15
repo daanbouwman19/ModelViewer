@@ -18,8 +18,7 @@ import { parseHttpRange, getQueryParam } from './utils/http-utils.ts';
 import { FileSystemProvider } from './fs-provider.ts';
 import { getProvider } from './fs-provider-factory.ts';
 import { authorizeFilePath } from './security.ts';
-import { validateFileAccess } from './access-validator.ts';
-import { ensureAuthorizedAccess } from './utils/response-utils.ts';
+import { validateFileAccess, ensureAuthorizedAccess } from './access-validator.ts';
 import { serveThumbnail } from './thumbnail-handler.ts';
 import { MediaAnalyzer } from './analysis/media-analyzer.ts';
 import {

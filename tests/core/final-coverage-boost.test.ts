@@ -11,6 +11,7 @@ const {
   mockSpawnProcess,
   mockWorkerClientInstance,
   mockMediaSource,
+  mockValidateFileAccess,
 } = vi.hoisted(() => {
   const mockStatement = {
     run: vi.fn(),
@@ -63,6 +64,8 @@ const {
     getFFmpegInput: vi.fn().mockResolvedValue('/file.mp4'),
   };
 
+  const mockValidateFileAccess = vi.fn();
+
   return {
     mockDbInstance,
     mockStatement,
@@ -71,6 +74,7 @@ const {
     mockWorkerClientInstance,
     mockMediaSource,
     mockStream,
+    mockValidateFileAccess,
   };
 });
 
@@ -114,7 +118,15 @@ vi.mock('child_process', () => {
 
 // 5. Mock access-validator
 vi.mock('../../src/core/access-validator', () => ({
-  validateFileAccess: vi.fn(),
+  validateFileAccess: mockValidateFileAccess,
+  ensureAuthorizedAccess: vi.fn(async (res, path) => {
+    const access = await mockValidateFileAccess(path);
+    if (!access.success) {
+      if (!res.headersSent) res.status(access.statusCode).send(access.error);
+      return null;
+    }
+    return access.path;
+  }),
 }));
 
 // 6. Mock worker-client
@@ -179,7 +191,7 @@ describe('Final Coverage Boost', () => {
     mockStatement.get.mockReset();
 
     // Default valid access
-    vi.mocked(validateFileAccess).mockResolvedValue({
+    mockValidateFileAccess.mockResolvedValue({
       success: true,
       path: '/file.mp4',
     });
@@ -406,7 +418,7 @@ describe('Final Coverage Boost', () => {
   // --- Media Handler Coverage ---
   describe('Media Handler Edge Cases', () => {
     it('sendAccessError: does not send if headers sent', async () => {
-      vi.mocked(validateFileAccess).mockResolvedValue({
+      mockValidateFileAccess.mockResolvedValue({
         success: false,
         statusCode: 403,
         error: 'Denied',
@@ -430,7 +442,7 @@ describe('Final Coverage Boost', () => {
     });
 
     it('tryServeDirectFile: handles sendFile error', async () => {
-      vi.mocked(validateFileAccess).mockResolvedValue({
+      mockValidateFileAccess.mockResolvedValue({
         success: true,
         path: '/local/file.mp4',
       });
@@ -463,7 +475,7 @@ describe('Final Coverage Boost', () => {
     });
 
     it('processStream: handles missing ffmpegPath when forced', async () => {
-      vi.mocked(validateFileAccess).mockResolvedValue({
+      mockValidateFileAccess.mockResolvedValue({
         success: true,
         path: '/file.mp4',
       });
@@ -486,7 +498,7 @@ describe('Final Coverage Boost', () => {
     });
 
     it('serveTranscodedStream: handles spawn error', async () => {
-      vi.mocked(validateFileAccess).mockResolvedValue({
+      mockValidateFileAccess.mockResolvedValue({
         success: true,
         path: '/file.mp4',
       });
@@ -526,7 +538,7 @@ describe('Final Coverage Boost', () => {
     });
 
     it('serveMetadata: handles missing ffmpegPath', async () => {
-      vi.mocked(validateFileAccess).mockResolvedValue({
+      mockValidateFileAccess.mockResolvedValue({
         success: true,
         path: '/local.mp4',
       });
@@ -550,7 +562,7 @@ describe('Final Coverage Boost', () => {
     });
 
     it('serveHeatmap: handles error', async () => {
-      vi.mocked(validateFileAccess).mockResolvedValue({
+      mockValidateFileAccess.mockResolvedValue({
         success: true,
         path: '/local.mp4',
       });
