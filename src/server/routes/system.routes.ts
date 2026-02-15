@@ -36,7 +36,7 @@ import type { RateLimiters } from '../middleware/rate-limiters.ts';
 import { asyncHandler } from '../middleware/async-handler.ts';
 import { createRateLimiter } from '../../core/rate-limiter.ts';
 import {
-  RATE_LIMIT_FILE_WINDOW_MS,
+  RATE_LIMIT_FS_READ_WINDOW_MS,
   RATE_LIMIT_FS_READ_MAX_REQUESTS,
 } from '../../core/constants.ts';
 
@@ -204,7 +204,7 @@ export function createSystemRoutes(limiters: RateLimiters) {
   );
 
   const fsRateLimiter = createRateLimiter(
-    RATE_LIMIT_FILE_WINDOW_MS,
+    RATE_LIMIT_FS_READ_WINDOW_MS,
     RATE_LIMIT_FS_READ_MAX_REQUESTS,
     'Too many file system requests. Please slow down.',
   );

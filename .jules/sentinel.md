@@ -132,7 +132,7 @@
 **Learning:** Relying on `postMessage` target origin for security in complex environments (like Electron with local servers) is fragile. Implementing PKCE (Proof Key for Code Exchange) moves the security assurance from the transport channel (origin checks) to the backend logic (verifier validation). Even if the code is intercepted, it is useless without the `code_verifier` which never leaves the backend.
 **Prevention:** Implemented PKCE in the OAuth flow. `generateAuthUrl` now generates and stores a `code_verifier` and sends a `code_challenge`. `authenticateWithCode` requires and validates the `code_verifier` during token exchange.
 
-## 2025-02-15 - [Unauthenticated Filesystem Access]
+## 2026-02-14 - [Unauthenticated Filesystem Access]
 
 **Vulnerability:** The application exposes `/api/fs/ls` and `/api/directories` endpoints without authentication. This allows any network user to list server directories and add arbitrary directories (like `/home/user`) to the media library, potentially exposing sensitive user files.
 **Learning:** Local-first applications that also offer "Server Mode" often lack proper authentication boundaries by default, assuming a trusted network.
