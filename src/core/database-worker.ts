@@ -659,15 +659,18 @@ export async function filterProcessingNeeded(
       let rows: { file_path: string }[];
 
       if (batchPaths.length === SQL_BATCH_SIZE) {
+        // Use cached prepared statement for full batches
         rows = statements.getSuccessfulPathsBatch.all(...batchPaths) as {
           file_path: string;
         }[];
       } else {
-        const placeholders = Array(batchPaths.length).fill('?').join(',');
-        const stmt = db.prepare(
-          `SELECT file_path FROM media_metadata WHERE file_path IN (${placeholders}) AND extraction_status = 'success'`,
-        );
-        rows = stmt.all(...batchPaths) as {
+        // Pad the batch with nulls to use the cached statement
+        // This avoids recompiling the statement for variable batch sizes
+        const args = new Array(SQL_BATCH_SIZE).fill(null);
+        for (let k = 0; k < batchPaths.length; k++) {
+          args[k] = batchPaths[k];
+        }
+        rows = statements.getSuccessfulPathsBatch.all(...args) as {
           file_path: string;
         }[];
       }
