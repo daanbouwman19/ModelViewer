@@ -89,6 +89,25 @@ describe('vlc-player unit tests', () => {
       );
     });
 
+    it('should prevent argument injection for filenames starting with hyphen', async () => {
+      // Arrange
+      const maliciousFile = '--malicious-flag.mp4';
+      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+      const mockChild = { unref: vi.fn(), on: vi.fn() };
+      mockSpawn.mockReturnValue(mockChild);
+
+      // Act
+      const result = await testOpenMediaAndAdvanceTimers(maliciousFile, 3000);
+
+      // Assert
+      expect(result).toEqual({ success: true });
+      expect(mockSpawn).toHaveBeenCalledWith(
+        '/usr/bin/vlc',
+        ['--', maliciousFile],
+        expect.objectContaining({ detached: true }),
+      );
+    });
+
     it('should handle win32 platform', async () => {
       Object.defineProperty(process, 'platform', { value: 'win32' });
       mockFsAccess.mockResolvedValue(undefined);
