@@ -137,3 +137,8 @@
 **Vulnerability:** The application exposes `/api/fs/ls` and `/api/directories` endpoints without authentication. This allows any network user to list server directories and add arbitrary directories (like `/home/user`) to the media library, potentially exposing sensitive user files.
 **Learning:** Local-first applications that also offer "Server Mode" often lack proper authentication boundaries by default, assuming a trusted network.
 **Prevention:** Implement mandatory authentication for all administrative actions (like adding media sources) and restrict filesystem browsing to predefined safe roots.
+
+## 2026-02-15 - Missing Authentication on Web Server
+**Vulnerability:** The application exposes a full REST API for file system and media management without any authentication when running in "Web Server" mode. This allows unauthenticated remote code execution (via directory manipulation) and information disclosure.
+**Learning:** Even "local" web servers need authentication if they expose sensitive system operations. The assumption that "local network" implies trust is dangerous.
+**Prevention:** Added optional Basic Authentication middleware. Future architectural changes should enforce authentication by default or separate "local" (electron) and "remote" (web) APIs more strictly.

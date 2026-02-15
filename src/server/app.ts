@@ -22,6 +22,7 @@ import { MediaAnalyzer } from '../core/analysis/media-analyzer.ts';
 import { MediaHandler } from '../core/media-handler.ts';
 import { WorkerFactory } from '../core/worker-factory.ts';
 import { createRateLimiters } from './middleware/rate-limiters.ts';
+import { basicAuthMiddleware } from './middleware/basic-auth.ts';
 import { errorHandler } from './middleware/error-handler.ts';
 import { createAlbumRoutes } from './routes/album.routes.ts';
 import { createMediaRoutes } from './routes/media.routes.ts';
@@ -93,6 +94,8 @@ export async function createApp() {
   app.use(express.json({ limit: '10mb' }));
 
   app.get('/favicon.ico', (_req, res) => res.status(204).end());
+
+  app.use(basicAuthMiddleware);
 
   const limiters = createRateLimiters();
 
