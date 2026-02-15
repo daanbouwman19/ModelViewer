@@ -294,12 +294,48 @@ const handleKeyDown = (event: KeyboardEvent) => {
   const step = 5; // seconds
   let newTime = props.currentTime;
 
-  if (event.key === 'ArrowRight') {
-    newTime = Math.min(props.duration, props.currentTime + step);
-    emit('seek', newTime);
-  } else if (event.key === 'ArrowLeft') {
-    newTime = Math.max(0, props.currentTime - step);
-    emit('seek', newTime);
+  // Prevent default scrolling for handled keys
+  // Stop propagation to prevent conflict with global shortcuts
+  switch (event.key) {
+    case 'ArrowRight':
+      event.preventDefault();
+      event.stopPropagation();
+      newTime = Math.min(props.duration, props.currentTime + step);
+      emit('seek', newTime);
+      break;
+    case 'ArrowLeft':
+      event.preventDefault();
+      event.stopPropagation();
+      newTime = Math.max(0, props.currentTime - step);
+      emit('seek', newTime);
+      break;
+    case 'Home':
+      event.preventDefault();
+      event.stopPropagation();
+      emit('seek', 0);
+      break;
+    case 'End':
+      event.preventDefault();
+      event.stopPropagation();
+      emit('seek', props.duration);
+      break;
+    case 'PageUp':
+      event.preventDefault();
+      event.stopPropagation();
+      // Seek forward 10%
+      newTime = Math.min(
+        props.duration,
+        props.currentTime + props.duration * 0.1,
+      );
+      emit('seek', newTime);
+      break;
+    case 'PageDown':
+      event.preventDefault();
+      event.stopPropagation();
+      // Seek backward 10%
+      newTime = Math.max(0, props.currentTime - props.duration * 0.1);
+      emit('seek', newTime);
+      break;
   }
 };
 </script>
