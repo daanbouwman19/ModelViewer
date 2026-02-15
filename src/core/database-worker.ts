@@ -168,6 +168,42 @@ async function getExistingIdOrGenerate(filePath: string): Promise<string> {
   return generateFileId(filePath);
 }
 
+/**
+ * Helper to check which paths already exist in the database.
+ * @param filePaths - List of file paths to check.
+ * @returns Set of file paths that exist.
+ */
+function getExistingPathsBatch(filePaths: string[]): Set<string> {
+  const existingPaths = new Set<string>();
+  if (!db || !statements.getFileIdsByPathsBatch) return existingPaths;
+
+  for (let i = 0; i < filePaths.length; i += SQL_BATCH_SIZE) {
+    const batchPaths = filePaths.slice(i, i + SQL_BATCH_SIZE);
+    if (batchPaths.length === 0) continue;
+
+    let rows: { file_path: string; file_path_hash: string }[];
+    try {
+      const args = new Array(SQL_BATCH_SIZE).fill(null);
+      for (let k = 0; k < batchPaths.length; k++) {
+        args[k] = batchPaths[k];
+      }
+      rows = statements.getFileIdsByPathsBatch.all(...args) as {
+        file_path: string;
+        file_path_hash: string;
+      }[];
+
+      for (const row of rows) {
+        if (row.file_path) {
+          existingPaths.add(row.file_path);
+        }
+      }
+    } catch (err) {
+      console.warn('[worker] Error checking existing paths:', err);
+    }
+  }
+  return existingPaths;
+}
+
 // Core Worker Functions
 
 /**
@@ -464,10 +500,45 @@ export async function bulkUpsertMetadata(
 ): Promise<WorkerResult> {
   if (!db) return { success: false, error: 'Database not initialized' };
   try {
-    const idMap = await generateFileIdsBatched(payloads.map((p) => p.filePath));
+    // Bolt Optimization: Filter out payloads that are just "path confirmation" (no new data)
+    // and already exist in the database. This avoids thousands of redundant INSERT ... ON CONFLICT calls.
+    const pathOnlyPayloads: MetadataPayload[] = [];
+    const updatePayloads: MetadataPayload[] = [];
+
+    for (const p of payloads) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { filePath, ...metadata } = p;
+      // Check if any property in metadata is defined
+      const hasData = Object.values(metadata).some((v) => v !== undefined);
+
+      if (hasData) {
+        updatePayloads.push(p);
+      } else {
+        pathOnlyPayloads.push(p);
+      }
+    }
+
+    const payloadsToProcess = [...updatePayloads];
+
+    if (pathOnlyPayloads.length > 0) {
+      const paths = pathOnlyPayloads.map((p) => p.filePath);
+      const existingPaths = getExistingPathsBatch(paths);
+
+      payloadsToProcess.push(
+        ...pathOnlyPayloads.filter((p) => !existingPaths.has(p.filePath)),
+      );
+    }
+
+    if (payloadsToProcess.length === 0) {
+      return { success: true };
+    }
+
+    const idMap = await generateFileIdsBatched(
+      payloadsToProcess.map((p) => p.filePath),
+    );
 
     // Map payloads to include fileId, failing if any ID is missing
-    const itemsWithIds = payloads.map((p) => {
+    const itemsWithIds = payloadsToProcess.map((p) => {
       const fileId = idMap.get(p.filePath);
       if (!fileId) {
         throw new Error(`Failed to generate ID for path: ${p.filePath}`);
