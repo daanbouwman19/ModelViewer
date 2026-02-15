@@ -103,33 +103,38 @@ describe('getHlsTranscodeArgs', () => {
 
     // Performance and logging
     expect(args).toContain('-hide_banner');
-    expect(args).toContain('-loglevel');
-    expect(args).toContain('error');
+    const loglevelIndex = args.indexOf('-loglevel');
+    expect(loglevelIndex).toBeGreaterThan(-1);
+    expect(args[loglevelIndex + 1]).toBe('error');
 
-    // Input options
-    expect(args).toContain('-analyzeduration');
-    expect(args).toContain('100M');
-    expect(args).toContain(INPUT_PATH);
+    // Check for all flag-value pairs to make the test more robust
+    const expectedArgs = {
+      '-analyzeduration': '100M',
+      '-probesize': '100M',
+      '-i': INPUT_PATH,
+      '-c:v': 'libx264',
+      '-c:a': 'aac',
+      '-preset': 'ultrafast',
+      '-crf': '23',
+      '-pix_fmt': 'yuv420p',
+      '-g': '48',
+      '-sc_threshold': '0',
+      '-f': 'hls',
+      '-hls_time': SEGMENT_DURATION.toString(),
+      '-hls_list_size': '0',
+      '-hls_segment_filename': OUTPUT_SEGMENT,
+    };
 
-    // Codecs and format
-    expect(args).toContain('libx264');
-    expect(args).toContain('aac');
-    expect(args).toContain('hls');
-    expect(args).toContain('yuv420p');
+    for (const [flag, value] of Object.entries(expectedArgs)) {
+      const flagIndex = args.indexOf(flag);
+      expect(flagIndex).toBeGreaterThan(
+        -1,
+        `Expected flag ${flag} to be present`,
+      );
+      expect(args[flagIndex + 1]).toBe(value);
+    }
 
-    // HLS specific
-    const hlsTimeIndex = args.indexOf('-hls_time');
-    expect(hlsTimeIndex).toBeGreaterThan(-1);
-    expect(args[hlsTimeIndex + 1]).toBe(SEGMENT_DURATION.toString());
-
-    expect(args).toContain('-hls_list_size');
-    expect(args).toContain('0'); // Verify we keep all segments
-
-    expect(args).toContain('-hls_segment_filename');
-    const segmentIndex = args.indexOf('-hls_segment_filename');
-    expect(args[segmentIndex + 1]).toBe(OUTPUT_SEGMENT);
-
-    // Ensure playlist is the last argument (or at least present)
-    expect(args).toContain(OUTPUT_PLAYLIST);
+    // Ensure playlist is the last argument
+    expect(args[args.length - 1]).toBe(OUTPUT_PLAYLIST);
   });
 });
