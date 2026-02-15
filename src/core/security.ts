@@ -381,7 +381,7 @@ function checkPathRestrictions(
     // Note: realpathSync uses native OS behavior, so it may fail if
     // process.platform is mocked (e.g. testing Win32 on Linux).
     normalized = realpathSync(path.resolve(dirPath));
-  } catch (e) {
+  } catch {
     // Fallback if file doesn't exist (yet), permission denied,
     // or if running in a test environment where platform is mocked.
     normalized = p.resolve(dirPath);
