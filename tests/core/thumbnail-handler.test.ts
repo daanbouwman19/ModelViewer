@@ -181,6 +181,25 @@ describe('thumbnail-handler unit tests', () => {
       expect((mockStream as any).pipe).toHaveBeenCalledWith(res);
     });
 
+    it('should BLOCK thumbnail if file is unauthorized EVEN IF cached', async () => {
+      // 1. Setup unauthorized file access
+      mockAuthorizeFilePath.mockResolvedValue({
+        isAllowed: false,
+        message: 'Access denied',
+      });
+
+      // 2. Setup CACHE HIT
+      mockCheckThumbnailCache.mockResolvedValue(true);
+
+      await serveThumbnail(req, res, '/secret/video.mp4', 'ffmpeg', '/cache');
+
+      // Expect 403 Forbidden because access check should happen before cache check
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.send).toHaveBeenCalledWith('Access denied.');
+      // Should NOT have attempted to read cache stream
+      expect(mockFsCreateReadStream).not.toHaveBeenCalled();
+    });
+
     it('generates thumbnail for gdrive file', async () => {
       mockCheckThumbnailCache.mockResolvedValue(false);
       mockGetThumbnailCachePath.mockReturnValue('/cache/gdrive.jpg');

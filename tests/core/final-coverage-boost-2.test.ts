@@ -1,0 +1,91 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { MediaHandler } from '../../src/core/media-handler';
+import { validateFileAccess } from '../../src/core/access-validator';
+
+// Mocks
+vi.mock('../../src/core/access-validator', () => ({
+  validateFileAccess: vi.fn(),
+}));
+
+vi.mock('../../src/core/analysis/media-analyzer', () => ({
+  MediaAnalyzer: {
+    getInstance: () => ({
+      generateHeatmap: vi.fn().mockRejectedValue(new Error('Heatmap Fail')),
+      setCacheDir: vi.fn(),
+      getProgress: vi.fn().mockReturnValue(null),
+    }),
+  },
+}));
+
+describe('Final Coverage Boost Part 2', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe('Media Handler Additional Coverage', () => {
+    it('serveMetadata: handles missing ffmpegPath', async () => {
+      vi.mocked(validateFileAccess).mockResolvedValue({
+        success: true,
+        path: '/local.mp4',
+      });
+
+      const req = { query: { file: '/local.mp4' } } as any;
+      const res = {
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn(),
+        send: vi.fn(),
+        headersSent: false,
+      } as any;
+
+      const handler = new MediaHandler({ ffmpegPath: null, cacheDir: '/tmp' });
+      await handler.serveMetadata(req, res, '/local.mp4');
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.send).toHaveBeenCalledWith('FFmpeg binary not found');
+    });
+
+    it('serveHeatmap: handles error', async () => {
+      vi.mocked(validateFileAccess).mockResolvedValue({
+        success: true,
+        path: '/local.mp4',
+      });
+
+      const req = { query: { file: '/local.mp4' } } as any;
+      const res = {
+        status: vi.fn().mockReturnThis(),
+        send: vi.fn(),
+        headersSent: false,
+      } as any;
+
+      const handler = new MediaHandler({
+        ffmpegPath: 'ffmpeg',
+        cacheDir: '/tmp',
+      });
+      await handler.serveHeatmap(req, res, '/local.mp4');
+
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.send).toHaveBeenCalledWith('Heatmap generation failed');
+    });
+
+    it('serveHeatmapProgress: handles null progress (not found)', async () => {
+      vi.mocked(validateFileAccess).mockResolvedValue({
+        success: true,
+        path: '/local.mp4',
+      });
+
+      const req = { query: { file: '/local.mp4' } } as any;
+      const res = {
+        json: vi.fn(),
+        headersSent: false,
+      } as any;
+
+      const handler = new MediaHandler({
+        ffmpegPath: 'ffmpeg',
+        cacheDir: '/tmp',
+      });
+      await handler.serveHeatmapProgress(req, res, '/local.mp4');
+
+      expect(res.json).toHaveBeenCalledWith({ progress: null });
+    });
+  });
+});
