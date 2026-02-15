@@ -1,4 +1,5 @@
 import fs from 'fs/promises';
+import { realpathSync } from 'fs';
 import path from 'path';
 import { getMediaDirectories, isFileInLibrary } from './database.ts';
 import { MediaDirectory } from './types.ts';
@@ -362,39 +363,70 @@ const LINUX_RESTRICTED_PATHS = [
 ];
 
 /**
+ * Helper to check path restrictions against a list of restricted roots.
+ * Handles platform-specific logic and sensitive segment checks.
+ */
+function checkPathRestrictions(
+  dirPath: string,
+  restrictedRoots: string[],
+): boolean {
+  if (!dirPath) return true;
+
+  // Select path module based on platform (supports mocking in tests)
+  const p = process.platform === 'win32' ? path.win32 : path.posix;
+
+  let normalized: string;
+  try {
+    // Attempt to resolve real path to handle symlinks (security bypass)
+    // Note: realpathSync uses native OS behavior, so it may fail if
+    // process.platform is mocked (e.g. testing Win32 on Linux).
+    normalized = realpathSync(path.resolve(dirPath));
+  } catch {
+    // Fallback if file doesn't exist (yet), permission denied,
+    // or if running in a test environment where platform is mocked.
+    normalized = p.resolve(dirPath);
+  }
+
+  const segments = normalized.split(p.sep);
+
+  // Check if any segment is a sensitive directory (e.g. .ssh)
+  if (segments.some(isHiddenOrSensitive)) {
+    return true;
+  }
+
+  if (process.platform === 'win32') {
+    // Windows: Case-insensitive check
+    const normalizedLower = normalized.toLowerCase();
+
+    // Block UNC paths to prevent bypass of drive-letter based restrictions
+    if (normalizedLower.startsWith('\\\\')) return true;
+
+    return restrictedRoots.some(
+      (r) =>
+        normalizedLower === r.toLowerCase() ||
+        normalizedLower.startsWith(r.toLowerCase() + '\\'),
+    );
+  } else {
+    // Linux: Strict check
+    return restrictedRoots.some(
+      (r) => normalized === r || normalized.startsWith(r + '/'),
+    );
+  }
+}
+
+/**
  * Checks if a path is restricted for listing contents.
  * Allows root listing for navigation, but blocks internal system folders.
  * @param dirPath - The path to check.
  * @returns True if the path is restricted.
  */
 export function isRestrictedPath(dirPath: string): boolean {
-  if (!dirPath) return true;
-  const p = process.platform === 'win32' ? path.win32 : path.posix;
-  const normalized = p.resolve(dirPath);
-  const segments = normalized.split(p.sep);
+  const restricted =
+    process.platform === 'win32'
+      ? getWindowsRestrictedPaths()
+      : LINUX_RESTRICTED_PATHS;
 
-  // Check if any segment is a sensitive directory (e.g. .ssh)
-  // We use the same list, but check if the *target* directory itself is sensitive
-  // or if we are trying to list inside it.
-  // Note: listing /home/user is fine, listing /home/user/.ssh is not.
-  if (segments.some(isHiddenOrSensitive)) {
-    return true;
-  }
-
-  if (process.platform === 'win32') {
-    // Allow C:\ (to navigate), but block C:\Windows etc.
-    const restricted = getWindowsRestrictedPaths();
-    return restricted.some(
-      (r) =>
-        normalized.toLowerCase() === r.toLowerCase() ||
-        normalized.toLowerCase().startsWith(r.toLowerCase() + '\\'),
-    );
-  } else {
-    // Allow / (to navigate), but block /etc, /proc, /root, etc.
-    return LINUX_RESTRICTED_PATHS.some(
-      (r) => normalized === r || normalized.startsWith(r + '/'),
-    );
-  }
+  return checkPathRestrictions(dirPath, restricted);
 }
 
 /**
@@ -404,33 +436,12 @@ export function isRestrictedPath(dirPath: string): boolean {
  * @returns True if the path is sensitive.
  */
 export function isSensitiveDirectory(dirPath: string): boolean {
-  if (!dirPath) return true;
-  const p = process.platform === 'win32' ? path.win32 : path.posix;
-  const normalized = p.resolve(dirPath);
-  const segments = normalized.split(p.sep);
+  const restricted =
+    process.platform === 'win32'
+      ? [`${process.env.SystemDrive || 'C:'}\\`, ...getWindowsRestrictedPaths()]
+      : ['/', ...LINUX_RESTRICTED_PATHS];
 
-  // Check against sensitive subdirectories (e.g. .ssh, .env)
-  // This prevents adding a sensitive directory (like ~/.ssh) as a media root
-  if (segments.some(isHiddenOrSensitive)) {
-    return true;
-  }
-
-  if (process.platform === 'win32') {
-    // Block C:\, C:\Windows, C:\Program Files, etc.
-    const drive = process.env.SystemDrive || 'C:';
-    const restricted = [`${drive}\\`, ...getWindowsRestrictedPaths()];
-    return restricted.some(
-      (r) =>
-        normalized.toLowerCase() === r.toLowerCase() ||
-        normalized.toLowerCase().startsWith(r.toLowerCase() + '\\'),
-    );
-  } else {
-    // Block /, and all other restricted paths
-    const restricted = ['/', ...LINUX_RESTRICTED_PATHS];
-    return restricted.some(
-      (r) => normalized === r || normalized.startsWith(r + '/'),
-    );
-  }
+  return checkPathRestrictions(dirPath, restricted);
 }
 
 /**
