@@ -132,15 +132,16 @@ describe('MediaControls.vue', () => {
   it('should emit set-rating when star clicked', async () => {
     const wrapper = mount(MediaControls, { props: defaultProps });
     await wrapper.vm.$nextTick();
+
     const stars = wrapper
       .findAll('button')
       .filter((b) => b.attributes('aria-label')?.includes('Rate'));
 
-    if (stars.length > 0) {
-      await stars[1].trigger('click'); // Rate 2 stars
-      expect(wrapper.emitted('set-rating')).toBeTruthy();
-      expect(wrapper.emitted('set-rating')?.[0]).toEqual([2]);
-    }
+    expect(stars.length, 'Rating stars should be rendered').toBeGreaterThan(0);
+
+    await stars[1].trigger('click'); // Rate 2 stars
+    expect(wrapper.emitted('set-rating')).toBeTruthy();
+    expect(wrapper.emitted('set-rating')?.[0]).toEqual([2]);
   });
 
   it('should disable navigation if canNavigate is false', () => {
