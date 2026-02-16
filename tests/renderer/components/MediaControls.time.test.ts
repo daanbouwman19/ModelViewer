@@ -81,7 +81,6 @@ describe('MediaControls Time Display', () => {
 
     // Find the time display
     const timeDisplay = wrapper.find('[data-testid="time-display"]');
-
     expect(timeDisplay.exists()).toBe(true);
     expect(timeDisplay.text()).toBe('00:10 / 01:10');
     expect(timeDisplay.attributes('title')).toBe('Show remaining time');

@@ -7,6 +7,7 @@ import {
   getTranscodeArgs,
   getThumbnailArgs,
   parseFFmpegDuration,
+  getHlsTranscodeArgs,
 } from '../../../src/core/utils/ffmpeg-utils';
 
 // Hoist mockExeca so it can be used in factory
@@ -39,6 +40,12 @@ describe('FFmpeg Utils Combined Tests', () => {
       expect(args).toContain(INPUT_PATH);
       expect(args).toContain('pipe:1');
       expect(args).toContain('libx264');
+
+      // Verify standardized codec flags
+      expect(args).toContain('-c:v');
+      expect(args).toContain('-c:a');
+      expect(args).not.toContain('-vcodec'); // Legacy flag removed
+      expect(args).not.toContain('-acodec'); // Legacy flag removed
 
       // Ensure no start time arg
       expect(args).not.toContain('-ss');
@@ -85,6 +92,50 @@ describe('FFmpeg Utils Combined Tests', () => {
     it('handles null start time as undefined', () => {
       const args = getTranscodeArgs(INPUT_PATH, null);
       expect(args).not.toContain('-ss');
+    });
+  });
+
+  describe('getHlsTranscodeArgs', () => {
+    const INPUT_PATH = '/path/to/video.mp4';
+    const SEGMENT_PATH = '/path/to/segment_%03d.ts';
+    const PLAYLIST_PATH = '/path/to/playlist.m3u8';
+    const SEGMENT_DURATION = 6;
+
+    it('returns correct arguments for HLS transcoding', () => {
+      const args = getHlsTranscodeArgs(
+        INPUT_PATH,
+        SEGMENT_PATH,
+        PLAYLIST_PATH,
+        SEGMENT_DURATION,
+      );
+
+      // Performance flags (Common)
+      expect(args).toContain('-hide_banner');
+      expect(args).toContain('-loglevel');
+      expect(args).toContain('error');
+
+      // Core inputs
+      expect(args).toContain(INPUT_PATH);
+
+      // Verify standardized codec flags (Base Codec Args)
+      expect(args).toContain('-c:v');
+      expect(args).toContain('libx264');
+      expect(args).toContain('-c:a');
+      expect(args).toContain('aac');
+      expect(args).toContain('-pix_fmt');
+      expect(args).toContain('yuv420p');
+
+      // HLS Specifics
+      expect(args).toContain('-f');
+      expect(args).toContain('hls');
+      expect(args).toContain('-hls_time');
+      expect(args).toContain(SEGMENT_DURATION.toString());
+      expect(args).toContain(SEGMENT_PATH);
+      expect(args).toContain(PLAYLIST_PATH);
+
+      // Verify shared optimization flags
+      expect(args).toContain('ultrafast'); // Preset
+      expect(args).toContain('23'); // CRF
     });
   });
 
