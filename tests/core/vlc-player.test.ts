@@ -89,27 +89,26 @@ describe('vlc-player unit tests', () => {
       );
     });
 
-    it.each([
-      '--malicious-flag.mp4',
-      '-h.mp4',
-      '--fullscreen',
-    ])('should prevent argument injection for filename starting with hyphen: %s', async (maliciousFile) => {
-      // Arrange
-      mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
-      const mockChild = { unref: vi.fn(), on: vi.fn() };
-      mockSpawn.mockReturnValue(mockChild);
+    it.each(['--malicious-flag.mp4', '-h.mp4', '--fullscreen'])(
+      'should prevent argument injection for filename starting with hyphen: %s',
+      async (maliciousFile) => {
+        // Arrange
+        mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
+        const mockChild = { unref: vi.fn(), on: vi.fn() };
+        mockSpawn.mockReturnValue(mockChild);
 
-      // Act
-      const result = await testOpenMediaAndAdvanceTimers(maliciousFile, 3000);
+        // Act
+        const result = await testOpenMediaAndAdvanceTimers(maliciousFile, 3000);
 
-      // Assert
-      expect(result).toEqual({ success: true });
-      expect(mockSpawn).toHaveBeenCalledWith(
-        '/usr/bin/vlc',
-        ['--', maliciousFile],
-        expect.objectContaining({ detached: true }),
-      );
-    });
+        // Assert
+        expect(result).toEqual({ success: true });
+        expect(mockSpawn).toHaveBeenCalledWith(
+          '/usr/bin/vlc',
+          ['--', maliciousFile],
+          expect.objectContaining({ detached: true }),
+        );
+      },
+    );
 
     it('should handle win32 platform', async () => {
       Object.defineProperty(process, 'platform', { value: 'win32' });
