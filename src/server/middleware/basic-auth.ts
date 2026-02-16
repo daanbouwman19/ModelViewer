@@ -1,6 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 
+// Generate a unique key for HMAC operations at module load.
+// This key is used only for secure comparison of credentials within this process lifetime.
+// It does not need to persist across restarts.
+const AUTH_COMPARISON_KEY = crypto.randomBytes(32);
+
 /**
  * Middleware for Basic Authentication.
  * Checks for `SYSTEM_USER` and `SYSTEM_PASSWORD` environment variables.
@@ -37,17 +42,29 @@ export function basicAuthMiddleware(
   const password = credentials.substring(idx + 1);
 
   // Address CodeQL Warning: Avoid hashing passwords with fast hashes.
-  // Instead, use direct timing-safe comparison on buffers.
-  // UPDATE: Using SHA-256 for comparison ensures constant-time check without leaking length.
-  // We are not storing the hash, just using it for secure comparison.
+  // Instead, use HMAC-SHA256 with a random key for secure comparison.
+  // This produces fixed-length outputs suitable for constant-time comparison
+  // without exposing the raw password or using a weak hash algorithm.
 
-  const userHash = crypto.createHash('sha256').update(user).digest();
-  const passHash = crypto.createHash('sha256').update(pass).digest();
-  const loginHash = crypto.createHash('sha256').update(login).digest();
-  const passwordHash = crypto.createHash('sha256').update(password).digest();
+  const userHmac = crypto
+    .createHmac('sha256', AUTH_COMPARISON_KEY)
+    .update(user)
+    .digest();
+  const passHmac = crypto
+    .createHmac('sha256', AUTH_COMPARISON_KEY)
+    .update(pass)
+    .digest();
+  const loginHmac = crypto
+    .createHmac('sha256', AUTH_COMPARISON_KEY)
+    .update(login)
+    .digest();
+  const passwordHmac = crypto
+    .createHmac('sha256', AUTH_COMPARISON_KEY)
+    .update(password)
+    .digest();
 
-  const userMatch = crypto.timingSafeEqual(userHash, loginHash);
-  const passMatch = crypto.timingSafeEqual(passHash, passwordHash);
+  const userMatch = crypto.timingSafeEqual(userHmac, loginHmac);
+  const passMatch = crypto.timingSafeEqual(passHmac, passwordHmac);
 
   if (userMatch && passMatch) {
     return next();
