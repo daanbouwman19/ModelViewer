@@ -1,8 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  serveHlsMaster,
-  serveHlsPlaylist,
-} from '../../src/core/hls-handler';
+import { serveHlsMaster, serveHlsPlaylist } from '../../src/core/hls-handler';
 import {
   serveHeatmap,
   handleStreamRequest,
@@ -97,48 +94,61 @@ describe('Coverage Fix 2 - Branch Coverage Boost', () => {
   // HLS Handler Branch Coverage
   describe('HLS Handler Extra Branches', () => {
     it('serveHlsMaster: handles missing file query param', async () => {
-      mockValidateFileAccess.mockResolvedValue({ success: true, path: '/test.mp4' });
+      mockValidateFileAccess.mockResolvedValue({
+        success: true,
+        path: '/test.mp4',
+      });
       mockHandleAccessCheck.mockReturnValue(false);
       req.query = {}; // Missing 'file'
 
       await serveHlsMaster(req, res, '/test.mp4');
 
       // It should still serve, but with empty encoded file in playlist
-      expect(res.send).toHaveBeenCalledWith(expect.stringContaining('playlist.m3u8?file='));
+      expect(res.send).toHaveBeenCalledWith(
+        expect.stringContaining('playlist.m3u8?file='),
+      );
     });
 
     it('serveHlsPlaylist: handles missing file query param', async () => {
-        mockValidateFileAccess.mockResolvedValue({ success: true, path: '/test.mp4' });
-        mockHandleAccessCheck.mockReturnValue(false);
-        req.query = {}; // Missing 'file'
+      mockValidateFileAccess.mockResolvedValue({
+        success: true,
+        path: '/test.mp4',
+      });
+      mockHandleAccessCheck.mockReturnValue(false);
+      req.query = {}; // Missing 'file'
 
-        // Mock fs.readFile to return content needing replacement
-        const fs = await import('fs/promises');
-        vi.mocked(fs.default.readFile).mockResolvedValue('segment_001.ts');
+      // Mock fs.readFile to return content needing replacement
+      const fs = await import('fs/promises');
+      vi.mocked(fs.default.readFile).mockResolvedValue('segment_001.ts');
 
-        await serveHlsPlaylist(req, res, '/test.mp4');
+      await serveHlsPlaylist(req, res, '/test.mp4');
 
-        expect(res.send).toHaveBeenCalledWith(expect.stringContaining('segment_001.ts?file='));
+      expect(res.send).toHaveBeenCalledWith(
+        expect.stringContaining('segment_001.ts?file='),
+      );
     });
   });
 
   // Media Handler Branch Coverage
   describe('Media Handler Extra Branches', () => {
-      it('serveHeatmap: handles missing points query param (default 100)', async () => {
-        mockValidateFileAccess.mockResolvedValue({ success: true, path: '/test.mp4' });
-        mockHandleAccessCheck.mockReturnValue(false);
-        req.query = { file: '/test.mp4' }; // Missing 'points'
-
-        await serveHeatmap(req, res, '/test.mp4');
-
-        expect(mockGenerateHeatmap).toHaveBeenCalledWith('/test.mp4', 100);
+    it('serveHeatmap: handles missing points query param (default 100)', async () => {
+      mockValidateFileAccess.mockResolvedValue({
+        success: true,
+        path: '/test.mp4',
       });
+      mockHandleAccessCheck.mockReturnValue(false);
+      req.query = { file: '/test.mp4' }; // Missing 'points'
 
-      it('handleStreamRequest: handles missing file param', async () => {
-          req.query = {};
-          await handleStreamRequest(req, res, 'ffmpeg');
-          expect(res.status).toHaveBeenCalledWith(400);
-          expect(res.send).toHaveBeenCalledWith('Missing file parameter');
-      });
+      await serveHeatmap(req, res, '/test.mp4');
+
+      expect(mockGenerateHeatmap).toHaveBeenCalledWith('/test.mp4', 100);
+    });
+
+    it('handleStreamRequest: handles missing file param', async () => {
+      req.query = {};
+      await handleStreamRequest(req, res, 'ffmpeg');
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.send).toHaveBeenCalledWith('Missing file parameter');
+    });
   });
 });

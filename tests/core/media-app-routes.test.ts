@@ -1,12 +1,20 @@
-
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import request from 'supertest';
 import { MediaRoutes } from '../../src/core/routes';
-import { createMediaApp, serveHeatmapProgress, serveStaticFile } from '../../src/core/media-handler';
+import {
+  createMediaApp,
+  serveHeatmapProgress,
+  serveStaticFile,
+} from '../../src/core/media-handler';
 import { PassThrough } from 'stream';
 
 // Dynamic mocks using vi.hoisted
-const { mockValidateFileAccess, mockGetStream, mockIsDrivePath, mockGetProgress } = vi.hoisted(() => ({
+const {
+  mockValidateFileAccess,
+  mockGetStream,
+  mockIsDrivePath,
+  mockGetProgress,
+} = vi.hoisted(() => ({
   mockValidateFileAccess: vi.fn(),
   mockGetStream: vi.fn(),
   mockIsDrivePath: vi.fn(),
@@ -19,12 +27,13 @@ vi.mock('../../src/core/access-validator', () => ({
 }));
 
 vi.mock('../../src/core/media-utils', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('../../src/core/media-utils')>();
-    return {
-        ...actual,
-        isDrivePath: (p: string) => mockIsDrivePath(p),
-        normalizeFilePath: (p: string) => p,
-    };
+  const actual =
+    await importOriginal<typeof import('../../src/core/media-utils')>();
+  return {
+    ...actual,
+    isDrivePath: (p: string) => mockIsDrivePath(p),
+    normalizeFilePath: (p: string) => p,
+  };
 });
 
 vi.mock('../../src/core/media-source', () => ({
@@ -51,13 +60,15 @@ vi.mock('../../src/core/rate-limiter', () => ({
 }));
 
 vi.mock('../../src/core/security', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('../../src/core/security')>();
-    return {
-        ...actual,
-        authorizeFilePath: vi.fn().mockResolvedValue({ isAllowed: true, realPath: '/mocked/path' }),
-    };
+  const actual =
+    await importOriginal<typeof import('../../src/core/security')>();
+  return {
+    ...actual,
+    authorizeFilePath: vi
+      .fn()
+      .mockResolvedValue({ isAllowed: true, realPath: '/mocked/path' }),
+  };
 });
-
 
 describe('MediaHandler Extra Coverage', () => {
   const options = {
@@ -70,14 +81,17 @@ describe('MediaHandler Extra Coverage', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockValidateFileAccess.mockResolvedValue({ success: true, path: '/mocked/path' });
+    mockValidateFileAccess.mockResolvedValue({
+      success: true,
+      path: '/mocked/path',
+    });
 
     // Default stream mock
     const pass = new PassThrough();
     pass.end('data');
     mockGetStream.mockResolvedValue({
-        stream: pass,
-        length: 100
+      stream: pass,
+      length: 100,
     });
 
     mockIsDrivePath.mockReturnValue(false);
@@ -127,7 +141,9 @@ describe('MediaHandler Extra Coverage', () => {
     const app = createMediaApp(options);
     mockGetStream.mockRejectedValue(new Error('Access denied'));
 
-    const res = await request(app).get(MediaRoutes.STREAM).query({ file: 'video.mp4' });
+    const res = await request(app)
+      .get(MediaRoutes.STREAM)
+      .query({ file: 'video.mp4' });
 
     expect(res.status).toBe(403);
     expect(res.text).toBe('Access denied.');
@@ -139,7 +155,9 @@ describe('MediaHandler Extra Coverage', () => {
     const app = createMediaApp(options);
     mockGetStream.mockRejectedValue(new Error('Random Error'));
 
-    const res = await request(app).get(MediaRoutes.STREAM).query({ file: 'video.mp4' });
+    const res = await request(app)
+      .get(MediaRoutes.STREAM)
+      .query({ file: 'video.mp4' });
 
     expect(res.status).toBe(500);
     expect(res.text).toBe('Error initializing source');
@@ -147,7 +165,9 @@ describe('MediaHandler Extra Coverage', () => {
 
   it('createMediaApp HEATMAP route executes successfully', async () => {
     const app = createMediaApp(options);
-    const res = await request(app).get(MediaRoutes.HEATMAP).query({ file: 'video.mp4' });
+    const res = await request(app)
+      .get(MediaRoutes.HEATMAP)
+      .query({ file: 'video.mp4' });
     expect(res.status).toBe(200);
   });
 
@@ -160,7 +180,9 @@ describe('MediaHandler Extra Coverage', () => {
 
   it('createMediaApp Static file route handles Access denied error', async () => {
     const app = createMediaApp(options);
-    mockValidateFileAccess.mockRejectedValue(new Error('Access denied by policy'));
+    mockValidateFileAccess.mockRejectedValue(
+      new Error('Access denied by policy'),
+    );
     const res = await request(app).get('/some/file.mp4');
     expect(res.status).toBe(403);
     expect(res.text).toBe('Access denied.');
