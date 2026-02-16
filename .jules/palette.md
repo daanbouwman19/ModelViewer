@@ -145,3 +145,8 @@
 
 **Learning:** Found that `SmartPlaylistModal` lacked Escape key support for closing, which is a standard accessibility requirement for modals. Other modals might also be missing this.
 **Action:** When implementing or refactoring modals, always include an `Escape` key listener attached to the window or a focus trap that handles `Escape`.
+
+## 2026-02-15 - [Keyboard Accessible Sliders]
+
+**Learning:** Slider components (like `ProgressBar`) without keyboard support for standard keys (Home, End, PageUp, PageDown) are frustrating for keyboard users who expect these shortcuts to work for fine and coarse adjustments.
+**Action:** Always implement `keydown` handlers for `Home` (min), `End` (max), `PageUp` (+large step), and `PageDown` (-large step) on custom sliders, and ensure `stopPropagation` is called to prevent conflicts with global shortcuts.
