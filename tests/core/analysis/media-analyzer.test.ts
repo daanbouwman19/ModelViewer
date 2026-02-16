@@ -556,7 +556,7 @@ describe('MediaAnalyzer', () => {
       vi.advanceTimersByTime(2 * 60 * 1000 + 1000);
 
       await expect(promise).rejects.toThrow('Heatmap generation timed out');
-      expect(mockProcess.kill).toHaveBeenCalledWith('SIGKILL');
+      expect((mockProcess as any).kill).toHaveBeenCalledWith('SIGKILL');
     });
   });
 
