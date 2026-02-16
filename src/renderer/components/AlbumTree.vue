@@ -187,7 +187,7 @@ const selectionState = computed(() => {
   let selectedCount = 0;
   const len = allChildrenIds.length;
   for (let i = 0; i < len; i++) {
-    if (props.selection[allChildrenIds[i]]) {
+    if (props.selection[allChildrenIds[i]] === true) {
       selectedCount++;
     }
   }
