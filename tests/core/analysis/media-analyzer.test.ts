@@ -54,9 +54,9 @@ describe('MediaAnalyzer', () => {
   // We need to wait for enough ticks to ensure all async operations (queues, file reads)
   // have proceeded to the point where spawn is called.
   const flushPromises = async () => {
-    await new Promise((resolve) => process.nextTick(resolve));
-    await new Promise((resolve) => process.nextTick(resolve));
-    await new Promise((resolve) => process.nextTick(resolve));
+    for (let i = 0; i < 3; i++) {
+      await new Promise((resolve) => process.nextTick(resolve));
+    }
   };
 
   beforeEach(() => {
@@ -343,24 +343,21 @@ describe('MediaAnalyzer', () => {
     expect(result.audio[0]).toBe(-20);
   });
 
-  it('should sanitize points parameter', async () => {
-    setupMockSpawn({ exitCode: 0 });
+  it.each([
+    { name: 'NaN', file: 'file1', input: NaN, expected: 100 },
+    { name: 'Min', file: 'file2', input: 0, expected: 1 },
+    { name: 'Max', file: 'file3', input: 2000, expected: 1000 },
+  ])(
+    'should sanitize points parameter for $name',
+    async ({ file, input, expected }) => {
+      setupMockSpawn({ exitCode: 0 });
 
-    const p1 = analyzer.generateHeatmap('file1', NaN);
-    await flushPromises();
-    vi.runAllTimers();
-    await expect(p1).resolves.toHaveProperty('points', 100);
-
-    const p2 = analyzer.generateHeatmap('file2', 0);
-    await flushPromises();
-    vi.runAllTimers();
-    await expect(p2).resolves.toHaveProperty('points', 1);
-
-    const p3 = analyzer.generateHeatmap('file3', 2000);
-    await flushPromises();
-    vi.runAllTimers();
-    await expect(p3).resolves.toHaveProperty('points', 1000);
-  });
+      const promise = analyzer.generateHeatmap(file, input);
+      await flushPromises();
+      vi.runAllTimers();
+      await expect(promise).resolves.toHaveProperty('points', expected);
+    },
+  );
 
   it('should reject on unexpected parsing error', async () => {
     const spy = vi.spyOn(analyzer as any, 'resample').mockImplementation(() => {
