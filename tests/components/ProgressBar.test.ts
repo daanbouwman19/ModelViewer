@@ -30,7 +30,6 @@ describe('ProgressBar', () => {
     await wrapper
       .find('.progress-container')
       .trigger('keydown', { key: 'Home' });
-    // This should fail until implemented
     expect(wrapper.emitted('seek')?.[0]).toEqual([0]);
   });
 
@@ -41,7 +40,6 @@ describe('ProgressBar', () => {
     await wrapper
       .find('.progress-container')
       .trigger('keydown', { key: 'End' });
-    // This should fail until implemented
     expect(wrapper.emitted('seek')?.[0]).toEqual([100]);
   });
 
@@ -52,7 +50,6 @@ describe('ProgressBar', () => {
     await wrapper
       .find('.progress-container')
       .trigger('keydown', { key: 'PageUp' });
-    // This should fail until implemented
     expect(wrapper.emitted('seek')?.[0]).toEqual([20]); // 10 + 10 (10% of 100)
   });
 
@@ -63,7 +60,6 @@ describe('ProgressBar', () => {
     await wrapper
       .find('.progress-container')
       .trigger('keydown', { key: 'PageDown' });
-    // This should fail until implemented
     expect(wrapper.emitted('seek')?.[0]).toEqual([10]); // 20 - 10 (10% of 100)
   });
 });

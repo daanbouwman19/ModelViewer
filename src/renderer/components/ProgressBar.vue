@@ -294,48 +294,44 @@ const handleKeyDown = (event: KeyboardEvent) => {
   const step = 5; // seconds
   let newTime = props.currentTime;
 
-  // Prevent default scrolling for handled keys
-  // Stop propagation to prevent conflict with global shortcuts
-  switch (event.key) {
-    case 'ArrowRight':
-      event.preventDefault();
-      event.stopPropagation();
-      newTime = Math.min(props.duration, props.currentTime + step);
-      emit('seek', newTime);
-      break;
-    case 'ArrowLeft':
-      event.preventDefault();
-      event.stopPropagation();
-      newTime = Math.max(0, props.currentTime - step);
-      emit('seek', newTime);
-      break;
-    case 'Home':
-      event.preventDefault();
-      event.stopPropagation();
-      emit('seek', 0);
-      break;
-    case 'End':
-      event.preventDefault();
-      event.stopPropagation();
-      emit('seek', props.duration);
-      break;
-    case 'PageUp':
-      event.preventDefault();
-      event.stopPropagation();
-      // Seek forward 10%
-      newTime = Math.min(
-        props.duration,
-        props.currentTime + props.duration * 0.1,
-      );
-      emit('seek', newTime);
-      break;
-    case 'PageDown':
-      event.preventDefault();
-      event.stopPropagation();
-      // Seek backward 10%
-      newTime = Math.max(0, props.currentTime - props.duration * 0.1);
-      emit('seek', newTime);
-      break;
+  const handledKeys = [
+    'ArrowRight',
+    'ArrowLeft',
+    'Home',
+    'End',
+    'PageUp',
+    'PageDown',
+  ];
+
+  if (handledKeys.includes(event.key)) {
+    // Prevent default scrolling and stop propagation to avoid conflicts with global shortcuts
+    event.preventDefault();
+    event.stopPropagation();
+
+    switch (event.key) {
+      case 'ArrowRight':
+        newTime = Math.min(props.duration, props.currentTime + step);
+        break;
+      case 'ArrowLeft':
+        newTime = Math.max(0, props.currentTime - step);
+        break;
+      case 'Home':
+        newTime = 0;
+        break;
+      case 'End':
+        newTime = props.duration;
+        break;
+      case 'PageUp':
+        newTime = Math.min(
+          props.duration,
+          props.currentTime + props.duration * 0.1,
+        );
+        break;
+      case 'PageDown':
+        newTime = Math.max(0, props.currentTime - props.duration * 0.1);
+        break;
+    }
+    emit('seek', newTime);
   }
 };
 </script>
