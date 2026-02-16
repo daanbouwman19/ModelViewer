@@ -381,16 +381,17 @@ const showTime = computed(() => {
 const timeDisplayMode = ref<'total' | 'remaining'>('total');
 
 const formattedTime = computed(() => {
-  const current = formatTime(props.currentTime || 0);
+  const currentTime = props.currentTime || 0;
+  const duration = props.duration || 0;
+  const current = formatTime(currentTime);
+
   if (timeDisplayMode.value === 'remaining') {
-    const remaining = Math.max(
-      0,
-      (props.duration || 0) - (props.currentTime || 0),
-    );
+    const remaining = Math.max(0, duration - currentTime);
     const remainingStr = formatTime(remaining);
     return `${current} / -${remainingStr}`;
   }
-  const total = formatTime(props.duration || 0);
+
+  const total = formatTime(duration);
   return `${current} / ${total}`;
 });
 

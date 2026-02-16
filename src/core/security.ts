@@ -378,12 +378,19 @@ function checkPathRestrictions(
   let normalized: string;
   try {
     // Attempt to resolve real path to handle symlinks (security bypass)
-    // Note: realpathSync uses native OS behavior, so it may fail if
-    // process.platform is mocked (e.g. testing Win32 on Linux).
-    normalized = realpathSync(path.resolve(dirPath));
+    // We only call realpathSync if the targeted platform matches the actual host platform
+    // to avoid host-specific resolution (e.g. '/' -> 'C:\') during tests.
+    const isHostWindows = path.sep === '\\';
+    const targetIsWindows = process.platform === 'win32';
+
+    if (targetIsWindows === isHostWindows) {
+      normalized = realpathSync(p.resolve(dirPath));
+    } else {
+      // Platform mismatch (likely a test), fall back to logical resolution
+      normalized = p.resolve(dirPath);
+    }
   } catch {
-    // Fallback if file doesn't exist (yet), permission denied,
-    // or if running in a test environment where platform is mocked.
+    // Fallback if file doesn't exist, permission denied, etc.
     normalized = p.resolve(dirPath);
   }
 
