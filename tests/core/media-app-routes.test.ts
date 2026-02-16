@@ -56,7 +56,7 @@ vi.mock('../../src/core/analysis/media-analyzer', () => ({
 }));
 
 vi.mock('../../src/core/rate-limiter', () => ({
-  createRateLimiter: () => (req, res, next) => next(),
+  createRateLimiter: () => (_req: any, _res: any, next: any) => next(),
 }));
 
 vi.mock('../../src/core/security', async (importOriginal) => {
