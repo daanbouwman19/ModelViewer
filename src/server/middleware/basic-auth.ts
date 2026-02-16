@@ -36,39 +36,37 @@ export function basicAuthMiddleware(
   const login = credentials.substring(0, idx);
   const password = credentials.substring(idx + 1);
 
-  // Address CodeQL Warning: Use HMAC-SHA256 for secure constant-time comparison.
-  // Using a fixed salt/key for the HMAC ensures deterministic output for the same input
-  // within the same process lifetime, but prevents simple hash attacks if the DB were leaked (not applicable here).
-  // More importantly, it satisfies static analysis tools that flag raw SHA-256 on passwords.
-  // We use a random ephemeral key per process restart to further secure the comparison in memory.
-  const hmacKey = getHmacKey();
+  // Address CodeQL Warning: Avoid hashing passwords with fast hashes.
+  // Instead, use direct timing-safe comparison on buffers.
+  // We handle length differences manually to ensure constant time relative to the expected credential length.
 
-  const expectedUserHash = crypto
-    .createHmac('sha256', hmacKey)
-    .update(user)
-    .digest();
-  const actualUserHash = crypto
-    .createHmac('sha256', hmacKey)
-    .update(login)
-    .digest();
-  const expectedPassHash = crypto
-    .createHmac('sha256', hmacKey)
-    .update(pass)
-    .digest();
-  const actualPassHash = crypto
-    .createHmac('sha256', hmacKey)
-    .update(password)
-    .digest();
+  const userBuf = Buffer.from(user);
+  const passBuf = Buffer.from(pass);
+  const loginBuf = Buffer.from(login);
+  const passwordBuf = Buffer.from(password);
 
-  // Use timingSafeEqual on fixed-length HMACs
   let valid = true;
 
-  if (!crypto.timingSafeEqual(actualUserHash, expectedUserHash)) {
+  // Compare User
+  if (loginBuf.length !== userBuf.length) {
     valid = false;
+    // Burn time consistent with comparison
+    crypto.timingSafeEqual(userBuf, userBuf);
+  } else {
+    if (!crypto.timingSafeEqual(loginBuf, userBuf)) {
+      valid = false;
+    }
   }
 
-  if (!crypto.timingSafeEqual(actualPassHash, expectedPassHash)) {
+  // Compare Password
+  if (passwordBuf.length !== passBuf.length) {
     valid = false;
+    // Burn time consistent with comparison
+    crypto.timingSafeEqual(passBuf, passBuf);
+  } else {
+    if (!crypto.timingSafeEqual(passwordBuf, passBuf)) {
+      valid = false;
+    }
   }
 
   if (valid) {
@@ -76,15 +74,6 @@ export function basicAuthMiddleware(
   }
 
   return sendUnauthorized(res);
-}
-
-// Generate a random key once per process startup for HMAC operations
-let _hmacKey: Buffer | null = null;
-function getHmacKey(): Buffer {
-  if (!_hmacKey) {
-    _hmacKey = crypto.randomBytes(32);
-  }
-  return _hmacKey;
 }
 
 // Address Comment 2811708621: Extract 401 response logic helper

@@ -15,6 +15,7 @@ import { createRateLimiter } from '../../core/rate-limiter.ts';
 
 export interface RateLimiters {
   authLimiter: ReturnType<typeof createRateLimiter>;
+  basicAuthLimiter: ReturnType<typeof createRateLimiter>;
   writeLimiter: ReturnType<typeof createRateLimiter>;
   readLimiter: ReturnType<typeof createRateLimiter>;
   fileLimiter: ReturnType<typeof createRateLimiter>;
@@ -26,6 +27,14 @@ export function createRateLimiters(): RateLimiters {
     RATE_LIMIT_AUTH_WINDOW_MS,
     RATE_LIMIT_AUTH_MAX_REQUESTS,
     'Too many auth attempts. Please try again later.',
+  );
+
+  // Specific limiter for Basic Auth that only counts failed attempts
+  const basicAuthLimiter = createRateLimiter(
+    RATE_LIMIT_AUTH_WINDOW_MS,
+    RATE_LIMIT_AUTH_MAX_REQUESTS,
+    'Too many failed authentication attempts. Please try again later.',
+    { skipSuccessfulRequests: true },
   );
 
   const writeLimiter = createRateLimiter(
@@ -52,5 +61,12 @@ export function createRateLimiters(): RateLimiters {
     'Too many stream requests. Please slow down.',
   );
 
-  return { authLimiter, writeLimiter, readLimiter, fileLimiter, streamLimiter };
+  return {
+    authLimiter,
+    basicAuthLimiter,
+    writeLimiter,
+    readLimiter,
+    fileLimiter,
+    streamLimiter,
+  };
 }

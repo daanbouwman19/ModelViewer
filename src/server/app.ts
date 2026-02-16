@@ -98,7 +98,8 @@ export async function createApp() {
   const limiters = createRateLimiters();
 
   // Address Comment 2811709152: Apply authLimiter to Basic Auth to prevent brute-force
-  app.use(limiters.authLimiter);
+  // Use a specific limiter that skips successful requests to avoid blocking legitimate traffic
+  app.use(limiters.basicAuthLimiter);
   app.use(basicAuthMiddleware);
 
   const transcodeState = { current: 0 };
