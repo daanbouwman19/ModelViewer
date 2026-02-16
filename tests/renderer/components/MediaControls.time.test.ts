@@ -80,14 +80,8 @@ describe('MediaControls Time Display', () => {
     await wrapper.vm.$nextTick();
 
     // Find the time display
-    // Initially we expect "0:10 / 1:10"
-    // Since we haven't modified the component yet, it will fail to find the button if we search for it explicitly as a button with our data-testid
-    // But for TDD, we can write the test assuming the change is made, or inspect the div currently.
-    // Let's write the test assuming the change.
-
     const timeDisplay = wrapper.find('[data-testid="time-display"]');
 
-    // If we run this before modification, it should fail to find the element or fail the text content check if logic differs.
     expect(timeDisplay.exists()).toBe(true);
     expect(timeDisplay.text()).toBe('00:10 / 01:10');
     expect(timeDisplay.attributes('title')).toBe('Show remaining time');

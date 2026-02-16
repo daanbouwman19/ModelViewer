@@ -151,7 +151,7 @@
 **Learning:** Slider components (like `ProgressBar`) without keyboard support for standard keys (Home, End, PageUp, PageDown) are frustrating for keyboard users who expect these shortcuts to work for fine and coarse adjustments.
 **Action:** Always implement `keydown` handlers for `Home` (min), `End` (max), `PageUp` (+large step), and `PageDown` (-large step) on custom sliders, and ensure `stopPropagation` is called to prevent conflicts with global shortcuts.
 
-## 2025-02-18 - [Toggle Remaining Time Display]
+## 2026-02-16 - [Toggle Remaining Time Display]
 
 **Learning:** Users often want to know how much time is left in a video, not just the total duration. A static "Current / Total" display forces mental math.
 **Action:** Implemented a toggle on the time display in `MediaControls`. Clicking the time switches between "Total Duration" (e.g., `1:20 / 3:45`) and "Remaining Time" (e.g., `1:20 / -2:25`). The button uses `title` to hint the action while letting screen readers announce the dynamic text content.
