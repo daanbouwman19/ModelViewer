@@ -9,24 +9,25 @@ const FFMPEG_TRANSCODE_CRF = '23';
 const FFMPEG_INPUT_OPTIONS = ['-analyzeduration', '100M', '-probesize', '100M'];
 
 /**
- * Standard FFmpeg output options for transcoding to browser-compatible format (MP4/H.264).
+ * Common logging and banner options.
  */
-const FFMPEG_OUTPUT_OPTIONS = [
-  '-f',
-  'mp4',
-  '-vcodec',
+const FFMPEG_COMMON_ARGS = ['-hide_banner', '-loglevel', 'error'];
+
+/**
+ * Standard base codec arguments for H.264/AAC transcoding.
+ * Used for both direct streaming (MP4) and HLS.
+ */
+const FFMPEG_BASE_CODEC_ARGS = [
+  '-c:v',
   'libx264',
-  '-acodec',
+  '-c:a',
   'aac',
-  '-movflags',
-  'frag_keyframe+empty_moov',
   '-preset',
   FFMPEG_TRANSCODE_PRESET,
   '-crf',
   FFMPEG_TRANSCODE_CRF,
   '-pix_fmt',
   'yuv420p',
-  'pipe:1',
 ];
 
 export function isValidTimeFormat(time: string): boolean {
@@ -40,7 +41,7 @@ export function getTranscodeArgs(
   inputPath: string,
   startTime: string | undefined | null,
 ): string[] {
-  const args: string[] = ['-hide_banner', '-loglevel', 'error'];
+  const args: string[] = [...FFMPEG_COMMON_ARGS];
 
   if (startTime) {
     if (!isValidTimeFormat(startTime)) {
@@ -51,7 +52,12 @@ export function getTranscodeArgs(
 
   args.push(...FFMPEG_INPUT_OPTIONS);
   args.push('-i', inputPath);
-  args.push(...FFMPEG_OUTPUT_OPTIONS);
+
+  // Output options specific to MP4 streaming
+  args.push('-f', 'mp4');
+  args.push(...FFMPEG_BASE_CODEC_ARGS);
+  args.push('-movflags', 'frag_keyframe+empty_moov');
+  args.push('pipe:1');
 
   return args;
 }
@@ -61,9 +67,7 @@ export function getThumbnailArgs(
   cacheFile: string,
 ): string[] {
   return [
-    '-hide_banner',
-    '-loglevel',
-    'error',
+    ...FFMPEG_COMMON_ARGS,
     '-y',
     '-ss',
     '1',
@@ -168,23 +172,12 @@ export function getHlsTranscodeArgs(
   // -hls_segment_filename: naming pattern for segments
   // -f hls: HLS format
   return [
-    '-hide_banner',
-    '-loglevel',
-    'error',
+    ...FFMPEG_COMMON_ARGS,
     ...FFMPEG_INPUT_OPTIONS,
     '-i',
     inputPath,
     // Base video/audio codecs for HLS output
-    '-c:v',
-    'libx264',
-    '-c:a',
-    'aac',
-    '-preset',
-    FFMPEG_TRANSCODE_PRESET,
-    '-crf',
-    FFMPEG_TRANSCODE_CRF,
-    '-pix_fmt',
-    'yuv420p',
+    ...FFMPEG_BASE_CODEC_ARGS,
     '-g',
     '48', // GOP size. ~2 seconds at 24fps. helps seeking.
     '-sc_threshold',
