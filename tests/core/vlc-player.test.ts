@@ -89,9 +89,12 @@ describe('vlc-player unit tests', () => {
       );
     });
 
-    it('should prevent argument injection for filenames starting with hyphen', async () => {
+    it.each([
+      '--malicious-flag.mp4',
+      '-h.mp4',
+      '--fullscreen',
+    ])('should prevent argument injection for filename starting with hyphen: %s', async (maliciousFile) => {
       // Arrange
-      const maliciousFile = '--malicious-flag.mp4';
       mockAuthorizeFilePath.mockResolvedValue({ isAllowed: true });
       const mockChild = { unref: vi.fn(), on: vi.fn() };
       mockSpawn.mockReturnValue(mockChild);
