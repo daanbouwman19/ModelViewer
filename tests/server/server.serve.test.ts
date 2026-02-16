@@ -2,8 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../src/server/server';
 import { serveRawStream } from '../../src/core/media-handler';
-import { validateFileAccess } from '../../src/core/access-validator';
 import { createMediaSource } from '../../src/core/media-source';
+
+const { mockValidateFileAccess } = vi.hoisted(() => ({
+  mockValidateFileAccess: vi.fn(),
+}));
 
 // Mock dependencies
 vi.mock('../../src/core/database', () => ({
@@ -70,7 +73,14 @@ vi.mock('../../src/main/google-drive-service', () => ({
 }));
 
 vi.mock('../../src/core/access-validator', () => ({
-  validateFileAccess: vi.fn(),
+  validateFileAccess: mockValidateFileAccess,
+  handleAccessCheck: vi.fn((res, access) => {
+    if (!access.success) {
+      if (!res.headersSent) res.status(access.statusCode).send(access.error);
+      return true;
+    }
+    return false;
+  }),
 }));
 
 // Mock process.cwd to something stable
@@ -89,7 +99,7 @@ describe('Server Endpoint Security', () => {
       const filePath = '/unauthorized/file.mp4';
 
       // Mock validation to fail
-      vi.mocked(validateFileAccess).mockResolvedValue({
+      mockValidateFileAccess.mockResolvedValue({
         success: false,
         error: 'Access denied',
         statusCode: 403,
@@ -101,7 +111,7 @@ describe('Server Endpoint Security', () => {
 
       expect(response.status).toBe(403);
       // Should verify that validateFileAccess was called
-      expect(validateFileAccess).toHaveBeenCalledWith(filePath);
+      expect(mockValidateFileAccess).toHaveBeenCalledWith(filePath);
 
       // Should verify that createMediaSource was NOT called (short-circuit)
       expect(createMediaSource).not.toHaveBeenCalled();
@@ -112,14 +122,14 @@ describe('Server Endpoint Security', () => {
       const filePath = '/authorized/file.mp4';
 
       // Mock validation to pass
-      vi.mocked(validateFileAccess).mockResolvedValue({
+      mockValidateFileAccess.mockResolvedValue({
         success: true,
         path: filePath,
       });
 
       await request(app).get('/api/serve').query({ path: filePath });
 
-      expect(validateFileAccess).toHaveBeenCalledWith(filePath);
+      expect(mockValidateFileAccess).toHaveBeenCalledWith(filePath);
       expect(createMediaSource).toHaveBeenCalledWith(filePath);
       expect(serveRawStream).toHaveBeenCalled();
     });
@@ -128,23 +138,29 @@ describe('Server Endpoint Security', () => {
   describe('GET /api/video/heatmap', () => {
     it('should validate file access', async () => {
       const filePath = '/unauthorized/video.mp4';
-      vi.mocked(validateFileAccess).mockResolvedValue({
+      mockValidateFileAccess.mockResolvedValue({
         success: false,
         error: 'Access denied',
         statusCode: 403,
       });
+
+      // Since we mock validateFileAccess directly, and MediaHandler uses handleAccessCheck,
+      // we need to ensure handleAccessCheck behaves correctly given the mockValidateFileAccess return.
+      // However, handleAccessCheck is implemented in the real code, not mocked here unless we mock access-validator entirely.
+      // In this test file we did: vi.mock('../../src/core/access-validator', ...
+      // Let's check the mock implementation at the top of the file.
 
       const response = await request(app)
         .get('/api/video/heatmap')
         .query({ file: filePath });
 
       expect(response.status).toBe(403);
-      expect(validateFileAccess).toHaveBeenCalledWith(filePath);
+      expect(mockValidateFileAccess).toHaveBeenCalledWith(filePath);
     });
 
     it('should serve heatmap if authorized', async () => {
       const filePath = '/authorized/video.mp4';
-      vi.mocked(validateFileAccess).mockResolvedValue({
+      mockValidateFileAccess.mockResolvedValue({
         success: true,
         path: filePath,
       });

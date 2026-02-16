@@ -1,3 +1,4 @@
+import { Response } from 'express';
 import { authorizeFilePath, AuthorizationResult } from './security.ts';
 
 export type FileAccessResult =
@@ -24,4 +25,21 @@ export async function validateFileAccess(
     console.error('[Access] Validation error:', error);
     return { success: false, error: 'Internal server error.', statusCode: 500 };
   }
+}
+
+/**
+ * Helper to handle the response when access is denied.
+ * Returns true if access failed and response was handled, false otherwise.
+ */
+export function handleAccessCheck(
+  res: Response,
+  access: FileAccessResult,
+): boolean {
+  if (!access.success) {
+    if (!res.headersSent) {
+      res.status(access.statusCode).send(access.error);
+    }
+    return true;
+  }
+  return false;
 }

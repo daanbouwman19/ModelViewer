@@ -76,6 +76,13 @@ vi.mock('../../src/core/access-validator', async (importOriginal) => {
   return {
     ...actual,
     validateFileAccess: mockValidateFileAccess,
+    handleAccessCheck: vi.fn((res, access) => {
+      if (!access.success) {
+        if (!res.headersSent) res.status(access.statusCode).send(access.error);
+        return true;
+      }
+      return false;
+    }),
   };
 });
 

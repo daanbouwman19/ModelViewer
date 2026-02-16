@@ -9,26 +9,11 @@ import path from 'path';
 import fs from 'fs/promises';
 
 import { HlsManager } from './hls-manager.ts';
-import { validateFileAccess } from './access-validator.ts';
+import { validateFileAccess, handleAccessCheck } from './access-validator.ts';
 import { getQueryParam } from './utils/http-utils.ts';
 
 const HLS_BANDWIDTH = 2000000;
 const HLS_RESOLUTION = '1280x720';
-
-/**
- * Helper to validate file access.
- */
-async function ensureFileAccess(
-  res: Response,
-  filePath: string,
-): Promise<{ authorizedPath: string } | null> {
-  const access = await validateFileAccess(filePath);
-  if (!access.success) {
-    if (!res.headersSent) res.status(access.statusCode).send(access.error);
-    return null;
-  }
-  return { authorizedPath: access.path };
-}
 
 /**
  * Generates a session ID based on the file path.
@@ -45,8 +30,8 @@ export async function serveHlsMaster(
   res: Response,
   filePath: string,
 ) {
-  const access = await ensureFileAccess(res, filePath);
-  if (!access) return;
+  const access = await validateFileAccess(filePath);
+  if (handleAccessCheck(res, access)) return;
 
   const fileQuery = getQueryParam(req.query, 'file');
   const encodedFile = encodeURIComponent(fileQuery || '');
@@ -66,14 +51,15 @@ export async function serveHlsPlaylist(
   res: Response,
   filePath: string,
 ) {
-  const access = await ensureFileAccess(res, filePath);
-  if (!access) return;
+  const access = await validateFileAccess(filePath);
+  if (handleAccessCheck(res, access)) return;
+  const authorizedPath = access.success ? access.path : '';
 
-  const sessionId = generateSessionId(access.authorizedPath);
+  const sessionId = generateSessionId(authorizedPath);
 
   try {
     const hlsManager = HlsManager.getInstance();
-    await hlsManager.ensureSession(sessionId, access.authorizedPath);
+    await hlsManager.ensureSession(sessionId, authorizedPath);
 
     const sessionDir = hlsManager.getSessionDir(sessionId);
     if (!sessionDir) throw new Error('Session dir not found');
@@ -115,8 +101,9 @@ export async function serveHlsSegment(
   filePath: string,
   segmentName: string,
 ) {
-  const access = await ensureFileAccess(res, filePath);
-  if (!access) return;
+  const access = await validateFileAccess(filePath);
+  if (handleAccessCheck(res, access)) return;
+  const authorizedPath = access.success ? access.path : '';
 
   // Security check: segmentName must match the expected pattern strictly
   if (!/^segment_\d+\.ts$/.test(segmentName)) {
@@ -124,7 +111,7 @@ export async function serveHlsSegment(
     return;
   }
 
-  const sessionId = generateSessionId(access.authorizedPath);
+  const sessionId = generateSessionId(authorizedPath);
   const hlsManager = HlsManager.getInstance();
   const sessionDir = hlsManager.getSessionDir(sessionId);
 

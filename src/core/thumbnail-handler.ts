@@ -8,7 +8,7 @@ import {
 } from './media-utils.ts';
 import { getThumbnailArgs, runFFmpeg } from './utils/ffmpeg-utils.ts';
 import { getProvider } from './fs-provider-factory.ts';
-import { validateFileAccess } from './access-validator.ts';
+import { validateFileAccess, handleAccessCheck } from './access-validator.ts';
 
 let thumbnailQueue: InstanceType<typeof import('p-queue').default> | null =
   null;
@@ -106,11 +106,8 @@ export async function generateLocalThumbnail(
 ): Promise<void> {
   // Use validateFileAccess to enforce security and get realPath
   const access = await validateFileAccess(filePath);
-  if (!access.success) {
-    if (!res.headersSent) res.status(access.statusCode).send(access.error);
-    return;
-  }
-  const authorizedPath = access.path;
+  if (handleAccessCheck(res, access)) return;
+  const authorizedPath = access.success ? access.path : '';
 
   if (!ffmpegPath) {
     res.status(500).send('FFmpeg binary not found');
@@ -158,11 +155,8 @@ export async function serveThumbnail(
 ) {
   // [SECURITY] Validate access before checking cache to prevent IDOR on cached thumbnails
   const access = await validateFileAccess(filePath);
-  if (!access.success) {
-    if (!res.headersSent) res.status(access.statusCode).send(access.error);
-    return;
-  }
-  const authorizedPath = access.path;
+  if (handleAccessCheck(res, access)) return;
+  const authorizedPath = access.success ? access.path : '';
 
   // 1. Check Cache
   const cacheFile = getThumbnailCachePath(authorizedPath, cacheDir);

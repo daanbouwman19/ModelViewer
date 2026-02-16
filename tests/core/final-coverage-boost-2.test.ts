@@ -1,10 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MediaHandler } from '../../src/core/media-handler';
-import { validateFileAccess } from '../../src/core/access-validator';
+
+const { mockValidateFileAccess, mockHandleAccessCheck } = vi.hoisted(() => ({
+  mockValidateFileAccess: vi.fn(),
+  mockHandleAccessCheck: vi.fn(),
+}));
 
 // Mocks
 vi.mock('../../src/core/access-validator', () => ({
-  validateFileAccess: vi.fn(),
+  validateFileAccess: mockValidateFileAccess,
+  handleAccessCheck: mockHandleAccessCheck,
 }));
 
 vi.mock('../../src/core/analysis/media-analyzer', () => ({
@@ -24,10 +29,11 @@ describe('Final Coverage Boost Part 2', () => {
 
   describe('Media Handler Additional Coverage', () => {
     it('serveMetadata: handles missing ffmpegPath', async () => {
-      vi.mocked(validateFileAccess).mockResolvedValue({
+      mockValidateFileAccess.mockResolvedValue({
         success: true,
         path: '/local.mp4',
       });
+      mockHandleAccessCheck.mockReturnValue(false);
 
       const req = { query: { file: '/local.mp4' } } as any;
       const res = {
@@ -45,10 +51,11 @@ describe('Final Coverage Boost Part 2', () => {
     });
 
     it('serveHeatmap: handles error', async () => {
-      vi.mocked(validateFileAccess).mockResolvedValue({
+      mockValidateFileAccess.mockResolvedValue({
         success: true,
         path: '/local.mp4',
       });
+      mockHandleAccessCheck.mockReturnValue(false);
 
       const req = { query: { file: '/local.mp4' } } as any;
       const res = {
@@ -68,10 +75,11 @@ describe('Final Coverage Boost Part 2', () => {
     });
 
     it('serveHeatmapProgress: handles null progress (not found)', async () => {
-      vi.mocked(validateFileAccess).mockResolvedValue({
+      mockValidateFileAccess.mockResolvedValue({
         success: true,
         path: '/local.mp4',
       });
+      mockHandleAccessCheck.mockReturnValue(false);
 
       const req = { query: { file: '/local.mp4' } } as any;
       const res = {

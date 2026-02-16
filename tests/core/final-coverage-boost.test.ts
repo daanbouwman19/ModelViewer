@@ -11,6 +11,8 @@ const {
   mockSpawnProcess,
   mockWorkerClientInstance,
   mockMediaSource,
+  mockValidateFileAccess,
+  mockHandleAccessCheck,
 } = vi.hoisted(() => {
   const mockStatement = {
     run: vi.fn(),
@@ -63,6 +65,9 @@ const {
     getFFmpegInput: vi.fn().mockResolvedValue('/file.mp4'),
   };
 
+  const mockValidateFileAccess = vi.fn();
+  const mockHandleAccessCheck = vi.fn();
+
   return {
     mockDbInstance,
     mockStatement,
@@ -71,6 +76,8 @@ const {
     mockWorkerClientInstance,
     mockMediaSource,
     mockStream,
+    mockValidateFileAccess,
+    mockHandleAccessCheck,
   };
 });
 
@@ -114,7 +121,8 @@ vi.mock('child_process', () => {
 
 // 5. Mock access-validator
 vi.mock('../../src/core/access-validator', () => ({
-  validateFileAccess: vi.fn(),
+  validateFileAccess: mockValidateFileAccess,
+  handleAccessCheck: mockHandleAccessCheck,
 }));
 
 // 6. Mock worker-client
@@ -162,7 +170,6 @@ import * as mediaService from '../../src/core/media-service';
 import * as mediaHandler from '../../src/core/media-handler';
 import * as mediaUtils from '../../src/core/media-utils';
 import { MediaRepository } from '../../src/core/repositories/media-repository';
-import { validateFileAccess } from '../../src/core/access-validator';
 
 describe('Final Coverage Boost', () => {
   beforeEach(() => {
@@ -179,10 +186,11 @@ describe('Final Coverage Boost', () => {
     mockStatement.get.mockReset();
 
     // Default valid access
-    vi.mocked(validateFileAccess).mockResolvedValue({
+    mockValidateFileAccess.mockResolvedValue({
       success: true,
       path: '/file.mp4',
     });
+    mockHandleAccessCheck.mockReturnValue(false);
 
     // Default fs.stat
     vi.mocked(fs.stat).mockResolvedValue({
@@ -406,10 +414,19 @@ describe('Final Coverage Boost', () => {
   // --- Media Handler Coverage ---
   describe('Media Handler Edge Cases', () => {
     it('sendAccessError: does not send if headers sent', async () => {
-      vi.mocked(validateFileAccess).mockResolvedValue({
+      mockValidateFileAccess.mockResolvedValue({
         success: false,
         statusCode: 403,
         error: 'Denied',
+      });
+      // Mock handleAccessCheck implementation for this test to replicate behavior
+      mockHandleAccessCheck.mockImplementation((res, access) => {
+        if (!access.success) {
+          if (!res.headersSent)
+            res.status(access.statusCode).send(access.error);
+          return true;
+        }
+        return false;
       });
 
       const req = { query: { file: '/test.mp4' } } as any;
@@ -430,10 +447,11 @@ describe('Final Coverage Boost', () => {
     });
 
     it('tryServeDirectFile: handles sendFile error', async () => {
-      vi.mocked(validateFileAccess).mockResolvedValue({
+      mockValidateFileAccess.mockResolvedValue({
         success: true,
         path: '/local/file.mp4',
       });
+      mockHandleAccessCheck.mockReturnValue(false);
 
       const req = {
         query: { file: '/local/file.mp4' },
@@ -463,10 +481,11 @@ describe('Final Coverage Boost', () => {
     });
 
     it('processStream: handles missing ffmpegPath when forced', async () => {
-      vi.mocked(validateFileAccess).mockResolvedValue({
+      mockValidateFileAccess.mockResolvedValue({
         success: true,
         path: '/file.mp4',
       });
+      mockHandleAccessCheck.mockReturnValue(false);
 
       const req = { query: { file: '/file.mp4', transcode: 'true' } } as any;
       const res = {
@@ -486,10 +505,11 @@ describe('Final Coverage Boost', () => {
     });
 
     it('serveTranscodedStream: handles spawn error', async () => {
-      vi.mocked(validateFileAccess).mockResolvedValue({
+      mockValidateFileAccess.mockResolvedValue({
         success: true,
         path: '/file.mp4',
       });
+      mockHandleAccessCheck.mockReturnValue(false);
 
       const req = {
         query: { file: '/file.mp4', transcode: 'true' },
@@ -526,10 +546,11 @@ describe('Final Coverage Boost', () => {
     });
 
     it('serveMetadata: handles missing ffmpegPath', async () => {
-      vi.mocked(validateFileAccess).mockResolvedValue({
+      mockValidateFileAccess.mockResolvedValue({
         success: true,
         path: '/local.mp4',
       });
+      mockHandleAccessCheck.mockReturnValue(false);
       // Mock isDrivePath -> false
 
       const req = { query: { file: '/local.mp4' } } as any;
@@ -550,10 +571,11 @@ describe('Final Coverage Boost', () => {
     });
 
     it('serveHeatmap: handles error', async () => {
-      vi.mocked(validateFileAccess).mockResolvedValue({
+      mockValidateFileAccess.mockResolvedValue({
         success: true,
         path: '/local.mp4',
       });
+      mockHandleAccessCheck.mockReturnValue(false);
       // Mock MediaAnalyzer
       vi.mock('../../src/core/analysis/media-analyzer', () => ({
         MediaAnalyzer: {
