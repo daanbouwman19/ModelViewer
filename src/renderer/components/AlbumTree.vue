@@ -180,14 +180,22 @@ const selectionState = computed(() => {
   // We keep this logic in case visuals need to reflect selection state from elsewhere,
   // even if the checkbox is gone, we might highlight valid slideshow selections.
   const allChildrenIds = getAlbumAndChildrenIds(props.album);
-  const selectedChildrenIds = allChildrenIds.filter(
-    (id) => props.selection[id],
-  );
 
-  if (selectedChildrenIds.length === 0) {
+  // Bolt Optimization: Use a loop to count selected items instead of `filter` to avoid
+  // creating intermediate arrays. This significantly reduces memory pressure during
+  // frequent selection updates on large trees.
+  let selectedCount = 0;
+  const len = allChildrenIds.length;
+  for (let i = 0; i < len; i++) {
+    if (props.selection[allChildrenIds[i]]) {
+      selectedCount++;
+    }
+  }
+
+  if (selectedCount === 0) {
     return 'none';
   }
-  if (selectedChildrenIds.length === allChildrenIds.length) {
+  if (selectedCount === len) {
     return 'all';
   }
   return 'some';

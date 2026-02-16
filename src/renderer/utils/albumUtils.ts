@@ -89,10 +89,11 @@ export const collectTexturesRecursive = (album: Album): MediaFile[] => {
  * @param album - The album to start from.
  * @returns A flat list of album IDs.
  */
-export const getAlbumAndChildrenIds = (album: Album): string[] => {
+export const getAlbumAndChildrenIds = (album: Album): readonly string[] => {
   if (albumIdsCache.has(album)) {
-    // Return a copy to prevent mutation of the cache
-    return [...albumIdsCache.get(album)!];
+    // Bolt Optimization: Return cached instance directly to avoid array allocation/copy.
+    // Consumers must treat this as readonly.
+    return albumIdsCache.get(album)!;
   }
 
   const ids: string[] = [];
@@ -101,8 +102,7 @@ export const getAlbumAndChildrenIds = (album: Album): string[] => {
   }
 
   albumIdsCache.set(album, ids);
-  // Return a copy to match the behavior on cache hit (and just to be safe, though not strictly necessary if we never mutate the initial set)
-  return [...ids];
+  return ids;
 };
 
 /**

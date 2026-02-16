@@ -72,3 +72,8 @@
 
 **Learning:** Using unstable keys (like `row.startIndex + index`) inside a virtual scroller row forces Vue to destroy and recreate components on every scroll event, negating the benefits of virtualization for component instances.
 **Action:** Use stable keys relative to the row structure (e.g., column index) to allow Vue to recycle component instances and only update their props, significantly reducing GC and CPU overhead during scrolling.
+
+## 2026-02-21 - [Allocation-Free Iteration]
+
+**Learning:** `Array.prototype.filter` creates a new array allocation even if we only need the count. In recursive components (like `AlbumTree`), this adds up to significant GC pressure during high-frequency updates (selection).
+**Action:** Use a simple `for` loop to count items when the filtered array is not needed, especially in computed properties that run frequently.
