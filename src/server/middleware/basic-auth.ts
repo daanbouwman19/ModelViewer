@@ -38,38 +38,18 @@ export function basicAuthMiddleware(
 
   // Address CodeQL Warning: Avoid hashing passwords with fast hashes.
   // Instead, use direct timing-safe comparison on buffers.
-  // We handle length differences manually to ensure constant time relative to the expected credential length.
+  // UPDATE: Using SHA-256 for comparison ensures constant-time check without leaking length.
+  // We are not storing the hash, just using it for secure comparison.
 
-  const userBuf = Buffer.from(user);
-  const passBuf = Buffer.from(pass);
-  const loginBuf = Buffer.from(login);
-  const passwordBuf = Buffer.from(password);
+  const userHash = crypto.createHash('sha256').update(user).digest();
+  const passHash = crypto.createHash('sha256').update(pass).digest();
+  const loginHash = crypto.createHash('sha256').update(login).digest();
+  const passwordHash = crypto.createHash('sha256').update(password).digest();
 
-  let valid = true;
+  const userMatch = crypto.timingSafeEqual(userHash, loginHash);
+  const passMatch = crypto.timingSafeEqual(passHash, passwordHash);
 
-  // Compare User
-  if (loginBuf.length !== userBuf.length) {
-    valid = false;
-    // Burn time consistent with comparison
-    crypto.timingSafeEqual(userBuf, userBuf);
-  } else {
-    if (!crypto.timingSafeEqual(loginBuf, userBuf)) {
-      valid = false;
-    }
-  }
-
-  // Compare Password
-  if (passwordBuf.length !== passBuf.length) {
-    valid = false;
-    // Burn time consistent with comparison
-    crypto.timingSafeEqual(passBuf, passBuf);
-  } else {
-    if (!crypto.timingSafeEqual(passwordBuf, passBuf)) {
-      valid = false;
-    }
-  }
-
-  if (valid) {
+  if (userMatch && passMatch) {
     return next();
   }
 
