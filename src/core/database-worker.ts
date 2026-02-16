@@ -666,10 +666,8 @@ export async function filterProcessingNeeded(
       } else {
         // Pad the batch with nulls to use the cached statement
         // This avoids recompiling the statement for variable batch sizes
-        const args = new Array(SQL_BATCH_SIZE).fill(null);
-        for (let k = 0; k < batchPaths.length; k++) {
-          args[k] = batchPaths[k];
-        }
+        // Bolt Optimization: Use Object.assign for faster array copy
+        const args = Object.assign(new Array(SQL_BATCH_SIZE).fill(null), batchPaths);
         rows = statements.getSuccessfulPathsBatch.all(...args) as {
           file_path: string;
         }[];
