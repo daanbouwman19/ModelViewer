@@ -95,9 +95,11 @@ export async function createApp() {
 
   app.get('/favicon.ico', (_req, res) => res.status(204).end());
 
-  app.use(basicAuthMiddleware);
-
   const limiters = createRateLimiters();
+
+  // Address Comment 2811709152: Apply authLimiter to Basic Auth to prevent brute-force
+  app.use(limiters.authLimiter);
+  app.use(basicAuthMiddleware);
 
   const transcodeState = { current: 0 };
 

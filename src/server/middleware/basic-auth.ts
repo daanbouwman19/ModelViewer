@@ -23,41 +23,34 @@ export function basicAuthMiddleware(
   const match = authHeader.match(/^Basic (.+)$/);
 
   if (!match) {
-    res.set('WWW-Authenticate', 'Basic realm="Media Player"');
-    return res.status(401).send('Authentication required.');
+    return sendUnauthorized(res);
   }
 
   const credentials = Buffer.from(match[1], 'base64').toString();
   // Split on the FIRST colon only to support passwords with colons
   const idx = credentials.indexOf(':');
   if (idx === -1) {
-    res.set('WWW-Authenticate', 'Basic realm="Media Player"');
-    return res.status(401).send('Authentication required.');
+    return sendUnauthorized(res);
   }
 
   const login = credentials.substring(0, idx);
   const password = credentials.substring(idx + 1);
 
-  // Use timingSafeEqual to prevent timing attacks
-  const userBuffer = Buffer.from(user);
-  const passBuffer = Buffer.from(pass);
-  const loginBuffer = Buffer.from(login);
-  const passwordBuffer = Buffer.from(password);
+  // Address Comment 2811708282: Use SHA-256 hashing to prevent timing attacks based on length.
+  // We hash both the expected and provided credentials so they are always the same length (32 bytes).
+  const expectedUserHash = crypto.createHash('sha256').update(user).digest();
+  const actualUserHash = crypto.createHash('sha256').update(login).digest();
+  const expectedPassHash = crypto.createHash('sha256').update(pass).digest();
+  const actualPassHash = crypto.createHash('sha256').update(password).digest();
 
+  // Use timingSafeEqual on fixed-length hashes
   let valid = true;
 
-  // crypto.timingSafeEqual throws if lengths are different, so check length first.
-  if (
-    loginBuffer.length !== userBuffer.length ||
-    !crypto.timingSafeEqual(loginBuffer, userBuffer)
-  ) {
+  if (!crypto.timingSafeEqual(actualUserHash, expectedUserHash)) {
     valid = false;
   }
 
-  if (
-    passwordBuffer.length !== passBuffer.length ||
-    !crypto.timingSafeEqual(passwordBuffer, passBuffer)
-  ) {
+  if (!crypto.timingSafeEqual(actualPassHash, expectedPassHash)) {
     valid = false;
   }
 
@@ -65,6 +58,11 @@ export function basicAuthMiddleware(
     return next();
   }
 
+  return sendUnauthorized(res);
+}
+
+// Address Comment 2811708621: Extract 401 response logic helper
+function sendUnauthorized(res: Response) {
   res.set('WWW-Authenticate', 'Basic realm="Media Player"');
-  res.status(401).send('Authentication required.');
+  return res.status(401).send('Authentication required.');
 }
