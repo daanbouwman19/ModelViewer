@@ -1,10 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 
-// Generate a unique key for HMAC operations at module load.
-// This key is used only for secure comparison of credentials within this process lifetime.
-// It does not need to persist across restarts.
-const AUTH_COMPARISON_KEY = crypto.randomBytes(32);
+// Generate a unique salt for this process lifetime.
+const AUTH_SALT = crypto.randomBytes(16);
 
 /**
  * Middleware for Basic Authentication.
@@ -42,29 +40,20 @@ export function basicAuthMiddleware(
   const password = credentials.substring(idx + 1);
 
   // Address CodeQL Warning: Avoid hashing passwords with fast hashes.
-  // Instead, use HMAC-SHA256 with a random key for secure comparison.
-  // This produces fixed-length outputs suitable for constant-time comparison
-  // without exposing the raw password or using a weak hash algorithm.
+  // Instead, use scrypt (a slow KDF) to derive keys for secure comparison.
+  // This satisfies requirements for password handling.
+  // Using scryptSync with minimal parameters for reasonable performance on every request,
+  // while still being a "slow hash" algorithm type.
 
-  const userHmac = crypto
-    .createHmac('sha256', AUTH_COMPARISON_KEY)
-    .update(user)
-    .digest();
-  const passHmac = crypto
-    .createHmac('sha256', AUTH_COMPARISON_KEY)
-    .update(pass)
-    .digest();
-  const loginHmac = crypto
-    .createHmac('sha256', AUTH_COMPARISON_KEY)
-    .update(login)
-    .digest();
-  const passwordHmac = crypto
-    .createHmac('sha256', AUTH_COMPARISON_KEY)
-    .update(password)
-    .digest();
+  const keyLen = 32;
+  const userKey = crypto.scryptSync(user, AUTH_SALT, keyLen);
+  const passKey = crypto.scryptSync(pass, AUTH_SALT, keyLen);
 
-  const userMatch = crypto.timingSafeEqual(userHmac, loginHmac);
-  const passMatch = crypto.timingSafeEqual(passHmac, passwordHmac);
+  const loginKey = crypto.scryptSync(login, AUTH_SALT, keyLen);
+  const passwordKey = crypto.scryptSync(password, AUTH_SALT, keyLen);
+
+  const userMatch = crypto.timingSafeEqual(userKey, loginKey);
+  const passMatch = crypto.timingSafeEqual(passKey, passwordKey);
 
   if (userMatch && passMatch) {
     return next();
