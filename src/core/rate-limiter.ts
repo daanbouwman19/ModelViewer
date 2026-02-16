@@ -7,6 +7,7 @@ export function createRateLimiter(
   windowMs: number,
   max: number,
   message: string,
+  extraOptions?: Partial<Options>,
 ): RequestHandler {
   return rateLimit({
     windowMs,
@@ -25,6 +26,7 @@ export function createRateLimiter(
       );
       res.status(options.statusCode).json(options.message);
     },
+    ...extraOptions,
     // The `trustProxy` option should be at the top level. `validate` is for custom validation.
     // Setting to `false` uses the direct client IP. If deploying behind a reverse proxy,
     // this should be `true` and `app.set('trust proxy', 1)` should be configured in `server.ts`.

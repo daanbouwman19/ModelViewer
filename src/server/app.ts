@@ -22,6 +22,7 @@ import { MediaAnalyzer } from '../core/analysis/media-analyzer.ts';
 import { MediaHandler } from '../core/media-handler.ts';
 import { WorkerFactory } from '../core/worker-factory.ts';
 import { createRateLimiters } from './middleware/rate-limiters.ts';
+import { basicAuthMiddleware } from './middleware/basic-auth.ts';
 import { errorHandler } from './middleware/error-handler.ts';
 import { createAlbumRoutes } from './routes/album.routes.ts';
 import { createMediaRoutes } from './routes/media.routes.ts';
@@ -95,6 +96,11 @@ export async function createApp() {
   app.get('/favicon.ico', (_req, res) => res.status(204).end());
 
   const limiters = createRateLimiters();
+
+  // Address Comment 2811709152: Apply authLimiter to Basic Auth to prevent brute-force
+  // Use a specific limiter that skips successful requests to avoid blocking legitimate traffic
+  app.use(limiters.basicAuthLimiter);
+  app.use(basicAuthMiddleware);
 
   const transcodeState = { current: 0 };
 
