@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { validateFileAccess } from '../../src/core/access-validator';
+import {
+  validateFileAccess,
+  handleAccessCheck,
+} from '../../src/core/access-validator';
 
 const { mockAuthorizeFilePath } = vi.hoisted(() => ({
   mockAuthorizeFilePath: vi.fn(),
@@ -71,6 +74,51 @@ describe('access-validator unit tests', () => {
       success: false,
       error: 'Internal server error.',
       statusCode: 500,
+    });
+  });
+
+  describe('handleAccessCheck', () => {
+    it('returns false if access is successful', () => {
+      const res = {
+        headersSent: false,
+        status: vi.fn().mockReturnThis(),
+        send: vi.fn(),
+      } as any;
+      const result = handleAccessCheck(res, { success: true, path: '/file' });
+      expect(result).toBe(false);
+      expect(res.status).not.toHaveBeenCalled();
+    });
+
+    it('returns true and sends error response if access failed', () => {
+      const res = {
+        headersSent: false,
+        status: vi.fn().mockReturnThis(),
+        send: vi.fn(),
+      } as any;
+      const result = handleAccessCheck(res, {
+        success: false,
+        statusCode: 403,
+        error: 'Denied',
+      });
+      expect(result).toBe(true);
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.send).toHaveBeenCalledWith('Denied');
+    });
+
+    it('returns true but does not send response if headers sent', () => {
+      const res = {
+        headersSent: true,
+        status: vi.fn().mockReturnThis(),
+        send: vi.fn(),
+      } as any;
+      const result = handleAccessCheck(res, {
+        success: false,
+        statusCode: 403,
+        error: 'Denied',
+      });
+      expect(result).toBe(true);
+      expect(res.status).not.toHaveBeenCalled();
+      expect(res.send).not.toHaveBeenCalled();
     });
   });
 });
