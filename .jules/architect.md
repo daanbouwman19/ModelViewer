@@ -105,3 +105,9 @@
 **Smell:** `security.ts` contained hardcoded lists of sensitive file prefixes and SSH key names mixed within validation logic.
 **Insight:** Embedding configuration data (what files are sensitive) inside logic functions makes it harder to audit security rules and increases the risk of accidental modification during refactoring.
 **Prevention:** Move static configuration lists (like blocklists, allowlists, or thresholds) to `constants.ts` or a dedicated config file, keeping the logic functions pure and focused on behavior.
+
+## 2026-02-14 - Extracting Path Restriction Logic
+
+**Smell:** `src/core/security.ts` contained duplicated logic in `isRestrictedPath` and `isSensitiveDirectory` for normalizing paths, checking for sensitive segments, and platform-specific root matching.
+**Insight:** Platform-specific path logic (e.g., case sensitivity on Windows vs Linux) is error-prone when duplicated. Centralizing this into a helper (`checkPathRestrictions`) ensures consistency and reduces the risk of divergence.
+**Prevention:** When implementing security checks that vary by platform but share a core structure, extract the core logic into a helper function that accepts the variable configuration (e.g., the list of restricted roots).
