@@ -191,12 +191,25 @@
           ></div>
 
           <!-- Time Display In-Pill (Desktop/Tablet) -->
-          <div
+          <button
             v-if="!isImage && currentMediaItem && showTime"
-            class="text-[10px] md:text-xs font-mono text-white/80 min-w-[60px] md:min-w-[80px] text-center"
+            type="button"
+            class="text-[10px] md:text-xs font-mono text-white/80 min-w-[60px] md:min-w-[80px] text-center hover:text-white cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 rounded px-1"
+            :title="
+              timeDisplayMode === 'total'
+                ? 'Show remaining time'
+                : 'Show total duration'
+            "
+            :aria-label="
+              timeDisplayMode === 'total'
+                ? 'Show remaining time'
+                : 'Show total duration'
+            "
+            data-testid="time-display"
+            @click="toggleTimeDisplay"
           >
             {{ formattedTime }}
-          </div>
+          </button>
 
           <!-- Separator -->
           <div
@@ -370,11 +383,26 @@ const showTime = computed(() => {
   return containerWidth.value > SHOW_TIME_THRESHOLD;
 });
 
+const timeDisplayMode = ref<'total' | 'remaining'>('total');
+
 const formattedTime = computed(() => {
   const current = formatTime(props.currentTime || 0);
+  if (timeDisplayMode.value === 'remaining') {
+    const remaining = Math.max(
+      0,
+      (props.duration || 0) - (props.currentTime || 0),
+    );
+    const remainingStr = formatTime(remaining);
+    return `${current} / -${remainingStr}`;
+  }
   const total = formatTime(props.duration || 0);
   return `${current} / ${total}`;
 });
+
+const toggleTimeDisplay = () => {
+  timeDisplayMode.value =
+    timeDisplayMode.value === 'total' ? 'remaining' : 'total';
+};
 
 const heatmapData = ref<HeatmapData | null>(null);
 const watchedSegments = ref<{ start: number; end: number }[]>([]);
