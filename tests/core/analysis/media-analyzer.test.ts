@@ -176,9 +176,7 @@ describe('MediaAnalyzer', () => {
     await flushPromises();
     vi.runAllTimers();
 
-    await expect(promise).rejects.toThrow(
-      /FFmpeg process exited with code/,
-    );
+    await expect(promise).rejects.toThrow(/FFmpeg process exited with code/);
   });
 
   it('should resolve even if caching fails (write error)', async () => {
@@ -542,24 +540,24 @@ describe('MediaAnalyzer', () => {
     });
 
     it('should kill process on timeout', async () => {
-        (fs.readFile as any).mockRejectedValue(new Error('ENOENT'));
+      (fs.readFile as any).mockRejectedValue(new Error('ENOENT'));
 
-        const mockProcess = new EventEmitter();
-        (mockProcess as any).stdout = new EventEmitter();
-        (mockProcess as any).stderr = new EventEmitter();
-        (mockProcess as any).kill = vi.fn();
-        (spawn as any).mockReturnValue(mockProcess);
+      const mockProcess = new EventEmitter();
+      (mockProcess as any).stdout = new EventEmitter();
+      (mockProcess as any).stderr = new EventEmitter();
+      (mockProcess as any).kill = vi.fn();
+      (spawn as any).mockReturnValue(mockProcess);
 
-        const promise = analyzer.generateHeatmap('timeout.mp4', 10);
+      const promise = analyzer.generateHeatmap('timeout.mp4', 10);
 
-        await flushPromises();
+      await flushPromises();
 
-        // Fast-forward past the 2 minute timeout
-        vi.advanceTimersByTime(2 * 60 * 1000 + 1000);
+      // Fast-forward past the 2 minute timeout
+      vi.advanceTimersByTime(2 * 60 * 1000 + 1000);
 
-        await expect(promise).rejects.toThrow('Heatmap generation timed out');
-        expect(mockProcess.kill).toHaveBeenCalledWith('SIGKILL');
-      });
+      await expect(promise).rejects.toThrow('Heatmap generation timed out');
+      expect(mockProcess.kill).toHaveBeenCalledWith('SIGKILL');
+    });
   });
 
   describe('Error Scenarios', () => {
