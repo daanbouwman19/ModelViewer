@@ -200,11 +200,6 @@
                 ? 'Show remaining time'
                 : 'Show total duration'
             "
-            :aria-label="
-              timeDisplayMode === 'total'
-                ? 'Show remaining time'
-                : 'Show total duration'
-            "
             data-testid="time-display"
             @click="toggleTimeDisplay"
           >

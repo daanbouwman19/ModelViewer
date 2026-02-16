@@ -50,7 +50,9 @@ vi.mock('@/components/icons/ExpandIcon.vue', () => mockIcon);
 vi.mock('@/components/icons/VolumeUpIcon.vue', () => mockIcon);
 vi.mock('@/components/icons/VolumeOffIcon.vue', () => mockIcon);
 vi.mock('@/components/icons/SpinnerIcon.vue', () => mockIcon);
-vi.mock('@/components/ProgressBar.vue', () => ({ default: { template: '<div></div>' } }));
+vi.mock('@/components/ProgressBar.vue', () => ({
+  default: { template: '<div></div>' },
+}));
 
 describe('MediaControls Time Display', () => {
   // Mock getBoundingClientRect
