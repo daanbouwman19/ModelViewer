@@ -82,7 +82,11 @@
           v-if="viewMode === 'grid'"
           class="grow glass-panel md:rounded-xl overflow-hidden"
         />
-        <MediaDisplay v-else class="grow md:rounded-xl overflow-hidden" />
+        <MediaDisplay
+          v-else
+          class="grow md:rounded-xl overflow-hidden"
+          @open-shortcuts="isShortcutsModalOpen = true"
+        />
       </div>
     </main>
 

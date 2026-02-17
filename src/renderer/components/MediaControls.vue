@@ -213,6 +213,24 @@
             :class="{ 'hidden!': isNarrowView }"
           ></div>
 
+          <!-- Shortcuts -->
+          <button
+            v-if="!isImage && currentMediaItem"
+            class="p-1.5 md:p-2 rounded-full text-white transition-all duration-200 hover:bg-(--accent-color) focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0 hidden sm:block"
+            title="Keyboard Shortcuts (?)"
+            aria-label="Keyboard Shortcuts"
+            @click="$emit('open-shortcuts')"
+          >
+            <HelpIcon class="w-5 h-5 md:w-6 md:h-6" />
+          </button>
+
+          <!-- Separator -->
+          <div
+            v-if="!isImage && currentMediaItem"
+            class="w-px h-6 md:h-8 bg-white/10 mx-0.5 md:mx-2 shrink-0 hidden sm:block"
+            :class="{ 'hidden!': isNarrowView }"
+          ></div>
+
           <!-- Fullscreen -->
           <button
             v-if="!isImage && currentMediaItem"
@@ -241,6 +259,7 @@ import VolumeUpIcon from './icons/VolumeUpIcon.vue';
 import VolumeOffIcon from './icons/VolumeOffIcon.vue';
 import ExpandIcon from './icons/ExpandIcon.vue';
 import StarIcon from './icons/StarIcon.vue';
+import HelpIcon from './icons/HelpIcon.vue';
 import ProgressBar from './ProgressBar.vue';
 import type { MediaFile, HeatmapData } from '../../core/types';
 import { useUIStore } from '../composables/useUIStore';
@@ -501,6 +520,7 @@ defineEmits<{
   (e: 'seek', time: number): void;
   (e: 'scrub-start'): void;
   (e: 'scrub-end'): void;
+  (e: 'open-shortcuts'): void;
 }>();
 
 defineExpose({

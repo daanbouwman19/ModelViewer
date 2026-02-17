@@ -207,6 +207,7 @@
       @seek="handleSeek"
       @scrub-start="handleScrubStart"
       @scrub-end="handleScrubEnd"
+      @open-shortcuts="$emit('open-shortcuts')"
     />
   </div>
 </template>
@@ -242,6 +243,8 @@ import VRVideoPlayer from './VRVideoPlayer.vue'; // [NEW]
 import type { MediaFile } from '../../core/types';
 import { LEGACY_VIDEO_EXTENSIONS } from '../../core/constants';
 import { isMediaFileImage, isMediaFileVideo } from '../utils/mediaUtils';
+
+defineEmits(['open-shortcuts']);
 
 const libraryStore = useLibraryStore();
 const playerStore = usePlayerStore();

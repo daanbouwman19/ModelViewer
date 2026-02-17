@@ -155,3 +155,8 @@
 
 **Learning:** Users often want to know how much time is left in a video, not just the total duration. A static "Current / Total" display forces mental math.
 **Action:** Implemented a toggle on the time display in `MediaControls`. Clicking the time switches between "Total Duration" (e.g., `1:20 / 3:45`) and "Remaining Time" (e.g., `1:20 / -2:25`). The button uses `title` to hint the action while letting screen readers announce the dynamic text content.
+
+## 2026-02-17 - [Discoverable Keyboard Shortcuts]
+
+**Learning:** Keyboard shortcuts are powerful but useless if users don't know they exist. Relying on a hidden shortcut (like `?`) to show help is an anti-pattern.
+**Action:** Added a visible "Keyboard Shortcuts" button to the media controls. This ensures users can discover the functionality without knowing the secret handshake.
