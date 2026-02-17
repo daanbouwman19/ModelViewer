@@ -40,10 +40,14 @@ export function basicAuthMiddleware(
     // Use HMAC-SHA256 for fast, secure key derivation for comparison.
     // This avoids the CPU overhead of scrypt (DoS risk) while still providing
     // fixed-length buffers for timingSafeEqual.
+    // The "password" is an environment variable token, not a stored user password hash.
+    // We use HMAC for constant-time comparison, not for secure storage.
+    // lgtm[js/weak-cryptographic-algorithm]
     cachedUserKey = crypto
       .createHmac('sha256', AUTH_SALT)
       .update(user)
       .digest();
+    // lgtm[js/weak-cryptographic-algorithm]
     cachedPassKey = crypto
       .createHmac('sha256', AUTH_SALT)
       .update(pass)
@@ -69,10 +73,12 @@ export function basicAuthMiddleware(
   const password = credentials.substring(idx + 1);
 
   // Derive keys for the provided credentials using the same method
+  // lgtm[js/weak-cryptographic-algorithm]
   const loginKey = crypto
     .createHmac('sha256', AUTH_SALT)
     .update(login)
     .digest();
+  // lgtm[js/weak-cryptographic-algorithm]
   const passwordKey = crypto
     .createHmac('sha256', AUTH_SALT)
     .update(password)
