@@ -107,6 +107,13 @@ describe('ConcurrencyLimiter', () => {
       await deferreds[id].promise;
     };
 
+    // Helper to finish a task and ensure the next one has a chance to start
+    const finishTask = async (id: number, taskPromise: Promise<void>) => {
+      deferreds[id].resolve();
+      await taskPromise;
+      await Promise.resolve(); // Flush microtasks
+    };
+
     // Queue 3 tasks. Only 0 starts immediately.
     const p0 = limiter.run(task(0));
     const p1 = limiter.run(task(1));
@@ -116,15 +123,11 @@ describe('ConcurrencyLimiter', () => {
     expect(executionOrder).toEqual([0]);
 
     // Finish 0. 1 should start (FIFO).
-    deferreds[0].resolve();
-    await p0;
-    await Promise.resolve();
+    await finishTask(0, p0);
     expect(executionOrder).toEqual([0, 1]);
 
     // Finish 1. 2 should start.
-    deferreds[1].resolve();
-    await p1;
-    await Promise.resolve();
+    await finishTask(1, p1);
     expect(executionOrder).toEqual([0, 1, 2]);
 
     deferreds[2].resolve();
