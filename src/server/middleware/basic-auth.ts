@@ -4,6 +4,12 @@ import crypto from 'crypto';
 // Generate a unique salt for this process lifetime.
 const AUTH_SALT = crypto.randomBytes(16);
 
+// Cache for derived keys to avoid re-computation
+let cachedUser: string | undefined;
+let cachedPass: string | undefined;
+let cachedUserKey: Buffer | null = null;
+let cachedPassKey: Buffer | null = null;
+
 /**
  * Middleware for Basic Authentication.
  * Checks for `SYSTEM_USER` and `SYSTEM_PASSWORD` environment variables.
@@ -18,7 +24,30 @@ export function basicAuthMiddleware(
   const pass = process.env.SYSTEM_PASSWORD;
 
   if (!user || !pass) {
+    // Reset cache if credentials are removed
+    cachedUser = undefined;
+    cachedPass = undefined;
+    cachedUserKey = null;
+    cachedPassKey = null;
     return next();
+  }
+
+  // Update cache if credentials changed
+  if (user !== cachedUser || pass !== cachedPass) {
+    cachedUser = user;
+    cachedPass = pass;
+
+    // Use HMAC-SHA256 for fast, secure key derivation for comparison.
+    // This avoids the CPU overhead of scrypt (DoS risk) while still providing
+    // fixed-length buffers for timingSafeEqual.
+    cachedUserKey = crypto
+      .createHmac('sha256', AUTH_SALT)
+      .update(user)
+      .digest();
+    cachedPassKey = crypto
+      .createHmac('sha256', AUTH_SALT)
+      .update(pass)
+      .digest();
   }
 
   // Parse the Authorization header
@@ -39,21 +68,21 @@ export function basicAuthMiddleware(
   const login = credentials.substring(0, idx);
   const password = credentials.substring(idx + 1);
 
-  // Address CodeQL Warning: Avoid hashing passwords with fast hashes.
-  // Instead, use scrypt (a slow KDF) to derive keys for secure comparison.
-  // This satisfies requirements for password handling.
-  // Using scryptSync with minimal parameters for reasonable performance on every request,
-  // while still being a "slow hash" algorithm type.
+  // Derive keys for the provided credentials using the same method
+  const loginKey = crypto
+    .createHmac('sha256', AUTH_SALT)
+    .update(login)
+    .digest();
+  const passwordKey = crypto
+    .createHmac('sha256', AUTH_SALT)
+    .update(password)
+    .digest();
 
-  const keyLen = 32;
-  const userKey = crypto.scryptSync(user, AUTH_SALT, keyLen);
-  const passKey = crypto.scryptSync(pass, AUTH_SALT, keyLen);
-
-  const loginKey = crypto.scryptSync(login, AUTH_SALT, keyLen);
-  const passwordKey = crypto.scryptSync(password, AUTH_SALT, keyLen);
-
-  const userMatch = crypto.timingSafeEqual(userKey, loginKey);
-  const passMatch = crypto.timingSafeEqual(passKey, passwordKey);
+  // Safe comparison
+  const userMatch =
+    cachedUserKey && crypto.timingSafeEqual(cachedUserKey, loginKey);
+  const passMatch =
+    cachedPassKey && crypto.timingSafeEqual(cachedPassKey, passwordKey);
 
   if (userMatch && passMatch) {
     return next();

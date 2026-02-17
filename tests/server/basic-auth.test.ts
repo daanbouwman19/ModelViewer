@@ -125,4 +125,18 @@ describe('Basic Authentication Middleware', () => {
       .auth('admin', 'pass:word');
     expect(response.status).not.toBe(401);
   });
+
+  it('should deny access when credentials do not contain a colon', async () => {
+    process.env.SYSTEM_USER = 'admin';
+    process.env.SYSTEM_PASSWORD = 'password';
+
+    const app = await createApp();
+    const response = await request(app)
+      .get('/api/albums')
+      .set(
+        'Authorization',
+        'Basic ' + Buffer.from('invalidformat').toString('base64'),
+      );
+    expect(response.status).toBe(401);
+  });
 });
