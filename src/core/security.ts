@@ -20,6 +20,15 @@ export interface AuthorizationResult {
   message?: string;
 }
 
+// Bolt Optimization: Cache for authorization results to avoid redundant fs.realpath calls
+// and DB queries for high-frequency checks (e.g., HLS streaming).
+const authCache = new Map<string, { res: AuthorizationResult; time: number }>();
+const CACHE_TTL_MS = 5000;
+
+export function clearAuthCache() {
+  authCache.clear();
+}
+
 interface ErrnoException extends Error {
   errno?: number;
   code?: string;
@@ -116,29 +125,51 @@ export async function authorizeFilePath(
   const inputResult = validateInput(filePath);
   if (inputResult) return inputResult;
 
+  // Bolt Optimization: Check cache if using default media directories
+  if (!mediaDirectories) {
+    const cached = authCache.get(filePath);
+    if (cached && Date.now() - cached.time < CACHE_TTL_MS) {
+      return cached.res;
+    }
+  }
+
   const dirs = mediaDirectories || (await getMediaDirectories());
   const allowedPaths = dirs.map((d) => d.path);
 
+  let result: AuthorizationResult;
+
   if (isDrivePath(filePath)) {
-    return (
-      (await authorizeVirtualPath(filePath)) ?? {
+    result = (await authorizeVirtualPath(filePath)) ?? {
+      isAllowed: false,
+      message: 'Access denied',
+    };
+  } else {
+    const localResult = await authorizeLocalPath(filePath, allowedPaths);
+    if (localResult) {
+      result = localResult;
+    } else {
+      // No allowed directory produced a valid real path
+      console.warn(
+        `[Security] Access denied to file outside media directories: (resolved from ${filePath})`,
+      );
+      result = {
         isAllowed: false,
         message: 'Access denied',
-      }
-    );
+      };
+    }
   }
 
-  const localResult = await authorizeLocalPath(filePath, allowedPaths);
-  if (localResult) return localResult;
+  // Bolt Optimization: Cache result
+  if (!mediaDirectories) {
+    authCache.set(filePath, { res: result, time: Date.now() });
 
-  // No allowed directory produced a valid real path
-  console.warn(
-    `[Security] Access denied to file outside media directories: (resolved from ${filePath})`,
-  );
-  return {
-    isAllowed: false,
-    message: 'Access denied',
-  };
+    // Simple cleanup to prevent unbounded growth
+    if (authCache.size > 2000) {
+      authCache.clear();
+    }
+  }
+
+  return result;
 }
 
 /**
