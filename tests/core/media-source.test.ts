@@ -164,7 +164,11 @@ describe('media-source', () => {
 
   describe('DriveMediaSource', () => {
     const filePath = 'gdrive://123';
-    const source = new DriveMediaSource(filePath);
+    let source: DriveMediaSource;
+
+    beforeEach(() => {
+      source = new DriveMediaSource(filePath);
+    });
 
     it('getFFmpegInput delegates to InternalMediaProxy and appends extension', async () => {
       mockProxyGetUrlForFile.mockResolvedValue('http://proxy/123');
@@ -228,6 +232,50 @@ describe('media-source', () => {
     it('creates LocalMediaSource otherwise', () => {
       const s = createMediaSource('/local/path');
       expect(s).toBeInstanceOf(LocalMediaSource);
+    });
+  });
+
+  describe('MediaSource Efficiency', () => {
+    it('LocalMediaSource calls fs.stat only once (cached)', async () => {
+      const filePath = '/local/file.mp4';
+      const source = new LocalMediaSource(filePath);
+
+      // Mock authorization success
+      mockAuthorizeFilePath.mockResolvedValue({
+        isAllowed: true,
+        realPath: filePath,
+      });
+
+      // Mock fs.createReadStream
+      vi.spyOn(fs, 'createReadStream').mockReturnValue({
+        pipe: vi.fn(),
+      } as any);
+
+      // Call getSize
+      await source.getSize();
+      // Call getStream
+      await source.getStream();
+
+      // Verify fs.stat was called once (cached)
+      expect(fs.promises.stat).toHaveBeenCalledTimes(1);
+    });
+
+    it('DriveMediaSource calls getDriveFileMetadata only once (cached)', async () => {
+      const filePath = 'gdrive://123';
+      const source = new DriveMediaSource(filePath);
+
+      mockGetDriveFileMetadata.mockResolvedValue({
+        mimeType: 'video/mp4',
+        size: '1000',
+      });
+
+      // Call getSize
+      await source.getSize();
+      // Call getMimeType
+      await source.getMimeType();
+
+      // Verify getDriveFileMetadata was called once (cached)
+      expect(mockGetDriveFileMetadata).toHaveBeenCalledTimes(1);
     });
   });
 });

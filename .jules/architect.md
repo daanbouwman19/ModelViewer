@@ -111,3 +111,9 @@
 **Smell:** `src/core/security.ts` contained duplicated logic in `isRestrictedPath` and `isSensitiveDirectory` for normalizing paths, checking for sensitive segments, and platform-specific root matching.
 **Insight:** Platform-specific path logic (e.g., case sensitivity on Windows vs Linux) is error-prone when duplicated. Centralizing this into a helper (`checkPathRestrictions`) ensures consistency and reduces the risk of divergence.
 **Prevention:** When implementing security checks that vary by platform but share a core structure, extract the core logic into a helper function that accepts the variable configuration (e.g., the list of restricted roots).
+
+## 2026-02-15 - Caching Metadata in MediaSource
+
+**Smell:** `LocalMediaSource` and `DriveMediaSource` were performing redundant I/O operations (fs.stat / Google Drive API calls) for every method call (`getSize`, `getMimeType`, `getStream`), leading to inefficiency and potential rate limiting issues.
+**Insight:** Caching the promise of an expensive operation (memoization) ensures that the operation is performed only once per instance, even if multiple methods are called concurrently, improving performance and reliability.
+**Prevention:** When a class method performs an expensive I/O operation that is expected to return the same result during the instance's lifetime, memoize the result (or the promise) to avoid redundant calls.
