@@ -32,8 +32,8 @@ describe('ConcurrencyLimiter', () => {
     const p1 = limiter.run(task(1));
     const p2 = limiter.run(task(2));
 
-    // Yield to allow tasks to start
-    await new Promise((r) => setTimeout(r, 0));
+    // Yield to allow tasks to start (no setTimeout needed)
+    await Promise.resolve();
 
     // First two should be running
     expect(activeCount).toBe(2);
@@ -47,7 +47,7 @@ describe('ConcurrencyLimiter', () => {
     await p0;
 
     // Yield to allow queued task to start
-    await new Promise((r) => setTimeout(r, 0));
+    await Promise.resolve();
 
     // Third should have started now
     expect(taskStarted[2]).toBe(true);
@@ -60,6 +60,78 @@ describe('ConcurrencyLimiter', () => {
 
     await Promise.all([p1, p2]);
     expect(activeCount).toBe(0);
+  });
+
+  it('should execute tasks serially with maxConcurrency 1', async () => {
+    const limiter = new ConcurrencyLimiter(1);
+    const executionOrder: number[] = [];
+    const deferreds = [createDeferred(), createDeferred()];
+
+    const task = (id: number) => async () => {
+      executionOrder.push(id);
+      await deferreds[id].promise;
+      executionOrder.push(id + 10); // Finish marker
+    };
+
+    const p0 = limiter.run(task(0));
+    const p1 = limiter.run(task(1));
+
+    await Promise.resolve();
+
+    // Task 0 started
+    expect(executionOrder).toEqual([0]);
+
+    // Resolve task 0
+    deferreds[0].resolve();
+    await p0;
+
+    // Task 0 finished, Task 1 should start immediately after
+    await Promise.resolve();
+
+    expect(executionOrder).toEqual([0, 10, 1]);
+
+    // Resolve task 1
+    deferreds[1].resolve();
+    await p1;
+
+    expect(executionOrder).toEqual([0, 10, 1, 11]);
+  });
+
+  it('should process tasks in FIFO order', async () => {
+    const limiter = new ConcurrencyLimiter(1);
+    const executionOrder: number[] = [];
+    const deferreds = [createDeferred(), createDeferred(), createDeferred()];
+
+    const task = (id: number) => async () => {
+      executionOrder.push(id);
+      await deferreds[id].promise;
+    };
+
+    // Helper to finish a task and ensure the next one has a chance to start
+    const finishTask = async (id: number, taskPromise: Promise<void>) => {
+      deferreds[id].resolve();
+      await taskPromise;
+      await Promise.resolve(); // Flush microtasks
+    };
+
+    // Queue 3 tasks. Only 0 starts immediately.
+    const p0 = limiter.run(task(0));
+    const p1 = limiter.run(task(1));
+    const p2 = limiter.run(task(2));
+
+    await Promise.resolve();
+    expect(executionOrder).toEqual([0]);
+
+    // Finish 0. 1 should start (FIFO).
+    await finishTask(0, p0);
+    expect(executionOrder).toEqual([0, 1]);
+
+    // Finish 1. 2 should start.
+    await finishTask(1, p1);
+    expect(executionOrder).toEqual([0, 1, 2]);
+
+    deferreds[2].resolve();
+    await p2;
   });
 
   it('should process all tasks', async () => {
