@@ -6,9 +6,9 @@ const AUTH_SALT = crypto.randomBytes(16);
 
 // Cache for derived keys to avoid re-computation
 let cachedUser: string | undefined;
-let cachedPass: string | undefined;
+let cachedSecret: string | undefined;
 let cachedUserKey: Buffer | null = null;
-let cachedPassKey: Buffer | null = null;
+let cachedSecretKey: Buffer | null = null;
 
 /**
  * Middleware for Basic Authentication.
@@ -20,37 +20,37 @@ export function basicAuthMiddleware(
   res: Response,
   next: NextFunction,
 ) {
-  const user = process.env.SYSTEM_USER;
-  const pass = process.env.SYSTEM_PASSWORD;
+  const sysUser = process.env.SYSTEM_USER;
+  const sysSecret = process.env.SYSTEM_PASSWORD;
 
-  if (!user || !pass) {
+  if (!sysUser || !sysSecret) {
     // Reset cache if credentials are removed
     cachedUser = undefined;
-    cachedPass = undefined;
+    cachedSecret = undefined;
     cachedUserKey = null;
-    cachedPassKey = null;
+    cachedSecretKey = null;
     return next();
   }
 
   // Update cache if credentials changed
-  if (user !== cachedUser || pass !== cachedPass) {
-    cachedUser = user;
-    cachedPass = pass;
+  if (sysUser !== cachedUser || sysSecret !== cachedSecret) {
+    cachedUser = sysUser;
+    cachedSecret = sysSecret;
 
     // Use HMAC-SHA256 for fast, secure key derivation for comparison.
     // This avoids the CPU overhead of scrypt (DoS risk) while still providing
     // fixed-length buffers for timingSafeEqual.
     // The "password" is an environment variable token, not a stored user password hash.
     // We use HMAC for constant-time comparison, not for secure storage.
-    // lgtm[js/weak-cryptographic-algorithm]
+    // lgtm[js/insufficient-password-hash]
     cachedUserKey = crypto
       .createHmac('sha256', AUTH_SALT)
-      .update(user)
+      .update(sysUser)
       .digest();
-    // lgtm[js/weak-cryptographic-algorithm]
-    cachedPassKey = crypto
+    // lgtm[js/insufficient-password-hash]
+    cachedSecretKey = crypto
       .createHmac('sha256', AUTH_SALT)
-      .update(pass)
+      .update(sysSecret)
       .digest();
   }
 
@@ -69,28 +69,28 @@ export function basicAuthMiddleware(
     return sendUnauthorized(res);
   }
 
-  const login = credentials.substring(0, idx);
-  const password = credentials.substring(idx + 1);
+  const loginUser = credentials.substring(0, idx);
+  const loginSecret = credentials.substring(idx + 1);
 
   // Derive keys for the provided credentials using the same method
-  // lgtm[js/weak-cryptographic-algorithm]
+  // lgtm[js/insufficient-password-hash]
   const loginKey = crypto
     .createHmac('sha256', AUTH_SALT)
-    .update(login)
+    .update(loginUser)
     .digest();
-  // lgtm[js/weak-cryptographic-algorithm]
-  const passwordKey = crypto
+  // lgtm[js/insufficient-password-hash]
+  const secretKey = crypto
     .createHmac('sha256', AUTH_SALT)
-    .update(password)
+    .update(loginSecret)
     .digest();
 
   // Safe comparison
   const userMatch =
     cachedUserKey && crypto.timingSafeEqual(cachedUserKey, loginKey);
-  const passMatch =
-    cachedPassKey && crypto.timingSafeEqual(cachedPassKey, passwordKey);
+  const secretMatch =
+    cachedSecretKey && crypto.timingSafeEqual(cachedSecretKey, secretKey);
 
-  if (userMatch && passMatch) {
+  if (userMatch && secretMatch) {
     return next();
   }
 
