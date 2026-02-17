@@ -57,6 +57,8 @@ vi.mock('@/composables/useUIStore', () => ({
 }));
 
 describe('MediaControls.vue Shortcuts', () => {
+  let originalGetBoundingClientRect: any;
+
   beforeAll(() => {
     // Mock ResizeObserver
     global.ResizeObserver = class ResizeObserver {
@@ -68,7 +70,9 @@ describe('MediaControls.vue Shortcuts', () => {
       disconnect() {}
       unobserve() {}
     };
+
     // Mock getBoundingClientRect
+    originalGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
     Object.defineProperty(HTMLElement.prototype, 'getBoundingClientRect', {
       configurable: true,
       value: () => ({ width: 1000 }),
@@ -77,6 +81,12 @@ describe('MediaControls.vue Shortcuts', () => {
 
   afterAll(() => {
     delete (global as any).ResizeObserver;
+    if (originalGetBoundingClientRect) {
+      Object.defineProperty(HTMLElement.prototype, 'getBoundingClientRect', {
+        configurable: true,
+        value: originalGetBoundingClientRect,
+      });
+    }
   });
 
   const defaultProps = {

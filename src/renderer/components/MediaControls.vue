@@ -213,23 +213,23 @@
             :class="{ 'hidden!': isNarrowView }"
           ></div>
 
-          <!-- Shortcuts -->
-          <button
-            v-if="!isImage && currentMediaItem"
-            class="p-1.5 md:p-2 rounded-full text-white transition-all duration-200 hover:bg-(--accent-color) focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0 hidden sm:block"
-            title="Keyboard Shortcuts (?)"
-            aria-label="Keyboard Shortcuts"
-            @click="$emit('open-shortcuts')"
-          >
-            <HelpIcon class="w-5 h-5 md:w-6 md:h-6" />
-          </button>
+          <template v-if="!isImage && currentMediaItem">
+            <!-- Shortcuts -->
+            <button
+              class="p-1.5 md:p-2 rounded-full text-white transition-all duration-200 hover:bg-(--accent-color) focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:outline-none shrink-0 hidden sm:block"
+              title="Keyboard Shortcuts (?)"
+              aria-label="Keyboard Shortcuts"
+              @click="$emit('open-shortcuts')"
+            >
+              <HelpIcon class="w-5 h-5 md:w-6 md:h-6" />
+            </button>
 
-          <!-- Separator -->
-          <div
-            v-if="!isImage && currentMediaItem"
-            class="w-px h-6 md:h-8 bg-white/10 mx-0.5 md:mx-2 shrink-0 hidden sm:block"
-            :class="{ 'hidden!': isNarrowView }"
-          ></div>
+            <!-- Separator -->
+            <div
+              class="w-px h-6 md:h-8 bg-white/10 mx-0.5 md:mx-2 shrink-0 hidden sm:block"
+              :class="{ 'hidden!': isNarrowView }"
+            ></div>
+          </template>
 
           <!-- Fullscreen -->
           <button
