@@ -84,7 +84,7 @@ onUnmounted(() => {
 
 const visibleItems = computed(() => {
   const count = props.items.length;
-  if (count === 0) return [];
+  if (count === 0 || props.itemSize <= 0) return [];
 
   const size = props.itemSize;
   const buffer = bufferAmount.value;

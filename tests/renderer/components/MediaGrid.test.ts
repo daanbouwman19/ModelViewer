@@ -111,9 +111,6 @@ describe('MediaGrid.vue', () => {
   const mountGrid = () =>
     mount(MediaGrid, {
       // We do NOT stub VirtualScroller, we test integration.
-      // Or if we stub, we must stub it correctly matching the new component name.
-      // Given the error "Cannot call props on an empty VueWrapper", it means findComponent failed or wrapper is empty.
-      // It failed because we were looking for RecycleScrollerStub but the code now uses VirtualScroller.
     });
 
   it('renders "No media files found" when gridMediaFiles is empty', () => {
@@ -157,13 +154,23 @@ describe('MediaGrid.vue', () => {
     await wrapper.vm.$nextTick();
 
     const items = wrapper.findAll('.grid-item');
-    expect(items.length).toBeGreaterThan(0);
+    // With 2 items and plenty of space, both should be rendered.
+    expect(items).toHaveLength(2);
 
     // Check content of first item
     const img = items[0].find('img');
     expect(img.exists()).toBe(true);
     expect(img.attributes('src')).toContain(
       encodeURIComponent('/path/to/image1.jpg'),
+    );
+
+    // Bolt Optimization: Video items now render an img (thumbnail) by default
+    const videoImg = items[1].find('img');
+    expect(videoImg.exists()).toBe(true);
+    // It should point to the thumbnail generator output
+    expect(videoImg.attributes('src')).toContain('thumb');
+    expect(videoImg.attributes('src')).toContain(
+      encodeURIComponent('/path/to/video1.mp4'),
     );
   });
 
