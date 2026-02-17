@@ -46,14 +46,17 @@
             <template v-for="i in columnCount" :key="i">
               <!-- Check if item exists -->
               <MediaGridItem
-                v-if="allMediaFiles[row.startIndex + i - 1]"
-                :item="allMediaFiles[row.startIndex + i - 1]"
+                v-if="allMediaFiles[(row as GridRow).startIndex + i - 1]"
+                :item="allMediaFiles[(row as GridRow).startIndex + i - 1]"
                 :image-extensions-set="imageExtensionsSet"
                 :video-extensions-set="videoExtensionsSet"
                 :media-url-generator="mediaUrlGenerator"
                 :thumbnail-url-generator="thumbnailUrlGenerator"
                 :failed-image-paths="failedImagePaths"
-                @click="(item) => handleItemClick(item, row.startIndex + i - 1)"
+                @click="
+                  (item) =>
+                    handleItemClick(item, (row as GridRow).startIndex + i - 1)
+                "
               />
             </template>
           </div>
@@ -105,7 +108,8 @@ const {
 // Reactive reference to the full list from state
 const allMediaFiles = computed(() => uiStore.state.gridMediaFiles);
 
-interface GridRow {
+// Extend Record<string, unknown> to satisfy VirtualScroller props
+interface GridRow extends Record<string, unknown> {
   id: string;
   startIndex: number;
 }

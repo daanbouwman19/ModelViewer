@@ -28,7 +28,8 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 
 const props = defineProps<{
-  items: any[];
+  // Use Record<string, unknown> instead of any to satisfy linter
+  items: Record<string, unknown>[];
   itemSize: number;
   keyField?: string;
   buffer?: number;
@@ -45,7 +46,8 @@ const totalHeight = computed(() => props.items.length * props.itemSize);
 
 let ticking = false;
 
-const handleScroll = (e: Event) => {
+// Remove unused 'e' parameter
+const handleScroll = () => {
   if (!ticking) {
     window.requestAnimationFrame(() => {
       if (scroller.value) {
@@ -64,7 +66,9 @@ onMounted(() => {
   if (scroller.value) {
     containerHeight.value = scroller.value.clientHeight;
     resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
+      // Direct access since we only observe one element
+      const entry = entries[0];
+      if (entry) {
         containerHeight.value = entry.contentRect.height;
       }
     });
@@ -107,7 +111,8 @@ const visibleItems = computed(() => {
       item,
       index: i,
       top: i * size,
-      key: key !== undefined ? key : i,
+      // Cast key to PropertyKey (string | number | symbol) to satisfy v-for :key type
+      key: (key !== undefined && key !== null ? key : i) as PropertyKey,
     });
   }
   return visible;

@@ -231,31 +231,34 @@ describe('VirtualScroller', () => {
 
   it('throttles scroll events', async () => {
     let frameCallback: FrameRequestCallback | null = null;
-    vi.stubGlobal('requestAnimationFrame', (fn: FrameRequestCallback) => {
+    const rAF = vi.fn((fn: FrameRequestCallback) => {
       frameCallback = fn;
       return 1;
     });
+    vi.stubGlobal('requestAnimationFrame', rAF);
 
     const wrapper = mount(VirtualScroller, {
-      props: { items: [], itemSize: 50 },
+      props: { items: generateItems(100), itemSize: 50 },
     });
+    await setContainerHeight(500);
+    await wrapper.vm.$nextTick();
 
-    const element = wrapper.element as HTMLElement;
-
-    // First scroll
+    // First scroll should schedule a frame
     await wrapper.trigger('scroll');
-    // ticking should be true
+    expect(rAF).toHaveBeenCalledTimes(1);
 
-    // Second scroll
+    // Second scroll should be ignored (throttled)
     await wrapper.trigger('scroll');
-    // Should be ignored (throttled)
+    expect(rAF).toHaveBeenCalledTimes(1);
 
-    // Execute frame
-    if (frameCallback) frameCallback(0);
-    // ticking should be false
+    // Execute the animation frame
+    if (frameCallback) {
+      (frameCallback as any)(0);
+    }
+    await wrapper.vm.$nextTick();
 
-    // Third scroll
+    // A new scroll should now schedule another frame
     await wrapper.trigger('scroll');
-    // Should be accepted
+    expect(rAF).toHaveBeenCalledTimes(2);
   });
 });
