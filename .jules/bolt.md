@@ -77,3 +77,8 @@
 
 **Learning:** Using `Array.prototype.filter` to count items (e.g., `arr.filter(pred).length`) is an anti-pattern in performance-critical paths because it allocates an entire new array just to discard it. This causes unnecessary GC pressure, especially in recursive components during high-frequency updates.
 **Action:** Use a simple `for` loop or `reduce` to count matching items without creating intermediate arrays.
+
+## 2026-02-17 - [Authorization Caching for Streaming]
+
+**Learning:** `authorizeFilePath` performs `fs.realpath` and database lookups (for `getMediaDirectories`) on every call. During HLS streaming, this is called for every segment (every few seconds), causing redundant I/O and DB overhead.
+**Action:** Implemented a short-lived (5s) LRU cache for `authorizeFilePath` results when using default media directories. This eliminates repetitive filesystem and database checks for sequential segment requests while maintaining reasonable security responsiveness.

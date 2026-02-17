@@ -20,6 +20,16 @@ export interface AuthorizationResult {
   message?: string;
 }
 
+// Bolt Optimization: Cache for authorization results to avoid redundant fs.realpath calls
+// and DB queries for high-frequency checks (e.g., HLS streaming).
+const authCache = new Map<string, { res: AuthorizationResult; time: number }>();
+const CACHE_TTL_MS = 5000;
+const CACHE_MAX_SIZE = 2000;
+
+export function clearAuthCache() {
+  authCache.clear();
+}
+
 interface ErrnoException extends Error {
   errno?: number;
   code?: string;
@@ -116,29 +126,63 @@ export async function authorizeFilePath(
   const inputResult = validateInput(filePath);
   if (inputResult) return inputResult;
 
+  // Bolt Optimization: Check cache if using default media directories
+  if (!mediaDirectories) {
+    const cached = authCache.get(filePath);
+    if (cached) {
+      if (Date.now() - cached.time < CACHE_TTL_MS) {
+        // LRU: Refresh position (delete and re-insert)
+        authCache.delete(filePath);
+        authCache.set(filePath, cached);
+        return cached.res;
+      }
+      // Expired: remove it
+      authCache.delete(filePath);
+    }
+  }
+
   const dirs = mediaDirectories || (await getMediaDirectories());
   const allowedPaths = dirs.map((d) => d.path);
 
+  let result: AuthorizationResult;
+
   if (isDrivePath(filePath)) {
-    return (
-      (await authorizeVirtualPath(filePath)) ?? {
+    result = (await authorizeVirtualPath(filePath)) ?? {
+      isAllowed: false,
+      message: 'Access denied',
+    };
+  } else {
+    const localResult = await authorizeLocalPath(filePath, allowedPaths);
+    if (localResult) {
+      result = localResult;
+    } else {
+      // No allowed directory produced a valid real path
+      console.warn(
+        `[Security] Access denied to file outside media directories: (resolved from ${filePath})`,
+      );
+      result = {
         isAllowed: false,
         message: 'Access denied',
-      }
-    );
+      };
+    }
   }
 
-  const localResult = await authorizeLocalPath(filePath, allowedPaths);
-  if (localResult) return localResult;
+  // Bolt Optimization: Cache result
+  if (!mediaDirectories) {
+    // Maintain LRU-like behavior: re-insert if exists to update order
+    if (authCache.has(filePath)) {
+      authCache.delete(filePath);
+    }
+    authCache.set(filePath, { res: result, time: Date.now() });
 
-  // No allowed directory produced a valid real path
-  console.warn(
-    `[Security] Access denied to file outside media directories: (resolved from ${filePath})`,
-  );
-  return {
-    isAllowed: false,
-    message: 'Access denied',
-  };
+    // Simple cleanup to prevent unbounded growth (evict oldest)
+    if (authCache.size > CACHE_MAX_SIZE) {
+      const firstKey = authCache.keys().next().value;
+      if (firstKey) authCache.delete(firstKey);
+    }
+  }
+
+  return result;
 }
 
 /**

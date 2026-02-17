@@ -5,6 +5,7 @@ import {
   escapeHtml,
   isRestrictedPath,
   isSensitiveDirectory,
+  clearAuthCache,
 } from '../../src/core/security';
 import path from 'path';
 import fs from 'fs/promises';
@@ -70,6 +71,7 @@ describe('filterAuthorizedPaths Security', () => {
 
 describe('authorizeFilePath Security', () => {
   beforeEach(() => {
+    clearAuthCache();
     vi.clearAllMocks();
     vi.mocked(database.getMediaDirectories).mockResolvedValue([
       {
@@ -234,6 +236,40 @@ describe('authorizeFilePath Security', () => {
     const okPath = 'a'.repeat(MAX_PATH_LENGTH);
     const resultOk = await authorizeFilePath(okPath);
     expect(resultOk.message).not.toBe('Invalid file path (too long)');
+  });
+
+  it('caches authorization results for short duration', async () => {
+    (vi.mocked(fs.realpath) as any).mockImplementation(async (p: string) => p);
+
+    // First call
+    const result1 = await authorizeFilePath('/allowed/video.mp4');
+    expect(result1.isAllowed).toBe(true);
+    expect(database.getMediaDirectories).toHaveBeenCalledTimes(1);
+
+    // Second call within TTL should use cache and not call getMediaDirectories
+    const result2 = await authorizeFilePath('/allowed/video.mp4');
+    expect(result2.isAllowed).toBe(true);
+    expect(database.getMediaDirectories).toHaveBeenCalledTimes(1);
+
+    // Call with explicit mediaDirectories should NOT use cache
+    const customDirs = [
+      {
+        path: '/allowed',
+        type: 'local',
+        id: '1',
+        name: 'Allowed',
+        isActive: true,
+      },
+    ] as any;
+
+    await authorizeFilePath('/allowed/video.mp4', customDirs);
+    // getMediaDirectories is not called because we provided dirs,
+    // but the cache should be bypassed (or updated, but since we provided args, we don't use cache)
+
+    // Verify cache clearing
+    clearAuthCache();
+    await authorizeFilePath('/allowed/video.mp4');
+    expect(database.getMediaDirectories).toHaveBeenCalledTimes(2);
   });
 });
 

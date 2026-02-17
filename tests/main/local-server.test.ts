@@ -9,6 +9,7 @@ import {
   getServerPort,
   getMimeType,
 } from '../../src/main/local-server';
+import { clearAuthCache } from '../../src/core/security';
 
 // Mock the database module
 vi.mock('../../src/core/database', () => ({
@@ -30,6 +31,7 @@ const stopServer = () =>
 
 describe('Local Server', () => {
   beforeEach(() => {
+    clearAuthCache();
     // Mock getMediaDirectories to return the process's current working directory
     // This allows tests to serve files from the test environment
     (getMediaDirectories as unknown as Mock).mockResolvedValue([
