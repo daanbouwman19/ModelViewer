@@ -252,13 +252,15 @@ describe('authorizeFilePath Security', () => {
     expect(database.getMediaDirectories).toHaveBeenCalledTimes(1);
 
     // Call with explicit mediaDirectories should NOT use cache
-    const customDirs = [{
+    const customDirs = [
+      {
         path: '/allowed',
         type: 'local',
         id: '1',
         name: 'Allowed',
         isActive: true,
-      }] as any;
+      },
+    ] as any;
 
     await authorizeFilePath('/allowed/video.mp4', customDirs);
     // getMediaDirectories is not called because we provided dirs,
