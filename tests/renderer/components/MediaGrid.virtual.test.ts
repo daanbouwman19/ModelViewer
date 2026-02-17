@@ -6,6 +6,7 @@ import { api } from '../../../src/renderer/api';
 import { useLibraryStore } from '../../../src/renderer/composables/useLibraryStore';
 import { usePlayerStore } from '../../../src/renderer/composables/usePlayerStore';
 import { useUIStore } from '../../../src/renderer/composables/useUIStore';
+import VirtualScroller from '../../../src/renderer/components/VirtualScroller.vue';
 
 // Mock dependencies
 vi.mock('../../../src/renderer/composables/useLibraryStore');
@@ -25,19 +26,6 @@ class ResizeObserverMock {
 (ResizeObserverMock as any).lastCallback = null;
 
 global.ResizeObserver = ResizeObserverMock as any;
-
-// Mock RecycleScroller
-const RecycleScrollerStub = {
-  name: 'RecycleScroller',
-  template: `
-    <div class="recycle-scroller-stub">
-      <div v-for="item in items" :key="item[keyField]">
-        <slot :item="item"></slot>
-      </div>
-    </div>
-  `,
-  props: ['items', 'itemSize', 'keyField'],
-};
 
 describe('MediaGrid.vue (Virtual Scrolling)', () => {
   let mockLibraryState: any;
@@ -91,13 +79,7 @@ describe('MediaGrid.vue (Virtual Scrolling)', () => {
   });
 
   it('renders "No media files" when list is empty', async () => {
-    const wrapper = mount(MediaGrid, {
-      global: {
-        components: {
-          RecycleScroller: RecycleScrollerStub,
-        },
-      },
-    });
+    const wrapper = mount(MediaGrid);
 
     await flushPromises();
     expect(wrapper.text()).toContain('No media files found');
@@ -111,13 +93,7 @@ describe('MediaGrid.vue (Virtual Scrolling)', () => {
     }));
     mockUIState.gridMediaFiles = items;
 
-    const wrapper = mount(MediaGrid, {
-      global: {
-        components: {
-          RecycleScroller: RecycleScrollerStub,
-        },
-      },
-    });
+    const wrapper = mount(MediaGrid);
 
     await flushPromises();
 
@@ -126,23 +102,30 @@ describe('MediaGrid.vue (Virtual Scrolling)', () => {
 
     // Simulate width < 640 (2 columns)
     observerCallback([
-      { contentRect: { width: 500 }, contentBoxSize: [{ inlineSize: 500 }] },
+      {
+        contentRect: { width: 500, height: 800 },
+        contentBoxSize: [{ inlineSize: 500 }],
+      },
     ]);
     await wrapper.vm.$nextTick();
 
     // With 10 items and 2 columns, we expect 5 rows
-    const scroller = wrapper.findComponent(RecycleScrollerStub);
+    const scroller = wrapper.findComponent(VirtualScroller);
+    expect(scroller.exists()).toBe(true);
     expect(scroller.props('items')).toHaveLength(5);
 
     // Simulate width > 1280 (5 columns)
     observerCallback([
-      { contentRect: { width: 1300 }, contentBoxSize: [{ inlineSize: 1300 }] },
+      {
+        contentRect: { width: 1300, height: 800 },
+        contentBoxSize: [{ inlineSize: 1300 }],
+      },
     ]);
     await wrapper.vm.$nextTick();
 
     // With 10 items and 5 columns, we expect 2 rows
     // Re-find component because :key change might have re-created it
-    const scrollerUpdated = wrapper.findComponent(RecycleScrollerStub);
+    const scrollerUpdated = wrapper.findComponent(VirtualScroller);
     expect(scrollerUpdated.props('items')).toHaveLength(2);
   });
 
@@ -153,13 +136,7 @@ describe('MediaGrid.vue (Virtual Scrolling)', () => {
     }));
     mockUIState.gridMediaFiles = items;
 
-    const wrapper = mount(MediaGrid, {
-      global: {
-        components: {
-          RecycleScroller: RecycleScrollerStub,
-        },
-      },
-    });
+    const wrapper = mount(MediaGrid);
 
     await flushPromises();
 
@@ -171,11 +148,14 @@ describe('MediaGrid.vue (Virtual Scrolling)', () => {
     // Item width = (968 - 32) / 3 = 312
     // Row height = 312 + 16 (gap) = 328
     observerCallback([
-      { contentRect: { width: 1000 }, contentBoxSize: [{ inlineSize: 1000 }] },
+      {
+        contentRect: { width: 1000, height: 800 },
+        contentBoxSize: [{ inlineSize: 1000 }],
+      },
     ]);
     await wrapper.vm.$nextTick();
 
-    const scroller = wrapper.findComponent(RecycleScrollerStub);
+    const scroller = wrapper.findComponent(VirtualScroller);
     const height = scroller.props('itemSize');
 
     expect(height).toBeCloseTo(328, 0);
@@ -185,13 +165,7 @@ describe('MediaGrid.vue (Virtual Scrolling)', () => {
     const item = { path: '/path/test.jpg', name: 'test.jpg' };
     mockUIState.gridMediaFiles = [item];
 
-    const wrapper = mount(MediaGrid, {
-      global: {
-        components: {
-          RecycleScroller: RecycleScrollerStub,
-        },
-      },
-    });
+    const wrapper = mount(MediaGrid);
 
     await flushPromises();
 
@@ -199,22 +173,18 @@ describe('MediaGrid.vue (Virtual Scrolling)', () => {
     // Trigger ResizeObserver first to ensure items are rendered
     const observerCallback = (ResizeObserverMock as any).lastCallback;
     observerCallback([
-      { contentRect: { width: 1000 }, contentBoxSize: [{ inlineSize: 1000 }] },
+      {
+        contentRect: { width: 1000, height: 800 },
+        contentBoxSize: [{ inlineSize: 1000 }],
+      },
     ]);
     await wrapper.vm.$nextTick();
     await wrapper.vm.$nextTick();
 
-    const btn = wrapper.find('button[aria-label="View test.jpg"]');
-    // If MediaGridItem uses aria-label, check MediaGridItem implementation.
-    // Assuming MediaGridItem has a button or clickable element.
-    // If not found, check selector. MediaGridItem uses MediaDisplay logic? No, it's a grid item.
-    // The previous test used `button[aria-label="View test.jpg"]` so presumably it exists.
-    if (!btn.exists()) {
-      const itemBtn = wrapper.find('.grid-item'); // Fallback selector
-      await itemBtn.trigger('click');
-    } else {
-      await btn.trigger('click');
-    }
+    // We can assume grid items are rendered.
+    const gridItems = wrapper.findAll('.grid-item');
+    expect(gridItems.length).toBeGreaterThan(0);
+    await gridItems[0].trigger('click');
 
     expect(mockPlayerState.currentMediaItem?.path).toBe(item.path);
     expect(mockUIState.viewMode).toBe('player');

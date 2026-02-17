@@ -6,6 +6,7 @@ import { api } from '../../../src/renderer/api';
 import { useLibraryStore } from '../../../src/renderer/composables/useLibraryStore';
 import { usePlayerStore } from '../../../src/renderer/composables/usePlayerStore';
 import { useUIStore } from '../../../src/renderer/composables/useUIStore';
+import VirtualScroller from '../../../src/renderer/components/VirtualScroller.vue';
 
 // Mock dependencies
 vi.mock('../../../src/renderer/composables/useLibraryStore');
@@ -26,19 +27,6 @@ class ResizeObserverMock {
   };
 }
 global.ResizeObserver = ResizeObserverMock as any;
-
-// Stub for RecycleScroller
-const RecycleScrollerStub = {
-  name: 'RecycleScroller',
-  template: `
-    <div class="recycle-scroller-stub">
-      <div v-for="item in items" :key="item[keyField]">
-        <slot :item="item"></slot>
-      </div>
-    </div>
-  `,
-  props: ['items', 'itemSize', 'keyField'],
-};
 
 describe('MediaGrid.vue Coverage', () => {
   let mockLibraryState: any;
@@ -97,14 +85,7 @@ describe('MediaGrid.vue Coverage', () => {
     );
   });
 
-  const mountGrid = () =>
-    mount(MediaGrid, {
-      global: {
-        components: {
-          RecycleScroller: RecycleScrollerStub,
-        },
-      },
-    });
+  const mountGrid = () => mount(MediaGrid);
 
   it('getExtension edge cases: no dot', async () => {
     mockUIState.gridMediaFiles = [
@@ -115,10 +96,14 @@ describe('MediaGrid.vue Coverage', () => {
 
     // Trigger Resize
     const calls = (ResizeObserverMock as any).mock.calls;
-    const observerCallback = calls[calls.length - 1][0];
-    observerCallback([
-      { contentRect: { width: 1000 }, contentBoxSize: [{ inlineSize: 1000 }] },
-    ]);
+    for (const call of calls) {
+      call[0]([
+        {
+          contentRect: { width: 1000, height: 800 },
+          contentBoxSize: [{ inlineSize: 1000 }],
+        },
+      ]);
+    }
     await wrapper.vm.$nextTick();
 
     expect(wrapper.find('img').exists()).toBe(false);
@@ -134,10 +119,14 @@ describe('MediaGrid.vue Coverage', () => {
 
     // Trigger Resize
     const calls = (ResizeObserverMock as any).mock.calls;
-    const observerCallback = calls[calls.length - 1][0];
-    observerCallback([
-      { contentRect: { width: 1000 }, contentBoxSize: [{ inlineSize: 1000 }] },
-    ]);
+    for (const call of calls) {
+      call[0]([
+        {
+          contentRect: { width: 1000, height: 800 },
+          contentBoxSize: [{ inlineSize: 1000 }],
+        },
+      ]);
+    }
     await wrapper.vm.$nextTick();
 
     expect(wrapper.find('img').exists()).toBe(false);
@@ -152,10 +141,14 @@ describe('MediaGrid.vue Coverage', () => {
 
     // Trigger Resize
     const calls = (ResizeObserverMock as any).mock.calls;
-    const observerCallback = calls[calls.length - 1][0];
-    observerCallback([
-      { contentRect: { width: 1000 }, contentBoxSize: [{ inlineSize: 1000 }] },
-    ]);
+    for (const call of calls) {
+      call[0]([
+        {
+          contentRect: { width: 1000, height: 800 },
+          contentBoxSize: [{ inlineSize: 1000 }],
+        },
+      ]);
+    }
     await wrapper.vm.$nextTick();
 
     expect(wrapper.find('img').exists()).toBe(false);
@@ -169,10 +162,14 @@ describe('MediaGrid.vue Coverage', () => {
 
     // Trigger Resize
     const calls = (ResizeObserverMock as any).mock.calls;
-    const observerCallback = calls[calls.length - 1][0];
-    observerCallback([
-      { contentRect: { width: 1000 }, contentBoxSize: [{ inlineSize: 1000 }] },
-    ]);
+    for (const call of calls) {
+      call[0]([
+        {
+          contentRect: { width: 1000, height: 800 },
+          contentBoxSize: [{ inlineSize: 1000 }],
+        },
+      ]);
+    }
     await wrapper.vm.$nextTick();
 
     await wrapper.find('button.grid-item').trigger('click');
@@ -199,10 +196,14 @@ describe('MediaGrid.vue Coverage', () => {
 
     // Trigger Resize
     const calls = (ResizeObserverMock as any).mock.calls;
-    const observerCallback = calls[calls.length - 1][0];
-    observerCallback([
-      { contentRect: { width: 1000 }, contentBoxSize: [{ inlineSize: 1000 }] },
-    ]);
+    for (const call of calls) {
+      call[0]([
+        {
+          contentRect: { width: 1000, height: 800 },
+          contentBoxSize: [{ inlineSize: 1000 }],
+        },
+      ]);
+    }
     await wrapper.vm.$nextTick();
     await nextTick();
 
@@ -222,16 +223,20 @@ describe('MediaGrid.vue Coverage', () => {
 
     // Resize for 5 columns
     const calls = (ResizeObserverMock as any).mock.calls;
-    const observerCallback = calls[calls.length - 1][0];
-    observerCallback([
-      { contentRect: { width: 1400 }, contentBoxSize: [{ inlineSize: 1400 }] },
-    ]);
+    for (const call of calls) {
+      call[0]([
+        {
+          contentRect: { width: 1400, height: 800 },
+          contentBoxSize: [{ inlineSize: 1400 }],
+        },
+      ]);
+    }
     await wrapper.vm.$nextTick();
 
     // 50 / 5 = 10 rows
-    expect(
-      wrapper.findComponent(RecycleScrollerStub).props('items'),
-    ).toHaveLength(10);
+    expect(wrapper.findComponent(VirtualScroller).props('items')).toHaveLength(
+      10,
+    );
 
     // Change data
     mockUIState.gridMediaFiles = [
@@ -240,9 +245,9 @@ describe('MediaGrid.vue Coverage', () => {
     await nextTick();
 
     // 1 item / 5 cols = 1 row
-    expect(
-      wrapper.findComponent(RecycleScrollerStub).props('items'),
-    ).toHaveLength(1);
+    expect(wrapper.findComponent(VirtualScroller).props('items')).toHaveLength(
+      1,
+    );
   });
 
   it('getMediaUrl returns empty if generator not ready', async () => {
@@ -255,10 +260,14 @@ describe('MediaGrid.vue Coverage', () => {
 
     // Trigger Resize
     const calls = (ResizeObserverMock as any).mock.calls;
-    const observerCallback = calls[calls.length - 1][0];
-    observerCallback([
-      { contentRect: { width: 1000 }, contentBoxSize: [{ inlineSize: 1000 }] },
-    ]);
+    for (const call of calls) {
+      call[0]([
+        {
+          contentRect: { width: 1000, height: 800 },
+          contentBoxSize: [{ inlineSize: 1000 }],
+        },
+      ]);
+    }
     await wrapper.vm.$nextTick();
 
     // Should be empty initially
@@ -278,10 +287,14 @@ describe('MediaGrid.vue Coverage', () => {
 
     // Trigger Resize
     const calls = (ResizeObserverMock as any).mock.calls;
-    const observerCallback = calls[calls.length - 1][0];
-    observerCallback([
-      { contentRect: { width: 1000 }, contentBoxSize: [{ inlineSize: 1000 }] },
-    ]);
+    for (const call of calls) {
+      call[0]([
+        {
+          contentRect: { width: 1000, height: 800 },
+          contentBoxSize: [{ inlineSize: 1000 }],
+        },
+      ]);
+    }
     await wrapper.vm.$nextTick();
 
     const img = wrapper.find('img');
@@ -304,10 +317,14 @@ describe('MediaGrid.vue Coverage', () => {
 
     // Trigger Resize
     const calls = (ResizeObserverMock as any).mock.calls;
-    const observerCallback = calls[calls.length - 1][0];
-    observerCallback([
-      { contentRect: { width: 1000 }, contentBoxSize: [{ inlineSize: 1000 }] },
-    ]);
+    for (const call of calls) {
+      call[0]([
+        {
+          contentRect: { width: 1000, height: 800 },
+          contentBoxSize: [{ inlineSize: 1000 }],
+        },
+      ]);
+    }
     await wrapper.vm.$nextTick();
 
     expect(wrapper.text()).toContain('file.jpg');
@@ -321,10 +338,14 @@ describe('MediaGrid.vue Coverage', () => {
 
     // Resize for rendering
     const calls = (ResizeObserverMock as any).mock.calls;
-    const observerCallback = calls[calls.length - 1][0];
-    observerCallback([
-      { contentRect: { width: 1000 }, contentBoxSize: [{ inlineSize: 1000 }] },
-    ]);
+    for (const call of calls) {
+      call[0]([
+        {
+          contentRect: { width: 1000, height: 800 },
+          contentBoxSize: [{ inlineSize: 1000 }],
+        },
+      ]);
+    }
     await wrapper.vm.$nextTick();
 
     const img = wrapper.find('img');
@@ -346,10 +367,14 @@ describe('MediaGrid.vue Coverage', () => {
 
     // Resize
     const calls = (ResizeObserverMock as any).mock.calls;
-    const observerCallback = calls[calls.length - 1][0];
-    observerCallback([
-      { contentRect: { width: 1000 }, contentBoxSize: [{ inlineSize: 1000 }] },
-    ]);
+    for (const call of calls) {
+      call[0]([
+        {
+          contentRect: { width: 1000, height: 800 },
+          contentBoxSize: [{ inlineSize: 1000 }],
+        },
+      ]);
+    }
     await wrapper.vm.$nextTick();
 
     expect(wrapper.text()).toContain('5');
@@ -373,10 +398,14 @@ describe('MediaGrid.vue Coverage', () => {
 
     // Resize and trigger error
     const calls = (ResizeObserverMock as any).mock.calls;
-    const observerCallback = calls[calls.length - 1][0];
-    observerCallback([
-      { contentRect: { width: 1000 }, contentBoxSize: [{ inlineSize: 1000 }] },
-    ]);
+    for (const call of calls) {
+      call[0]([
+        {
+          contentRect: { width: 1000, height: 800 },
+          contentBoxSize: [{ inlineSize: 1000 }],
+        },
+      ]);
+    }
     await wrapper.vm.$nextTick();
 
     const img = wrapper.find('img');

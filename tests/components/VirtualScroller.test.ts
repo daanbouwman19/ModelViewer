@@ -36,8 +36,8 @@ describe('VirtualScroller', () => {
     });
     // Reset rAF mock to immediate
     vi.stubGlobal('requestAnimationFrame', (fn: FrameRequestCallback) => {
-        fn(0);
-        return 0;
+      fn(0);
+      return 0;
     });
   });
 
@@ -68,7 +68,8 @@ describe('VirtualScroller', () => {
         keyField: 'id',
       },
       slots: {
-        default: '<template #default="{ item, index }"><div class="item">{{ item.text }} ({{ index }})</div></template>',
+        default:
+          '<template #default="{ item, index }"><div class="item">{{ item.text }} ({{ index }})</div></template>',
       },
     });
 
@@ -97,7 +98,8 @@ describe('VirtualScroller', () => {
         buffer: 0, // No buffer for easier calculation
       },
       slots: {
-        default: '<template #default="{ item }"><div class="item">{{ item.text }}</div></template>',
+        default:
+          '<template #default="{ item }"><div class="item">{{ item.text }}</div></template>',
       },
     });
 
@@ -129,7 +131,8 @@ describe('VirtualScroller', () => {
         buffer: 5,
       },
       slots: {
-        default: '<template #default="{ item }"><div class="item">{{ item.text }}</div></template>',
+        default:
+          '<template #default="{ item }"><div class="item">{{ item.text }}</div></template>',
       },
     });
 
@@ -161,19 +164,19 @@ describe('VirtualScroller', () => {
   });
 
   it('uses ResizeObserver to update container height', async () => {
-      const items = generateItems(100);
-      const wrapper = mount(VirtualScroller, {
-        props: { items, itemSize: 50 },
-      });
+    const items = generateItems(100);
+    const wrapper = mount(VirtualScroller, {
+      props: { items, itemSize: 50 },
+    });
 
-      expect(observeMock).toHaveBeenCalledWith(wrapper.element);
+    expect(observeMock).toHaveBeenCalledWith(wrapper.element);
 
-      await setContainerHeight(500);
-      await wrapper.vm.$nextTick();
-      expect(wrapper.find('div[style*="height: 5000px"]').exists()).toBe(true);
+    await setContainerHeight(500);
+    await wrapper.vm.$nextTick();
+    expect(wrapper.find('div[style*="height: 5000px"]').exists()).toBe(true);
 
-      wrapper.unmount();
-      expect(disconnectMock).toHaveBeenCalled();
+    wrapper.unmount();
+    expect(disconnectMock).toHaveBeenCalled();
   });
 
   it('uses index as key fallback', async () => {
@@ -186,7 +189,8 @@ describe('VirtualScroller', () => {
         // keyField defaults to 'id', so lookup fails, falls back to index
       },
       slots: {
-        default: '<template #default="{ item }"><div class="item">{{ item.text }}</div></template>',
+        default:
+          '<template #default="{ item }"><div class="item">{{ item.text }}</div></template>',
       },
     });
 
@@ -207,7 +211,10 @@ describe('VirtualScroller', () => {
 
     const wrapper = mount(VirtualScroller, {
       props: { items, itemSize: 50 },
-      slots: { default: '<template #default="{ item }"><div class="item">{{ item.text }}</div></template>' }
+      slots: {
+        default:
+          '<template #default="{ item }"><div class="item">{{ item.text }}</div></template>',
+      },
     });
 
     await setContainerHeight(500);
@@ -216,7 +223,7 @@ describe('VirtualScroller', () => {
     // Should skip index 1
     const renderedItems = wrapper.findAll('.item');
     expect(renderedItems.length).toBeGreaterThan(0);
-    const texts = renderedItems.map(w => w.text());
+    const texts = renderedItems.map((w) => w.text());
     expect(texts).toContain('Item 0');
     expect(texts).toContain('Item 2');
     // Ensure it didn't crash
