@@ -95,3 +95,9 @@ Implemented a callback-based interception mechanism for the `postMessage` mock. 
 **Discovery:** `tests/core/database-worker.coverage.test.ts` was producing false confidence by not actually triggering the error condition in `generateFileIdsBatched`, and was polluting the test output with expected error logs.
 
 **Strategy:** Refactored the test to use a temporary file-based database instead of in-memory, allowing a second connection to corrupt the schema (drop table) to force internal prepared statement failures. This verified the fallback logic and error handling paths (via console spies) that were previously unreachable or falsely passing.
+
+## 2026-02-17 - Deterministic Concurrency Testing without Timeouts
+
+**Discovery:** `tests/core/utils/concurrency-limiter.test.ts` was using `setTimeout(..., 0)` to yield execution, assuming async dispatch was required. However, the `ConcurrencyLimiter` implementation and JS async/await behavior allow synchronous task dispatch up to the first await point.
+
+**Strategy:** Replaced `setTimeout` with explicit promise awaits and `await Promise.resolve()` for microtask flushing. This made the tests deterministic, faster, and removed the misleading implication of time dependency. Added explicit FIFO and Serial execution tests.
