@@ -24,6 +24,7 @@ export interface AuthorizationResult {
 // and DB queries for high-frequency checks (e.g., HLS streaming).
 const authCache = new Map<string, { res: AuthorizationResult; time: number }>();
 const CACHE_TTL_MS = 5000;
+const CACHE_MAX_SIZE = 2000;
 
 export function clearAuthCache() {
   authCache.clear();
@@ -128,8 +129,15 @@ export async function authorizeFilePath(
   // Bolt Optimization: Check cache if using default media directories
   if (!mediaDirectories) {
     const cached = authCache.get(filePath);
-    if (cached && Date.now() - cached.time < CACHE_TTL_MS) {
-      return cached.res;
+    if (cached) {
+      if (Date.now() - cached.time < CACHE_TTL_MS) {
+        // LRU: Refresh position (delete and re-insert)
+        authCache.delete(filePath);
+        authCache.set(filePath, cached);
+        return cached.res;
+      }
+      // Expired: remove it
+      authCache.delete(filePath);
     }
   }
 
@@ -161,11 +169,16 @@ export async function authorizeFilePath(
 
   // Bolt Optimization: Cache result
   if (!mediaDirectories) {
+    // Maintain LRU-like behavior: re-insert if exists to update order
+    if (authCache.has(filePath)) {
+      authCache.delete(filePath);
+    }
     authCache.set(filePath, { res: result, time: Date.now() });
 
-    // Simple cleanup to prevent unbounded growth
-    if (authCache.size > 2000) {
-      authCache.clear();
+    // Simple cleanup to prevent unbounded growth (evict oldest)
+    if (authCache.size > CACHE_MAX_SIZE) {
+      const firstKey = authCache.keys().next().value;
+      if (firstKey) authCache.delete(firstKey);
     }
   }
 
