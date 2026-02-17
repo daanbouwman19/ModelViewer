@@ -33,7 +33,7 @@
         <p class="text-sm">Try selecting a different album</p>
       </div>
 
-      <RecycleScroller
+      <VirtualScroller
         v-else
         :key="columnCount"
         class="h-full custom-scrollbar"
@@ -58,7 +58,7 @@
             </template>
           </div>
         </template>
-      </RecycleScroller>
+      </VirtualScroller>
     </div>
   </div>
 </template>
@@ -67,7 +67,7 @@
 /**
  * @file Displays a grid of media items (images and videos).
  * Supports hover-to-preview for videos and click-to-play functionality.
- * Uses vue-virtual-scroller for performance on large albums.
+ * Uses VirtualScroller for performance on large albums.
  */
 import {
   ref,
@@ -83,6 +83,7 @@ import { usePlayerStore } from '../composables/usePlayerStore';
 import { useUIStore } from '../composables/useUIStore';
 import type { MediaFile } from '../../core/types';
 import MediaGridItem from './MediaGridItem.vue';
+import VirtualScroller from './VirtualScroller.vue';
 import PlaylistIcon from './icons/PlaylistIcon.vue';
 import {
   GRID_BREAKPOINT_SM,
@@ -138,13 +139,13 @@ const itemWidth = computed(() => {
 
 // Calculate row height to maintain square aspect ratio for items
 const rowHeight = computed(() => {
-  // Add gap to height because RecycleScroller packs rows tightly, we simulate gap with marginBottom
+  // Add gap to height because VirtualScroller packs rows tightly, we simulate gap with marginBottom
   return itemWidth.value + gap.value;
 });
 
 // Update styles to use explicit height
 // We set the height of the content row to exactly itemWidth.
-// The RecycleScroller item-size (rowHeight) is itemWidth + gap.
+// The VirtualScroller item-size (rowHeight) is itemWidth + gap.
 // This leaves exactly 'gap' pixels of empty space at the bottom of each row.
 const gridStyle = computed(() => ({
   gridTemplateColumns: `repeat(${columnCount.value}, minmax(0, 1fr))`,
