@@ -11,6 +11,7 @@ import { getMimeType } from './utils/mime-types.ts';
 
 export class LocalMediaSource implements IMediaSource {
   private authResult: Promise<AuthorizationResult> | undefined;
+  private statsPromise: Promise<fs.Stats> | undefined;
 
   constructor(private filePath: string) {}
 
@@ -23,6 +24,16 @@ export class LocalMediaSource implements IMediaSource {
       throw new Error(auth.message || 'Access denied');
     }
     return auth.realPath;
+  }
+
+  private async ensureStats(): Promise<fs.Stats> {
+    if (!this.statsPromise) {
+      this.statsPromise = (async () => {
+        const realPath = await this.ensureAuthorized();
+        return fs.promises.stat(realPath);
+      })();
+    }
+    return this.statsPromise;
   }
 
   async getFFmpegInput(): Promise<string> {
@@ -42,8 +53,8 @@ export class LocalMediaSource implements IMediaSource {
       options.end = range.end;
     }
 
-    // Check stats after auth
-    const stats = await fs.promises.stat(realPath);
+    // Check stats after auth (cached)
+    const stats = await this.ensureStats();
     const start = options.start || 0;
     const end = options.end !== undefined ? options.end : stats.size - 1;
 
@@ -66,17 +77,26 @@ export class LocalMediaSource implements IMediaSource {
   }
 
   async getSize(): Promise<number> {
-    const realPath = await this.ensureAuthorized();
-    const stats = await fs.promises.stat(realPath);
+    const stats = await this.ensureStats();
     return stats.size;
   }
 }
 
 export class DriveMediaSource implements IMediaSource {
   private fileId: string;
+  private metadataPromise:
+    | Promise<import('googleapis').drive_v3.Schema$File>
+    | undefined;
 
   constructor(filePath: string) {
     this.fileId = getDriveId(filePath);
+  }
+
+  private ensureMetadata(): Promise<import('googleapis').drive_v3.Schema$File> {
+    if (!this.metadataPromise) {
+      this.metadataPromise = getDriveFileMetadata(this.fileId);
+    }
+    return this.metadataPromise;
   }
 
   async getFFmpegInput(): Promise<string> {
@@ -84,7 +104,7 @@ export class DriveMediaSource implements IMediaSource {
       this.fileId,
     );
     try {
-      const meta = await getDriveFileMetadata(this.fileId);
+      const meta = await this.ensureMetadata();
       if (meta.name) {
         const lastDot = meta.name.lastIndexOf('.');
         if (lastDot !== -1) {
@@ -107,7 +127,7 @@ export class DriveMediaSource implements IMediaSource {
 
   async getMimeType(): Promise<string> {
     try {
-      const meta = await getDriveFileMetadata(this.fileId);
+      const meta = await this.ensureMetadata();
       return meta.mimeType || 'application/octet-stream';
     } catch {
       return 'application/octet-stream';
@@ -115,7 +135,7 @@ export class DriveMediaSource implements IMediaSource {
   }
 
   async getSize(): Promise<number> {
-    const meta = await getDriveFileMetadata(this.fileId);
+    const meta = await this.ensureMetadata();
     return Number(meta.size);
   }
 }
