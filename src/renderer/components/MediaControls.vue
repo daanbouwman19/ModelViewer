@@ -304,6 +304,7 @@ const props = withDefaults(
 
 const { isSidebarVisible } = useUIStore();
 
+// Hover logic for rating stars
 const hoverRating = ref<number | null>(null);
 
 const MD_BREAKPOINT = 768;
