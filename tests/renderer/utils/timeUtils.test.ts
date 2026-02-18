@@ -6,57 +6,55 @@ import {
 
 describe('timeUtils', () => {
   describe('formatTime', () => {
-    it('formats seconds to MM:SS', () => {
-      expect(formatTime(0)).toBe('00:00');
-      expect(formatTime(59)).toBe('00:59');
-      expect(formatTime(60)).toBe('01:00');
-      expect(formatTime(65)).toBe('01:05');
-      expect(formatTime(599)).toBe('09:59');
-    });
+    it.each([
+      // Seconds to MM:SS
+      { input: 0, expected: '00:00' },
+      { input: 59, expected: '00:59' },
+      { input: 60, expected: '01:00' },
+      { input: 65, expected: '01:05' },
+      { input: 599, expected: '09:59' },
 
-    it('formats seconds to HH:MM:SS when hours > 0', () => {
-      expect(formatTime(3600)).toBe('1:00:00');
-      expect(formatTime(3665)).toBe('1:01:05');
-      expect(formatTime(7200)).toBe('2:00:00');
-    });
+      // Seconds to HH:MM:SS
+      { input: 3600, expected: '1:00:00' },
+      { input: 3665, expected: '1:01:05' },
+      { input: 7200, expected: '2:00:00' },
 
-    it('handles invalid inputs gracefully', () => {
-      expect(formatTime(-1)).toBe('00:00');
-      expect(formatTime(NaN)).toBe('00:00');
-      expect(formatTime(Infinity)).toBe('00:00');
-      expect(formatTime(undefined as any)).toBe('00:00');
-    });
+      // Invalid inputs
+      { input: -1, expected: '00:00' },
+      { input: NaN, expected: '00:00' },
+      { input: Infinity, expected: '00:00' },
+      { input: undefined as any, expected: '00:00' },
 
-    it('handles decimal seconds by flooring', () => {
-      // The implementation uses Math.floor, so 60.9 should be 01:00
-      expect(formatTime(60.9)).toBe('01:00');
+      // Decimal seconds
+      { input: 60.9, expected: '01:00' },
+    ])('formats $input to $expected', ({ input, expected }) => {
+      expect(formatTime(input)).toBe(expected);
     });
   });
 
   describe('formatDurationForA11y', () => {
-    it('formats 0 or invalid seconds', () => {
-      expect(formatDurationForA11y(0)).toBe('0 seconds');
-      expect(formatDurationForA11y(-10)).toBe('0 seconds');
-      expect(formatDurationForA11y(NaN)).toBe('0 seconds');
-    });
+    it.each([
+      // 0 or invalid
+      { input: 0, expected: '0 seconds' },
+      { input: -10, expected: '0 seconds' },
+      { input: NaN, expected: '0 seconds' },
 
-    it('formats fractional seconds between 0 and 1 as 0 seconds', () => {
-      expect(formatDurationForA11y(0.5)).toBe('0 seconds');
-    });
+      // Fractional seconds
+      { input: 0.5, expected: '0 seconds' },
 
-    it('formats seconds only', () => {
-      expect(formatDurationForA11y(30)).toBe('30 seconds');
-      expect(formatDurationForA11y(1)).toBe('1 second');
-    });
+      // Seconds only
+      { input: 30, expected: '30 seconds' },
+      { input: 1, expected: '1 second' },
 
-    it('formats minutes and seconds', () => {
-      expect(formatDurationForA11y(65)).toBe('1 minute 5 seconds');
-      expect(formatDurationForA11y(120)).toBe('2 minutes');
-    });
+      // Minutes and seconds
+      { input: 65, expected: '1 minute 5 seconds' },
+      { input: 120, expected: '2 minutes' },
 
-    it('formats hours, minutes, and seconds', () => {
-      expect(formatDurationForA11y(3665)).toBe('1 hour 1 minute 5 seconds');
-      expect(formatDurationForA11y(7200)).toBe('2 hours');
+      // Hours, minutes, and seconds
+      { input: 3665, expected: '1 hour 1 minute 5 seconds' },
+      { input: 7200, expected: '2 hours' },
+    ])('formats $input to "$expected"', ({ input, expected }) => {
+      expect(formatDurationForA11y(input)).toBe(expected);
     });
   });
 });
