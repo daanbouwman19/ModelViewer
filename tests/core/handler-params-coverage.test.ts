@@ -16,17 +16,6 @@ vi.mock('../../src/core/access-validator', () => ({
   handleAccessCheck: mockHandleAccessCheck,
 }));
 
-vi.mock('../../src/core/access-utils', () => ({
-  getAuthorizedPath: async (res: any, filePath: string) => {
-    // Import from the module we already mocked
-    const { validateFileAccess, handleAccessCheck } = await import(
-      '../../src/core/access-validator'
-    );
-    const access = await validateFileAccess(filePath);
-    if (handleAccessCheck(res, access)) return null;
-    return access.success ? access.path : null;
-  },
-}));
 
 vi.mock('../../src/core/hls-manager', () => ({
   HlsManager: {
