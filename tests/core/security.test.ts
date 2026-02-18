@@ -100,7 +100,9 @@ describe('filterAuthorizedPaths Security', () => {
       return p;
     });
 
-    const result = await filterAuthorizedPaths(['/allowed/../allowed/file.mp4']);
+    const result = await filterAuthorizedPaths([
+      '/allowed/../allowed/file.mp4',
+    ]);
     expect(result).toEqual(['/allowed/file.mp4']);
   });
 });
