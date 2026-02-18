@@ -26,7 +26,6 @@ vi.mock('../../src/core/access-validator', () => ({
   handleAccessCheck: vi.fn().mockReturnValue(false),
 }));
 
-
 vi.mock('../../src/core/media-utils', async (importOriginal) => {
   const actual =
     await importOriginal<typeof import('../../src/core/media-utils')>();

@@ -23,7 +23,6 @@ vi.mock('../../src/core/access-validator', () => ({
   handleAccessCheck: mockHandleAccessCheck,
 }));
 
-
 vi.mock('../../src/core/hls-manager', () => ({
   HlsManager: {
     getInstance: () => ({

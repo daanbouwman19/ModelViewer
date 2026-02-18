@@ -12,7 +12,6 @@ vi.mock('../../src/core/access-validator', () => ({
   handleAccessCheck: mockHandleAccessCheck,
 }));
 
-
 vi.mock('../../src/core/analysis/media-analyzer', () => ({
   MediaAnalyzer: {
     getInstance: () => ({

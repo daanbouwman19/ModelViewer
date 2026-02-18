@@ -83,7 +83,6 @@ vi.mock('../../src/core/access-validator', () => ({
   }),
 }));
 
-
 // Mock process.cwd to something stable
 vi.spyOn(process, 'cwd').mockReturnValue('/app');
 
