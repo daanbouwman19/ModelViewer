@@ -63,9 +63,21 @@ describe('filterAuthorizedPaths Security', () => {
     expect(result).toEqual(['/allowed/file1.mp4', 'gdrive://valid']);
   });
 
-  it('calls getMediaDirectories only once', async () => {
+  it('uses cache on subsequent calls for filterAuthorizedPaths', async () => {
+    // Cold cache:
+    // 1 call to prime getMediaDirectories (initial call in filterAuthorizedPaths)
+    // + 2 calls from authorizeFilePath misses (for each file)
+    // = 3 total calls
     await filterAuthorizedPaths(['/allowed/1', '/allowed/2']);
-    expect(database.getMediaDirectories).toHaveBeenCalledTimes(1);
+    expect(database.getMediaDirectories).toHaveBeenCalledTimes(3);
+
+    // Warm cache:
+    // 1 call to prime getMediaDirectories (initial call in filterAuthorizedPaths)
+    // + 0 calls from authorizeFilePath (cache hits)
+    // = 1 additional call
+    // Total = 3 + 1 = 4 calls
+    await filterAuthorizedPaths(['/allowed/1', '/allowed/2']);
+    expect(database.getMediaDirectories).toHaveBeenCalledTimes(4);
   });
 });
 

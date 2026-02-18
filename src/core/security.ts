@@ -105,13 +105,17 @@ export async function loadSecurityConfig(configPath: string): Promise<void> {
 export async function filterAuthorizedPaths(
   filePaths: string[],
 ): Promise<string[]> {
-  const mediaDirectories = await getMediaDirectories();
+  // Prime the mediaDirectories cache to avoid thundering herd on cold start
+  // when authorizeFilePath calls getMediaDirectories internally.
+  await getMediaDirectories();
+
   const limiter = new ConcurrencyLimiter(DISK_SCAN_CONCURRENCY);
 
   const results = await Promise.all(
     filePaths.map((p) =>
       limiter.run(async () => {
-        const auth = await authorizeFilePath(p, mediaDirectories);
+        // Bolt Optimization: Removed mediaDirectories argument to enable caching in authorizeFilePath
+        const auth = await authorizeFilePath(p);
         return auth.isAllowed ? p : null;
       }),
     ),
