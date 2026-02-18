@@ -101,3 +101,9 @@ Implemented a callback-based interception mechanism for the `postMessage` mock. 
 **Discovery:** `tests/core/utils/concurrency-limiter.test.ts` was using `setTimeout(..., 0)` to yield execution, assuming async dispatch was required. However, the `ConcurrencyLimiter` implementation and JS async/await behavior allow synchronous task dispatch up to the first await point.
 
 **Strategy:** Replaced `setTimeout` with explicit promise awaits and `await Promise.resolve()` for microtask flushing. This made the tests deterministic, faster, and removed the misleading implication of time dependency. Added explicit FIFO and Serial execution tests.
+
+## 2026-02-18 - Parameterized Tests for Time Utilities
+
+**Discovery:** `tests/renderer/utils/timeUtils.test.ts` was using multiple `it` blocks with repetitive `expect` calls for simple input/output pairs. This made it harder to see coverage gaps and added boilerplate.
+
+**Strategy:** Refactored to use `it.each` (table-driven tests). This clearly separates test data from logic, makes it trivial to add new edge cases (like `NaN` or `Infinity`), and ensures each case is reported as a distinct test result.
