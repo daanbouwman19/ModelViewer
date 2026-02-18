@@ -107,7 +107,9 @@ export async function filterAuthorizedPaths(
 ): Promise<string[]> {
   // Prime the mediaDirectories cache to avoid thundering herd on cold start
   // when authorizeFilePath calls getMediaDirectories internally.
-  await getMediaDirectories();
+  if (filePaths.length > 1) {
+    await getMediaDirectories();
+  }
 
   const limiter = new ConcurrencyLimiter(DISK_SCAN_CONCURRENCY);
 
@@ -116,7 +118,7 @@ export async function filterAuthorizedPaths(
       limiter.run(async () => {
         // Bolt Optimization: Removed mediaDirectories argument to enable caching in authorizeFilePath
         const auth = await authorizeFilePath(p);
-        return auth.isAllowed ? p : null;
+        return auth.isAllowed ? (auth.realPath ?? p) : null;
       }),
     ),
   );
