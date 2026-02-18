@@ -4,6 +4,7 @@ import { AddressInfo } from 'net';
 import { getDriveFileMetadata } from '../main/google-drive-service.ts';
 import { getDriveStreamWithCache } from './drive-stream.ts';
 import { parseHttpRange } from './utils/http-utils.ts';
+import { isFileInLibrary } from './database.ts';
 
 export class InternalMediaProxy {
   private static instance: InternalMediaProxy;
@@ -52,6 +53,21 @@ export class InternalMediaProxy {
         }
 
         const fileId = match[1];
+
+        // [SECURITY] IDOR Prevention
+        // Verify that the requested file ID corresponds to a file that is actually in our library.
+        // This prevents an attacker with a valid token from accessing arbitrary Drive files
+        // by guessing or knowing their IDs.
+        const isAllowed = await isFileInLibrary(`gdrive://${fileId}`);
+        if (!isAllowed) {
+          console.warn(
+            `[InternalProxy] Blocked access to unauthorized Drive file: ${fileId}`,
+          );
+          res.writeHead(403);
+          res.end('Access denied');
+          return;
+        }
+
         const meta = await getDriveFileMetadata(fileId);
         const totalSize = Number(meta.size);
         const mimeType = meta.mimeType || 'application/octet-stream';

@@ -9,6 +9,7 @@ const {
   getErrorCallback,
   mockGetDriveFileMetadata,
   mockGetDriveStreamWithCache,
+  mockIsFileInLibrary,
 } = vi.hoisted(() => {
   const mockListen = vi.fn();
   let serverCallback: any;
@@ -34,6 +35,7 @@ const {
     getErrorCallback: () => errorCallback,
     mockGetDriveFileMetadata: vi.fn(),
     mockGetDriveStreamWithCache: vi.fn(),
+    mockIsFileInLibrary: vi.fn().mockResolvedValue(true),
   };
 });
 
@@ -51,11 +53,16 @@ vi.mock('../../src/core/drive-stream', () => ({
   getDriveStreamWithCache: mockGetDriveStreamWithCache,
 }));
 
+vi.mock('../../src/core/database', () => ({
+  isFileInLibrary: mockIsFileInLibrary,
+}));
+
 describe('InternalMediaProxy', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockListen.mockReset();
     (InternalMediaProxy as any).instance = null;
+    mockIsFileInLibrary.mockResolvedValue(true); // Default allow for all tests
   });
 
   it('getInstance returns singleton', () => {
@@ -383,5 +390,33 @@ describe('InternalMediaProxy', () => {
 
     expect(res.writeHead).not.toHaveBeenCalled();
     expect(res.end).not.toHaveBeenCalled();
+  });
+
+  it('blocks access to file NOT in library (IDOR Prevention)', async () => {
+    (InternalMediaProxy as any).instance = null;
+    const proxy = InternalMediaProxy.getInstance();
+    const authToken = (proxy as any).authToken;
+    const handler = getCallback();
+    const req = {
+      url: `/stream/file-not-in-lib?token=${authToken}`,
+      headers: { host: 'localhost:54321' },
+      on: vi.fn(),
+    };
+    const res = {
+      writeHead: vi.fn(),
+      end: vi.fn(),
+      headersSent: false,
+    };
+
+    // Override mock for this test case
+    mockIsFileInLibrary.mockResolvedValueOnce(false);
+
+    await handler(req, res);
+
+    expect(mockIsFileInLibrary).toHaveBeenCalledWith(
+      'gdrive://file-not-in-lib',
+    );
+    expect(res.writeHead).toHaveBeenCalledWith(403);
+    expect(res.end).toHaveBeenCalledWith('Access denied');
   });
 });
