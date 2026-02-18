@@ -86,6 +86,17 @@ vi.mock('../../src/core/access-validator', async (importOriginal) => {
   };
 });
 
+vi.mock('../../src/core/access-utils', () => ({
+  getAuthorizedPath: async (res: any, filePath: string) => {
+    // Import from the module we already mocked
+    const { validateFileAccess, handleAccessCheck } =
+      await import('../../src/core/access-validator');
+    const access = await validateFileAccess(filePath);
+    if (handleAccessCheck(res, access)) return null;
+    return access.success ? access.path : null;
+  },
+}));
+
 vi.mock('../../src/core/media-utils', async (importOriginal) => {
   const actual =
     await importOriginal<typeof import('../../src/core/media-utils')>();

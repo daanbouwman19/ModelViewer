@@ -18,7 +18,8 @@ import { parseHttpRange, getQueryParam } from './utils/http-utils.ts';
 import { FileSystemProvider } from './fs-provider.ts';
 import { getProvider } from './fs-provider-factory.ts';
 import { authorizeFilePath } from './security.ts';
-import { validateFileAccess, handleAccessCheck } from './access-validator.ts';
+import { validateFileAccess } from './access-validator.ts';
+import { getAuthorizedPath } from './access-utils.ts';
 import { serveThumbnail } from './thumbnail-handler.ts';
 import { MediaAnalyzer } from './analysis/media-analyzer.ts';
 import {
@@ -161,9 +162,8 @@ export async function handleStreamRequest(
 
   try {
     // 1. Authorization Check
-    const access = await validateFileAccess(filePath);
-    if (handleAccessCheck(res, access)) return;
-    const authorizedPath = access.success ? access.path : '';
+    const authorizedPath = await getAuthorizedPath(res, filePath);
+    if (!authorizedPath) return;
 
     // 2. Direct File Optimization
     if (!isTranscodeForced && tryServeDirectFile(res, authorizedPath)) {
@@ -233,9 +233,8 @@ export async function serveMetadata(
   filePath: string,
   ffmpegPath: string | null,
 ) {
-  const access = await validateFileAccess(filePath);
-  if (handleAccessCheck(res, access)) return;
-  const authorizedPath = access.success ? access.path : '';
+  const authorizedPath = await getAuthorizedPath(res, filePath);
+  if (!authorizedPath) return;
 
   if (!ffmpegPath && !isDrivePath(authorizedPath)) {
     res.status(500).send('FFmpeg binary not found');
@@ -338,9 +337,8 @@ export async function serveHeatmap(
   res: Response,
   filePath: string,
 ) {
-  const access = await validateFileAccess(filePath);
-  if (handleAccessCheck(res, access)) return;
-  const authorizedPath = access.success ? access.path : '';
+  const authorizedPath = await getAuthorizedPath(res, filePath);
+  if (!authorizedPath) return;
 
   try {
     const pointsStr = getQueryParam(req.query, 'points');
@@ -364,9 +362,8 @@ export async function serveHeatmapProgress(
   filePath: string,
 ) {
   // Authorization check is lightweight here, but good practice
-  const access = await validateFileAccess(filePath);
-  if (handleAccessCheck(res, access)) return;
-  const authorizedPath = access.success ? access.path : '';
+  const authorizedPath = await getAuthorizedPath(res, filePath);
+  if (!authorizedPath) return;
 
   const analyzer = MediaAnalyzer.getInstance();
   const progress = analyzer.getProgress(authorizedPath);
@@ -392,9 +389,8 @@ export async function serveStaticFile(
   filePath: string,
 ) {
   try {
-    const access = await validateFileAccess(filePath);
-    if (handleAccessCheck(res, access)) return;
-    const authorizedPath = access.success ? access.path : '';
+    const authorizedPath = await getAuthorizedPath(res, filePath);
+    if (!authorizedPath) return;
 
     // If local file, use res.sendFile for optimizing range/seeking
     if (!isDrivePath(authorizedPath)) {
