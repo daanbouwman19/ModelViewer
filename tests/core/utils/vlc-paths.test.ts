@@ -79,19 +79,22 @@ describe('getVlcPath', () => {
     },
   ];
 
-  it.each(testCases)('$name', async ({ platform, existingPaths, expected }: any) => {
-    Object.defineProperty(process, 'platform', {
-      value: platform,
-    });
+  it.each(testCases)(
+    '$name',
+    async ({ platform, existingPaths, expected }: any) => {
+      Object.defineProperty(process, 'platform', {
+        value: platform,
+      });
 
-    accessSpy.mockImplementation((path: string) => {
-      if (existingPaths.includes(path)) {
-        return Promise.resolve();
-      }
-      return Promise.reject(new Error('Not found'));
-    });
+      accessSpy.mockImplementation((path: string) => {
+        if (existingPaths.includes(path)) {
+          return Promise.resolve();
+        }
+        return Promise.reject(new Error('Not found'));
+      });
 
-    const result = await getVlcPath();
-    expect(result).toBe(expected);
-  });
+      const result = await getVlcPath();
+      expect(result).toBe(expected);
+    },
+  );
 });
