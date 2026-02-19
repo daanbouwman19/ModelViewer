@@ -74,8 +74,8 @@
           <p class="text-sm font-medium">{{ toast.message }}</p>
           <button
             class="ml-auto text-current opacity-50 hover:opacity-100 focus:outline-none"
-            @click="remove(toast.id)"
             aria-label="Close"
+            @click="remove(toast.id)"
           >
             <svg
               class="w-4 h-4"
