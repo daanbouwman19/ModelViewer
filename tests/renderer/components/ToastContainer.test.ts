@@ -6,7 +6,7 @@ import ToastContainer from '../../../src/renderer/components/ToastContainer.vue'
 // Mock `useToast` to isolate component logic
 vi.mock('../../../src/renderer/composables/useToast', async () => {
   const { ref } = await import('vue');
-  const toasts = ref([]);
+  const toasts = ref<any[]>([]);
   const add = vi.fn((message, type) => {
     toasts.value.push({ id: 1, message, type });
   });
