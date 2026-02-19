@@ -12,6 +12,14 @@ vi.mock('../../src/core/database', () => ({
   saveSetting: vi.fn(),
 }));
 
+// Mock encryption to be deterministic
+vi.mock('../../src/core/utils/encryption', () => ({
+  encrypt: vi.fn((text: string) => `ENCRYPTED[${text}]`),
+  decrypt: vi.fn((text: string) =>
+    text.startsWith('ENCRYPTED[') ? text.slice(10, -1) : text,
+  ),
+}));
+
 // Hoist mock variables
 const { mockOAuth2Client, MockOAuth2 } = vi.hoisted(() => {
   const mockOAuth2Client = {
@@ -56,11 +64,23 @@ describe('Google Auth Service', () => {
   });
 
   describe('loadSavedCredentialsIfExist', () => {
-    it('should load credentials from database', async () => {
+    it('should load credentials from database (legacy plain text)', async () => {
       const mockCreds = { refresh_token: 'saved-token' };
       vi.mocked(database.getSetting).mockResolvedValue(
         JSON.stringify(mockCreds),
       );
+
+      const result = await googleAuth.loadSavedCredentialsIfExist();
+
+      expect(result).toBe(true);
+      expect(database.getSetting).toHaveBeenCalledWith('google_tokens');
+      expect(mockOAuth2Client.setCredentials).toHaveBeenCalledWith(mockCreds);
+    });
+
+    it('should load credentials from database (encrypted)', async () => {
+      const mockCreds = { refresh_token: 'saved-token' };
+      const plain = JSON.stringify(mockCreds);
+      vi.mocked(database.getSetting).mockResolvedValue(`ENCRYPTED[${plain}]`);
 
       const result = await googleAuth.loadSavedCredentialsIfExist();
 
@@ -89,12 +109,12 @@ describe('Google Auth Service', () => {
   });
 
   describe('saveCredentials', () => {
-    it('should save credentials to database', async () => {
+    it('should save credentials to database (encrypted)', async () => {
       await googleAuth.saveCredentials(mockOAuth2Client as any);
 
       expect(database.saveSetting).toHaveBeenCalledWith(
         'google_tokens',
-        JSON.stringify(mockOAuth2Client.credentials),
+        `ENCRYPTED[${JSON.stringify(mockOAuth2Client.credentials)}]`,
       );
     });
 
