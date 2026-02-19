@@ -79,13 +79,21 @@
           ></div>
 
           <!-- Rating -->
-          <div v-if="currentMediaItem && showStars" class="flex gap-0.5">
+          <div
+            v-if="currentMediaItem && showStars"
+            class="flex gap-0.5"
+            @mouseleave="hoverRating = null"
+          >
             <button
               v-for="star in 5"
               :key="star"
-              class="transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:rounded-sm"
+              class="transition-all duration-200 transform hover:scale-110 active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:rounded-sm"
               :class="
-                (currentMediaItem?.rating || 0) >= star
+                (
+                  hoverRating !== null
+                    ? hoverRating >= star
+                    : (currentMediaItem?.rating || 0) >= star
+                )
                   ? 'text-(--accent-color)'
                   : 'text-white/30 hover:text-white/70'
               "
@@ -96,6 +104,7 @@
               }`"
               :aria-pressed="(currentMediaItem?.rating || 0) === star"
               :title="`Rate ${star} ${star === 1 ? 'star' : 'stars'}`"
+              @mouseenter="hoverRating = star"
               @click="$emit('set-rating', star)"
             >
               <StarIcon class="w-4 h-4 md:w-5 md:h-5" />
@@ -294,6 +303,9 @@ const props = withDefaults(
 );
 
 const { isSidebarVisible } = useUIStore();
+
+// Hover logic for rating stars
+const hoverRating = ref<number | null>(null);
 
 const MD_BREAKPOINT = 768;
 
