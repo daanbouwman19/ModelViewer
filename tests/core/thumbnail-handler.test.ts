@@ -124,21 +124,17 @@ describe('thumbnail-handler unit tests', () => {
 
       // Setup res.sendFile to succeed
       res.sendFile.mockImplementation((path: string, options: any, cb: any) => {
-          cb(null); // Success
+        cb(null); // Success
       });
 
-      await serveThumbnail(
-        req,
-        res,
-        '/video.mp4',
-        'ffmpeg',
-        '/cache',
-      );
+      await serveThumbnail(req, res, '/video.mp4', 'ffmpeg', '/cache');
 
       expect(res.sendFile).toHaveBeenCalledWith(
         cachePath,
-        expect.objectContaining({ headers: expect.objectContaining({ 'Content-Type': 'image/jpeg' }) }),
-        expect.any(Function)
+        expect.objectContaining({
+          headers: expect.objectContaining({ 'Content-Type': 'image/jpeg' }),
+        }),
+        expect.any(Function),
       );
     });
 
@@ -170,7 +166,7 @@ describe('thumbnail-handler unit tests', () => {
 
       // Mock cache miss (sendFile fails)
       res.sendFile.mockImplementation((path: string, options: any, cb: any) => {
-          cb(new Error('ENOENT'));
+        cb(new Error('ENOENT'));
       });
 
       mockGetThumbnailCachePath.mockReturnValue('/cache/gdrive.jpg');
@@ -197,7 +193,7 @@ describe('thumbnail-handler unit tests', () => {
 
       // Mock cache miss
       res.sendFile.mockImplementation((path: string, options: any, cb: any) => {
-          cb(new Error('ENOENT'));
+        cb(new Error('ENOENT'));
       });
 
       mockGetThumbnailCachePath.mockReturnValue('/cache/gdrive.jpg');
@@ -239,13 +235,17 @@ describe('thumbnail-handler unit tests', () => {
 
     it('handles ffmpg generation for local file', async () => {
       // Mock cache miss
-      res.sendFile.mockImplementationOnce((path: string, options: any, cb: any) => {
+      res.sendFile.mockImplementationOnce(
+        (path: string, options: any, cb: any) => {
           cb(new Error('ENOENT'));
-      });
+        },
+      );
       // Mock success for generation sendFile
-      res.sendFile.mockImplementationOnce((path: string, options: any, cb: any) => {
+      res.sendFile.mockImplementationOnce(
+        (path: string, options: any, cb: any) => {
           cb(null);
-      });
+        },
+      );
 
       mockValidateFileAccess.mockResolvedValue({
         success: true,
@@ -265,14 +265,14 @@ describe('thumbnail-handler unit tests', () => {
       expect(res.sendFile).toHaveBeenLastCalledWith(
         '/cache/local.jpg',
         expect.anything(),
-        expect.any(Function)
+        expect.any(Function),
       );
     });
 
     it('handles ffmpeg failure (non-zero exit)', async () => {
       // Cache miss
       res.sendFile.mockImplementation((path: string, options: any, cb: any) => {
-          cb(new Error('ENOENT'));
+        cb(new Error('ENOENT'));
       });
 
       mockValidateFileAccess.mockResolvedValue({
@@ -293,24 +293,33 @@ describe('thumbnail-handler unit tests', () => {
     // "handles ffmpeg close success but file missing"
     // Now this is implicitly handled by res.sendFile after generation returning error
     it('handles ffmpeg success but file missing (generation failed silently)', async () => {
-       // Cache miss
-      res.sendFile.mockImplementationOnce((path: string, options: any, cb: any) => {
+      // Cache miss
+      res.sendFile.mockImplementationOnce(
+        (path: string, options: any, cb: any) => {
           cb(new Error('ENOENT'));
-      });
+        },
+      );
       // Generation "success"
       mockRunFFmpeg.mockResolvedValue({ code: 0, stderr: '' });
 
       // But sending generated file fails
-      res.sendFile.mockImplementationOnce((path: string, options: any, cb: any) => {
+      res.sendFile.mockImplementationOnce(
+        (path: string, options: any, cb: any) => {
           cb(new Error('ENOENT'));
-      });
+        },
+      );
 
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
 
       await serveThumbnail(req, res, '/video.mp4', 'ffmpeg', '/cache');
 
       // It logs error and ends response 500
-      expect(consoleSpy).toHaveBeenCalledWith('[Thumbnail] Error sending generated file:', expect.anything());
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[Thumbnail] Error sending generated file:',
+        expect.anything(),
+      );
       expect(res.status).toHaveBeenCalledWith(500);
       expect(res.end).toHaveBeenCalled();
 
@@ -320,7 +329,7 @@ describe('thumbnail-handler unit tests', () => {
     it('handles runFFmpeg error (e.g. timeout)', async () => {
       // Cache miss
       res.sendFile.mockImplementation((path: string, options: any, cb: any) => {
-          cb(new Error('ENOENT'));
+        cb(new Error('ENOENT'));
       });
 
       mockValidateFileAccess.mockResolvedValue({
@@ -340,7 +349,7 @@ describe('thumbnail-handler unit tests', () => {
     it('returns 500 if ffmpeg binary is not found', async () => {
       // Cache miss
       res.sendFile.mockImplementation((path: string, options: any, cb: any) => {
-          cb(new Error('ENOENT'));
+        cb(new Error('ENOENT'));
       });
 
       mockValidateFileAccess.mockResolvedValue({
@@ -360,17 +369,21 @@ describe('thumbnail-handler unit tests', () => {
       mockGetThumbnailCachePath.mockReturnValue(cachePath);
 
       // Simulate cache error (not found or read error)
-      res.sendFile.mockImplementationOnce((path: string, options: any, cb: any) => {
+      res.sendFile.mockImplementationOnce(
+        (path: string, options: any, cb: any) => {
           cb(new Error('Cache read failed'));
-      });
+        },
+      );
 
       // Setup generation mocks for fallback
       mockRunFFmpeg.mockResolvedValue({ code: 0, stderr: '' });
 
       // Generation sendFile success
-      res.sendFile.mockImplementationOnce((path: string, options: any, cb: any) => {
+      res.sendFile.mockImplementationOnce(
+        (path: string, options: any, cb: any) => {
           cb(null);
-      });
+        },
+      );
 
       const promise = serveThumbnail(
         req,
@@ -388,9 +401,11 @@ describe('thumbnail-handler unit tests', () => {
 
     it('handles stream error during sending generated file', async () => {
       // Cache miss
-      res.sendFile.mockImplementationOnce((path: string, options: any, cb: any) => {
+      res.sendFile.mockImplementationOnce(
+        (path: string, options: any, cb: any) => {
           cb(new Error('ENOENT'));
-      });
+        },
+      );
 
       mockValidateFileAccess.mockResolvedValue({
         success: true,
@@ -402,9 +417,11 @@ describe('thumbnail-handler unit tests', () => {
       mockRunFFmpeg.mockResolvedValue({ code: 0, stderr: '' });
 
       // Generation sendFile error
-      res.sendFile.mockImplementationOnce((path: string, options: any, cb: any) => {
+      res.sendFile.mockImplementationOnce(
+        (path: string, options: any, cb: any) => {
           cb(new Error('Stream error'));
-      });
+        },
+      );
 
       await serveThumbnail(req, res, '/video.mp4', 'ffmpeg', '/cache');
 

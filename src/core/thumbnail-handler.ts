@@ -1,9 +1,6 @@
 import fs from 'fs';
 import { Response } from 'express';
-import {
-  getThumbnailCachePath,
-  isDrivePath,
-} from './media-utils.ts';
+import { getThumbnailCachePath, isDrivePath } from './media-utils.ts';
 import { getThumbnailArgs, runFFmpeg } from './utils/ffmpeg-utils.ts';
 import { getProvider } from './fs-provider-factory.ts';
 import { validateFileAccess, handleAccessCheck } from './access-validator.ts';
