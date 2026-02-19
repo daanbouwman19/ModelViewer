@@ -117,3 +117,9 @@
 **Smell:** `LocalMediaSource` and `DriveMediaSource` were performing redundant I/O operations (fs.stat / Google Drive API calls) for every method call (`getSize`, `getMimeType`, `getStream`), leading to inefficiency and potential rate limiting issues.
 **Insight:** Caching the promise of an expensive operation (memoization) ensures that the operation is performed only once per instance, even if multiple methods are called concurrently, improving performance and reliability.
 **Prevention:** When a class method performs an expensive I/O operation that is expected to return the same result during the instance's lifetime, memoize the result (or the promise) to avoid redundant calls.
+
+## 2026-02-18 - Extracting Heatmap Generation Logic
+
+**Smell:** `media-analyzer.ts` contained a "God Method" `executeHeatmapGeneration` that mixed high-level orchestration with low-level details like FFmpeg argument construction, process spawning, and output parsing.
+**Insight:** Breaking down complex operations into distinct phases (Preparation, Execution, Parsing) significantly improves readability and makes each part easier to test and reason about in isolation.
+**Prevention:** When a method exceeds 50 lines and handles multiple levels of abstraction (e.g., business logic + shell commands), extract the lower-level details into private helper methods.
