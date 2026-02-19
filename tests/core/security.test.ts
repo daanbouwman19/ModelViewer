@@ -63,9 +63,47 @@ describe('filterAuthorizedPaths Security', () => {
     expect(result).toEqual(['/allowed/file1.mp4', 'gdrive://valid']);
   });
 
-  it('calls getMediaDirectories only once', async () => {
+  it('uses cache on subsequent calls for filterAuthorizedPaths', async () => {
+    // Cold cache:
+    // 1 call to prime getMediaDirectories (initial call in filterAuthorizedPaths because > 1 file)
+    // + 2 calls from authorizeFilePath misses (for each file)
+    // = 3 total calls
     await filterAuthorizedPaths(['/allowed/1', '/allowed/2']);
+    expect(database.getMediaDirectories).toHaveBeenCalledTimes(3);
+
+    // Warm cache:
+    // 1 call to prime getMediaDirectories (initial call in filterAuthorizedPaths because > 1 file)
+    // + 0 calls from authorizeFilePath (cache hits)
+    // = 1 additional call
+    // Total = 3 + 1 = 4 calls
+    await filterAuthorizedPaths(['/allowed/1', '/allowed/2']);
+    expect(database.getMediaDirectories).toHaveBeenCalledTimes(4);
+  });
+
+  it('skips priming call for single file in filterAuthorizedPaths', async () => {
+    clearAuthCache();
+    vi.clearAllMocks();
+    (database as any).getMediaDirectories.mockClear();
+
+    // Cold cache for single file
+    // 0 calls to prime (length <= 1)
+    // + 1 call from authorizeFilePath miss
+    // = 1 total call
+    await filterAuthorizedPaths(['/allowed/single']);
     expect(database.getMediaDirectories).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns canonical paths from filterAuthorizedPaths', async () => {
+    (vi.mocked(fs.realpath) as any).mockImplementation(async (p: string) => {
+      // simulate resolving symlinks or ..
+      if (p === '/allowed/../allowed/file.mp4') return '/allowed/file.mp4';
+      return p;
+    });
+
+    const result = await filterAuthorizedPaths([
+      '/allowed/../allowed/file.mp4',
+    ]);
+    expect(result).toEqual(['/allowed/file.mp4']);
   });
 });
 
