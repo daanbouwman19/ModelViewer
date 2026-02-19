@@ -442,6 +442,7 @@ import { useLibraryStore } from '../composables/useLibraryStore';
 import { usePlayerStore } from '../composables/usePlayerStore';
 import { useUIStore } from '../composables/useUIStore';
 import { useSlideshow } from '../composables/useSlideshow';
+import { useToast } from '../composables/useToast';
 import AlbumTree from './AlbumTree.vue';
 import CloseIcon from './icons/CloseIcon.vue';
 import PlayIcon from './icons/PlayIcon.vue';
@@ -496,6 +497,7 @@ const loadingAction = ref<string | null>(null);
 defineEmits(['close']);
 
 const slideshow = useSlideshow();
+const toast = useToast();
 // libraryStore is already defined above
 
 /**
@@ -603,7 +605,7 @@ const handleSmartPlaylistSlideshow = async (playlist: SmartPlaylist) => {
   try {
     const mediaFiles = await getMediaForPlaylist(playlist);
     if (mediaFiles.length === 0) {
-      alert('Playlist is empty');
+      toast.error('Playlist is empty');
       return;
     }
 
@@ -642,8 +644,10 @@ const deletePlaylist = async (id: number) => {
   try {
     await api.deleteSmartPlaylist(id);
     smartPlaylists.value = await api.getSmartPlaylists();
+    toast.success('Playlist deleted');
   } catch (e) {
     console.error('Failed to delete playlist', e);
+    toast.error('Failed to delete playlist');
   }
 };
 

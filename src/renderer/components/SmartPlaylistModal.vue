@@ -200,6 +200,7 @@
 import { ref, watch, computed } from 'vue';
 import { useUIStore } from '../composables/useUIStore';
 import { useLibraryStore } from '../composables/useLibraryStore';
+import { useToast } from '../composables/useToast';
 import { api } from '../api';
 import CloseIcon from './icons/CloseIcon.vue';
 import { useEscapeKey } from '../composables/useEscapeKey';
@@ -216,6 +217,7 @@ const emit = defineEmits(['close']);
 
 const uiStore = useUIStore();
 const libraryStore = useLibraryStore();
+const toast = useToast();
 
 const { isSmartPlaylistModalVisible } = uiStore;
 const { smartPlaylists } = libraryStore;
@@ -284,8 +286,10 @@ const save = async () => {
         name.value,
         JSON.stringify(criteria),
       );
+      toast.success('Playlist updated');
     } else {
       await api.createSmartPlaylist(name.value, JSON.stringify(criteria));
+      toast.success('Playlist created');
     }
 
     // Optimistically update list or re-fetch
@@ -294,6 +298,7 @@ const save = async () => {
     close();
   } catch (err) {
     console.error('Failed to save playlist:', err);
+    toast.error('Failed to save playlist');
   }
 };
 
