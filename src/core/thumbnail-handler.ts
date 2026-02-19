@@ -47,7 +47,7 @@ export async function tryServeFromCache(
           'Cache-Control': 'public, max-age=31536000',
         },
       },
-      (err: any) => {
+      (err: unknown) => {
         if (err) {
           // If headers already sent, we can't do anything but log
           if (res.headersSent) {
@@ -126,7 +126,7 @@ export async function generateLocalThumbnail(
           'Cache-Control': 'public, max-age=31536000',
         },
       },
-      (err: any) => {
+      (err: unknown) => {
         if (err) {
           console.error('[Thumbnail] Error sending generated file:', err);
           if (!res.headersSent) res.status(500).end();

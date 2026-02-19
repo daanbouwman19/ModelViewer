@@ -6,7 +6,6 @@ import {
   getThumbnailCachePath,
   normalizeFilePath,
 } from '../../src/core/media-utils';
-import fs from 'fs'; // Import for spyOn
 import path from 'path';
 
 describe('media-utils unit tests', () => {
