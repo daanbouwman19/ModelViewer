@@ -8,6 +8,7 @@ import {
 } from './google-secrets.ts';
 import { getSetting, saveSetting } from '../core/database.ts';
 import { GOOGLE_DRIVE_SCOPES, GOOGLE_TOKENS_KEY } from '../core/constants.ts';
+import { encrypt, decrypt } from '../core/utils/encryption.ts';
 
 let oauth2Client: OAuth2Client | null = null;
 // Store the pending code verifier for PKCE flow.
@@ -41,7 +42,12 @@ export async function loadSavedCredentialsIfExist(): Promise<boolean> {
     if (!content) {
       return false;
     }
-    const credentials = JSON.parse(content);
+
+    // Attempt to decrypt. If it fails (legacy plaintext), it returns original content.
+    // If original content is valid JSON, JSON.parse will succeed.
+    const decrypted = decrypt(content);
+    const credentials = JSON.parse(decrypted);
+
     const client = getOAuth2Client();
     client.setCredentials(credentials);
     return true;
@@ -53,7 +59,9 @@ export async function loadSavedCredentialsIfExist(): Promise<boolean> {
 
 export async function saveCredentials(client: OAuth2Client): Promise<void> {
   try {
-    await saveSetting(GOOGLE_TOKENS_KEY, JSON.stringify(client.credentials));
+    const json = JSON.stringify(client.credentials);
+    const encrypted = encrypt(json);
+    await saveSetting(GOOGLE_TOKENS_KEY, encrypted);
   } catch (error: unknown) {
     console.error('Failed to save credentials to DB:', error);
     throw error;

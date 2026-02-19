@@ -179,6 +179,7 @@ const SENSITIVE_FILE_PREFIXES = [
   // Server Certs
   'server.key',
   'server.crt',
+  'master.key',
   'server.cert',
   // Docker
   'dockerfile',
