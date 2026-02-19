@@ -21,7 +21,8 @@ describe('Encryption Utils Coverage', () => {
     const mockKey = crypto.randomBytes(32).toString('hex');
     vi.stubEnv('MASTER_KEY', mockKey);
 
-    const { encrypt, decrypt } = await import('../../src/core/utils/encryption');
+    const { encrypt, decrypt } =
+      await import('../../src/core/utils/encryption');
     const text = 'test-env-key';
     const encrypted = encrypt(text);
     expect(decrypt(encrypted)).toBe(text);
@@ -34,7 +35,9 @@ describe('Encryption Utils Coverage', () => {
   });
 
   it('should regenerate key if master.key has invalid length', async () => {
-    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const consoleWarnSpy = vi
+      .spyOn(console, 'warn')
+      .mockImplementation(() => {});
     const writeSpy = vi.spyOn(fs, 'writeFileSync');
 
     // Create a dummy file with invalid length
@@ -44,13 +47,17 @@ describe('Encryption Utils Coverage', () => {
     const { encrypt } = await import('../../src/core/utils/encryption');
     encrypt('test');
 
-    expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('Invalid key length'));
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Invalid key length'),
+    );
     // Should have generated a new key (check writeFileSync was called)
     expect(writeSpy).toHaveBeenCalled();
   });
 
   it('should handle read error for master.key gracefully', async () => {
-    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const consoleWarnSpy = vi
+      .spyOn(console, 'warn')
+      .mockImplementation(() => {});
     const writeSpy = vi.spyOn(fs, 'writeFileSync');
 
     vi.spyOn(fs, 'existsSync').mockReturnValue(true);
@@ -61,13 +68,18 @@ describe('Encryption Utils Coverage', () => {
     const { encrypt } = await import('../../src/core/utils/encryption');
     encrypt('test');
 
-    expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to read'), expect.any(Error));
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to read'),
+      expect.any(Error),
+    );
     // Should proceed to generate new key
     expect(writeSpy).toHaveBeenCalled();
   });
 
   it('should log error if writing master.key fails', async () => {
-    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
 
     vi.spyOn(fs, 'existsSync').mockReturnValue(false);
     vi.spyOn(fs, 'writeFileSync').mockImplementation(() => {
@@ -77,12 +89,18 @@ describe('Encryption Utils Coverage', () => {
     const { encrypt } = await import('../../src/core/utils/encryption');
     // Should not throw, just log error and use in-memory key
     expect(() => encrypt('test')).not.toThrow();
-    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to write'), expect.any(Error));
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to write'),
+      expect.any(Error),
+    );
   });
 
   it('should return original text if decryption throws internally', async () => {
-    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const { encrypt, decrypt } = await import('../../src/core/utils/encryption');
+    const consoleWarnSpy = vi
+      .spyOn(console, 'warn')
+      .mockImplementation(() => {});
+    const { encrypt, decrypt } =
+      await import('../../src/core/utils/encryption');
 
     const plain = 'secret';
     const encrypted = encrypt(plain);
@@ -94,6 +112,9 @@ describe('Encryption Utils Coverage', () => {
 
     const result = decrypt(encrypted);
     expect(result).toBe(encrypted); // Fallback to returning input
-    expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('Decryption failed'), expect.any(String));
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Decryption failed'),
+      expect.any(String),
+    );
   });
 });
