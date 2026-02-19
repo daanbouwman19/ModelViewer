@@ -99,7 +99,7 @@ describe('thumbnail-handler unit tests', () => {
       status: vi.fn().mockReturnThis(),
       send: vi.fn(),
       set: vi.fn().mockReturnThis(),
-      sendFile: vi.fn((path, options, cb) => {
+      sendFile: vi.fn((_path, _options, cb) => {
         // Default success
         if (cb) cb(null);
       }),
@@ -123,7 +123,7 @@ describe('thumbnail-handler unit tests', () => {
       mockGetThumbnailCachePath.mockReturnValue(cachePath);
 
       // Setup res.sendFile to succeed
-      res.sendFile.mockImplementation((path: string, options: any, cb: any) => {
+      res.sendFile.mockImplementation((_path: string, _options: any, cb: any) => {
         cb(null); // Success
       });
 
@@ -165,7 +165,7 @@ describe('thumbnail-handler unit tests', () => {
       mockHandleAccessCheck.mockReturnValue(false);
 
       // Mock cache miss (sendFile fails)
-      res.sendFile.mockImplementation((path: string, options: any, cb: any) => {
+      res.sendFile.mockImplementation((_path: string, _options: any, cb: any) => {
         cb(new Error('ENOENT'));
       });
 
@@ -192,7 +192,7 @@ describe('thumbnail-handler unit tests', () => {
       mockHandleAccessCheck.mockReturnValue(false);
 
       // Mock cache miss
-      res.sendFile.mockImplementation((path: string, options: any, cb: any) => {
+      res.sendFile.mockImplementation((_path: string, _options: any, cb: any) => {
         cb(new Error('ENOENT'));
       });
 
@@ -236,13 +236,13 @@ describe('thumbnail-handler unit tests', () => {
     it('handles ffmpg generation for local file', async () => {
       // Mock cache miss
       res.sendFile.mockImplementationOnce(
-        (path: string, options: any, cb: any) => {
+        (_path: string, _options: any, cb: any) => {
           cb(new Error('ENOENT'));
         },
       );
       // Mock success for generation sendFile
       res.sendFile.mockImplementationOnce(
-        (path: string, options: any, cb: any) => {
+        (_path: string, _options: any, cb: any) => {
           cb(null);
         },
       );
@@ -271,7 +271,7 @@ describe('thumbnail-handler unit tests', () => {
 
     it('handles ffmpeg failure (non-zero exit)', async () => {
       // Cache miss
-      res.sendFile.mockImplementation((path: string, options: any, cb: any) => {
+      res.sendFile.mockImplementation((_path: string, _options: any, cb: any) => {
         cb(new Error('ENOENT'));
       });
 
@@ -295,7 +295,7 @@ describe('thumbnail-handler unit tests', () => {
     it('handles ffmpeg success but file missing (generation failed silently)', async () => {
       // Cache miss
       res.sendFile.mockImplementationOnce(
-        (path: string, options: any, cb: any) => {
+        (_path: string, _options: any, cb: any) => {
           cb(new Error('ENOENT'));
         },
       );
@@ -304,7 +304,7 @@ describe('thumbnail-handler unit tests', () => {
 
       // But sending generated file fails
       res.sendFile.mockImplementationOnce(
-        (path: string, options: any, cb: any) => {
+        (_path: string, _options: any, cb: any) => {
           cb(new Error('ENOENT'));
         },
       );
@@ -328,7 +328,7 @@ describe('thumbnail-handler unit tests', () => {
 
     it('handles runFFmpeg error (e.g. timeout)', async () => {
       // Cache miss
-      res.sendFile.mockImplementation((path: string, options: any, cb: any) => {
+      res.sendFile.mockImplementation((_path: string, _options: any, cb: any) => {
         cb(new Error('ENOENT'));
       });
 
@@ -348,7 +348,7 @@ describe('thumbnail-handler unit tests', () => {
 
     it('returns 500 if ffmpeg binary is not found', async () => {
       // Cache miss
-      res.sendFile.mockImplementation((path: string, options: any, cb: any) => {
+      res.sendFile.mockImplementation((_path: string, _options: any, cb: any) => {
         cb(new Error('ENOENT'));
       });
 
@@ -370,7 +370,7 @@ describe('thumbnail-handler unit tests', () => {
 
       // Simulate cache error (not found or read error)
       res.sendFile.mockImplementationOnce(
-        (path: string, options: any, cb: any) => {
+        (_path: string, _options: any, cb: any) => {
           cb(new Error('Cache read failed'));
         },
       );
@@ -380,7 +380,7 @@ describe('thumbnail-handler unit tests', () => {
 
       // Generation sendFile success
       res.sendFile.mockImplementationOnce(
-        (path: string, options: any, cb: any) => {
+        (_path: string, _options: any, cb: any) => {
           cb(null);
         },
       );
@@ -402,7 +402,7 @@ describe('thumbnail-handler unit tests', () => {
     it('handles stream error during sending generated file', async () => {
       // Cache miss
       res.sendFile.mockImplementationOnce(
-        (path: string, options: any, cb: any) => {
+        (_path: string, _options: any, cb: any) => {
           cb(new Error('ENOENT'));
         },
       );
@@ -418,7 +418,7 @@ describe('thumbnail-handler unit tests', () => {
 
       // Generation sendFile error
       res.sendFile.mockImplementationOnce(
-        (path: string, options: any, cb: any) => {
+        (_path: string, _options: any, cb: any) => {
           cb(new Error('Stream error'));
         },
       );
