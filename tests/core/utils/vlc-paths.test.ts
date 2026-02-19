@@ -79,7 +79,7 @@ describe('getVlcPath', () => {
     },
   ];
 
-  it.each(testCases)('$name', async ({ platform, existingPaths, expected }) => {
+  it.each(testCases)('$name', async ({ platform, existingPaths, expected }: any) => {
     Object.defineProperty(process, 'platform', {
       value: platform,
     });
