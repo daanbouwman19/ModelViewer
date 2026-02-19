@@ -1,9 +1,7 @@
 import fs from 'fs';
-import fsPromises from 'fs/promises';
 import { Response } from 'express';
 import {
   getThumbnailCachePath,
-  checkThumbnailCache,
   isDrivePath,
 } from './media-utils.ts';
 import { getThumbnailArgs, runFFmpeg } from './utils/ffmpeg-utils.ts';
@@ -40,35 +38,37 @@ export async function tryServeFromCache(
   res: Response,
   cacheFile: string,
 ): Promise<boolean> {
-  const hit = await checkThumbnailCache(cacheFile);
-  if (hit) {
-    return new Promise((resolve) => {
-      res.set({
-        'Content-Type': 'image/jpeg',
-        'Cache-Control': 'public, max-age=31536000',
-      });
-
-      const stream = fs.createReadStream(cacheFile);
-
-      stream.on('open', () => {
-        stream.pipe(res);
-      });
-
-      stream.on('error', (err) => {
-        console.warn(
-          `[Thumbnail] Cache Stream Error for ${cacheFile} (falling back to generate):`,
-          err,
-        );
-        // Fallback to generation
-        resolve(false);
-      });
-
-      stream.on('end', () => {
-        resolve(true);
-      });
-    });
-  }
-  return false;
+  return new Promise((resolve) => {
+    // Bolt Optimization: Use res.sendFile instead of fs.access + fs.createReadStream.
+    // This saves a syscall and leverages kernel sendfile optimization.
+    // If file doesn't exist, we get an error in callback and return false.
+    res.sendFile(
+      cacheFile,
+      {
+        headers: {
+          'Content-Type': 'image/jpeg',
+          'Cache-Control': 'public, max-age=31536000',
+        },
+      },
+      (err: any) => {
+        if (err) {
+          // If headers already sent, we can't do anything but log
+          if (res.headersSent) {
+            console.error(
+              `[Thumbnail] Error sending cached file ${cacheFile}:`,
+              err,
+            );
+            resolve(true); // Treat as handled to stop further processing
+          } else {
+            // File not found or other error -> Fallback to generation
+            resolve(false);
+          }
+        } else {
+          resolve(true);
+        }
+      },
+    );
+  });
 }
 
 /**
@@ -120,21 +120,22 @@ export async function generateLocalThumbnail(
       runFFmpegThumbnail(authorizedPath, cacheFile, ffmpegPath),
     );
 
-    // Verify file exists
-    await fsPromises.stat(cacheFile);
-    res.set({
-      'Content-Type': 'image/jpeg',
-      'Cache-Control': 'public, max-age=31536000',
-    });
-
-    // Use stream instead of sendFile
-    const stream = fs.createReadStream(cacheFile);
-    stream.pipe(res);
-
-    stream.on('error', (err) => {
-      console.error('[Thumbnail] Stream error sending generated file:', err);
-      if (!res.headersSent) res.status(500).end();
-    });
+    // Bolt Optimization: Use res.sendFile instead of fs.stat + fs.createReadStream
+    res.sendFile(
+      cacheFile,
+      {
+        headers: {
+          'Content-Type': 'image/jpeg',
+          'Cache-Control': 'public, max-age=31536000',
+        },
+      },
+      (err: any) => {
+        if (err) {
+          console.error('[Thumbnail] Error sending generated file:', err);
+          if (!res.headersSent) res.status(500).end();
+        }
+      },
+    );
   } catch (err) {
     console.error('[Thumbnail] Generation failed:', err);
     if (!res.headersSent) {

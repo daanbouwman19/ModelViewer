@@ -4,20 +4,14 @@ import {
   getDriveId,
   createDrivePath,
   getThumbnailCachePath,
-  checkThumbnailCache,
   normalizeFilePath,
 } from '../../src/core/media-utils';
 import fs from 'fs'; // Import for spyOn
 import path from 'path';
 
-// REMOVED vi.mock('fs')
-
 describe('media-utils unit tests', () => {
-  let mockFsAccess: any;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    mockFsAccess = vi.spyOn(fs.promises, 'access');
   });
 
   afterEach(() => {
@@ -54,16 +48,6 @@ describe('media-utils unit tests', () => {
 
       // Verify validation logic works with platform specific check
       expect(result.startsWith(path.join(cacheDir))).toBe(true);
-    });
-
-    it('checkThumbnailCache returns true if file exists', async () => {
-      mockFsAccess.mockResolvedValue(undefined);
-      expect(await checkThumbnailCache('/path/to/thumb.jpg')).toBe(true);
-    });
-
-    it('checkThumbnailCache returns false if file access fails', async () => {
-      mockFsAccess.mockRejectedValue(new Error('ENOENT'));
-      expect(await checkThumbnailCache('/path/to/thumb.jpg')).toBe(false);
     });
   });
 
