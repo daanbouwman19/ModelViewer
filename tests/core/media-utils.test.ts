@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, test } from 'vitest';
 import {
   isDrivePath,
   getDriveId,
@@ -51,24 +51,74 @@ describe('media-utils unit tests', () => {
   });
 
   describe('normalizeFilePath', () => {
-    it('should normalize standard path', () => {
-      expect(normalizeFilePath('/path/to/file', 'linux')).toBe('/path/to/file');
-    });
-
-    it('should normalize Windows path by removing leading slash', () => {
-      expect(normalizeFilePath('/C:/Windows/System32', 'win32')).toBe(
-        'C:/Windows/System32',
-      );
-    });
-
-    it('should not remove leading slash on non-Windows platform', () => {
-      expect(normalizeFilePath('/path/to/file', 'linux')).toBe('/path/to/file');
-    });
-
-    it('should decode URI components', () => {
-      expect(normalizeFilePath('/path%20to/file', 'linux')).toBe(
-        '/path to/file',
-      );
-    });
+    test.each([
+      {
+        desc: 'standard linux path',
+        input: '/path/to/file',
+        platform: 'linux',
+        expected: '/path/to/file',
+      },
+      {
+        desc: 'windows path with leading slash',
+        input: '/C:/Windows/System32',
+        platform: 'win32',
+        expected: 'C:/Windows/System32',
+      },
+      {
+        desc: 'windows-like path on linux',
+        input: '/C:/Windows',
+        platform: 'linux',
+        expected: '/C:/Windows',
+      },
+      {
+        desc: 'encoded URI components',
+        input: '/path%20to/file',
+        platform: 'linux',
+        expected: '/path to/file',
+      },
+      {
+        desc: 'empty string',
+        input: '',
+        platform: 'linux',
+        expected: '',
+      },
+      {
+        desc: 'root path on windows (removes slash)',
+        input: '/',
+        platform: 'win32',
+        expected: '',
+      },
+      {
+        desc: 'windows path without leading slash',
+        input: 'C:/Windows',
+        platform: 'win32',
+        expected: 'C:/Windows',
+      },
+      {
+        desc: 'encoded slash on windows',
+        input: '%2F',
+        platform: 'win32',
+        expected: '',
+      },
+      {
+        desc: 'encoded slash on linux',
+        input: '%2F',
+        platform: 'linux',
+        expected: '/',
+      },
+    ])(
+      '$desc: "$input" on $platform -> "$expected"',
+      ({
+        input,
+        platform,
+        expected,
+      }: {
+        input: string;
+        platform: string;
+        expected: string;
+      }) => {
+        expect(normalizeFilePath(input, platform)).toBe(expected);
+      },
+    );
   });
 });
