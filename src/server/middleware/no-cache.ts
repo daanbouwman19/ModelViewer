@@ -5,7 +5,6 @@ import { Request, Response, NextFunction } from 'express';
  * Sets Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate
  * Sets Pragma: no-cache
  * Sets Expires: 0
- * Sets Surrogate-Control: no-store
  *
  * Excludes streaming endpoints that benefit from caching/range requests.
  */
@@ -29,7 +28,8 @@ export function noCacheMiddleware(
     return next();
   }
 
-  res.setHeader('Surrogate-Control', 'no-store');
+  // Remove redundant Surrogate-Control header as Cache-Control: no-store covers shared caches.
+  // Keeping Pragma and Expires for HTTP/1.0 backward compatibility.
   res.setHeader(
     'Cache-Control',
     'no-store, no-cache, must-revalidate, proxy-revalidate',
