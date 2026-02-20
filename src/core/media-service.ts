@@ -98,6 +98,32 @@ function enrichAlbumsWithStats(
 export class MediaService {
   constructor(private mediaRepo: MediaRepository) {}
 
+  private async getGoogleTokens(): Promise<unknown> {
+    try {
+      const tokenString = await this.mediaRepo.getSetting('google_tokens');
+      return tokenString ? JSON.parse(tokenString) : null;
+    } catch (e) {
+      console.warn(
+        '[media-service] Failed to fetch google tokens for worker:',
+        e,
+      );
+      return null;
+    }
+  }
+
+  private async getCachedPaths(): Promise<string[]> {
+    try {
+      const cachedAlbums = await this.mediaRepo.getCachedAlbums();
+      return cachedAlbums ? collectAllFilePaths(cachedAlbums) : [];
+    } catch (e) {
+      console.warn(
+        '[media-service] Failed to fetch cached albums for diffing:',
+        e,
+      );
+      return [];
+    }
+  }
+
   async scanDiskForAlbumsAndCache(ffmpegPath?: string): Promise<Album[]> {
     const allDirectories = await this.mediaRepo.getMediaDirectories();
     const activeDirectories = allDirectories
@@ -130,48 +156,8 @@ export class MediaService {
       });
 
       try {
-        // Fetch tokens
-        let tokens = null;
-        try {
-          const tokenString = await this.mediaRepo.getSetting('google_tokens');
-          if (tokenString) {
-            tokens = JSON.parse(tokenString);
-          }
-        } catch (e) {
-          console.warn(
-            '[media-service] Failed to fetch google tokens for worker:',
-            e,
-          );
-        }
-
-        // Fetch currently cached albums to determine what is already known
-        const previousPaths: string[] = [];
-        try {
-          const cachedAlbums = await this.mediaRepo.getCachedAlbums();
-          if (cachedAlbums) {
-            // Flatten albums to paths (Iterative)
-            const stack = [...cachedAlbums];
-            while (stack.length > 0) {
-              const album = stack.pop();
-              if (album) {
-                for (const texture of album.textures) {
-                  previousPaths.push(texture.path);
-                }
-                if (album.children && album.children.length > 0) {
-                  // Push children in reverse order to maintain traversal order
-                  for (let i = album.children.length - 1; i >= 0; i--) {
-                    stack.push(album.children[i]);
-                  }
-                }
-              }
-            }
-          }
-        } catch (e) {
-          console.warn(
-            '[media-service] Failed to fetch cached albums for diffing:',
-            e,
-          );
-        }
+        const tokens = await this.getGoogleTokens();
+        const previousPaths = await this.getCachedPaths();
 
         await client.init();
 
