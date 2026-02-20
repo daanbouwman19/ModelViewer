@@ -8,7 +8,7 @@ vi.mock('../../../src/renderer/composables/useToast', async () => {
   const { ref } = await import('vue');
   const toasts = ref<any[]>([]);
   const add = vi.fn((message, type) => {
-    toasts.value.push({ id: 1, message, type });
+    toasts.value.push({ id: '1', message, type });
   });
   const remove = vi.fn((id) => {
     toasts.value = toasts.value.filter((t: any) => t.id !== id);
@@ -31,7 +31,7 @@ describe('ToastContainer', () => {
   });
 
   it('renders a toast with correct styling', async () => {
-    toasts.value = [{ id: 1, message: 'Success Message', type: 'success' }];
+    toasts.value = [{ id: '1', message: 'Success Message', type: 'success' }];
     const wrapper = mount(ToastContainer, {
       global: {
         stubs: {
@@ -48,7 +48,7 @@ describe('ToastContainer', () => {
   });
 
   it('removes a toast when close button is clicked', async () => {
-    toasts.value = [{ id: 1, message: 'Message to Close', type: 'info' }];
+    toasts.value = [{ id: '1', message: 'Message to Close', type: 'info' }];
     const wrapper = mount(ToastContainer, {
       global: {
         stubs: {
@@ -60,13 +60,13 @@ describe('ToastContainer', () => {
 
     const closeButton = wrapper.find('button');
     await closeButton.trigger('click');
-    expect(remove).toHaveBeenCalledWith(1);
+    expect(remove).toHaveBeenCalledWith('1');
   });
 
   it('renders multiple toasts', () => {
     toasts.value = [
-      { id: 1, message: 'Toast 1', type: 'info' },
-      { id: 2, message: 'Toast 2', type: 'error' },
+      { id: '1', message: 'Toast 1', type: 'info' },
+      { id: '2', message: 'Toast 2', type: 'error' },
     ];
     const wrapper = mount(ToastContainer, {
       global: {
