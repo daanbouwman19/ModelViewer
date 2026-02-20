@@ -107,4 +107,41 @@ describe('Server Security', () => {
       expect(database.addMediaDirectory).toHaveBeenCalledWith(userPath);
     });
   });
+
+  describe('API Cache Control', () => {
+    it('should set no-cache headers for sensitive API endpoints', async () => {
+      // /api/media/all is sensitive (metadata)
+      vi.mocked(database.getAllMetadataAndStats).mockResolvedValue([]);
+      const response = await request(app).get('/api/media/all');
+
+      expect(response.headers['cache-control']).toBe(
+        'no-store, no-cache, must-revalidate, proxy-revalidate',
+      );
+      expect(response.headers['pragma']).toBe('no-cache');
+      expect(response.headers['expires']).toBe('0');
+      // Surrogate-Control removed as per PR feedback
+      expect(response.headers['surrogate-control']).toBeUndefined();
+    });
+
+    it('should NOT set no-cache headers for streaming endpoints', async () => {
+      // /api/stream is excluded
+      // We don't need successful streaming, just headers check
+      const response = await request(app).get('/api/stream');
+
+      // Even if it returns 400 (Missing file), headers from middleware should be absent
+      expect(response.headers['pragma']).toBeUndefined();
+      if (response.headers['cache-control']) {
+        // Robust check: Ensure no restrictive directives are present if cache-control exists
+        expect(response.headers['cache-control']).not.toContain('no-store');
+        expect(response.headers['cache-control']).not.toContain('no-cache');
+      }
+    });
+
+    it('should NOT set no-cache headers for thumbnails', async () => {
+      const response = await request(app).get('/api/thumbnail');
+      // Verify middleware didn't run
+      expect(response.headers['pragma']).toBeUndefined();
+      expect(response.headers['expires']).toBeUndefined();
+    });
+  });
 });

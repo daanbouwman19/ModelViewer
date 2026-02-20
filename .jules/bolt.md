@@ -83,6 +83,11 @@
 **Learning:** `authorizeFilePath` performs `fs.realpath` and database lookups (for `getMediaDirectories`) on every call. During HLS streaming, this is called for every segment (every few seconds), causing redundant I/O and DB overhead.
 **Action:** Implemented a short-lived (5s) LRU cache for `authorizeFilePath` results when using default media directories. This eliminates repetitive filesystem and database checks for sequential segment requests while maintaining reasonable security responsiveness.
 
+## 2026-02-19 - [Thumbnail Serving Optimization]
+
+**Learning:** Serving small static files (thumbnails) using `fs.createReadStream().pipe(res)` with a manual existence check (`fs.access`) is inefficient compared to `res.sendFile()`. The manual check adds a redundant syscall, and Node streams have higher overhead than `res.sendFile` which can use `sendfile` syscalls.
+**Action:** Replaced manual stream handling in `serveThumbnail` with `res.sendFile`, handling the "file not found" error in the callback to trigger generation fallback. This reduces I/O overhead for high-frequency thumbnail requests.
+
 ## 2026-02-20 - [Lazy Loading in Virtual Scroller]
 
 **Learning:** Using `loading="lazy"` on images inside a virtual scroller (which already manages visibility by mounting/unmounting) causes double-buffering. The browser waits until the image is strictly in the viewport (or very close) to load it, defeating the purpose of the scroller's buffer zone which is meant to preload items just outside the viewport.
