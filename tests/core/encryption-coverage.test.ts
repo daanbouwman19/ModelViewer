@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
-import path from 'path';
 import crypto from 'crypto';
 
 // We need to reset modules to clear cachedKey
@@ -12,8 +11,6 @@ beforeEach(() => {
 afterEach(() => {
   vi.clearAllMocks();
 });
-
-const MASTER_KEY_FILE = 'master.key';
 
 describe('Encryption Utils Coverage', () => {
   it('should use MASTER_KEY from environment variable', async () => {
