@@ -629,12 +629,12 @@ const closeModalAndReindex = () => {
 };
 
 const handleEscape = () => {
-  if (showDriveAuth.value) {
-    cancelDriveAuth();
-    return;
-  }
   if (isFileExplorerOpen.value) {
     closeFileExplorer();
+    return;
+  }
+  if (showDriveAuth.value) {
+    cancelDriveAuth();
     return;
   }
   closeModal();
