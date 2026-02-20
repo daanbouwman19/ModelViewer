@@ -231,6 +231,7 @@ import { useLibraryStore } from '../composables/useLibraryStore';
 import { usePlayerStore } from '../composables/usePlayerStore';
 import { useSlideshow } from '../composables/useSlideshow';
 import { useUIStore } from '../composables/useUIStore';
+import { useToast } from '../composables/useToast';
 import { api } from '../api';
 import MenuIcon from './icons/MenuIcon.vue';
 import PlaylistIcon from './icons/PlaylistIcon.vue';
@@ -249,6 +250,7 @@ defineEmits(['open-shortcuts']);
 const libraryStore = useLibraryStore();
 const playerStore = usePlayerStore();
 const uiStore = useUIStore();
+const toast = useToast();
 
 const {
   imageExtensionsSet,
@@ -745,8 +747,14 @@ const setRating = async (rating: number) => {
 
   try {
     await api.setRating(currentMediaItem.value.path, newRating);
+    if (newRating > 0) {
+      toast.success(`Rated ${newRating} stars`);
+    } else {
+      toast.info('Rating cleared');
+    }
   } catch (e) {
     console.error('Failed to set rating', e);
+    toast.error('Failed to set rating. Please try again.');
   }
 };
 

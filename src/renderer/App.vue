@@ -99,6 +99,7 @@
       :is-open="isShortcutsModalOpen"
       @close="isShortcutsModalOpen = false"
     />
+    <ToastContainer />
     <LoadingMask v-if="isScanning" />
   </div>
 </template>
@@ -117,6 +118,7 @@ import MediaGrid from './components/MediaGrid.vue';
 import SourcesModal from './components/SourcesModal.vue';
 import SmartPlaylistModal from './components/SmartPlaylistModal.vue';
 import KeyboardShortcutsModal from './components/KeyboardShortcutsModal.vue';
+import ToastContainer from './components/ToastContainer.vue';
 import LoadingMask from './components/LoadingMask.vue';
 import MenuIcon from './components/icons/MenuIcon.vue';
 import HelpIcon from './components/icons/HelpIcon.vue';
