@@ -83,7 +83,7 @@
 **Learning:** `authorizeFilePath` performs `fs.realpath` and database lookups (for `getMediaDirectories`) on every call. During HLS streaming, this is called for every segment (every few seconds), causing redundant I/O and DB overhead.
 **Action:** Implemented a short-lived (5s) LRU cache for `authorizeFilePath` results when using default media directories. This eliminates repetitive filesystem and database checks for sequential segment requests while maintaining reasonable security responsiveness.
 
-## 2026-02-23 - [Lazy Loading in Virtual Scroller]
+## 2026-02-20 - [Lazy Loading in Virtual Scroller]
 
 **Learning:** Using `loading="lazy"` on images inside a virtual scroller (which already manages visibility by mounting/unmounting) causes double-buffering. The browser waits until the image is strictly in the viewport (or very close) to load it, defeating the purpose of the scroller's buffer zone which is meant to preload items just outside the viewport.
 **Action:** Remove `loading="lazy"` from images within `VirtualScroller` item components to ensure they load eagerly when mounted in the buffer, providing smoother scrolling.
