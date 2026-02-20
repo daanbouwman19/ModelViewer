@@ -252,7 +252,7 @@ export class MediaAnalyzer {
     const ydifRegex = /lavfi\.signalstats\.YDIF\s*=\s*([0-9\.]+)/;
     const audioRegex = /lavfi\.astats\.Overall\.RMS_level\s*=\s*([0-9\.\-]+)/;
 
-    const lines = output.split('\n');
+    const lines = output.split(/[\r\n]+/);
     for (const line of lines) {
       const ydifMatch = line.match(ydifRegex);
       if (ydifMatch) {
@@ -267,7 +267,7 @@ export class MediaAnalyzer {
       }
     }
 
-    if (motionValues.length === 0 || audioValues.length === 0) {
+    if (motionValues.length === 0 && audioValues.length === 0) {
       console.warn(
         `[MediaAnalyzer] Warning: Zero samples found for ${filePath}`,
       );

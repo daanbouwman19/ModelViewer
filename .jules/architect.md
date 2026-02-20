@@ -118,7 +118,7 @@
 **Insight:** Caching the promise of an expensive operation (memoization) ensures that the operation is performed only once per instance, even if multiple methods are called concurrently, improving performance and reliability.
 **Prevention:** When a class method performs an expensive I/O operation that is expected to return the same result during the instance's lifetime, memoize the result (or the promise) to avoid redundant calls.
 
-## 2026-02-18 - Extracting Heatmap Generation Logic
+## 2026-02-19 - Extracting Heatmap Generation Logic
 
 **Smell:** `media-analyzer.ts` contained a "God Method" `executeHeatmapGeneration` that mixed high-level orchestration with low-level details like FFmpeg argument construction, process spawning, and output parsing.
 **Insight:** Breaking down complex operations into distinct phases (Preparation, Execution, Parsing) significantly improves readability and makes each part easier to test and reason about in isolation.
