@@ -121,7 +121,6 @@ vi.mock('../../src/core/rate-limiter', () => ({
 // Mock media-utils
 vi.mock('../../src/core/media-utils', () => ({
   getThumbnailCachePath: vi.fn(),
-  checkThumbnailCache: vi.fn(),
   isDrivePath: vi.fn().mockReturnValue(false),
   normalizeFilePath: vi.fn((p) => p),
   getVlcPath: vi.fn(),
@@ -246,7 +245,6 @@ describe('Server Combined Tests', () => {
     vi.mocked(fs.readdir).mockResolvedValue([] as any);
 
     // Media Utils Defaults
-    vi.mocked(mediaUtils.checkThumbnailCache).mockResolvedValue(false);
     vi.mocked(mediaUtils.getThumbnailCachePath).mockReturnValue(
       '/tmp/thumb.jpg',
     );
