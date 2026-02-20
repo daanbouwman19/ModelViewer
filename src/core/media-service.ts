@@ -101,31 +101,27 @@ export class MediaService {
   private async getGoogleTokens(): Promise<unknown> {
     try {
       const tokenString = await this.mediaRepo.getSetting('google_tokens');
-      if (tokenString) {
-        return JSON.parse(tokenString);
-      }
+      return tokenString ? JSON.parse(tokenString) : null;
     } catch (e) {
       console.warn(
         '[media-service] Failed to fetch google tokens for worker:',
         e,
       );
+      return null;
     }
-    return null;
   }
 
   private async getCachedPaths(): Promise<string[]> {
     try {
       const cachedAlbums = await this.mediaRepo.getCachedAlbums();
-      if (cachedAlbums) {
-        return collectAllFilePaths(cachedAlbums);
-      }
+      return cachedAlbums ? collectAllFilePaths(cachedAlbums) : [];
     } catch (e) {
       console.warn(
         '[media-service] Failed to fetch cached albums for diffing:',
         e,
       );
+      return [];
     }
-    return [];
   }
 
   async scanDiskForAlbumsAndCache(ffmpegPath?: string): Promise<Album[]> {
