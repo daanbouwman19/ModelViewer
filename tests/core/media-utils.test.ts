@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, test } from 'vitest';
 import {
   isDrivePath,
   getDriveId,
@@ -119,7 +119,7 @@ describe('media-utils unit tests', () => {
       },
     ])(
       '$desc: "$input" on $platform -> "$expected"',
-      ({ input, platform, expected }) => {
+      ({ input, platform, expected }: { input: string; platform: string; expected: string }) => {
         expect(normalizeFilePath(input, platform)).toBe(expected);
       },
     );
