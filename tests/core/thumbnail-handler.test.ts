@@ -123,9 +123,11 @@ describe('thumbnail-handler unit tests', () => {
       mockGetThumbnailCachePath.mockReturnValue(cachePath);
 
       // Setup res.sendFile to succeed
-      res.sendFile.mockImplementation((_path: string, _options: any, cb: any) => {
-        cb(null); // Success
-      });
+      res.sendFile.mockImplementation(
+        (_path: string, _options: any, cb: any) => {
+          cb(null); // Success
+        },
+      );
 
       await serveThumbnail(req, res, '/video.mp4', 'ffmpeg', '/cache');
 
@@ -165,9 +167,11 @@ describe('thumbnail-handler unit tests', () => {
       mockHandleAccessCheck.mockReturnValue(false);
 
       // Mock cache miss (sendFile fails)
-      res.sendFile.mockImplementation((_path: string, _options: any, cb: any) => {
-        cb(new Error('ENOENT'));
-      });
+      res.sendFile.mockImplementation(
+        (_path: string, _options: any, cb: any) => {
+          cb(new Error('ENOENT'));
+        },
+      );
 
       mockGetThumbnailCachePath.mockReturnValue('/cache/gdrive.jpg');
 
@@ -192,9 +196,11 @@ describe('thumbnail-handler unit tests', () => {
       mockHandleAccessCheck.mockReturnValue(false);
 
       // Mock cache miss
-      res.sendFile.mockImplementation((_path: string, _options: any, cb: any) => {
-        cb(new Error('ENOENT'));
-      });
+      res.sendFile.mockImplementation(
+        (_path: string, _options: any, cb: any) => {
+          cb(new Error('ENOENT'));
+        },
+      );
 
       mockGetThumbnailCachePath.mockReturnValue('/cache/gdrive.jpg');
       mockGetDriveFileThumbnail.mockRejectedValue(new Error('Drive error'));
@@ -271,9 +277,11 @@ describe('thumbnail-handler unit tests', () => {
 
     it('handles ffmpeg failure (non-zero exit)', async () => {
       // Cache miss
-      res.sendFile.mockImplementation((_path: string, _options: any, cb: any) => {
-        cb(new Error('ENOENT'));
-      });
+      res.sendFile.mockImplementation(
+        (_path: string, _options: any, cb: any) => {
+          cb(new Error('ENOENT'));
+        },
+      );
 
       mockValidateFileAccess.mockResolvedValue({
         success: true,
@@ -328,9 +336,11 @@ describe('thumbnail-handler unit tests', () => {
 
     it('handles runFFmpeg error (e.g. timeout)', async () => {
       // Cache miss
-      res.sendFile.mockImplementation((_path: string, _options: any, cb: any) => {
-        cb(new Error('ENOENT'));
-      });
+      res.sendFile.mockImplementation(
+        (_path: string, _options: any, cb: any) => {
+          cb(new Error('ENOENT'));
+        },
+      );
 
       mockValidateFileAccess.mockResolvedValue({
         success: true,
@@ -348,9 +358,11 @@ describe('thumbnail-handler unit tests', () => {
 
     it('returns 500 if ffmpeg binary is not found', async () => {
       // Cache miss
-      res.sendFile.mockImplementation((_path: string, _options: any, cb: any) => {
-        cb(new Error('ENOENT'));
-      });
+      res.sendFile.mockImplementation(
+        (_path: string, _options: any, cb: any) => {
+          cb(new Error('ENOENT'));
+        },
+      );
 
       mockValidateFileAccess.mockResolvedValue({
         success: true,
