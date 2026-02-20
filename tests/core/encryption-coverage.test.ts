@@ -14,7 +14,6 @@ afterEach(() => {
 });
 
 const MASTER_KEY_FILE = 'master.key';
-const KEY_PATH = path.resolve(process.cwd(), MASTER_KEY_FILE);
 
 describe('Encryption Utils Coverage', () => {
   it('should use MASTER_KEY from environment variable', async () => {
@@ -76,7 +75,7 @@ describe('Encryption Utils Coverage', () => {
     expect(writeSpy).toHaveBeenCalled();
   });
 
-  it('should log error if writing master.key fails', async () => {
+  it('should throw if writing master.key fails', async () => {
     const consoleErrorSpy = vi
       .spyOn(console, 'error')
       .mockImplementation(() => {});
@@ -87,8 +86,8 @@ describe('Encryption Utils Coverage', () => {
     });
 
     const { encrypt } = await import('../../src/core/utils/encryption');
-    // Should not throw, just log error and use in-memory key
-    expect(() => encrypt('test')).not.toThrow();
+    // Should throw to prevent data loss on restart
+    expect(() => encrypt('test')).toThrow(/Failed to persist encryption key/);
     expect(consoleErrorSpy).toHaveBeenCalledWith(
       expect.stringContaining('Failed to write'),
       expect.any(Error),
@@ -96,6 +95,9 @@ describe('Encryption Utils Coverage', () => {
   });
 
   it('should return original text if decryption throws internally', async () => {
+    // Provide a valid key via env to avoid FS operations/failures during setup
+    vi.stubEnv('MASTER_KEY', crypto.randomBytes(32).toString('hex'));
+
     const consoleWarnSpy = vi
       .spyOn(console, 'warn')
       .mockImplementation(() => {});

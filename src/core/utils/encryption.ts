@@ -53,10 +53,9 @@ function getEncryptionKey(): Buffer {
     console.log(`[Encryption] Generated new master key at ${keyPath}`);
   } catch (err) {
     console.error(`[Encryption] Failed to write ${MASTER_KEY_FILE}:`, err);
-    // Even if write fails, we can use the key for this session (though data will be lost on restart)
-    // But for persistent storage like DB, this is critical.
-    // However, throwing here might crash the app on startup if FS is read-only.
-    // We'll proceed but warn.
+    throw new Error(
+      `Failed to persist encryption key to ${MASTER_KEY_FILE}. Aborting to prevent data loss on restart.`,
+    );
   }
   cachedKey = newKey;
   return newKey;
@@ -97,11 +96,14 @@ export function decrypt(text: string): string {
   const [ivHex, authTagHex, encryptedHex] = parts;
 
   // Basic validation of hex strings
+  // IV is 12 bytes = 24 hex chars
+  // AuthTag is 16 bytes = 32 hex chars
   // ciphertext can be empty string
   if (
-    !/^[0-9a-fA-F]+$/.test(ivHex) ||
-    !/^[0-9a-fA-F]+$/.test(authTagHex) ||
-    (encryptedHex.length > 0 && !/^[0-9a-fA-F]+$/.test(encryptedHex))
+    !/^[0-9a-fA-F]{24}$/.test(ivHex) ||
+    !/^[0-9a-fA-F]{32}$/.test(authTagHex) ||
+    (encryptedHex.length > 0 && !/^[0-9a-fA-F]+$/.test(encryptedHex)) ||
+    encryptedHex.length % 2 !== 0
   ) {
     return text;
   }

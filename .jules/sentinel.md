@@ -153,7 +153,7 @@
 1.  **Cache static keys:** Derive keys for static credentials (like environment variables) once and cache them.
 2.  **Use appropriate algorithms:** For comparing in-memory credentials (where the "hash" is not stored permanently), use a faster but still secure method like HMAC-SHA256 with a per-process random salt. This prevents timing attacks (via `timingSafeEqual`) without the massive CPU cost of `scrypt`.
 
-## 2026-03-01 - Encrypted Token Storage
+## 2026-02-19 - Encrypted Token Storage
 
 **Vulnerability:** Google OAuth tokens were stored in plain text in the `media-library.db` database. If an attacker gained access to the database file (e.g. via backup or local access), they could steal the refresh tokens and access the user's Google Drive data.
 **Learning:** Sensitive credentials should never be stored in plain text, even in local databases. In shared environments (like Electron + Node Server), relying on OS-specific secure storage (Keychain) is difficult. A robust fallback (like application-level encryption with a generated key) is better than plain text.

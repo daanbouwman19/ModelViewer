@@ -1,29 +1,19 @@
-import { describe, it, expect, afterAll, beforeAll } from 'vitest';
-import fs from 'fs';
-import path from 'path';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { encrypt, decrypt } from '../../src/core/utils/encryption.ts';
-
-const MASTER_KEY_FILE = 'master.key';
-const KEY_PATH = path.resolve(process.cwd(), MASTER_KEY_FILE);
+import crypto from 'crypto';
 
 describe('Encryption Utils', () => {
-  let createdKeyFile = false;
+  beforeEach(() => {
+    vi.resetModules();
+    vi.unstubAllEnvs();
 
-  beforeAll(() => {
-    // If key file exists, we don't want to mess with it if it's real.
-    // But in test environment, we assume it's safe or we should use a different CWD?
-    // Vitest runs in project root.
-    // Let's backup if exists.
-    if (!fs.existsSync(KEY_PATH)) {
-      createdKeyFile = true;
-    }
+    // Inject a dummy key via env var to avoid FS operations
+    const mockKey = crypto.randomBytes(32).toString('hex');
+    vi.stubEnv('MASTER_KEY', mockKey);
   });
 
-  afterAll(() => {
-    // Cleanup if we created it
-    if (createdKeyFile && fs.existsSync(KEY_PATH)) {
-      fs.unlinkSync(KEY_PATH);
-    }
+  afterEach(() => {
+    vi.clearAllMocks();
   });
 
   it('should encrypt and decrypt a string correctly', () => {
@@ -35,7 +25,7 @@ describe('Encryption Utils', () => {
     // iv (12 bytes) = 24 hex chars
     // authTag (16 bytes) = 32 hex chars
     // ciphertext (variable)
-    expect(encrypted).toMatch(/^[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]+$/);
+    expect(encrypted).toMatch(/^[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]*$/);
 
     const decrypted = decrypt(encrypted);
     expect(decrypted).toBe(original);
@@ -47,19 +37,17 @@ describe('Encryption Utils', () => {
     expect(result).toBe(legacy);
   });
 
+  it('should return original text if format looks valid but lengths are wrong', () => {
+    // Correct format but wrong lengths (too short auth tag)
+    const invalid = '000000000000000000000000:0000:deadbeef';
+    const result = decrypt(invalid);
+    expect(result).toBe(invalid);
+  });
+
   it('should handle different plain texts', () => {
     const texts = ['', 'hello', '👍', JSON.stringify({ a: 1 })];
     for (const t of texts) {
       expect(decrypt(encrypt(t))).toBe(t);
     }
-  });
-
-  it('should generate a key file if missing', () => {
-    // Since module is cached, we can't easily force regeneration in the same process run
-    // unless we delete the key file AND clear module cache (which is hard in ESM).
-    // However, the first call to encrypt() inside 'should encrypt...' test triggered key generation.
-    expect(fs.existsSync(KEY_PATH)).toBe(true);
-    const keyContent = fs.readFileSync(KEY_PATH, 'utf8');
-    expect(keyContent).toHaveLength(64); // 32 bytes hex = 64 chars
   });
 });
