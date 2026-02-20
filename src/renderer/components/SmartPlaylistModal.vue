@@ -298,7 +298,9 @@ const save = async () => {
     close();
   } catch (err) {
     console.error('Failed to save playlist:', err);
-    toast.error('Failed to save playlist. Please check your input and try again.');
+    toast.error(
+      'Failed to save playlist. Please check your input and try again.',
+    );
   }
 };
 
