@@ -119,7 +119,15 @@ describe('media-utils unit tests', () => {
       },
     ])(
       '$desc: "$input" on $platform -> "$expected"',
-      ({ input, platform, expected }: { input: string; platform: string; expected: string }) => {
+      ({
+        input,
+        platform,
+        expected,
+      }: {
+        input: string;
+        platform: string;
+        expected: string;
+      }) => {
         expect(normalizeFilePath(input, platform)).toBe(expected);
       },
     );
