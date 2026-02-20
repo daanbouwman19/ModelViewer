@@ -116,6 +116,173 @@ export class MediaAnalyzer {
     }
   }
 
+  private constructFFmpegArgs(
+    inputPath: string,
+    hasVideo: boolean,
+    hasAudio: boolean,
+  ): string[] {
+    const inputs = ['-i', inputPath];
+    const filterChains: string[] = [];
+    const mapArgs: string[] = [];
+
+    // Dynamic Filter Chain Construction
+    // Optimize: Scale down to 320px width to speed up signalstats (YDIF calculation)
+    const videoAnalysisFilter = `[0:v]fps=1,scale=320:-2,signalstats,metadata=print:key=lavfi.signalstats.YDIF:file=-[v]`;
+    const audioAnalysisFilter = `[0:a]asetnsamples=22050,astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level:file=-[a]`;
+
+    if (hasVideo) {
+      filterChains.push(videoAnalysisFilter);
+      mapArgs.push('-map', '[v]');
+    }
+
+    if (hasAudio) {
+      filterChains.push(audioAnalysisFilter);
+      mapArgs.push('-map', '[a]');
+    }
+
+    return [
+      ...inputs,
+      '-filter_complex',
+      filterChains.join(';'),
+      ...mapArgs,
+      '-f',
+      'null',
+      '-',
+    ];
+  }
+
+  private async spawnFFmpegAndCaptureOutput(
+    filePath: string,
+    args: string[],
+    onProgress: (progress: number) => void,
+  ): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const process = spawn(ffmpegStatic!, args, {
+        windowsHide: true,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+
+      const timeoutTimer = setTimeout(() => {
+        console.warn(`[MediaAnalyzer] Process timed out for ${filePath}`);
+        process.kill('SIGKILL');
+        reject(new Error('Heatmap generation timed out'));
+      }, ANALYZER_TIMEOUT_MS);
+
+      let output = '';
+      let errorOutput = '';
+      let durationSec = 0;
+      let stderrBuffer = '';
+
+      process.stdout.on('data', (data) => {
+        output += data.toString();
+      });
+
+      process.stderr.on('data', (data) => {
+        const str = data.toString();
+        errorOutput += str;
+        stderrBuffer += str;
+
+        const lines = stderrBuffer.split(/[\r\n]+/);
+        // Keep the last partial line (or empty string if ends with newline) in buffer
+        stderrBuffer = lines.pop() || '';
+
+        for (const line of lines) {
+          // Parse Duration if not yet found
+          if (!durationSec) {
+            const durMatch = line.match(/Duration: (\d+):(\d+):(\d+)\.(\d+)/);
+            if (durMatch) {
+              const h = parseInt(durMatch[1], 10);
+              const m = parseInt(durMatch[2], 10);
+              const s = parseInt(durMatch[3], 10);
+              durationSec = h * 3600 + m * 60 + s;
+            }
+          }
+
+          // Parse Progress
+          if (durationSec > 0) {
+            const timeMatch = line.match(/time=(\d+):(\d+):(\d+)\.(\d+)/);
+            if (timeMatch) {
+              const h = parseInt(timeMatch[1], 10);
+              const m = parseInt(timeMatch[2], 10);
+              const s = parseInt(timeMatch[3], 10);
+              const currentSec = h * 3600 + m * 60 + s;
+              const progress = Math.min(
+                100,
+                Math.round((currentSec / durationSec) * 100),
+              );
+              onProgress(progress);
+            }
+          }
+        }
+      });
+
+      process.on('error', (err) => {
+        console.error('[MediaAnalyzer] Failed to start ffmpeg process:', err);
+        reject(err);
+      });
+
+      process.on('close', (code) => {
+        clearTimeout(timeoutTimer);
+        if (code !== 0) {
+          console.error(`[MediaAnalyzer] FFmpeg exited with code ${code}`);
+          console.error(`[MediaAnalyzer] Stderr: ${errorOutput.slice(-1000)}`);
+          reject(new Error(`FFmpeg process exited with code ${code}`));
+          return;
+        }
+
+        if (errorOutput.includes('Error')) {
+          console.warn(
+            `[MediaAnalyzer] FFmpeg succeeded but reported errors: ${errorOutput.slice(-500)}`,
+          );
+        }
+        resolve(output);
+      });
+    });
+  }
+
+  private parseHeatmapOutput(
+    output: string,
+    filePath: string,
+  ): { motion: number[]; audio: number[] } {
+    const motionValues: number[] = [];
+    const audioValues: number[] = [];
+
+    // Regex for more robust parsing
+    // Matches: lavfi.signalstats.YDIF=1.234 or lavfi.signalstats.YDIF= 1.234
+    const ydifRegex = /lavfi\.signalstats\.YDIF\s*=\s*([0-9\.]+)/;
+    const audioRegex = /lavfi\.astats\.Overall\.RMS_level\s*=\s*([0-9\.\-]+)/;
+
+    const lines = output.split(/[\r\n]+/);
+    for (const line of lines) {
+      const ydifMatch = line.match(ydifRegex);
+      if (ydifMatch) {
+        const val = parseFloat(ydifMatch[1]);
+        if (!isNaN(val)) motionValues.push(val);
+      }
+
+      const audioMatch = line.match(audioRegex);
+      if (audioMatch) {
+        const val = parseFloat(audioMatch[1]);
+        if (!isNaN(val)) audioValues.push(val);
+      }
+    }
+
+    if (motionValues.length === 0 && audioValues.length === 0) {
+      console.warn(
+        `[MediaAnalyzer] Warning: Zero samples found for ${filePath}`,
+      );
+      console.warn(
+        `[MediaAnalyzer] Output sample (last 5 lines): ${lines.slice(-5).join('\n')}`,
+      );
+    }
+
+    console.log(
+      `[MediaAnalyzer] Parsed ${motionValues.length} motion samples and ${audioValues.length} audio samples.`,
+    );
+
+    return { motion: motionValues, audio: audioValues };
+  }
+
   // Renamed the original logic to this method
   private async executeHeatmapGeneration(
     filePath: string,
@@ -130,230 +297,77 @@ export class MediaAnalyzer {
       `[MediaAnalyzer] Generating heatmap for ${filePath} with ${safePoints} points`,
     );
 
-    return new Promise<HeatmapData>(async (resolve, reject) => {
+    // Check cache
+    const cachePath = this.getCachePath(filePath, safePoints);
+    if (cachePath) {
       try {
-        // Check cache
-        const cachePath = this.getCachePath(filePath, safePoints);
-        if (cachePath) {
-          try {
-            const cached = await fs.readFile(cachePath, 'utf-8');
-            resolve(JSON.parse(cached));
-            return;
-          } catch {
-            // Cache miss, continue with FFmpeg
-          }
-        }
-
-        // Resolve input path handling gdrive:// etc
-        const source = createMediaSource(filePath);
-        const inputPath = await source.getFFmpegInput();
-
-        // Check for streams using resolved path
-        const { hasVideo, hasAudio } = await getFFmpegStreams(
-          inputPath,
-          ffmpegStatic!,
-        );
-
-        if (!hasVideo && !hasAudio) {
-          console.error(`[MediaAnalyzer] No streams found for ${filePath}`);
-          // Re-run probe to capture stderr for debugging
-          try {
-            const { stderr } = await runFFmpeg(ffmpegStatic!, [
-              '-i',
-              inputPath,
-            ]);
-            console.error(`[MediaAnalyzer] Probe stderr: ${stderr}`);
-          } catch (e: unknown) {
-            const msg = e instanceof Error ? e.message : String(e);
-            console.error(`[MediaAnalyzer] Probe stderr (from error): ${msg}`);
-          }
-          throw new Error('No video or audio streams found');
-        }
-
-        const inputs = ['-i', inputPath];
-        const filterChains: string[] = [];
-        const mapArgs: string[] = [];
-
-        // Dynamic Filter Chain Construction
-        // Optimize: Scale down to 320px width to speed up signalstats (YDIF calculation)
-        const videoAnalysisFilter = `[0:v]fps=1,scale=320:-2,signalstats,metadata=print:key=lavfi.signalstats.YDIF:file=-[v]`;
-        const audioAnalysisFilter = `[0:a]asetnsamples=22050,astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level:file=-[a]`;
-
-        if (hasVideo) {
-          filterChains.push(videoAnalysisFilter);
-          mapArgs.push('-map', '[v]');
-        }
-
-        if (hasAudio) {
-          filterChains.push(audioAnalysisFilter);
-          mapArgs.push('-map', '[a]');
-        }
-
-        const args = [
-          ...inputs,
-          '-filter_complex',
-          filterChains.join(';'),
-          ...mapArgs,
-          '-f',
-          'null',
-          '-',
-        ];
-
-        const process = spawn(ffmpegStatic!, args, {
-          windowsHide: true,
-          stdio: ['ignore', 'pipe', 'pipe'],
-        });
-
-        const timeoutTimer = setTimeout(() => {
-          console.warn(`[MediaAnalyzer] Process timed out for ${filePath}`);
-          process.kill('SIGKILL');
-          reject(new Error('Heatmap generation timed out'));
-        }, ANALYZER_TIMEOUT_MS);
-
-        let output = '';
-        let errorOutput = '';
-        let durationSec = 0;
-        let stderrBuffer = '';
-
-        process.stdout.on('data', (data) => {
-          output += data.toString();
-        });
-
-        process.stderr.on('data', (data) => {
-          const str = data.toString();
-          errorOutput += str;
-          stderrBuffer += str;
-
-          const lines = stderrBuffer.split(/[\r\n]+/);
-          // Keep the last partial line (or empty string if ends with newline) in buffer
-          stderrBuffer = lines.pop() || '';
-
-          for (const line of lines) {
-            // Parse Duration if not yet found
-            if (!durationSec) {
-              const durMatch = line.match(/Duration: (\d+):(\d+):(\d+)\.(\d+)/);
-              if (durMatch) {
-                const h = parseInt(durMatch[1], 10);
-                const m = parseInt(durMatch[2], 10);
-                const s = parseInt(durMatch[3], 10);
-                durationSec = h * 3600 + m * 60 + s;
-              }
-            }
-
-            // Parse Progress
-            if (durationSec > 0) {
-              const timeMatch = line.match(/time=(\d+):(\d+):(\d+)\.(\d+)/);
-              if (timeMatch) {
-                const h = parseInt(timeMatch[1], 10);
-                const m = parseInt(timeMatch[2], 10);
-                const s = parseInt(timeMatch[3], 10);
-                const currentSec = h * 3600 + m * 60 + s;
-                const progress = Math.min(
-                  100,
-                  Math.round((currentSec / durationSec) * 100),
-                );
-
-                // Update progress in map
-                const job = this.activeJobs.get(filePath);
-                if (job) {
-                  job.progress = progress;
-                }
-              }
-            }
-          }
-        });
-
-        process.on('error', (err) => {
-          console.error('[MediaAnalyzer] Failed to start ffmpeg process:', err);
-          reject(err);
-        });
-
-        process.on('close', async (code) => {
-          clearTimeout(timeoutTimer);
-          if (code !== 0) {
-            console.error(`[MediaAnalyzer] FFmpeg exited with code ${code}`);
-            console.error(
-              `[MediaAnalyzer] Stderr: ${errorOutput.slice(-1000)}`,
-            );
-            reject(new Error(`FFmpeg process exited with code ${code}`));
-            return;
-          }
-
-          if (errorOutput.includes('Error')) {
-            console.warn(
-              `[MediaAnalyzer] FFmpeg succeeded but reported errors: ${errorOutput.slice(-500)}`,
-            );
-          }
-
-          try {
-            const motionValues: number[] = [];
-            const audioValues: number[] = [];
-
-            // Regex for more robust parsing
-            // Matches: lavfi.signalstats.YDIF=1.234 or lavfi.signalstats.YDIF= 1.234
-            const ydifRegex = /lavfi\.signalstats\.YDIF\s*=\s*([0-9\.]+)/;
-            const audioRegex =
-              /lavfi\.astats\.Overall\.RMS_level\s*=\s*([0-9\.\-]+)/;
-
-            const lines = output.split('\n');
-            for (const line of lines) {
-              const ydifMatch = line.match(ydifRegex);
-              if (ydifMatch) {
-                const val = parseFloat(ydifMatch[1]);
-                if (!isNaN(val)) motionValues.push(val);
-              }
-
-              const audioMatch = line.match(audioRegex);
-              if (audioMatch) {
-                const val = parseFloat(audioMatch[1]);
-                if (!isNaN(val)) audioValues.push(val);
-              }
-            }
-
-            if (motionValues.length === 0 || audioValues.length === 0) {
-              console.warn(
-                `[MediaAnalyzer] Warning: Zero samples found for ${filePath}`,
-              );
-              console.warn(
-                `[MediaAnalyzer] Output sample (last 5 lines): ${lines.slice(-5).join('\n')}`,
-              );
-            }
-
-            console.log(
-              `[MediaAnalyzer] Parsed ${motionValues.length} motion samples and ${audioValues.length} audio samples.`,
-            );
-
-            // Downsample to `points`
-            const resampledAudio = this.resample(audioValues, safePoints, -90);
-            const resampledMotion = this.resample(motionValues, safePoints, 0);
-
-            const result: HeatmapData = {
-              audio: resampledAudio,
-              motion: resampledMotion,
-              points: safePoints,
-            };
-
-            // Cache result
-            if (cachePath) {
-              const dir = path.dirname(cachePath);
-              try {
-                await fs.mkdir(dir, { recursive: true });
-                await fs.writeFile(cachePath, JSON.stringify(result));
-              } catch (cacheErr) {
-                console.warn('[MediaAnalyzer] Failed to write cache', cacheErr);
-              }
-            }
-
-            resolve(result);
-          } catch (e) {
-            console.error('[MediaAnalyzer] Parse error:', e);
-            reject(e);
-          }
-        });
-      } catch (e) {
-        reject(e);
+        const cached = await fs.readFile(cachePath, 'utf-8');
+        return JSON.parse(cached);
+      } catch {
+        // Cache miss, continue with FFmpeg
       }
-    });
+    }
+
+    // Resolve input path handling gdrive:// etc
+    const source = createMediaSource(filePath);
+    const inputPath = await source.getFFmpegInput();
+
+    // Check for streams using resolved path
+    const { hasVideo, hasAudio } = await getFFmpegStreams(
+      inputPath,
+      ffmpegStatic!,
+    );
+
+    if (!hasVideo && !hasAudio) {
+      console.error(`[MediaAnalyzer] No streams found for ${filePath}`);
+      // Re-run probe to capture stderr for debugging
+      try {
+        const { stderr } = await runFFmpeg(ffmpegStatic!, ['-i', inputPath]);
+        console.error(`[MediaAnalyzer] Probe stderr: ${stderr}`);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error(`[MediaAnalyzer] Probe stderr (from error): ${msg}`);
+      }
+      throw new Error('No video or audio streams found');
+    }
+
+    const args = this.constructFFmpegArgs(inputPath, hasVideo, hasAudio);
+
+    const output = await this.spawnFFmpegAndCaptureOutput(
+      filePath,
+      args,
+      (progress) => {
+        const job = this.activeJobs.get(filePath);
+        if (job) {
+          job.progress = progress;
+        }
+      },
+    );
+
+    const { motion, audio } = this.parseHeatmapOutput(output, filePath);
+
+    // Downsample to `points`
+    const resampledAudio = this.resample(audio, safePoints, -90);
+    const resampledMotion = this.resample(motion, safePoints, 0);
+
+    const result: HeatmapData = {
+      audio: resampledAudio,
+      motion: resampledMotion,
+      points: safePoints,
+    };
+
+    // Cache result
+    if (cachePath) {
+      const dir = path.dirname(cachePath);
+      try {
+        await fs.mkdir(dir, { recursive: true });
+        await fs.writeFile(cachePath, JSON.stringify(result));
+      } catch (cacheErr) {
+        console.warn('[MediaAnalyzer] Failed to write cache', cacheErr);
+      }
+    }
+
+    return result;
   }
 
   // Simple bucket average resampling
