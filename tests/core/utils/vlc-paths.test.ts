@@ -2,6 +2,15 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { getVlcPath } from '../../../src/core/utils/vlc-paths';
 import fs from 'fs';
 
+type Platform = NodeJS.Platform;
+
+interface TestCase {
+  name: string;
+  platform: Platform;
+  existingPaths: string[];
+  expected: string | null;
+}
+
 describe('getVlcPath', () => {
   const originalPlatform = process.platform;
   let accessSpy: any;
@@ -18,7 +27,7 @@ describe('getVlcPath', () => {
     vi.restoreAllMocks();
   });
 
-  const testCases = [
+  const testCases: TestCase[] = [
     // Windows Cases
     {
       name: 'Windows: VLC found in first location',
@@ -59,10 +68,22 @@ describe('getVlcPath', () => {
       expected: '/usr/bin/vlc',
     },
     {
+      name: 'Linux: VLC found in /usr/local/bin',
+      platform: 'linux',
+      existingPaths: ['/usr/local/bin/vlc'],
+      expected: '/usr/local/bin/vlc',
+    },
+    {
       name: 'Linux: VLC found in /snap/bin',
       platform: 'linux',
       existingPaths: ['/snap/bin/vlc'],
       expected: '/snap/bin/vlc',
+    },
+    {
+      name: 'Linux: VLC found in flatpak',
+      platform: 'linux',
+      existingPaths: ['/var/lib/flatpak/exports/bin/org.videolan.VLC'],
+      expected: '/var/lib/flatpak/exports/bin/org.videolan.VLC',
     },
     {
       name: 'Linux: VLC not found (fallback to "vlc")',
@@ -79,22 +100,19 @@ describe('getVlcPath', () => {
     },
   ];
 
-  it.each(testCases)(
-    '$name',
-    async ({ platform, existingPaths, expected }: any) => {
-      Object.defineProperty(process, 'platform', {
-        value: platform,
-      });
+  it.each(testCases)('$name', async ({ platform, existingPaths, expected }: any) => {
+    Object.defineProperty(process, 'platform', {
+      value: platform,
+    });
 
-      accessSpy.mockImplementation((path: string) => {
-        if (existingPaths.includes(path)) {
-          return Promise.resolve();
-        }
-        return Promise.reject(new Error('Not found'));
-      });
+    accessSpy.mockImplementation((path: string) => {
+      if (existingPaths.includes(path)) {
+        return Promise.resolve();
+      }
+      return Promise.reject(new Error('Not found'));
+    });
 
-      const result = await getVlcPath();
-      expect(result).toBe(expected);
-    },
-  );
+    const result = await getVlcPath();
+    expect(result).toBe(expected);
+  });
 });
