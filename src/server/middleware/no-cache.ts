@@ -9,7 +9,11 @@ import { Request, Response, NextFunction } from 'express';
  *
  * Excludes streaming endpoints that benefit from caching/range requests.
  */
-export function noCacheMiddleware(req: Request, res: Response, next: NextFunction) {
+export function noCacheMiddleware(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
   // Check if the path is one of the streaming endpoints
   // Note: req.path is relative to the mount point '/api'
   const path = req.path;
