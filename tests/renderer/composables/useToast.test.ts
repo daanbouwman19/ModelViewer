@@ -24,7 +24,7 @@ describe('useToast', () => {
 
   it('should not remove if id does not exist', () => {
     add('Test Message');
-    remove(9999);
+    remove('non-existent-id');
     expect(toasts.value).toHaveLength(1);
   });
 

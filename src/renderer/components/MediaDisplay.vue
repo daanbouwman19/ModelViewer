@@ -754,7 +754,7 @@ const setRating = async (rating: number) => {
     }
   } catch (e) {
     console.error('Failed to set rating', e);
-    toast.error('Failed to set rating');
+    toast.error('Failed to set rating. Please try again.');
   }
 };
 

@@ -1,13 +1,12 @@
 import { ref } from 'vue';
 
 export interface Toast {
-  id: number;
+  id: string;
   message: string;
   type: 'success' | 'error' | 'info';
 }
 
 const toasts = ref<Toast[]>([]);
-let toastIdCounter = 0;
 
 export function useToast() {
   const add = (
@@ -15,7 +14,8 @@ export function useToast() {
     type: Toast['type'] = 'info',
     duration = 3000,
   ) => {
-    const id = ++toastIdCounter;
+    const id =
+      Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
     const toast: Toast = { id, message, type };
     toasts.value.push(toast);
 
@@ -26,7 +26,7 @@ export function useToast() {
     }
   };
 
-  const remove = (id: number) => {
+  const remove = (id: string) => {
     const index = toasts.value.findIndex((t) => t.id === id);
     if (index !== -1) {
       toasts.value.splice(index, 1);

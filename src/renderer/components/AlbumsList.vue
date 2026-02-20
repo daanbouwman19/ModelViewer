@@ -605,7 +605,9 @@ const handleSmartPlaylistSlideshow = async (playlist: SmartPlaylist) => {
   try {
     const mediaFiles = await getMediaForPlaylist(playlist);
     if (mediaFiles.length === 0) {
-      toast.error('Playlist is empty');
+      toast.error(
+        'Playlist is empty. Please ensure your criteria match existing media files.',
+      );
       return;
     }
 
@@ -647,7 +649,9 @@ const deletePlaylist = async (id: number) => {
     toast.success('Playlist deleted');
   } catch (e) {
     console.error('Failed to delete playlist', e);
-    toast.error('Failed to delete playlist');
+    toast.error(
+      'Failed to delete playlist. Please try again or check the logs for more details.',
+    );
   }
 };
 
