@@ -107,4 +107,36 @@ describe('Server Security', () => {
       expect(database.addMediaDirectory).toHaveBeenCalledWith(userPath);
     });
   });
+
+  describe('API Cache Control', () => {
+    it('should set no-cache headers for sensitive API endpoints', async () => {
+      // /api/media/all is sensitive (metadata)
+      vi.mocked(database.getAllMetadataAndStats).mockResolvedValue([]);
+      const response = await request(app).get('/api/media/all');
+
+      expect(response.headers['cache-control']).toBe(
+        'no-store, no-cache, must-revalidate, proxy-revalidate',
+      );
+      expect(response.headers['pragma']).toBe('no-cache');
+      expect(response.headers['surrogate-control']).toBe('no-store');
+    });
+
+    it('should NOT set no-cache headers for streaming endpoints', async () => {
+      // /api/stream is excluded
+      // We don't need successful streaming, just headers check
+      const response = await request(app).get('/api/stream');
+
+      // Even if it returns 400 (Missing file), headers from middleware should be absent
+      expect(response.headers['surrogate-control']).toBeUndefined();
+      expect(response.headers['pragma']).toBeUndefined();
+      if (response.headers['cache-control']) {
+        expect(response.headers['cache-control']).not.toContain('no-store');
+      }
+    });
+
+    it('should NOT set no-cache headers for thumbnails', async () => {
+      const response = await request(app).get('/api/thumbnail');
+      expect(response.headers['surrogate-control']).toBeUndefined();
+    });
+  });
 });
