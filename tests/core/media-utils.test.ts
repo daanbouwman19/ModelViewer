@@ -82,6 +82,12 @@ describe('media-utils unit tests', () => {
         expected: 'C:/Windows/System32',
       },
       {
+        desc: 'windows-like path on linux',
+        input: '/C:/Windows',
+        platform: 'linux',
+        expected: '/C:/Windows',
+      },
+      {
         desc: 'encoded URI components',
         input: '/path%20to/file',
         platform: 'linux',
