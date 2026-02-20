@@ -42,13 +42,15 @@
           />
         </svg>
       </div>
+      <!-- Bolt Optimization: Removed loading="lazy" because this component is used inside a VirtualScroller.
+           The scroller manages visibility (mounting/unmounting), so we want images in the buffer
+           to load immediately (eagerly) rather than waiting for the browser's lazy load threshold. -->
       <img
         v-if="!hasFailed"
         :src="mediaUrl"
         alt=""
         class="h-full w-full object-cover rounded transition-opacity duration-300"
         :class="{ 'opacity-0': isLoading }"
-        loading="lazy"
         @load="isLoading = false"
         @error="handleImageError"
       />
@@ -82,7 +84,6 @@
         :src="posterUrl"
         class="h-full w-full object-cover rounded block transition-opacity duration-300"
         :class="{ 'opacity-0': isLoading }"
-        loading="lazy"
         @load="isLoading = false"
         @error="handlePosterError"
       />
