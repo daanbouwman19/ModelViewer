@@ -248,6 +248,7 @@
       >
         <button
           class="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
+          aria-label="Close"
           @click="cancelDriveAuth"
         >
           <CloseIcon class="w-6 h-6" />
@@ -420,6 +421,7 @@ import { api } from '../api';
 import { ref } from 'vue';
 import FileExplorer from './FileExplorer.vue';
 import CloseIcon from './icons/CloseIcon.vue';
+import { useEscapeKey } from '../composables/useEscapeKey';
 
 const libraryStore = useLibraryStore();
 const uiStore = useUIStore();
@@ -625,4 +627,18 @@ const closeModalAndReindex = () => {
   closeModal();
   reindex();
 };
+
+const handleEscape = () => {
+  if (isFileExplorerOpen.value) {
+    closeFileExplorer();
+    return;
+  }
+  if (showDriveAuth.value) {
+    cancelDriveAuth();
+    return;
+  }
+  closeModal();
+};
+
+useEscapeKey(isSourcesModalVisible, handleEscape);
 </script>
