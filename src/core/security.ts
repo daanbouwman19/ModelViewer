@@ -413,19 +413,12 @@ const LINUX_RESTRICTED_PATHS = [
 ];
 
 /**
- * Helper to check path restrictions against a list of restricted roots.
- * Handles platform-specific logic and sensitive segment checks.
+ * Attempts to resolve the real path, handling symlinks and errors.
  */
-function checkPathRestrictions(
+function resolvePath(
   dirPath: string,
-  restrictedRoots: string[],
-): boolean {
-  if (!dirPath) return true;
-
-  // Select path module based on platform (supports mocking in tests)
-  const p = process.platform === 'win32' ? path.win32 : path.posix;
-
-  let normalized: string;
+  p: typeof path.win32 | typeof path.posix,
+): string {
   try {
     // Attempt to resolve real path to handle symlinks (security bypass)
     // We only call realpathSync if the targeted platform matches the actual host platform
@@ -434,23 +427,22 @@ function checkPathRestrictions(
     const targetIsWindows = process.platform === 'win32';
 
     if (targetIsWindows === isHostWindows) {
-      normalized = realpathSync(p.resolve(dirPath));
-    } else {
-      // Platform mismatch (likely a test), fall back to logical resolution
-      normalized = p.resolve(dirPath);
+      return realpathSync(p.resolve(dirPath));
     }
   } catch {
     // Fallback if file doesn't exist, permission denied, etc.
-    normalized = p.resolve(dirPath);
   }
+  // Platform mismatch (likely a test) or error, fall back to logical resolution
+  return p.resolve(dirPath);
+}
 
-  const segments = normalized.split(p.sep);
-
-  // Check if any segment is a sensitive directory (e.g. .ssh)
-  if (segments.some(isHiddenOrSensitive)) {
-    return true;
-  }
-
+/**
+ * Checks if the normalized path is within any restricted root.
+ */
+function checkRestrictedRoots(
+  normalized: string,
+  restrictedRoots: string[],
+): boolean {
   if (process.platform === 'win32') {
     // Windows: Case-insensitive check
     const normalizedLower = normalized.toLowerCase();
@@ -469,6 +461,30 @@ function checkPathRestrictions(
       (r) => normalized === r || normalized.startsWith(r + '/'),
     );
   }
+}
+
+/**
+ * Helper to check path restrictions against a list of restricted roots.
+ * Handles platform-specific logic and sensitive segment checks.
+ */
+function checkPathRestrictions(
+  dirPath: string,
+  restrictedRoots: string[],
+): boolean {
+  if (!dirPath) return true;
+
+  // Select path module based on platform (supports mocking in tests)
+  const p = process.platform === 'win32' ? path.win32 : path.posix;
+
+  const normalized = resolvePath(dirPath, p);
+  const segments = normalized.split(p.sep);
+
+  // Check if any segment is a sensitive directory (e.g. .ssh)
+  if (segments.some(isHiddenOrSensitive)) {
+    return true;
+  }
+
+  return checkRestrictedRoots(normalized, restrictedRoots);
 }
 
 /**
