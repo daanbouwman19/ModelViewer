@@ -54,7 +54,9 @@ describe('Encryption Utils Coverage', () => {
     const consoleWarnSpy = vi
       .spyOn(console, 'warn')
       .mockImplementation(() => {});
-    const writeSpy = vi.spyOn(fs, 'writeFileSync');
+    const writeSpy = vi
+      .spyOn(fs, 'writeFileSync')
+      .mockImplementation(() => undefined);
 
     vi.spyOn(fs, 'existsSync').mockReturnValue(true);
     vi.spyOn(fs, 'readFileSync').mockImplementation(() => {
@@ -115,5 +117,28 @@ describe('Encryption Utils Coverage', () => {
       expect.stringContaining('Decryption failed'),
       expect.any(String),
     );
+  });
+
+  it('should rotate key if compromised key is detected', async () => {
+    const consoleWarnSpy = vi
+      .spyOn(console, 'warn')
+      .mockImplementation(() => {});
+    const writeSpy = vi
+      .spyOn(fs, 'writeFileSync')
+      .mockImplementation(() => undefined);
+
+    vi.spyOn(fs, 'existsSync').mockReturnValue(true);
+    // Mock reading the compromised key
+    vi.spyOn(fs, 'readFileSync').mockReturnValue(
+      '50c7a5ac267dc92161817ab092dcfc9dcd64ea5824d9b40b021c0f5e3f514563',
+    );
+
+    const { encrypt } = await import('../../src/core/utils/encryption');
+    encrypt('test');
+
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Compromised master key detected'),
+    );
+    expect(writeSpy).toHaveBeenCalled();
   });
 });

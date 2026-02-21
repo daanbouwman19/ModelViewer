@@ -7,6 +7,10 @@ const ALGORITHM = 'aes-256-gcm';
 const KEY_LENGTH = 32; // 256 bits
 const IV_LENGTH = 12; // 96 bits for GCM
 
+// Known compromised key hash (SHA-256 of the hex string)
+export const COMPROMISED_KEY_HASH =
+  '8d83d79e7490634b1be7f3c05713dbcbc73abe47da99151aa6e85d5562aed005';
+
 let cachedKey: Buffer | null = null;
 
 /**
@@ -32,14 +36,26 @@ function getEncryptionKey(): Buffer {
   if (fs.existsSync(keyPath)) {
     try {
       const keyHex = fs.readFileSync(keyPath, 'utf8').trim();
-      const key = Buffer.from(keyHex, 'hex');
-      if (key.length !== KEY_LENGTH) {
+      const currentKeyHash = crypto
+        .createHash('sha256')
+        .update(keyHex)
+        .digest('hex');
+
+      if (currentKeyHash === COMPROMISED_KEY_HASH) {
         console.warn(
-          `[Encryption] Invalid key length in ${MASTER_KEY_FILE}. Regenerating.`,
+          '[Encryption] Compromised master key detected. Rotating key for security.',
         );
+        // Fall through to generation logic
       } else {
-        cachedKey = key;
-        return key;
+        const key = Buffer.from(keyHex, 'hex');
+        if (key.length !== KEY_LENGTH) {
+          console.warn(
+            `[Encryption] Invalid key length in ${MASTER_KEY_FILE}. Regenerating.`,
+          );
+        } else {
+          cachedKey = key;
+          return key;
+        }
       }
     } catch (err) {
       console.warn(`[Encryption] Failed to read ${MASTER_KEY_FILE}:`, err);

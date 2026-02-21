@@ -18,3 +18,4 @@ config/
 certs/
 verification/
 *.log
+master.key
