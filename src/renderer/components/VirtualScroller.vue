@@ -25,7 +25,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watchEffect } from 'vue';
 
 const props = defineProps<{
   // Use Record<string, unknown> instead of any to satisfy linter
@@ -82,9 +82,20 @@ onUnmounted(() => {
   }
 });
 
-const visibleItems = computed(() => {
+const startIndex = ref(0);
+const endIndex = ref(0);
+
+// Bolt Optimization: Decouple scroll position from visible items computation.
+// Only update visible range when the indices actually change.
+// This prevents recreating the visibleItems array on every scroll frame,
+// reducing garbage collection and patch overhead.
+watchEffect(() => {
   const count = props.items.length;
-  if (count === 0 || props.itemSize <= 0) return [];
+  if (count === 0 || props.itemSize <= 0) {
+    startIndex.value = 0;
+    endIndex.value = 0;
+    return;
+  }
 
   const size = props.itemSize;
   const buffer = bufferAmount.value;
@@ -92,20 +103,33 @@ const visibleItems = computed(() => {
   const height = containerHeight.value;
 
   // Calculate visible range
-  let startIndex = Math.floor(currentScroll / size) - buffer;
-  let endIndex = Math.ceil((currentScroll + height) / size) + buffer;
+  let start = Math.floor(currentScroll / size) - buffer;
+  let end = Math.ceil((currentScroll + height) / size) + buffer;
 
   // Clamp to bounds
-  startIndex = Math.max(0, startIndex);
-  endIndex = Math.min(count, endIndex);
+  start = Math.max(0, start);
+  end = Math.min(count, end);
+
+  if (start !== startIndex.value || end !== endIndex.value) {
+    startIndex.value = start;
+    endIndex.value = end;
+  }
+});
+
+const visibleItems = computed(() => {
+  const start = startIndex.value;
+  const end = endIndex.value;
+  const items = props.items;
+  const size = props.itemSize;
+  const keyField = keyFieldProp.value;
 
   const visible = [];
-  for (let i = startIndex; i < endIndex; i++) {
-    const item = props.items[i];
+  for (let i = start; i < end; i++) {
+    const item = items[i];
     // If item is null/undefined (shouldn't happen with valid data), skip or handle
     if (!item) continue;
 
-    const key = item[keyFieldProp.value];
+    const key = item[keyField];
 
     visible.push({
       item,
