@@ -1111,6 +1111,25 @@ describe('MediaHandler Combined Tests', () => {
       expect(res2.status).toBe(200);
     });
 
+    it('HLS routes handle missing file and segment parameters', async () => {
+      const app = createMediaApp({ ffmpegPath: 'ffmpeg', cacheDir: '/cache' });
+
+      // Missing file for master.m3u8
+      const resMaster = await request(app).get('/api/hls/master.m3u8');
+      expect(resMaster.status).toBe(400);
+      expect(resMaster.text).toBe('Missing file parameter');
+
+      // Missing file for playlist.m3u8
+      const resPlaylist = await request(app).get('/api/hls/playlist.m3u8');
+      expect(resPlaylist.status).toBe(400);
+      expect(resPlaylist.text).toBe('Missing file parameter');
+
+      // Missing file for segment (only segment provided via path)
+      const resSegment = await request(app).get('/api/hls/segment/0.ts');
+      expect(resSegment.status).toBe(400);
+      expect(resSegment.text).toBe('Missing file or segment parameter');
+    });
+
     it('Static File Middleware normalizes Windows paths with leading slash', async () => {
       const originalPlatform = process.platform;
       Object.defineProperty(process, 'platform', { value: 'win32' });
