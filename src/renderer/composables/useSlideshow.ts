@@ -3,7 +3,7 @@
  * This includes starting/stopping slideshows, navigating media, filtering,
  * and selecting media items based on a weighted random algorithm.
  */
-import { computed } from 'vue';
+import { computed, toRaw } from 'vue';
 import { useLibraryStore } from './useLibraryStore';
 import { usePlayerStore } from './usePlayerStore';
 import { useUIStore } from './useUIStore';
@@ -74,12 +74,14 @@ export function useSlideshow() {
     if (!mediaItem) return;
     try {
       // Optimistically update the local view count so the UI reflects it immediately
-      if (mediaItem.viewCount === undefined) {
-        mediaItem.viewCount = 0;
-      }
-      mediaItem.viewCount++;
+      if (!uiStore.state.isHistoryMode) {
+        if (mediaItem.viewCount === undefined) {
+          mediaItem.viewCount = 0;
+        }
+        mediaItem.viewCount++;
 
-      await api.recordMediaView(mediaItem.path);
+        await api.recordMediaView(mediaItem.path);
+      }
       if (playerStore.state.isTimerRunning) {
         resumeSlideshowTimer();
       }
@@ -289,6 +291,24 @@ export function useSlideshow() {
   };
 
   /**
+   * Starts a slideshow specifically from the history list preserving order.
+   * @param historyMedia - The array of media files from the user's history
+   */
+  const startHistorySlideshow = (historyMedia: MediaFile[]) => {
+    if (!historyMedia || historyMedia.length === 0) return;
+
+    const mediaArray = toRaw(historyMedia).slice();
+    libraryStore.state.globalMediaPoolForSelection = mediaArray;
+    playerStore.state.displayedMediaFiles = mediaArray;
+    playerStore.state.currentMediaIndex = 0;
+    playerStore.state.currentMediaItem = mediaArray[0];
+    uiStore.state.viewMode = 'player';
+    uiStore.state.isHistoryMode = true;
+    playerStore.state.isSlideshowActive = true;
+    playerStore.state.isTimerRunning = false;
+  };
+
+  /**
    * Opens an album and its children in Grid View.
    * @param album - The album to open.
    */
@@ -323,6 +343,7 @@ export function useSlideshow() {
     toggleAlbumSelection,
     startSlideshow,
     startIndividualAlbumSlideshow,
+    startHistorySlideshow,
     openAlbumInGrid,
     pickAndDisplayNextMediaItem,
     reapplyFilter,

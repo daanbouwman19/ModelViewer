@@ -60,12 +60,19 @@ describe('useLibraryStore - Recently Played', () => {
 
     expect(api.getRecentlyPlayed).toHaveBeenCalledWith(10);
     expect(store.state.historyMedia).toHaveLength(2);
+    // Unchanged order: the component passes through the DB order directly now
     expect(store.state.historyMedia[0].name).toBe('video.mp4');
     expect(store.state.historyMedia[0].viewCount).toBe(5);
     expect(store.state.historyMedia[0].rating).toBe(4);
-    // JS timestamp for date
     expect(store.state.historyMedia[0].lastViewed).toBe(
       new Date('2023-01-01T12:00:00.000Z').getTime(),
+    );
+
+    expect(store.state.historyMedia[1].name).toBe('image.jpg');
+    expect(store.state.historyMedia[1].viewCount).toBe(1);
+    expect(store.state.historyMedia[1].rating).toBe(0);
+    expect(store.state.historyMedia[1].lastViewed).toBe(
+      new Date('2023-01-02T12:00:00.000Z').getTime(),
     );
   });
 

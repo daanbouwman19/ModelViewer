@@ -107,10 +107,9 @@ export function useLibraryStore() {
   const fetchHistory = async (limit = 50) => {
     try {
       const items = await api.getRecentlyPlayed(limit);
-      // Map MediaLibraryItem to MediaFile
+      // API returns items ordered by last_viewed DESC (most recent first)
       state.historyMedia = items.map((item) => {
-        // Derive a name if path is standard
-        const name = item.file_path.split(/[/\\]/).pop() || item.file_path;
+        const name = item.file_path.split(/[\/\\]/).pop() || item.file_path;
         return {
           name,
           path: item.file_path,

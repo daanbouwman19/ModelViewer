@@ -487,6 +487,35 @@ export function createMediaApp(options: MediaHandlerOptions) {
     await serveHeatmap(req, res, filePath);
   });
 
+  // HLS Routes
+  app.get('/api/hls/master.m3u8', fileLimiter, async (req, res) => {
+    const filePath = getQueryParam(req.query, 'file');
+    if (!filePath) {
+      res.status(400).send('Missing file parameter');
+      return;
+    }
+    await serveHlsMaster(req, res, filePath);
+  });
+
+  app.get('/api/hls/playlist.m3u8', fileLimiter, async (req, res) => {
+    const filePath = getQueryParam(req.query, 'file');
+    if (!filePath) {
+      res.status(400).send('Missing file parameter');
+      return;
+    }
+    await serveHlsPlaylist(req, res, filePath);
+  });
+
+  app.get('/api/hls/segment/:segment', fileLimiter, async (req, res) => {
+    const filePath = getQueryParam(req.query, 'file');
+    const segment = req.params.segment;
+    if (!filePath || !segment) {
+      res.status(400).send('Missing file or segment parameter');
+      return;
+    }
+    await serveHlsSegment(req, res, filePath, segment as string);
+  });
+
   // Static File Serving (Fallback)
   app.use(fileLimiter, async (req, res) => {
     const requestedPath = normalizeFilePath(req.path);
