@@ -105,7 +105,7 @@ describe('VirtualScroller.vue', () => {
     // Or we can just wait.
 
     // Wait for next tick/raf
-    await new Promise(resolve => setTimeout(resolve, 50));
+    await new Promise((resolve) => setTimeout(resolve, 50));
     await wrapper.vm.$nextTick();
 
     // Recalculate:
