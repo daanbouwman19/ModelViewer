@@ -60,7 +60,10 @@ describe('filterAuthorizedPaths Security', () => {
 
     const result = await filterAuthorizedPaths(inputs);
 
-    expect(result).toEqual(['/allowed/file1.mp4', 'gdrive://valid']);
+    expect(result).toEqual([
+      path.resolve('/allowed/file1.mp4'),
+      'gdrive://valid',
+    ]);
   });
 
   it('uses cache on subsequent calls for filterAuthorizedPaths', async () => {
@@ -96,14 +99,15 @@ describe('filterAuthorizedPaths Security', () => {
   it('returns canonical paths from filterAuthorizedPaths', async () => {
     (vi.mocked(fs.realpath) as any).mockImplementation(async (p: string) => {
       // simulate resolving symlinks or ..
-      if (p === '/allowed/../allowed/file.mp4') return '/allowed/file.mp4';
+      if (p === path.resolve('/allowed/../allowed/file.mp4'))
+        return path.resolve('/allowed/file.mp4');
       return p;
     });
 
     const result = await filterAuthorizedPaths([
       '/allowed/../allowed/file.mp4',
     ]);
-    expect(result).toEqual(['/allowed/file.mp4']);
+    expect(result).toEqual([path.resolve('/allowed/file.mp4')]);
   });
 });
 

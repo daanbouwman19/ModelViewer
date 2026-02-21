@@ -107,8 +107,8 @@ export function useLibraryStore() {
   const fetchHistory = async (limit = 50) => {
     try {
       const items = await api.getRecentlyPlayed(limit);
-      // Map MediaLibraryItem to MediaFile
-      state.historyMedia = items.map((item) => {
+      // Map MediaLibraryItem to MediaFile and reverse to be chronological
+      state.historyMedia = items.reverse().map((item) => {
         // Derive a name if path is standard
         const name = item.file_path.split(/[/\\]/).pop() || item.file_path;
         return {
