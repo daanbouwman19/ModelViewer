@@ -91,7 +91,7 @@ const safeCleanup = (dir: string) => {
         );
       } else {
         const start = Date.now();
-        while (Date.now() - start < 100) { }
+        while (Date.now() - start < 100) {}
       }
     }
   }
@@ -128,7 +128,7 @@ describe('Database Worker Combined Tests', () => {
     }
     try {
       closeDatabase(); // Ensure closed for direct tests
-    } catch { }
+    } catch {}
     safeCleanup(tempDir);
     vi.restoreAllMocks();
   });
@@ -205,7 +205,7 @@ describe('Database Worker Combined Tests', () => {
         const filePath = path.join(tempDir, 'file.jpg');
         fs.writeFileSync(filePath, 'test data');
         await sendMessage('recordMediaView', { filePath });
-        await new Promise(r => setTimeout(r, 10)); // Give time between views
+        await new Promise((r) => setTimeout(r, 10)); // Give time between views
         await sendMessage('recordMediaView', { filePath });
         const result = await sendMessage('getMediaViewCounts', {
           filePaths: [filePath],
@@ -219,7 +219,7 @@ describe('Database Worker Combined Tests', () => {
         fs.writeFileSync(filePath, 'data');
         const result = await sendMessage('recordMediaView', { filePath });
         if (!result.success) {
-          console.error("error recording media view:", result.error, result);
+          console.error('error recording media view:', result.error, result);
         }
         expect(result.success).toBe(true);
       });

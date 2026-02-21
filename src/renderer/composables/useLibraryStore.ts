@@ -107,10 +107,14 @@ export function useLibraryStore() {
   const fetchHistory = async (limit = 50) => {
     try {
       const items = await api.getRecentlyPlayed(limit);
-      // Map MediaLibraryItem to MediaFile and reverse to be chronological
-      state.historyMedia = items.reverse().map((item) => {
-        // Derive a name if path is standard
-        const name = item.file_path.split(/[/\\]/).pop() || item.file_path;
+      // API returns items ordered by last_viewed DESC (most recent first)
+      const sortedItems = items.sort((a, b) => {
+        const aTime = a.last_viewed ? new Date(a.last_viewed).getTime() : 0;
+        const bTime = b.last_viewed ? new Date(b.last_viewed).getTime() : 0;
+        return bTime - aTime;
+      });
+      state.historyMedia = sortedItems.map((item) => {
+        const name = item.file_path.split(/[\/\\]/).pop() || item.file_path;
         return {
           name,
           path: item.file_path,
