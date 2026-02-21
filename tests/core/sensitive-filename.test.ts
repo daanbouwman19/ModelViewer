@@ -48,4 +48,19 @@ describe('isSensitiveFilename Security', () => {
   test('handles empty input safely', () => {
     expect(isSensitiveFilename('')).toBe(false);
   });
+
+  const safeFiles = [
+    'image.png',
+    'video.mp4',
+    'document.txt',
+    'README.md',
+    'my-holiday-photo.jpg',
+    'data.csv',
+    'src',
+    'public',
+  ];
+
+  test.each(safeFiles)('allows common non-sensitive file: %s', (filename) => {
+    expect(isSensitiveFilename(filename)).toBe(false);
+  });
 });
