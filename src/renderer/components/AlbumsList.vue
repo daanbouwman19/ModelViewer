@@ -437,7 +437,7 @@
  * opening the sources modal, and selecting/deselecting albums for the slideshow.
  * Clicking on an album's name starts a slideshow for that specific album and its sub-albums.
  */
-import { nextTick, ref } from 'vue';
+import { nextTick, ref, toRaw } from 'vue';
 import { useLibraryStore } from '../composables/useLibraryStore';
 import { usePlayerStore } from '../composables/usePlayerStore';
 import { useUIStore } from '../composables/useUIStore';
@@ -490,6 +490,7 @@ const {
   viewMode,
   playlistToEdit,
   mediaFilter,
+  isHistoryMode,
 } = uiStore;
 
 const loadingAction = ref<string | null>(null);
@@ -534,6 +535,7 @@ const handleToggleSelection = ({
  * @param album - The album to start the slideshow for.
  */
 const handleClickAlbum = (album: Album) => {
+  isHistoryMode.value = false;
   const textures = collectTexturesRecursive(album);
   const albumWithAllTextures = { ...album, textures };
   slideshow.startIndividualAlbumSlideshow(albumWithAllTextures);
@@ -617,6 +619,7 @@ const handleSmartPlaylistSlideshow = async (playlist: SmartPlaylist) => {
       textures: mediaFiles,
       children: [],
     };
+    isHistoryMode.value = false;
     slideshow.startIndividualAlbumSlideshow(fakeAlbum);
   } catch (error) {
     console.error('Error starting playlist slideshow', error);
@@ -633,6 +636,7 @@ const handleSmartPlaylistGrid = async (playlist: SmartPlaylist) => {
     gridMediaFiles.value = mediaFiles;
     // Use nextTick to allow event bubbling to complete before potentially unmounting components (fix for happy-dom/tests)
     await nextTick();
+    isHistoryMode.value = false;
     viewMode.value = 'grid';
   } catch (error) {
     console.error('Error opening playlist grid', error);
@@ -676,6 +680,7 @@ const handleHistoryGrid = async () => {
     await loadHistory();
     gridMediaFiles.value = libraryStore.state.historyMedia;
     await nextTick();
+    isHistoryMode.value = true;
     viewMode.value = 'grid';
   } catch (e) {
     console.error('Error opening history grid', e);
@@ -697,13 +702,18 @@ const handleHistorySlideshow = async () => {
   loadingAction.value = 'history-slideshow';
   try {
     await loadHistory();
-    const fakeAlbum: Album = {
-      id: 'history-playlist',
-      name: 'Recently Played',
-      textures: libraryStore.state.historyMedia,
-      children: [],
-    };
-    slideshow.startIndividualAlbumSlideshow(fakeAlbum);
+    const historyMedia = libraryStore.state.historyMedia;
+    if (historyMedia.length === 0) return;
+
+    const mediaArray = toRaw(historyMedia).slice();
+    libraryStore.state.globalMediaPoolForSelection = mediaArray;
+    playerStore.state.displayedMediaFiles = mediaArray;
+    playerStore.state.currentMediaIndex = 0;
+    playerStore.state.currentMediaItem = mediaArray[0];
+    uiStore.state.viewMode = 'player';
+    isHistoryMode.value = true;
+    playerStore.state.isSlideshowActive = true;
+    playerStore.state.isTimerRunning = false;
   } catch (e) {
     console.error('Error starting history slideshow', e);
     // Optional: show user feedback

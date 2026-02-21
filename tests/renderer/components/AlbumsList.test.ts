@@ -396,12 +396,19 @@ describe('AlbumsList.vue', () => {
 
       const libraryStoreMock = useLibraryStore();
       expect(libraryStoreMock.fetchHistory).toHaveBeenCalledWith(100);
-      expect(mocks.mockStartIndividualAlbumSlideshow).toHaveBeenCalledWith(
-        expect.objectContaining({
-          id: 'history-playlist',
-          textures: [{ path: '/history.jpg' }],
-        }),
-      );
+      expect(mockLibraryState.globalMediaPoolForSelection).toEqual([
+        { path: '/history.jpg' },
+      ]);
+      expect(mockPlayerState.displayedMediaFiles).toEqual([
+        { path: '/history.jpg' },
+      ]);
+      expect(mockPlayerState.currentMediaIndex).toBe(0);
+      expect(mockPlayerState.currentMediaItem).toEqual({
+        path: '/history.jpg',
+      });
+      expect(mockUIState.viewMode).toBe('player');
+      expect(mockPlayerState.isSlideshowActive).toBe(true);
+      expect(mockPlayerState.isTimerRunning).toBe(false);
     });
 
     it('logs error if no history found', async () => {

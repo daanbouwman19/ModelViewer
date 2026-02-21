@@ -74,12 +74,14 @@ export function useSlideshow() {
     if (!mediaItem) return;
     try {
       // Optimistically update the local view count so the UI reflects it immediately
-      if (mediaItem.viewCount === undefined) {
-        mediaItem.viewCount = 0;
-      }
-      mediaItem.viewCount++;
+      if (!uiStore.state.isHistoryMode) {
+        if (mediaItem.viewCount === undefined) {
+          mediaItem.viewCount = 0;
+        }
+        mediaItem.viewCount++;
 
-      await api.recordMediaView(mediaItem.path);
+        await api.recordMediaView(mediaItem.path);
+      }
       if (playerStore.state.isTimerRunning) {
         resumeSlideshowTimer();
       }
