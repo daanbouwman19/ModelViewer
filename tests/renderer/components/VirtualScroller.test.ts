@@ -16,7 +16,8 @@ class ResizeObserverMock {
 global.ResizeObserver = ResizeObserverMock as any;
 
 describe('VirtualScroller.vue', () => {
-  let items: any[];
+  type TestItem = { id: number; name: string };
+  let items: TestItem[];
   const itemSize = 50;
   const containerHeight = 200;
 
