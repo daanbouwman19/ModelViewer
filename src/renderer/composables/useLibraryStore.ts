@@ -108,12 +108,7 @@ export function useLibraryStore() {
     try {
       const items = await api.getRecentlyPlayed(limit);
       // API returns items ordered by last_viewed DESC (most recent first)
-      const sortedItems = items.sort((a, b) => {
-        const aTime = a.last_viewed ? new Date(a.last_viewed).getTime() : 0;
-        const bTime = b.last_viewed ? new Date(b.last_viewed).getTime() : 0;
-        return bTime - aTime;
-      });
-      state.historyMedia = sortedItems.map((item) => {
+      state.historyMedia = items.map((item) => {
         const name = item.file_path.split(/[\/\\]/).pop() || item.file_path;
         return {
           name,

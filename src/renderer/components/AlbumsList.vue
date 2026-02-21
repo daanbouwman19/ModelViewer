@@ -437,7 +437,7 @@
  * opening the sources modal, and selecting/deselecting albums for the slideshow.
  * Clicking on an album's name starts a slideshow for that specific album and its sub-albums.
  */
-import { nextTick, ref, toRaw } from 'vue';
+import { nextTick, ref } from 'vue';
 import { useLibraryStore } from '../composables/useLibraryStore';
 import { usePlayerStore } from '../composables/usePlayerStore';
 import { useUIStore } from '../composables/useUIStore';
@@ -703,17 +703,7 @@ const handleHistorySlideshow = async () => {
   try {
     await loadHistory();
     const historyMedia = libraryStore.state.historyMedia;
-    if (historyMedia.length === 0) return;
-
-    const mediaArray = toRaw(historyMedia).slice();
-    libraryStore.state.globalMediaPoolForSelection = mediaArray;
-    playerStore.state.displayedMediaFiles = mediaArray;
-    playerStore.state.currentMediaIndex = 0;
-    playerStore.state.currentMediaItem = mediaArray[0];
-    uiStore.state.viewMode = 'player';
-    isHistoryMode.value = true;
-    playerStore.state.isSlideshowActive = true;
-    playerStore.state.isTimerRunning = false;
+    slideshow.startHistorySlideshow(historyMedia);
   } catch (e) {
     console.error('Error starting history slideshow', e);
     // Optional: show user feedback

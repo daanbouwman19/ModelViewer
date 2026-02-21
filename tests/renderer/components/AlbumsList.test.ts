@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   mockToggleAlbumSelection: vi.fn(),
   mockStartSlideshow: vi.fn(),
   mockStartIndividualAlbumSlideshow: vi.fn(),
+  mockStartHistorySlideshow: vi.fn(),
   mockToggleSlideshowTimer: vi.fn(),
   mockReapplyFilter: vi.fn(),
 }));
@@ -23,6 +24,7 @@ vi.mock('../../../src/renderer/composables/useSlideshow', () => ({
     toggleAlbumSelection: mocks.mockToggleAlbumSelection,
     startSlideshow: mocks.mockStartSlideshow,
     startIndividualAlbumSlideshow: mocks.mockStartIndividualAlbumSlideshow,
+    startHistorySlideshow: mocks.mockStartHistorySlideshow,
     toggleSlideshowTimer: mocks.mockToggleSlideshowTimer,
     openAlbumInGrid: vi.fn(),
     reapplyFilter: mocks.mockReapplyFilter,
@@ -397,19 +399,9 @@ describe('AlbumsList.vue', () => {
 
       const libraryStoreMock = useLibraryStore();
       expect(libraryStoreMock.fetchHistory).toHaveBeenCalledWith(100);
-      expect(mockLibraryState.globalMediaPoolForSelection).toEqual([
+      expect(mocks.mockStartHistorySlideshow).toHaveBeenCalledWith([
         { path: '/history.jpg' },
       ]);
-      expect(mockPlayerState.displayedMediaFiles).toEqual([
-        { path: '/history.jpg' },
-      ]);
-      expect(mockPlayerState.currentMediaIndex).toBe(0);
-      expect(mockPlayerState.currentMediaItem).toEqual({
-        path: '/history.jpg',
-      });
-      expect(mockUIState.viewMode).toBe('player');
-      expect(mockPlayerState.isSlideshowActive).toBe(true);
-      expect(mockPlayerState.isTimerRunning).toBe(false);
     });
 
     it('logs error if no history found', async () => {

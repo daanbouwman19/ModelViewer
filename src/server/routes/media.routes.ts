@@ -31,12 +31,27 @@ import { createMediaSource } from '../../core/media-source.ts';
 import type { RateLimiters } from '../middleware/rate-limiters.ts';
 import { asyncHandler } from '../middleware/async-handler.ts';
 
+import type { Request, Response, NextFunction } from 'express';
+
 export interface MediaRoutesOptions {
   limiters: RateLimiters;
   mediaHandler: MediaHandler;
   transcodeState: { current: number };
   ffmpegPath: string | null;
 }
+
+const requireFileQueryParam = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  const file = getQueryParam(req.query, 'file');
+  if (!file || typeof file !== 'string') {
+    return next(new AppError(400, 'Missing file'));
+  }
+  res.locals.filePath = file;
+  next();
+};
 
 export function createMediaRoutes({
   limiters,
@@ -186,12 +201,9 @@ export function createMediaRoutes({
     '/api/metadata',
     readLimiter,
     fileLimiter,
+    requireFileQueryParam,
     asyncHandler(async (req, res) => {
-      const filePath = getQueryParam(req.query, 'file');
-      if (!filePath || typeof filePath !== 'string') {
-        throw new AppError(400, 'Missing file');
-      }
-      await mediaHandler.serveMetadata(req, res, filePath);
+      await mediaHandler.serveMetadata(req, res, res.locals.filePath);
     }),
   );
 
@@ -260,36 +272,27 @@ export function createMediaRoutes({
   router.get(
     '/api/thumbnail',
     fileLimiter,
+    requireFileQueryParam,
     asyncHandler(async (req, res) => {
-      const filePath = getQueryParam(req.query, 'file');
-      if (!filePath || typeof filePath !== 'string') {
-        throw new AppError(400, 'Missing file');
-      }
-      await mediaHandler.serveThumbnail(req, res, filePath);
+      await mediaHandler.serveThumbnail(req, res, res.locals.filePath);
     }),
   );
 
   router.get(
     '/api/video/heatmap',
     fileLimiter,
+    requireFileQueryParam,
     asyncHandler(async (req, res) => {
-      const filePath = getQueryParam(req.query, 'file');
-      if (!filePath || typeof filePath !== 'string') {
-        throw new AppError(400, 'Missing file');
-      }
-      await mediaHandler.serveHeatmap(req, res, filePath);
+      await mediaHandler.serveHeatmap(req, res, res.locals.filePath);
     }),
   );
 
   router.get(
     '/api/video/heatmap/status',
     fileLimiter,
+    requireFileQueryParam,
     asyncHandler(async (req, res) => {
-      const filePath = getQueryParam(req.query, 'file');
-      if (!filePath || typeof filePath !== 'string') {
-        throw new AppError(400, 'Missing file');
-      }
-      await mediaHandler.serveHeatmapProgress(req, res, filePath);
+      await mediaHandler.serveHeatmapProgress(req, res, res.locals.filePath);
     }),
   );
 
@@ -297,12 +300,9 @@ export function createMediaRoutes({
     '/api/hls/master.m3u8',
     streamLimiter,
     fileLimiter,
+    requireFileQueryParam,
     asyncHandler(async (req, res) => {
-      const filePath = getQueryParam(req.query, 'file');
-      if (!filePath || typeof filePath !== 'string') {
-        throw new AppError(400, 'Missing file');
-      }
-      await mediaHandler.serveHlsMaster(req, res, filePath);
+      await mediaHandler.serveHlsMaster(req, res, res.locals.filePath);
     }),
   );
 
@@ -310,12 +310,9 @@ export function createMediaRoutes({
     '/api/hls/playlist.m3u8',
     streamLimiter,
     fileLimiter,
+    requireFileQueryParam,
     asyncHandler(async (req, res) => {
-      const filePath = getQueryParam(req.query, 'file');
-      if (!filePath || typeof filePath !== 'string') {
-        throw new AppError(400, 'Missing file');
-      }
-      await mediaHandler.serveHlsPlaylist(req, res, filePath);
+      await mediaHandler.serveHlsPlaylist(req, res, res.locals.filePath);
     }),
   );
 
@@ -323,16 +320,18 @@ export function createMediaRoutes({
     '/api/hls/:segment',
     streamLimiter,
     fileLimiter,
+    requireFileQueryParam,
     asyncHandler(async (req, res) => {
       const segmentParam = req.params.segment;
       const segment = Array.isArray(segmentParam)
         ? segmentParam[0]
         : segmentParam;
-      const filePath = getQueryParam(req.query, 'file');
-      if (!filePath || typeof filePath !== 'string') {
-        throw new AppError(400, 'Missing file');
-      }
-      await mediaHandler.serveHlsSegment(req, res, filePath, segment);
+      await mediaHandler.serveHlsSegment(
+        req,
+        res,
+        res.locals.filePath,
+        segment,
+      );
     }),
   );
 
