@@ -93,6 +93,7 @@ function createMockState() {
     viewMode: 'player',
     playlistToEdit: null,
     mediaFilter: 'All',
+    isHistoryMode: false,
   });
 
   return { libraryState, playerState, uiState };
@@ -414,7 +415,7 @@ describe('AlbumsList.vue', () => {
     it('logs error if no history found', async () => {
       const consoleSpy = vi
         .spyOn(console, 'error')
-        .mockImplementation(() => {});
+        .mockImplementation(() => { });
       const wrapper = mount(AlbumsList);
       const historyBtn = wrapper.find(
         'button[aria-label="Recently Played Slideshow"]',
@@ -477,7 +478,7 @@ describe('AlbumsList.vue', () => {
       );
       const consoleSpy = vi
         .spyOn(console, 'error')
-        .mockImplementation(() => {});
+        .mockImplementation(() => { });
 
       const wrapper = mount(AlbumsList);
       await wrapper.vm.$nextTick();
@@ -503,7 +504,7 @@ describe('AlbumsList.vue', () => {
 
       const consoleSpy = vi
         .spyOn(console, 'error')
-        .mockImplementation(() => {});
+        .mockImplementation(() => { });
       const wrapper = mount(AlbumsList);
 
       const gridBtn = wrapper.find('button[aria-label="Open History in Grid"]');
